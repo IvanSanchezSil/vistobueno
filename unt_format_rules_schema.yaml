@@ -1,0 +1,1020 @@
+# ============================================================
+# ESQUEMA DE REGLAS DE FORMATO — UNT FECyC
+# Fuente primaria: MANUAL REVISADO TERCERA VERSION (11-07-2025)
+# Generado: 2026-09-01
+#
+# CONVENCIÓN DE NIVEL DE VERIFICACIÓN:
+# - Las reglas con campo "mecanismo_verificable" se comprueban
+#   directamente sobre la estructura del archivo .docx (XML),
+#   sin renderizar ni interpretar texto.
+# - Las reglas SIN ese campo requieren análisis de contenido
+#   semántico (contar palabras, leer citas, contar referencias);
+#   no son verificables por estructura de archivo.
+# - Los valores XML heredan la evidencia de las 5 plantillas y
+#   del manual; cuando el mecanismo contradice al manual se
+#   registra en la sección ambiguedades.
+# - Las notas con prefijo "EVALUADO:" documentan el resultado de
+#   ejecutar el check contra las 5 plantillas (2026-09-01).
+#
+# MECANISMO_VERIFICABLE (estructura ejecutable):
+#   cada value es un mapping con:
+#     nota:  texto humano que describe el mecanismo
+#     checks: lista de comprobaciones, cada una con:
+#       tipo: xml_atributo | xml_presencia | texto_regex
+#             | secuencia_titulos | imagen_presencia
+#       parte: document | footer | header   (defecto: document)
+#       archivo: parte alternativa del paquete OPC, ej. word/footer1.xml (opcional)
+#       contexto: todos | cuerpo            (defecto: todos)
+#         "cuerpo" = párrafos de la ULTIMA sección: los que están después
+#         del último <w:sectPr> anidado en <w:pPr> (límite real de sección),
+#         con estilo Normal/sin estilo. El evaluador lo resuelve en código.
+#       xpath: expresión XPath usando los prefijos de "namespaces"
+#       atributo: selector de atributo, ej. @w:val (solo xml_atributo)
+#       comparacion:
+#         eq | all_eq     -> igualdad (atributo o contenido)
+#         exists | not_exists -> presencia/ausencia de nodos
+#         contains        -> subcadena (usa ignore_case si se indica)
+#         regex           -> para texto_regex
+#       esperado: valor contra el que comparar (salvo exists/not_exists)
+#       patron: expresión regular (solo texto_regex); TODOS los nodos W:t
+#               que matchean xpath deben cumplirla
+#       ignore_case: true|false (opcional, para contains)
+#       fuente_lista: valor_esperado (solo secuencia_titulos: compara los
+#                     títulos que matchean contra la lista valor_esperado
+#                     de la propia regla)
+#       normalizacion: [opcional|mayusculas|ignorar_indent] (solo secuencia_titulos)
+#       formato: png (solo imagen_presencia)
+#       cantidad_minima: N (solo imagen_presencia)
+#   parte footer/header: se resuelve contra el componente por defecto de la
+#   primera sección (word/footer1.xml, word/header1.xml).
+#
+# CONVENCIONES XPath (verificadas con lxml/libxml2):
+# - Predicados de posición (position()/last()) SIEMPRE sobre nodo-set
+#   parentizado: (//w:sectPr)[position() = last()] — sin paréntesis, libxml2
+#   evalúa el predicado como conjunto singleton y el resultado es incorrecto.
+# - Anclajes por texto (contains/starts-with en portada) usan translate()
+#   para búsqueda case-insensitive.
+# - secuencia_titulos: los estilos de encabezado se reconocen por "Ttulo1..3"
+#   (español) o "Heading1..3"; el ítem de portada ("Carátula") se satisface
+#   con el primer párrafo que contiene "Universidad" (la portada no usa
+#   estilo de encabezado).
+# ============================================================
+
+namespaces:
+  w: "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  r: "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  a: "http://schemas.openxmlformats.org/drawingml/2006/main"
+  pic: "http://schemas.openxmlformats.org/drawingml/2006/picture"
+
+rules:
+
+  # ─── PAPEL ───────────────────────────────────────────────
+  - id: papel_tamano
+    tipo: papel
+    descripcion: El tamaño del papel debe ser A4
+    valor_esperado: "210 x 297 mm"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 124-125 para Trabajo de Investigación Cuantitativo; se repite idéntico en párr. 443-444, 593-594 para otros tipos)'
+    cita: '"Tamaño A4/papel (210x297 cm)"'
+    mecanismo_verificable:
+      nota: '<w:pgSz w:w="11906" w:h="16838"/> (A4: 21.0 x 29.7 cm en twips). Confirmado en las 5 plantillas.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:sectPr[1]/w:pgSz
+        atributo: '@w:w'
+        comparacion: eq
+        esperado: '11906'
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:sectPr[1]/w:pgSz
+        atributo: '@w:h'
+        comparacion: eq
+        esperado: '16838'
+  # ─── FUENTE Y TAMAÑO ────────────────────────────────────
+  - id: fuente_principal
+    tipo: fuente
+    descripcion: La fuente del cuerpo del texto debe ser Times New Roman
+    valor_esperado: "Times New Roman"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 126-127)'
+    cita: '"Times New Roman: 12 puntos"'
+    mecanismo_verificable:
+      nota: 'Runs de parrafos: <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/> en rPr. Confirmado en el cuerpo del manual y en las portadas de las plantillas.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: cuerpo
+        xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:rFonts
+        atributo: '@w:ascii'
+        comparacion: all_eq
+        esperado: Times New Roman
+  - id: tamano_cuerpo
+    tipo: fuente
+    descripcion: El tamaño de letra del cuerpo del texto debe ser 12 puntos
+    valor_esperado: "12pt"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 126-127)'
+    cita: '"Times New Roman: 12 puntos"'
+    mecanismo_verificable:
+      nota: 'Runs: <w:sz w:val="24"/> (12pt = 24 half-points). Confirmado en el cuerpo del manual y plantillas.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: cuerpo
+        xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:sz
+        atributo: '@w:val'
+        comparacion: all_eq
+        esperado: '24'
+  - id: caratula_universidad_tamano
+    tipo: fuente
+    descripcion: Tamaño de letra del nombre de la Universidad en carátula
+    valor_esperado: "18pt"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 174); nota indicativa en párr. 153: "(Times New Román 18 puntos/13 puntos/13 puntos)"'
+    cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
+    mecanismo_verificable:
+      nota: 'Run del nombre de la universidad en portada: <w:sz w:val="36"/> (18pt).'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad')][1]/w:r[1]/w:rPr/w:sz
+        atributo: '@w:val'
+        comparacion: eq
+        esperado: '36'
+  - id: caratula_facultad_escuela_tamano
+    tipo: fuente
+    descripcion: Tamaño de letra de Facultad y Escuela Profesional en carátula
+    valor_esperado: "13pt"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 175)'
+    cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos)."'
+    mecanismo_verificable:
+      nota: 'Run de la facultad/escuela en portada: <w:sz w:val="26"/> (13pt).'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][1]/w:r[1]/w:rPr/w:sz
+        atributo: '@w:val'
+        comparacion: eq
+        esperado: '26'
+  - id: caratula_titulo_trabajo_tamano
+    tipo: fuente
+    descripcion: Tamaño de letra del título del trabajo en carátula
+    valor_esperado: "14pt"
+    severidad: warning  # bajado de error: las 5 plantillas oficiales usan 13pt de forma uniforme (ver mecanismo_verificable.nota)
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 177)'
+    cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos)."'
+    mecanismo_verificable:
+      nota: 'Run del titulo del trabajo en portada: <w:sz w:val="28"/> (14pt). EVALUADO: el placeholder de las plantillas usa 13pt (w:sz=26) - desvio plantilla vs manual, reportado.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]/w:r[1]/w:rPr/w:sz
+        atributo: '@w:val'
+        comparacion: eq
+        esperado: '28'
+  - id: caratula_optar_grado_tamano
+    tipo: fuente
+    descripcion: Tamaño de letra de la línea "Trabajo de Investigación para optar el grado de Bachiller en..."
+    valor_esperado: "13pt"
+    severidad: warning  # bajado de error: las 5 plantillas oficiales usan 12pt de forma uniforme (ver mecanismo_verificable.nota)
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 178)'
+    cita: '"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos)."'
+    mecanismo_verificable:
+      nota: 'Run de la linea "Para optar..." en portada: <w:sz w:val="26"/> (13pt). EVALUADO: el placeholder de las plantillas usa 12pt (w:sz=24) - desvio plantilla vs manual, reportado.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/w:r[1]/w:rPr/w:sz
+        atributo: '@w:val'
+        comparacion: eq
+        esperado: '26'
+  - id: caratula_autores_tamano
+    tipo: fuente
+    descripcion: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula
+    valor_esperado: "12pt"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 161, 168, 179-183)'
+    cita: '"(Times New Román 12 puntos)" para autores; "Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos)."'
+    mecanismo_verificable:
+      nota: 'Run de autores en portada: <w:sz w:val="24"/> (12pt).'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:sz
+        atributo: '@w:val'
+        comparacion: eq
+        esperado: '24'
+  - id: caratula_logotipo_tamano
+    tipo: dimension
+    descripcion: Tamaño del logotipo de la Universidad en carátula
+    valor_esperado: "4.84 cm alto x 6.73 cm ancho"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 176)'
+    cita: '"Logotipo de la Universidad: Centrado, tamaño: 4.84 cm de alto x 6.73 cm de ancho."'
+    mecanismo_verificable:
+      nota: 'Imagen embebida en portada: existe word/media/*.png referenciado por un blip en document.xml. La imagen concreta varia por programa (ver reporte.md): 693x492 px en Ed.Inicial/SEG.ESP vs 402x471 px en Tec.Educativa.'
+      checks:
+      - tipo: imagen_presencia
+        parte: document
+        xpath: //w:drawing//a:blip
+        formato: png
+        cantidad_minima: 1
+  # ─── INTERLINEADO ────────────────────────────────────────
+  - id: interlineado
+    tipo: interlineado
+    descripcion: El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)
+    valor_esperado: "1.5 (ONE_POINT_FIVE)"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 128-129)'
+    cita: '"Interlineado: 1.5 puntos"'
+    mecanismo_verificable:
+      nota: 'Parrafos: <w:spacing w:line="360" w:lineRule="auto"/> (1.5 lineas = 360 en 240avos de linea). Confirmado en manual y plantillas.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: cuerpo
+        xpath: //w:body//w:p[w:pPr/w:spacing]/w:pPr/w:spacing
+        atributo: '@w:line'
+        comparacion: all_eq
+        esperado: '360'
+      - tipo: xml_atributo
+        parte: document
+        contexto: cuerpo
+        xpath: //w:body//w:p[w:pPr/w:spacing]/w:pPr/w:spacing
+        atributo: '@w:lineRule'
+        comparacion: all_eq
+        esperado: auto
+  # ─── ALINEACIÓN ──────────────────────────────────────────
+  - id: alineacion_cuerpo
+    tipo: alineacion
+    descripcion: El cuerpo del texto debe estar justificado
+    valor_esperado: "justificada"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 130-131)'
+    cita: '"Alineación: Justificada"'
+    mecanismo_verificable:
+      nota: 'Parrafos de cuerpo: <w:jc w:val="both"/> (justificado). Confirmado en el cuerpo del manual y plantillas.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: cuerpo
+        xpath: //w:body//w:p[w:pPr/w:jc]/w:pPr/w:jc
+        atributo: '@w:val'
+        comparacion: all_eq
+        esperado: both
+  - id: alineacion_caratula_todos_elementos
+    tipo: alineacion
+    descripcion: Todos los elementos de la carátula deben estar centrados
+    valor_esperado: "centrado"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 174-183)'
+    cita: '"Nombre de la Universidad: Centrado...", "Facultad y Escuela Profesional: Centrado...", "Título del Trabajo...: Centrado...", etc.'
+    mecanismo_verificable:
+      nota: 'Parrafos de portada: <w:jc w:val="center"/>. Confirmado en las 5 plantillas.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad') or (contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela')) or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'mención') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')]/w:pPr/w:jc
+        atributo: '@w:val'
+        comparacion: all_eq
+        esperado: center
+  # ─── MÁRGENES ────────────────────────────────────────────
+  - id: margen_superior
+    tipo: margen
+    descripcion: Margen superior del documento
+    valor_esperado: "2.5 cm"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 132-133)'
+    cita: '"Superior: 2.5 cm"'
+    mecanismo_verificable:
+      nota: '<w:pgMar w:top="1418"/> (2.5 cm = 1417.32 twips; Word serializa 1418). EVALUADO: las 5 plantillas usan 1418.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: (//w:sectPr)/w:pgMar
+        atributo: '@w:top'
+        comparacion: all_eq
+        esperado: '1418'
+  - id: margen_inferior
+    tipo: margen
+    descripcion: Margen inferior del documento
+    valor_esperado: "2.5 cm"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 132-134)'
+    cita: '"Inferior: 2.5 cm"'
+    mecanismo_verificable:
+      nota: '<w:pgMar w:bottom="1418"/> (2.5 cm = 1417.32 twips; Word serializa 1418). EVALUADO: las 5 plantillas usan 1418.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: (//w:sectPr)/w:pgMar
+        atributo: '@w:bottom'
+        comparacion: all_eq
+        esperado: '1418'
+  - id: margen_derecho
+    tipo: margen
+    descripcion: Margen derecho del documento
+    valor_esperado: "2.5 cm"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 132-135)'
+    cita: '"Derecho: 2.5 cm"'
+    mecanismo_verificable:
+      nota: '<w:pgMar w:right="1418"/> (2.5 cm = 1417.32 twips; Word serializa 1418). EVALUADO: las 5 plantillas usan 1418. NOTA: el archivo del manual usa 3.0 cm (1701 twips) - ver ambiguedad amb_margen_derecho_archivo_vs_regla.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: (//w:sectPr)/w:pgMar
+        atributo: '@w:right'
+        comparacion: all_eq
+        esperado: '1418'
+  - id: margen_izquierdo
+    tipo: margen
+    descripcion: Margen izquierdo del documento
+    valor_esperado: "3.0 cm"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 132-136)'
+    cita: '"Izquierdo: 3.0 cm"'
+    mecanismo_verificable:
+      nota: <w:pgMar w:left="1701"/> (3.0 cm = 1701 twips). Confirmado en las 5 plantillas.
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: (//w:sectPr)/w:pgMar
+        atributo: '@w:left'
+        comparacion: all_eq
+        esperado: '1701'
+  # ─── SANGRÍA ─────────────────────────────────────────────
+  - id: sangria_parrafo
+    tipo: sangria
+    descripcion: La primera línea de cada párrafo debe tener sangría de 1.27 cm
+    valor_esperado: "1.27 cm (½ pulgada)"
+    severidad: warning  # bajado de error: las 5 plantillas oficiales usan 708/709 twips (~1.25 cm), no 720 (ver mecanismo_verificable.nota)
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 141)'
+    cita: '"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo."'
+    mecanismo_verificable:
+      nota: 'Parrafos de cuerpo: <w:ind w:firstLine="720"/> (1.27 cm ~ 720 twips). EVALUADO: las 5 plantillas SI aplican sangria, pero con w:firstLine="708" (cuerpo) / "709" (portada) ~ 1.25 cm, no 720 - desvio menor plantilla vs manual, ver ambiguedad amb_sangria_plantillas_708_vs_720.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: cuerpo
+        xpath: //w:body//w:p[w:pPr/w:ind]/w:pPr/w:ind
+        atributo: '@w:firstLine'
+        comparacion: all_eq
+        esperado: '720'
+  # ─── NUMERACIÓN DE PÁGINA ────────────────────────────────
+  - id: numeracion_posicion
+    tipo: numeracion_pagina
+    descripcion: La numeración de página se ubica en el margen inferior derecho
+    valor_esperado: "margen inferior derecho"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 137-138)'
+    cita: '"Numeración de la página: Margen inferior derecho."'
+    mecanismo_verificable:
+      nota: 'Footer: campo <w:instrText>PAGE \* MERGEFORMAT</w:instrText> y parrafo del footer con <w:jc w:val="right"/>. Confirmado en las 5 plantillas (footer1.xml).'
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:sectPr[1]/w:footerReference
+        comparacion: exists
+      - tipo: xml_presencia
+        parte: footer
+        contexto: todos
+        xpath: //w:instrText[contains(., 'PAGE')]
+        comparacion: exists
+        archivo: word/footer1.xml
+      - tipo: xml_atributo
+        parte: footer
+        contexto: todos
+        xpath: //w:p/w:pPr/w:jc
+        atributo: '@w:val'
+        comparacion: eq
+        esperado: right
+        archivo: word/footer1.xml
+  - id: numeracion_preliminares_romano
+    tipo: numeracion_pagina
+    descripcion: Las páginas preliminares se numeran en romanos minúsculos; la carátula no se enumera pero se cuenta; la Dedicatoria inicia con "ii"
+    valor_esperado: "romanos minúsculos (ii, iii, iv...); carátula = i (sin mostrar)"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 139)'
+    cita: '"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos ("ii") en romano..."'
+    mecanismo_verificable:
+      nota: 'En las secciones de preliminares (antes del salto de seccion previo a Introduccion): <w:pgNumType w:fmt="lowerRoman"/> en sectPr (sin w:start, o sea arranca en i). Confirmado en las 5 plantillas: sec0 y sec1 lowerRoman; sec2 (Introduccion en adelante) sin pgNumType.'
+      checks:
+      - tipo: xml_atributo
+        parte: document
+        contexto: todos
+        xpath: (//w:sectPr)[position() < last()]/w:pgNumType
+        atributo: '@w:fmt'
+        comparacion: all_eq
+        esperado: lowerRoman
+  - id: numeracion_cuerpo_arabigo
+    tipo: numeracion_pagina
+    descripcion: La numeración en arábigos se inicia en la Introducción, continuando el correlativo desde los romanos
+    valor_esperado: "arábigos consecutivos desde Introducción"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección "Formato general" (párr. 140)'
+    cita: '"La numeración en arábigos se inicia en la introducción contando el número de páginas en romanos (por ejemplo, si la numeración de las páginas preliminares termina en "xi", corresponde a la primera página de la Introducción el número 12)."'
+    mecanismo_verificable:
+      nota: 'La seccion que contiene la Introduccion NO declara w:pgNumType (Word usa fmt decimal por defecto), asi el correlativo continua automaticamente desde el ultimo numero romano. Confirmado en las 5 plantillas: sec2 sin pgNumType.'
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: (//w:sectPr)[position() = last()]/w:pgNumType
+        comparacion: not_exists
+  - id: caratula_no_se_enumera
+    tipo: numeracion_pagina
+    descripcion: La carátula (página i) no muestra número visible
+    valor_esperado: "oculta"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 184)'
+    cita: '"La página número i, se cuenta, pero no se enumera."'
+    mecanismo_verificable:
+      nota: 'Primera seccion: <w:titlePg/> en sectPr. Confirmado en las 5 plantillas (sec0).'
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:sectPr[1]/w:titlePg
+        comparacion: exists
+  # ─── CARÁCTULA — FORMATO DE TEXTOS EN PORTADA ────────────
+  - id: caratula_universidad_negrita_mayusculas
+    tipo: formato_texto
+    descripcion: El nombre de la Universidad en carátula debe ser con negrita y mayúsculas
+    valor_esperado: "negrita + MAYÚSCULAS"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 174)'
+    cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
+    mecanismo_verificable:
+      nota: Run en portada con <w:b/> y texto en mayusculas en w:t.
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+        comparacion: exists
+      - tipo: texto_regex
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad')][1]//w:t
+        patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+  - id: caratula_facultad_negrita_mayusculas
+    tipo: formato_texto
+    descripcion: "Facultad y Escuela en carátula: negrita y mayúsculas"
+    valor_esperado: "negrita + MAYÚSCULAS"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 175)'
+    cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos)."'
+    mecanismo_verificable:
+      nota: Run en portada con <w:b/> y texto en mayusculas en w:t.
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+        comparacion: exists
+      - tipo: texto_regex
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][1]//w:t
+        patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+  - id: caratula_titulo_negrita_mixta
+    tipo: formato_texto
+    descripcion: "El título del trabajo en carátula: negrita con mayúsculas y minúsculas (no todo mayúsculas)"
+    valor_esperado: "negrita + Mayúsculas y minúsculas"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 177)'
+    cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos)."'
+    mecanismo_verificable:
+      nota: Run en portada con <w:b/>; texto en w:t NO todo en mayusculas (case mixta).
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+        comparacion: exists
+      - tipo: texto_regex
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]//w:t
+        patron: .*[a-záéíóúñ].*
+  - id: caratula_autores_mayusculas_sin_negrita
+    tipo: formato_texto
+    descripcion: "Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita"
+    valor_esperado: "MAYÚSCULAS, sin negrita"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 179)'
+    cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
+    mecanismo_verificable:
+      nota: 'Texto en mayusculas en w:t; run SIN <w:b/> (o w:b w:val="0"). EVALUADO: el placeholder de la plantilla es case mixta (falla); el texto real del estudiante deberia cumplir, por eso el check sigue exigiendo mayusculas.'
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+        comparacion: not_exists
+      - tipo: texto_regex
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]//w:t
+        patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+  - id: caratula_asesor_negrita
+    tipo: formato_texto
+    descripcion: "El asesor en carátula: con negrita"
+    valor_esperado: "negrita"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 180)'
+    cita: '"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas..."'
+    mecanismo_verificable:
+      nota: Run del rotulo "Asesor(a):" en portada con <w:b/>.
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+        comparacion: exists
+  - id: caratula_ciudad_pais_negrita
+    tipo: formato_texto
+    descripcion: "Ciudad y país en carátula: centrado, con negrita, mayúsculas y minúsculas"
+    valor_esperado: "negrita + Mayúsculas y minúsculas"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 182)'
+    cita: '"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos)."'
+    mecanismo_verificable:
+      nota: Run de ciudad y pais con <w:b/> y texto en mayusculas.
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+        comparacion: exists
+      - tipo: texto_regex
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')][1]//w:t
+        patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+  - id: caratula_orcid
+    tipo: formato_texto
+    descripcion: El código ORCID del autor y asesor se muestra como hipervínculo, entre paréntesis, debajo del nombre
+    valor_esperado: "https://orcid.org/XXXXXXXXXXXX"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula, especificaciones (párr. 179-180)'
+    cita: '"A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos..."'
+
+  # ─── SECCIONES OBLIGATORIAS — TRABAJO DE INVESTIGACIÓN CUANTITATIVO ─
+  - id: estructura_tinv_cuantitativo
+    tipo: estructura
+    descripcion: >
+      Estructura obligatoria del Trabajo de Investigación (Cuantitativo).
+      El orden debe ser exacto.
+    valor_esperado:
+      - "Carátula"
+      - "Dedicatoria (opcional)"
+      - "Jurado evaluador"
+      - "Agradecimiento (opcional)"
+      - "Índice"
+      - "Presentación"
+      - "Resumen"
+      - "Abstract"
+      - "Introducción"
+      - "  El Problema"
+      - "    Situación problemática"
+      - "    Enunciado del problema"
+      - "    Justificación o importancia"
+      - "  Objetivos"
+      - "  Variable(s) y operacionalización"
+      - "MARCO TEÓRICO"
+      - "  Antecedentes (Estado del arte)"
+      - "  Bases teóricas"
+      - "METODOLOGÍA"
+      - "  Población y muestra"
+      - "  Diseño de investigación"
+      - "  Instrumento(s) usado(s) en la recolección de datos"
+      - "  Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos"
+      - "RESULTADOS"
+      - "CONCLUSIONES"
+      - "REFERENCIAS"
+      - "ANEXOS"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Esquema del Trabajo de Investigación Cuantitativo (párr. 275-319)'
+    cita: 'Esquema enumerado en párr. 276-319 del manual'
+    mecanismo_verificable:
+      nota: 'Secuencia de parrafos con estilos Heading 1/2/3 (u outlineLvl) que coincide con el esquema esperado del manual; verificar orden y niveles de los titulos. EVALUADO: PASS en las 5 plantillas (todas cuantitativas; el matcher tolera variantes de redaccion como "Justificacion e/o importancia" y "Poblacion, muestra y muestreo").'
+      checks:
+      - tipo: secuencia_titulos
+        parte: document
+        fuente_lista: valor_esperado
+        normalizacion:
+        - opcional
+        - mayusculas
+        - ignorar_indent
+  # ─── SECCIONES OBLIGATORIAS — TRABAJO DE INVESTIGACIÓN CUALITATIVO ─
+  - id: estructura_tinv_cualitativo
+    tipo: estructura
+    descripcion: >
+      Estructura obligatoria del Trabajo de Investigación (Cualitativo).
+      Diferencia clave: incluye "Categorías, matriz de categorización y unidad de análisis"
+      y termina con "ANÁLISIS Y DISCUSIÓN DE RESULTADOS" en vez de solo "RESULTADOS".
+    valor_esperado:
+      - "Carátula"
+      - "Dedicatoria (opcional)"
+      - "Jurado evaluador"
+      - "Agradecimiento (opcional)"
+      - "Índice"
+      - "Presentación"
+      - "Resumen"
+      - "Abstract"
+      - "Introducción"
+      - "  El Problema"
+      - "  Objetivos"
+      - "  Categorías, matriz de categorización y unidad de análisis"
+      - "MARCO TEÓRICO"
+      - "METODOLOGÍA"
+      - "  Participantes"
+      - "  Diseño"
+      - "  Instrumentos usados en la recolección de información"
+      - "  Métodos, técnicas, procedimientos y estrategias usadas en el análisis e interpretación de datos"
+      - "ANÁLISIS Y DISCUSIÓN DE RESULTADOS"
+      - "CONCLUSIONES"
+      - "REFERENCIAS"
+      - "ANEXOS"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Esquema del Trabajo de Investigación Cualitativo (párr. 380-420)'
+    cita: 'Esquema enumerado en párr. 381-420 del manual'
+    mecanismo_verificable:
+      nota: 'Secuencia de parrafos con estilos Heading 1/2/3 (u outlineLvl) que coincide con el esquema esperado del manual; verificar orden y niveles de los titulos. EVALUADO: FAIL contra las 5 plantillas porque son de tipo cuantitativo (no tienen "Categorías, matriz de categorización", "Participantes" ni "Análisis y discusión de resultados"). El check es correcto; aplica a tesis cualitativas.'
+      checks:
+      - tipo: secuencia_titulos
+        parte: document
+        fuente_lista: valor_esperado
+        normalizacion:
+        - opcional
+        - mayusculas
+        - ignorar_indent
+  # ─── SECCIONES OBLIGATORIAS — TRABAJO DE REVISIÓN DE LA LITERATURA ──
+  - id: estructura_tinv_revision_literatura
+    tipo: estructura
+    descripcion: >
+      Estructura obligatoria del Trabajo de Investigación basado en Revisión de la Literatura.
+    valor_esperado:
+      - "Carátula"
+      - "Dedicatoria (opcional)"
+      - "Jurado evaluador"
+      - "Agradecimiento (opcional)"
+      - "Índice"
+      - "Presentación"
+      - "Resumen"
+      - "Abstract"
+      - "INTRODUCCIÓN"
+      - "METODOLOGÍA DE REVISIÓN"
+      - "DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA"
+      - "CONCLUSIONES Y RECOMENDACIONES"
+      - "REFERENCIAS"
+      - "ANEXOS"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Esquema del Trabajo de Revisión de la Literatura (párr. 536-559)'
+    cita: 'Esquema enumerado en párr. 537-559 del manual'
+    mecanismo_verificable:
+      nota: 'Secuencia de parrafos con estilos Heading 1/2/3 (u outlineLvl) que coincide con el esquema esperado del manual; verificar orden y niveles de los titulos. EVALUADO: FAIL contra las 5 plantillas (ninguna contiene "DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA"; el esquema de plantilla es cuantitativo). Aplica a trabajos de revisión de la literatura.'
+      checks:
+      - tipo: secuencia_titulos
+        parte: document
+        fuente_lista: valor_esperado
+        normalizacion:
+        - opcional
+        - mayusculas
+        - ignorar_indent
+  # ─── ÍNDICE ──────────────────────────────────────────────
+  - id: indice_subdivisiones
+    tipo: estructura
+    descripcion: "El Índice se subdivide en: índice de contenidos, índice de tablas y índice de figuras; cada uno en página separada"
+    valor_esperado: "índice de contenidos + índice de tablas + índice de figuras, en páginas separadas"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección Índice (párr. 192-196)'
+    cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)."'
+    mecanismo_verificable:
+      nota: 'Secciones "Indice de contenidos", "Indice de tablas" e "Indice de figuras" presentes como Headings, en ese orden tras Agradecimiento. EVALUADO: 0 nodos en las 5 plantillas (solo hay un "Indice" generico sin estilos de encabezado; los tres indices del manual no estan implementados) - regla prescriptiva vs plantillas.'
+      checks:
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'contenidos')]
+        comparacion: exists
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tablas')]
+        comparacion: exists
+      - tipo: xml_presencia
+        parte: document
+        contexto: todos
+        xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'figuras')]
+        comparacion: exists
+  # ─── RESUMEN ─────────────────────────────────────────────
+  - id: resumen_longitud
+    tipo: estructura
+    descripcion: El Resumen debe tener una extensión mínima de 159 palabras
+    valor_esperado: ">= 159 palabras"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección Resumen (párr. 201)'
+    cita: '"Su extensión mínima 159 y su extensión máxima..."'
+
+  - id: palabras_clave_minimo
+    tipo: estructura
+    descripcion: Resumen y Abstract deben incluir mínimo 3 palabras clave
+    valor_esperado: ">= 3 palabras clave"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Plantilla Resumen (párr. 86 de la plantilla Educación Inicial)'
+    cita: '"Palabras clave: (mínimo 03 palabras clave)"'
+
+  # ─── SISTEMA DE CITAS ────────────────────────────────────
+  - id: sistema_citas
+    tipo: citas
+    descripcion: Las fuentes deben citarse usando el sistema APA vigente
+    valor_esperado: "APA (edición vigente)"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección Bases teóricas (párr. 235, 363, 702)'
+    cita: '"Las fuentes deben citarse usando el sistema APA vigente."'
+
+  # ─── REFERENCIAS — MÍNIMOS ───────────────────────────────
+  - id: referencias_minimo_cuantitativo
+    tipo: estructura
+    descripcion: Mínimo de referencias bibliográficas para Trabajo de Investigación Cuantitativo
+    valor_esperado: ">= 20 referencias"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección Referencias del Trabajo Cuantitativo (párr. 271)'
+    cita: '"Debe haber revisado un mínimo de 20 referencias."'
+
+  - id: referencias_minimo_cualitativo
+    tipo: estructura
+    descripcion: Mínimo de referencias bibliográficas para Trabajo de Investigación Cualitativo
+    valor_esperado: ">= 30 referencias"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección Referencias del Trabajo Cualitativo (párr. 376)'
+    cita: '"Debe haber revisado un mínimo de 30 referencias."'
+
+  - id: referencias_minimo_revision
+    tipo: estructura
+    descripcion: Mínimo de referencias bibliográficas para Trabajo de Revisión de la Literatura
+    valor_esperado: ">= 20 referencias"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Sección Referencias del Trabajo de Revisión (párr. 532)'
+    cita: '"Debe haber revisado un mínimo de 20 referencias."'
+
+  # ─── ANEXOS OBLIGATORIOS — CUANTITATIVO ──────────────────
+  - id: anexos_minimos_cuantitativo
+    tipo: estructura
+    descripcion: Anexos obligatorios para Trabajo de Investigación Cuantitativo
+    valor_esperado:
+      - "Matriz de consistencia"
+      - "Instrumento(s) de recolección de datos"
+      - "Ficha técnica del instrumento"
+      - "Consentimiento informado"
+      - "Base de datos cuantitativa"
+      - "Reporte de similitud"
+      - "Carta de autorización institucional"
+      - "Declaración jurada"
+      - "Carta de autorización de publicación"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Esquema del Trabajo Cuantitativo (párr. 311-319)'
+    cita: 'Lista de anexos en párr. 311-319'
+
+  # ─── ANEXOS OBLIGATORIOS — CUALITATIVO ───────────────────
+  - id: anexos_minimos_cualitativo
+    tipo: estructura
+    descripcion: Anexos obligatorios para Trabajo de Investigación Cualitativo
+    valor_esperado:
+      - "Matriz de consistencia"
+      - "Instrumento(s) de recolección de datos"
+      - "Consentimiento informado"
+      - "Juicio de expertos"
+      - "Base de datos cualitativo"
+      - "Carta de autorización institucional"
+      - "Declaración jurada"
+      - "Carta de autorización de publicación"
+    severidad: warning
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Esquema del Trabajo Cualitativo (párr. 413-420)'
+    cita: 'Lista de anexos en párr. 413-420'
+
+  # ─── PROYECTO DE INVESTIGACIÓN (Capítulo II) ─────────────
+  - id: proyecto_formato_general
+    tipo: estructura
+    descripcion: >
+      El Proyecto de Investigación usa el mismo formato general (A4, TNR 12pt,
+      interlineado 1.5, márgenes idénticos). La carátula dice "Proyecto de Investigación"
+      en 13pt en vez de "Trabajo de Investigación para optar el grado de Bachiller".
+    valor_esperado: "Mismas reglas de formato general; variación solo en texto de carátula"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Capítulo II, Formato General del Proyecto (párr. 592-609)'
+    cita: 'Formato General repetido idéntico (párr. 594-609): papel A4, TNR 12pt, interlineado 1.5, justificada, márgenes 2.5/2.5/2.5/3.0'
+
+  - id: proyecto_caratula_texto
+    tipo: formato_texto
+    descripcion: En la carátula del Proyecto, la línea de tipo dice "Proyecto de Investigación" (no "Trabajo de Investigación para optar...")
+    valor_esperado: "Proyecto de Investigación"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Carátula del Proyecto (párr. 618, 641)'
+    cita: '"Proyecto de Investigación: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos)."'
+
+  # ─── SUFICIENCIA PROFESIONAL ─────────────────────────────
+  - id: suficiencia_profesional_formato
+    tipo: estructura
+    descripcion: >
+      El Trabajo de Suficiencia Profesional (Estudios Regulares) también
+      sigue el mismo formato general (A4, TNR 12pt, interlineado 1.5, etc.)
+    valor_esperado: "Mismas reglas de formato general"
+    severidad: error
+    fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
+    ubicacion: 'Capítulo II, Trabajo de Suficiencia Profesional (párr. 89 del índice)'
+    cita: 'El manual lo incluye como tipo de trabajo bajo Capítulo II'
+
+
+# ============================================================
+# AMBIGÜEDADES — requieren resolución humana
+# ============================================================
+ambiguedades:
+
+  - id: amb_margen_derecho_archivo_vs_regla
+    descripcion: >
+      El manual PRESCRIPE margen derecho = 2.5 cm, pero el propio archivo
+      DOCX del manual tiene margen derecho configurado en 3.0 cm.
+      Las 5 plantillas sí usan 2.5 cm (correcto según la regla).
+      El archivo del manual parece tener un error de configuración.
+    documentos:
+      - "MANUAL (DOCX): right_margin = 3.00 cm (configuración real del archivo)"
+      - "MANUAL (texto): 'Derecho: 2.5 cm' (lo que prescribe)"
+      - "Todas las plantillas: right_margin = 2.50 cm"
+    accion_recomendada: "Usar 2.5 cm como regla (lo que el texto dice). El DOCX del manual tiene error."
+
+  - id: amb_interlineado_unidades
+    descripcion: >
+      El manual dice 'Interlineado: 1.5 puntos' — técnicamente, 1.5 puntos
+      tipográficos es ~0.5 mm (casi ilegible). Lo que se quiere decir es
+      '1.5 líneas' (line spacing 1.5). Las plantillas confirman que usan
+      ONE_POINT_FIVE (1.5 líneas). Pero la redacción es ambigua.
+    documentos:
+      - "MANUAL (texto): 'Interlineado: 1.5 puntos'"
+      - "Plantillas: line_spacing_rule = ONE_POINT_FIVE"
+    accion_recomendada: "Interpretar como 1.5 líneas (ONE_POINT_FIVE). Corregir la redacción del manual."
+
+  - id: amb_tamano_papel_unidades
+    descripcion: >
+      El manual dice 'Tamaño A4/papel (210x297 cm)'. 210x297 cm es un papel
+      gigante (~2x3 metros). Lo correcto es 210x297 mm. Error tipográfico.
+    documentos:
+      - "MANUAL (texto): 'Tamaño A4/papel (210x297 cm)'"
+    accion_recomendada: "Corregir a 210x297 mm. A4 es universalmente 210x297 mm."
+
+  - id: amb_referencias_minimo_variable_segun_tipo
+    descripcion: >
+      Hay dos mínimos de referencias distintos según el tipo de investigación:
+      Cuantitativo = mínimo 20; Cualitativo = mínimo 30; Revisión = mínimo 20.
+      El validador necesita saber qué tipo de investigación es el trabajo
+      para aplicar la regla correcta.
+    documentos:
+      - "MANUAL (párr. 271): 'mínimo de 20 referencias' (cuantitativo)"
+      - "MANUAL (párr. 376): 'mínimo de 30 referencias' (cualitativo)"
+      - "MANUAL (párr. 532): 'mínimo de 20 referencias' (revisión)"
+    accion_recomendada: "El validador debe preguntar el tipo de investigación, o validar con tolerancia de 20 como mínimo global."
+
+  - id: amb_resumen_extension_maxima
+    descripcion: >
+      El manual dice 'extensión mínima 159' pero el texto se trunca y no
+      se ve la extensión máxima. Necesita completarse.
+    documentos:
+      - "MANUAL (párr. 201): 'Su extensión mínima 159 y su extensión máxima...'"
+    accion_recomendada: "Verificar el valor de extensión máxima en el manual original."
+
+  - id: amb_sangria_plantillas_708_vs_720
+    descripcion: >
+      El manual prescribe sangría de primera línea de 1.27 cm (720 twips).
+      EVALUADO: las 5 plantillas SI aplican <w:ind w:firstLine="708"/> en
+      párrafos de cuerpo y 709 en portada (~1.25 cm) — desvío menor pero
+      verificable contra el valor prescrito (720).
+    documentos:
+      - "MANUAL (párr. 141): sangría de 1.27 cm (720 twips)"
+      - "Plantillas: w:firstLine=708 (cuerpo) / 709 (portada)"
+    accion_recomendada: "El check exige 720; las plantillas incumplen en 12 twips (~0.02 cm). DECISIÓN (2026-09-01): severidad bajada a warning hasta que la universidad confirme si 720 (manual) o 708/709 (plantillas) es el valor correcto. No bloquea la entrega mientras tanto."
+
+  - id: amb_rcu274_contenido_inaccesible
+    descripcion: >
+      El RCU-N-274-2022-UNT (Reglamento General de Grados) es un PDF escaneado
+      que no se puede leer sin OCR. Puede contener requisitos adicionales de
+      estructura que complementen o contradigan el manual.
+    documentos:
+      - "RCU-N-274-2022-UNT.pdf (5 páginas, escaneado, CCITT fax images)"
+    accion_recomendada: "Ejecutar OCR (tesseract) sobre el PDF para extraer contenido y verificar si hay reglas adicionales."
+
+  - id: amb_rcu220_lineas_investigacion_contenido_inaccesible
+    descripcion: >
+      El RCU-N-220-2022 (Líneas de Investigación) es un PDF escaneado.
+      No se puede confirmar si tiene estructura "código - nombre de línea"
+      que pueda representarse como lista de valores válidos.
+    documentos:
+      - "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf (5 páginas, escaneado, CCITT fax images)"
+    accion_recomendada: "Ejecutar OCR para extraer la lista de líneas de investigación con sus códigos."
+
+
+# ============================================================
+# REQUISITOS NO DETERMINISTAS — no entran al YAML
+# Solo para referencia futura
+# ============================================================
+no_deterministas:
+
+  - "El resumen debe proporcionar al lector una impresión general del trabajo."
+  - "La redacción de la situación problemática debe ser en prosa, en tiempo pasado, y carecer de subtítulos."
+  - "El abstract debe ser traducido por un especialista en idioma inglés."
+  - "Las bases teóricas deben integrar teorías, conceptos, antecedentes y enfoques teóricos vinculados con el problema."
+  - "Los antecedentes se redactan de manera narrativa: autor, año, objetivo, resultados y se concluye."
+  - "Las conclusiones deben representar proposiciones finales derivadas directamente de los resultados."
+  - "El estudio debe emplear una metodología de investigación adecuada al problema planteado."
+  - "La justificación debe incluir la importancia teórica, práctica, metodológica y social."
+  - "Las hipótesis deben ser proposiciones tentativas susceptibles de verificación empírica."
+  - "La dedicatoria es de forma libre, dirigida a personas significativas."
+  - "El agradecimiento manifiesta estima y gratitud a quienes brindaron apoyo."
+  - "La presentación permite exhibir el contenido del trabajo ante la comunidad académica."
+  - "El problema debe formularse como interrogante y contener las variables principales."
+  - "La línea de investigación debe vincularse con el área de educación y la escuela profesional."
+  - "Los objetivos generales se enuncian con verbo en infinitivo."
+  - "El título debe identificar el campo de investigación, el objeto de estudio, los términos temáticos y la(s) variable(s) principal(es)."
+  - "Los participantes de la investigación cualitativa deben proporcionar información rica, profunda y significativa."
+  - "El diseño cualitativo debe ser un plan flexible y emergente."
+  - "El Trabajo de Suficiencia Profesional debe demostrar competencias para el ejercicio profesional."
+
+
+# ============================================================
+# INFORMACIÓN COMPLEMENTARIA
+# ============================================================
+
+# ─── TABLA DE DOCUMENTOS NO LEÍDOS ────────────────────────
+documentos_no_leidos:
+  - archivo: "RCU-N-274-2022-UNT.pdf"
+    paginas: 5
+    formato: "PDF escaneado (CCITT fax images, sin texto extraíble)"
+    contenido_esperado: "Reglamento General de Otorgamiento de Grados Académicos y Títulos Profesionales. Requisitos generales de estructura y proceso."
+    impacto: "Puede contener requisitos adicionales de estructura que complementen o contradigan el manual. Necesita OCR."
+    herramienta_necesaria: "tesseract-ocr + ocrmypdf (o equivalente)"
+
+  - archivo: "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf"
+    paginas: 5
+    formato: "PDF escaneado (CCITT fax images, sin texto extraíble)"
+    contenido_esperado: "Catálogo de líneas de investigación válidas con códigos/números. Estructura tipo tabla con código y nombre."
+    impacto: "Si tiene estructura 'código - nombre', puede representarse como lista de valores válidos para validación."
+    herramienta_necesaria: "tesseract-ocr + ocrmypdf (o equivalente)"
