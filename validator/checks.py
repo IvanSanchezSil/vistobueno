@@ -66,6 +66,20 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> Tuple[bool, 
         incumplen = [t for t in textos if not patron.fullmatch(t)]
         return not incumplen, f"textos={len(textos)} incumplen={len(incumplen)}"
 
+    if tipo == "texto_en_lista":
+        lista = check.get("lista", [])
+        ignore_case = check.get("ignore_case", False)
+        textos = [text_of(n).strip() for n in nodes if text_of(n).strip()]
+        if not textos:
+            return False, "sin nodos de texto que evaluar"
+        def _norm(s: str) -> str:
+            s = re.sub(r"\s+", " ", s).strip()
+            return s.lower() if ignore_case else s
+        valores = [_norm(t) for t in textos]
+        permitidos = [_norm(x) for x in lista]
+        incumplen = [v for v in valores if v not in permitidos]
+        return not incumplen, f"textos={valores[:3]} en_lista_faltan={incumplen[:3]}"
+
     if tipo == "imagen_presencia":
         n = len(nodes)
         minimo = check.get("cantidad_minima", 1)

@@ -37,7 +37,7 @@ Frontend (React)
 | **API** | `validator/api.py` | Endpoint FastAPI `POST /validar` |
 | **DTOs API** | `validator/api_models.py` | Modelos Pydantic de respuesta (campos en español) |
 | **CLI referencia** | `validator/cli.py` | Validador desde línea de comandos |
-| **Reglas** | `unt_format_rules_schema.yaml` | 43 reglas, 31 ejecutables |
+| **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables |
 
 ---
 
@@ -199,7 +199,7 @@ El semáforo **siempre** se calcula sobre TODOS los errores, independiente del f
 nix develop   # activa el entorno con todas las dependencias
 ```
 
-Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart.
+Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng).
 
 ### Gestión de dependencias
 
@@ -213,7 +213,7 @@ Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMu
 
 ### Pitfalls conocidos
 
-- `poppler_utils` se renombró a `poppler-utils` en nixpkgs recientes. Si `nix develop` falla, revisa este nombre.
+- El atributo de nixpkgs para las utilidades de Poppler es `pkgs.poppler_utils` (con guion bajo), NO `poppler-utils`. En Nix los atributos de paquetes usan `_`, no `-`. Si usas `pkgs.poppler-utils`, `nix develop` falla por atributo inexistente.
 - FastAPI necesita `python-multipart` para manejar `multipart/form-data`. Sin él, el endpoint de upload no funciona.
 - El engine carga el YAML de reglas una sola vez al iniciar. Si modificas `unt_format_rules_schema.yaml`, reinicia el servidor.
 
@@ -230,12 +230,38 @@ uvicorn validator.api:app --reload
 pytest tests/ -v
 ```
 
+### Reproducir el OCR de los reglamentos
+
+El catálogo de líneas de investigación y el contenido del RCU-274 se obtienen
+de los PDFs escaneados de la UNT con `scripts/ocr_pdfs.py`. La carpeta
+`recursos/` está en `.gitignore` (archivos grandes/derivados **no se versionan**),
+así que los `.txt` generados solo existen localmente.
+
+Para regenerarlos (p. ej. en otra máquina):
+
+```bash
+nix develop                      # activa el entorno (tesseract spa+eng, ocrmypdf, PyMuPDF)
+python scripts/ocr_pdfs.py       # usa los PDFs del repo por defecto
+# salida: recursos/ocr/RCU-N-274-2022-UNT.txt
+#         recursos/ocr/RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt
+```
+
+El script es híbrido: extrae texto nativo con PyMuPDF y, si una página tiene
+menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
+`tesseract` no está instalado, esas páginas quedan marcadas como
+"pendiente OCR" en el `.txt`.
+
+> Nota: el motor **no** carga estos `.txt` en tiempo de ejecución. La regla
+> `caratula_linea_investigacion` embebe el catálogo de 46 líneas directamente
+> en `unt_format_rules_schema.yaml` (clave `lista`). Los `.txt` se usan solo
+> como fuente de referencia para auditar de dónde salió cada línea.
+
 ---
 
 ## Reglas de validación
 
-- **43 reglas** definidas en `unt_format_rules_schema.yaml`.
-- **31 con mecanismo verificable** (ejecutables sobre XML del DOCX).
+- **44 reglas** definidas en `unt_format_rules_schema.yaml`.
+- **32 con mecanismo verificable** (ejecutables sobre XML del DOCX).
 - **12 sin mecanismo** (requieren análisis semántico, fuera del MVP).
 - Las reglas cubren: papel, fuente, tamaños, interlineado, alineación, márgenes, numeración, sangría, estructura de secciones.
 
@@ -254,7 +280,7 @@ Si necesitas agregar una regla de formato que no existe todavía:
 2. Definir el `id` en inglés (snake_case), ej. `margen_superior`.
 3. Especificar `tipo`, `descripcion`, `valor_esperado`, `severidad`, `fuente`, `ubicacion`, `cita`.
 4. Si es verificable mecánicamente, agregar `mecanismo_verificable` con sus `checks`.
-5. Cada check necesita: `tipo` (xml_atributo, xml_presencia, texto_regex, secuencia_titulos, imagen_presencia), `xpath`, `comparacion`, `esperado`.
+5. Cada check necesita: `tipo` (xml_atributo, xml_presencia, texto_regex, texto_en_lista, secuencia_titulos, imagen_presencia), `xpath`, `comparacion`, `esperado`.
 6. Probar con `python -m validator.cli prueba.docx unt_format_rules_schema.yaml` antes de hacer commit.
 7. Documentar en el YAML si hay desvío entre el manual y las plantillas oficiales (usar nota con prefijo `EVALUADO:`).
 
@@ -292,7 +318,7 @@ Si necesitas modificar un archivo que no es de tu área, **coordina primero** co
 - ❌ Docker / Kubernetes
 - ❌ Soporte PDF (pendiente: extractor con PyMuPDF)
 - ❌ Detección automática de tipo de investigación
-- ❌ OCR de reglamentos escaneados (pendiente)
+- ❌ OCR de reglamentos escaneados (realizado el 2026-09-02 vía `scripts/ocr_pdfs.py`, salida en `recursos/ocr/*.txt`)
 - ❌ LLM en tiempo de ejecución (solo template para prompts IA)
 
 ---
@@ -304,7 +330,7 @@ vistobueno/
 ├── AGENTS.md                          # Esta guía
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
-├── unt_format_rules_schema.yaml       # 43 reglas de formato (fuente de verdad)
+├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad)
 ├── validator/
 │   ├── __init__.py                    # Docstring del paquete
 │   ├── engine.py                      # Motor: load_rules, validate_docx, build_report

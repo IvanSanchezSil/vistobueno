@@ -20,7 +20,7 @@
 #   cada value es un mapping con:
 #     nota:  texto humano que describe el mecanismo
 #     checks: lista de comprobaciones, cada una con:
-#       tipo: xml_atributo | xml_presencia | texto_regex
+#       tipo: xml_atributo | xml_presencia | texto_regex | texto_en_lista
 #             | secuencia_titulos | imagen_presencia
 #       parte: document | footer | header   (defecto: document)
 #       archivo: parte alternativa del paquete OPC, ej. word/footer1.xml (opcional)
@@ -38,6 +38,10 @@
 #       esperado: valor contra el que comparar (salvo exists/not_exists)
 #       patron: expresión regular (solo texto_regex); TODOS los nodos W:t
 #               que matchean xpath deben cumplirla
+#       lista: lista de valores permitidos (solo texto_en_lista): el texto
+#              concatenado de los nodos que matchean xpath debe pertenecer
+#              a la lista; ignore_case (opcional, defecto false) hace la
+#              comparación insensible a mayúsculas.
 #       ignore_case: true|false (opcional, para contains)
 #       fuente_lista: valor_esperado (solo secuencia_titulos: compara los
 #                     títulos que matchean contra la lista valor_esperado
@@ -604,6 +608,81 @@ rules:
     ubicacion: 'Carátula, especificaciones (párr. 179-180)'
     cita: '"A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos..."'
 
+  - id: caratula_linea_investigacion
+    tipo: caratula
+    descripcion: La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT
+    valor_esperado: "Línea de investigación aprobada (RCU-N°220-2022/UNT)"
+    severidad: error
+    fuente: "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf"
+    ubicacion: 'Carátula, campo "Línea de Investigación"'
+    cita: '"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)"'
+    mecanismo_verificable:
+      nota: >
+        El valor de la línea en carátula (el párrafo que sigue a la etiqueta
+        "Línea de Investigación") debe coincidir con alguna línea de las
+        Tablas 1 (consolidadas), 2 (por consolidar) o 3 (emergentes) del
+        RCU-220. EVALUADO: la plantilla FECyC usa "Educación y Ciencias de la
+        Comunicación y Desarrollo Sostenible" (con D mayúscula) mientras el
+        RCU la escribe con "d" minúscula -> comparación con ignore_case.
+        Fuente del catálogo: recursos/ocr/RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt
+      checks:
+      - tipo: texto_en_lista
+        parte: document
+        contexto: todos
+        xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'línea de investigación')][1]/following-sibling::w:p[1]//w:t
+        ignore_case: true
+        lista:
+        - "alimentos y bebidas"
+        - "arqueología"
+        - "automatización y sistemas de control"
+        - "biología celular y microbiología"
+        - "bioquímica y biología molecular"
+        - "biotecnología industrial"
+        - "ciencias del cuidado de la salud y servicios (administración de hospitales, financiamiento)"
+        - "conservación de la biodiversidad"
+        - "farmacología y farmacia"
+        - "ingeniería de los materiales"
+        - "matemática aplicada"
+        - "medicina complementaria (sistemas alternativos)"
+        - "nanomateriales (producción y propiedades)"
+        - "nutrición y dietas"
+        - "óptica"
+        - "parasitología"
+        - "protección y nutrición de las plantas"
+        - "recubrimiento y películas"
+        - "salud pública"
+        - "ciencias animales y lechería"
+        - "ciencias del medio ambiente"
+        - "enfermería"
+        - "ingeniería industrial"
+        - "otras biologías"
+        - "otras ingenierías y tecnologías"
+        - "otros temas de medicina clínica"
+        - "arquitectura y urbanismo"
+        - "biología marina y del agua"
+        - "ciencias de la computación"
+        - "ciencias de la información y bioinformática"
+        - "ciencias jurídicas"
+        - "ciencias políticas"
+        - "diseño arquitectónico"
+        - "econometría"
+        - "ciencias económicas"
+        - "ingeniería arquitectónica"
+        - "ingeniería de sistemas y comunicaciones"
+        - "ingeniería eléctrica y electrónica"
+        - "ingeniería mecánica"
+        - "mecánica aplicada"
+        - "negocios y managment"
+        - "odontología, cirugía oral y medicina oral"
+        - "otras ciencias agropecuarias"
+        - "otras ciencias sociales"
+        - "historias especializadas"
+        - "ingeniería de bioprocesos y biomateriales"
+        - "robótica y control automático"
+        - "ciencias físicas"
+        - "ciencias matemáticas"
+        - "educación y ciencias de la comunicación y desarrollo sostenible"
+
   # ─── SECCIONES OBLIGATORIAS — TRABAJO DE INVESTIGACIÓN CUANTITATIVO ─
   - id: estructura_tinv_cuantitativo
     tipo: estructura
@@ -953,23 +1032,36 @@ ambiguedades:
       - "Plantillas: w:firstLine=708 (cuerpo) / 709 (portada)"
     accion_recomendada: "El check exige 720; las plantillas incumplen en 12 twips (~0.02 cm). DECISIÓN (2026-09-01): severidad bajada a warning hasta que la universidad confirme si 720 (manual) o 708/709 (plantillas) es el valor correcto. No bloquea la entrega mientras tanto."
 
-  - id: amb_rcu274_contenido_inaccesible
+  - id: amb_rcu274_contenido
     descripcion: >
-      El RCU-N-274-2022-UNT (Reglamento General de Grados) es un PDF escaneado
-      que no se puede leer sin OCR. Puede contener requisitos adicionales de
-      estructura que complementen o contradigan el manual.
+      El RCU-N-274-2022-UNT (Reglamento N° 007-2022-UNT/URA, Reglamento General
+      de Otorgamiento de Grados Académicos y Títulos Profesionales) ya fue
+      leído vía OCR (recursos/ocr/RCU-N-274-2022-UNT.txt, 2026-09-02).
+      Es un reglamento de PROCEDIMIENTOS de graduación/titulación (requisitos
+      administrativos, jurados, trámites), no de formato DOCX.
+      Aporta el Anexo 5: esquema de PROYECTO/INFORME de investigación y de
+      ARTÍCULO CIENTÍFICO, que complementa las reglas de estructura del manual
+      pero no coincide 1:1 con las plantillas oficiales (que son de Trabajo de
+      Investigación de tipo cuantitativo). Por eso su estructura no se mecaniza;
+      se registra en no_deterministas.
     documentos:
-      - "RCU-N-274-2022-UNT.pdf (5 páginas, escaneado, CCITT fax images)"
-    accion_recomendada: "Ejecutar OCR (tesseract) sobre el PDF para extraer contenido y verificar si hay reglas adicionales."
+      - "RCU-N-274-2022-UNT.pdf -> recursos/ocr/RCU-N-274-2022-UNT.txt (25 páginas, OCR 2026-09-02)"
+    accion_recomendada: "Tratar el Anexo 5 como referencia de proyecto/artículo (no determinista). No agregar reglas de estructura DOCX automáticas a partir de él."
 
-  - id: amb_rcu220_lineas_investigacion_contenido_inaccesible
+  - id: amb_rcu220_lineas_investigacion_codigo
     descripcion: >
-      El RCU-N-220-2022 (Líneas de Investigación) es un PDF escaneado.
-      No se puede confirmar si tiene estructura "código - nombre de línea"
-      que pueda representarse como lista de valores válidos.
+      El RCU-N-220-2022 (Líneas de Investigación) ya fue leído vía OCR
+      (recursos/ocr/RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt, 2026-09-02).
+      La hipótesis previa de estructura "código - nombre" quedó DESCARTADA:
+      las líneas se listan como NÚMERO correlativo + NOMBRE (sin código
+      alfanumérico). La lista se representó como lista de valores válidos en la
+      regla caratula_linea_investigacion (todas las categorías: consolidadas,
+      por consolidar y emergentes; comparación insensible a mayúsculas porque
+      la plantilla escribe "Desarrollo Sostenible" y el RCU "desarrollo sostenible").
     documentos:
-      - "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf (5 páginas, escaneado, CCITT fax images)"
-    accion_recomendada: "Ejecutar OCR para extraer la lista de líneas de investigación con sus códigos."
+      - "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf -> recursos/ocr/RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt (5 páginas, OCR 2026-09-02)"
+      - "Plantilla FECyC: 'Educación y Ciencias de la Comunicación y Desarrollo Sostenible'"
+    accion_recomendada: "RESUELTO (2026-09-02): la lista oficial se usa en la regla caratula_linea_investigacion. Sin códigos."
 
 
 # ============================================================
@@ -998,23 +1090,36 @@ no_deterministas:
   - "El diseño cualitativo debe ser un plan flexible y emergente."
   - "El Trabajo de Suficiencia Profesional debe demostrar competencias para el ejercicio profesional."
 
+  # ─── Del RCU-N-274-2022/UNT (Reglamento General de Grados y Títulos, Anexo 5) ──
+  # Esquema (básico) de DISEÑO DE PROYECTO DE INVESTIGACIÓN (enfoque cuantitativo):
+  - "El proyecto debe incluir datos de identificación: título, área y línea de investigación, localización y tipo de proyecto (investigación básica, aplicada o desarrollo experimental)."
+  - "El proyecto cuantitativo incluye: planteamiento del problema, situación problemática, formulación del problema, justificación, objetivos (general y específicos)."
+  - "El proyecto cuantitativo incluye marco teórico: antecedentes del problema y bases teóricas o marco conceptual."
+  - "El proyecto cuantitativo incluye hipótesis y variables: formulación de hipótesis, y variables con definición conceptual y operacional."
+  - "El proyecto cuantitativo incluye metodología: diseño metodológico, diseño muestral, técnicas de recolección de datos, técnicas estadísticas de procesamiento, y aspectos éticos y regulatorios."
+  - "El proyecto cuantitativo incluye aspectos administrativos: cronograma, presupuesto y fuentes de financiamiento, más resultados esperados, referencias bibliográficas y anexos."
+  # Esquema (básico) de DISEÑO DE PROYECTO DE INVESTIGACIÓN (enfoque cualitativo):
+  - "El proyecto cualitativo incluye planteamiento del problema (situación problemática, formulación, justificación, objetivos y limitaciones), revisión de la literatura (antecedentes y marco teórico), metodología (diseño metodológico, procedimiento de muestreo, recolección y análisis de la información, aspectos éticos y regulatorios), aspectos administrativos, resultados esperados, referencias bibliográficas y anexos."
+  # Esquema de INFORME DE INVESTIGACIÓN / TESIS (art. 2° Ley Repositorio N°30025, RCD 033-2016-SUNEDU, RR 384-2018/UNT):
+  - "El informe/tesis debe contener componentes fundamentales: contextualización, problematización, planteamiento de hipótesis, demostración/explicación/validación mediante análisis y discusión de hechos, y arribo a conclusiones y recomendaciones con respaldo bibliográfico."
+  # Esquema de ARTÍCULO CIENTÍFICO (sugerido; las partes resaltadas en negrita son imprescindibles):
+  - "El artículo científico exige: título claro y conciso sin símbolos ni abreviaturas; autor(es) con código ORCID; filiación; resumen y palabras clave; abstract y key words; introducción (1.5-2 páginas, doble espacio, 12pt); metodología (2-4 páginas); resultados y discusión (10-12 páginas); conclusiones (1-2 páginas); referencias bibliográficas (20-50); declaración de conflicto de interés; reconocimientos y agradecimientos; y correo electrónico del autor principal."
+
 
 # ============================================================
 # INFORMACIÓN COMPLEMENTARIA
 # ============================================================
 
-# ─── TABLA DE DOCUMENTOS NO LEÍDOS ────────────────────────
-documentos_no_leidos:
+# ─── DOCUMENTOS LEÍDOS VÍA OCR (2026-09-02) ───────────────
+documentos_leidos:
   - archivo: "RCU-N-274-2022-UNT.pdf"
-    paginas: 5
-    formato: "PDF escaneado (CCITT fax images, sin texto extraíble)"
-    contenido_esperado: "Reglamento General de Otorgamiento de Grados Académicos y Títulos Profesionales. Requisitos generales de estructura y proceso."
-    impacto: "Puede contener requisitos adicionales de estructura que complementen o contradigan el manual. Necesita OCR."
-    herramienta_necesaria: "tesseract-ocr + ocrmypdf (o equivalente)"
+    paginas: 25
+    ocr: "recursos/ocr/RCU-N-274-2022-UNT.txt"
+    contenido: "Reglamento N° 007-2022-UNT/URA — Reglamento General de Otorgamiento de Grados Académicos y Títulos Profesionales. Procedimientos administrativos de graduación/titulación + Anexo 5 (esquemas de proyecto/informe/artículo)."
+    resultado: "No aporta reglas de formato DOCX verificables; su estructura se registró en no_deterministas."
 
   - archivo: "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf"
     paginas: 5
-    formato: "PDF escaneado (CCITT fax images, sin texto extraíble)"
-    contenido_esperado: "Catálogo de líneas de investigación válidas con códigos/números. Estructura tipo tabla con código y nombre."
-    impacto: "Si tiene estructura 'código - nombre', puede representarse como lista de valores válidos para validación."
-    herramienta_necesaria: "tesseract-ocr + ocrmypdf (o equivalente)"
+    ocr: "recursos/ocr/RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt"
+    contenido: "Tablas 1, 2 y 3: líneas de investigación (consolidadas, por consolidar, emergentes) + líneas priorizadas y sus objetivos."
+    resultado: "Sin 'código - nombre': las líneas van por número + nombre. Su lista alimenta la regla caratula_linea_investigacion."

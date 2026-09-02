@@ -41,7 +41,7 @@ Convierte el archivo subido en una representación normalizada e independiente d
 
 ### 2. Esquema de reglas (YAML/JSON)
 
-Las directivas de formato viven en un archivo de configuración separado del código (no hardcodeadas). Ver `unt_format_rules_schema.yaml` para el esquema real y completo (43 reglas, 31 con mecanismo verificable ejecutable).
+Las directivas de formato viven en un archivo de configuración separado del código (no hardcodeadas). Ver `unt_format_rules_schema.yaml` para el esquema real y completo (44 reglas, 32 con mecanismo verificable ejecutable).
 
 ### 3. Motor de reglas
 
@@ -68,9 +68,9 @@ Este proceso se puede repetir cada vez que cambie el reglamento, sin tocar el c�
 
 Se generó `unt_format_rules_schema.yaml` a partir de: `MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx` y las 5 plantillas oficiales por programa. La comparación entre plantillas confirmó que **el formato es idéntico entre todos los programas** (mismos márgenes, fuente, interlineado, estructura de secciones); solo varía texto de carátula dependiente del programa (nombre de escuela/programa, mención, texto de "optar título"). Esto significa que el validador puede usar un **esquema de reglas único**, no uno por programa.
 
-Cubre: papel/márgenes, fuente y tamaños (cuerpo y carátula), interlineado, alineación, numeración de página (romanos en preliminares, arábigos desde Introducción), sangría, y estructura obligatoria de secciones para los tres tipos de trabajo (Cuantitativo, Cualitativo, Revisión de la Literatura) más Proyecto de Investigación y Suficiencia Profesional.
+Cubre: papel/márgenes, fuente y tamaños (cuerpo y carátula), interlineado, alineación, numeración de página (romanos en preliminares, arábigos desde Introducción), sangría, estructura obligatoria de secciones para los tres tipos de trabajo (Cuantitativo, Cualitativo, Revisión de la Literatura) más Proyecto de Investigación y Suficiencia Profesional, y la validación de la línea de investigación de la carátula contra el catálogo oficial del RCU-N°220-2022/UNT.
 
-Las 31 reglas con mecanismo verificable fueron evaluadas end-to-end contra las 5 plantillas oficiales: **24/31 PASS**. Los 7 FAIL restantes son desvíos reales documentados (no bugs del evaluador): tamaños de fuente en carátula, sangría, aplicabilidad de estructura por tipo de trabajo (cuantitativo/cualitativo/revisión), y los 3 índices separados que el manual exige pero ninguna plantilla implementa.
+Las 32 reglas con mecanismo verificable fueron evaluadas end-to-end contra las 5 plantillas oficiales: **25/32 PASS**. Los 7 FAIL restantes son desvíos reales documentados (no bugs del evaluador): tamaños de fuente en carátula, sangría, aplicabilidad de estructura por tipo de trabajo (cuantitativo/cualitativo/revisión), y los 3 índices separados que el manual exige pero ninguna plantilla implementa.
 
 ### Fuera de alcance del MVP (decisión explícita, no olvido)
 
@@ -83,12 +83,12 @@ Las 31 reglas con mecanismo verificable fueron evaluadas end-to-end contra las 5
 
 `caratula_titulo_trabajo_tamano` (14pt manual vs 13pt plantillas), `caratula_optar_grado_tamano` (13pt manual vs 12pt plantillas) y `sangria_parrafo` (720 twips manual vs 708/709 twips plantillas): las 5 plantillas oficiales de la universidad se desvían del texto del manual de forma unánime en estos tres puntos. Hasta que la universidad confirme cuál valor es el correcto, el validador no bloquea la entrega por esto — el reporte lo sigue mostrando como advertencia. Cambio aplicado en `unt_format_rules_schema.yaml`.
 
-### Pendiente: dos reglamentos en PDF escaneado (sin OCR aún)
+### Reglamentos RCU leídos vía OCR (2026-09-02)
 
-- `RCU-N-274-2022-UNT.pdf` (Reglamento General de Grados y Títulos) — puede tener requisitos de estructura adicionales.
-- `RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf` (catálogo de líneas de investigación con código) — si tiene estructura "código - nombre", se puede convertir en lista de valores válidos para validar el campo de línea de investigación en carátula.
+Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterior y anotaciones obsoletas del YAML). Ya se les extrajo texto con el script `scripts/ocr_pdfs.py` (motor híbrido PyMuPDF + tesseract), y el resultado quedó en `recursos/ocr/*.txt`:
 
-Ambos requieren OCR antes de poder extraerles texto.
+- `RCU-N-274-2022-UNT.txt` — Reglamento N° 007-2022-UNT/URA (Reglamento General de Otorgamiento de Grados Académicos y Títulos Profesionales). Es un reglamento de **procedimientos administrativos** de graduación/titulación, no de formato DOCX. Su único aporte a la validación es el **Anexo 5** (esquemas de proyecto/informe de investigación y de artículo científico), que se registró como **no determinista** (ver `unt_format_rules_schema.yaml` → `no_deterministas`).
+- `RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt` — catálogo de líneas de investigación (Tablas 1, 2 y 3: consolidadas, por consolidar y emergentes). La hipótesis previa de estructura **"código - nombre" quedó descartada**: las líneas van por número correlativo + nombre, sin código alfanumérico. La lista oficial alimenta la nueva regla `caratula_linea_investigacion`, que valida que la línea declarada en la carátula sea una de las aprobadas por el RCU-220.
 
 ## Motor de reglas (re-arquitecturado — reemplaza al prototipo `eval_checks2.py`)
 
@@ -99,7 +99,7 @@ validator/
   extractor.py  — abre el .docx (zip OPC), expone document.xml/footer1.xml/header1.xml
                   y el contexto "cuerpo" (párrafos de la última sección)
   checks.py     — ejecuta cada tipo de check (xml_atributo, xml_presencia,
-                  texto_regex, secuencia_titulos, imagen_presencia)
+                  texto_regex, texto_en_lista, secuencia_titulos, imagen_presencia)
   engine.py     — carga el YAML, corre las reglas mecanizadas, arma el reporte
   prompts.py    — genera el bloque "cómo preguntar a una IA" por cada regla
                   fallida (template-based, sin LLM en runtime)
@@ -147,4 +147,4 @@ python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/pla
 
 ## Estado actual
 
-Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba. Aún no hay API (FastAPI) ni frontend React conectados. Próximos pasos: correr OCR sobre los dos reglamentos pendientes, exponer el motor vía `POST /validar` en FastAPI, y conectar el frontend en React.
+Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba y contra las 5 plantillas oficiales (25/32 mecanizadas PASS). Los dos RCU escaneados fueron leídos vía OCR (2026-09-02) y quedaron reflejados en el YAML: la lista de líneas de investigación del RCU-220 alimenta la regla `caratula_linea_investigacion` y el aporte del RCU-274 (Anexo 5) se registró como no determinista. Aún no hay API (FastAPI) ni frontend React conectados. Próximos pasos: exponer el motor vía `POST /validar` en FastAPI y conectar el frontend en React.

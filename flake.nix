@@ -18,6 +18,8 @@
           pyyaml
           python-docx
           pymupdf
+          pytesseract
+          pillow
           lxml
           pytest
           httpx
@@ -34,7 +36,7 @@
             pythonEnv
             pkgs.ocrmypdf
             tesseractSpa
-            pkgs.poppler-utils
+            pkgs.poppler_utils
           ];
 
           shellHook = ''
