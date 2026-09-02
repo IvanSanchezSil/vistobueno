@@ -107,11 +107,20 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | `metadatos.reglas_evaluadas` | `int` | Cantidad de reglas ejecutadas |
 | `metadatos.version_esquema` | `string` | Versión del esquema YAML de reglas |
 
-### 400 Bad Request — Sin archivo
+### 422 Unprocessable Entity — Sin archivo (validación de FastAPI)
+
+FastAPI valida automáticamente que el campo `archivo` esté presente. Si no se envía, devuelve su propio 422 con un mensaje de validación:
 
 ```json
 {
-  "detail": "Campo 'archivo' requerido. Envíe un archivo .docx en el campo 'archivo' del formulario multipart."
+  "detail": [
+    {
+      "type": "missing",
+      "loc": ["body", "archivo"],
+      "msg": "Field required",
+      "input": null
+    }
+  ]
 }
 ```
 
@@ -135,7 +144,15 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 
 ```json
 {
-  "detail": "No se pudo procesar el archivo DOCX: Error al abrir el paquete ZIP — archivo corrupto o no es un DOCX válido."
+  "detail": "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+}
+```
+
+### 422 Unprocessable Entity — Archivo vacío
+
+```json
+{
+  "detail": "El archivo está vacío."
 }
 ```
 
@@ -173,10 +190,9 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=false" \
 | Código | Significado |
 |--------|-------------|
 | `200` | Validación exitosa |
-| `400` | Solicitud mal formada (sin campo `archivo`) |
 | `413` | Archivo excede 10 MB |
 | `415` | Tipo de archivo no soportado (no es `.docx`) |
-| `422` | Archivo no procesable (corrupto o no es DOCX válido) |
+| `422` | Solicitud mal formada (sin campo `archivo`) / Archivo corrupto o no procesable |
 | `500` | Error interno del servidor |
 
 ---
