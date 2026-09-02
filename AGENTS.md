@@ -213,7 +213,7 @@ Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMu
 
 ### Pitfalls conocidos
 
-- `poppler_utils` se renombró a `poppler-utils` en nixpkgs recientes. Si `nix develop` falla, revisa este nombre.
+- El atributo de nixpkgs para las utilidades de Poppler es `pkgs.poppler_utils` (con guion bajo), NO `poppler-utils`. En Nix los atributos de paquetes usan `_`, no `-`. Si usas `pkgs.poppler-utils`, `nix develop` falla por atributo inexistente.
 - FastAPI necesita `python-multipart` para manejar `multipart/form-data`. Sin él, el endpoint de upload no funciona.
 - El engine carga el YAML de reglas una sola vez al iniciar. Si modificas `unt_format_rules_schema.yaml`, reinicia el servidor.
 
@@ -229,6 +229,32 @@ uvicorn validator.api:app --reload
 ```bash
 pytest tests/ -v
 ```
+
+### Reproducir el OCR de los reglamentos
+
+El catálogo de líneas de investigación y el contenido del RCU-274 se obtienen
+de los PDFs escaneados de la UNT con `scripts/ocr_pdfs.py`. La carpeta
+`recursos/` está en `.gitignore` (archivos grandes/derivados **no se versionan**),
+así que los `.txt` generados solo existen localmente.
+
+Para regenerarlos (p. ej. en otra máquina):
+
+```bash
+nix develop                      # activa el entorno (tesseract spa+eng, ocrmypdf, PyMuPDF)
+python scripts/ocr_pdfs.py       # usa los PDFs del repo por defecto
+# salida: recursos/ocr/RCU-N-274-2022-UNT.txt
+#         recursos/ocr/RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.txt
+```
+
+El script es híbrido: extrae texto nativo con PyMuPDF y, si una página tiene
+menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
+`tesseract` no está instalado, esas páginas quedan marcadas como
+"pendiente OCR" en el `.txt`.
+
+> Nota: el motor **no** carga estos `.txt` en tiempo de ejecución. La regla
+> `caratula_linea_investigacion` embebe el catálogo de 46 líneas directamente
+> en `unt_format_rules_schema.yaml` (clave `lista`). Los `.txt` se usan solo
+> como fuente de referencia para auditar de dónde salió cada línea.
 
 ---
 

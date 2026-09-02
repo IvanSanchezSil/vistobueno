@@ -23,6 +23,7 @@
           lxml
           pytest
           httpx
+          python-multipart
         ]);
 
         tesseractSpa = pkgs.tesseract.override {
@@ -41,7 +42,7 @@
           shellHook = ''
             echo "Entorno listo: Python $(python3 --version)"
             echo "FastAPI, python-docx, PyMuPDF, pyyaml disponibles."
-            echo "OCR: ocrmypdf, tesseract (spa+eng), pdftotext disponibles.."
+            echo "OCR: ocrmypdf, tesseract (spa+eng), pdftotext disponibles."
           '';
         };
       });
