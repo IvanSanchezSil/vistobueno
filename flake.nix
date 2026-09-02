@@ -21,6 +21,7 @@
           lxml
           pytest
           httpx
+          python-multipart
         ]);
 
         tesseractSpa = pkgs.tesseract.override {
