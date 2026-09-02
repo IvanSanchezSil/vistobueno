@@ -21,6 +21,7 @@
           lxml
           pytest
           httpx
+          python-multipart
         ]);
 
         tesseractSpa = pkgs.tesseract.override {
@@ -33,7 +34,7 @@
             pythonEnv
             pkgs.ocrmypdf
             tesseractSpa
-            pkgs.poppler_utils
+            pkgs.poppler-utils
           ];
 
           shellHook = ''

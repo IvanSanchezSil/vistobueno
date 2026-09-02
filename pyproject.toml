@@ -1,0 +1,9 @@
+[project]
+name = "vistobueno"
+version = "0.1.0"
+description = "Validador automático de formato de tesis — UNT FECyC"
+requires-python = ">=3.14"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
