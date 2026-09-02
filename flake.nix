@@ -18,6 +18,8 @@
           pyyaml
           python-docx
           pymupdf
+          pytesseract
+          pillow
           lxml
           pytest
           httpx
@@ -39,7 +41,7 @@
           shellHook = ''
             echo "Entorno listo: Python $(python3 --version)"
             echo "FastAPI, python-docx, PyMuPDF, pyyaml disponibles."
-            echo "OCR: ocrmypdf, tesseract (spa+eng), pdftotext disponibles."
+            echo "OCR: ocrmypdf, tesseract (spa+eng), pdftotext disponibles.."
           '';
         };
       });

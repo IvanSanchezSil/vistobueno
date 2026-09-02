@@ -1,1 +1,14 @@
 recursos/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Nix
+result
+
+# IDE
+.vscode/
+.idea/
