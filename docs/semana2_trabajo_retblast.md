@@ -77,6 +77,61 @@
 
 ---
 
+### Tarea 4: Endpoint FastAPI con integración del motor
+
+**Fecha**: 02/09/2026  
+**Acción**: Se creó `validator/api.py` con el endpoint `POST /validar` completo.
+
+**Lo que hace el endpoint**:
+1. Recibe archivo vía multipart/form-data
+2. Valida extensión (.docx) y content-type
+3. Lee el contenido y valida tamaño (máx. 10 MB)
+4. Guarda en archivo temporal
+5. Llama al motor: `extract()` → `validate_docx()` → `build_report()` → `build_ai_help_section()`
+6. Mapea `RuleResult` → `ResultadoReglaAPI` (DTO con campos en español)
+7. Agrega `metadatos` (nombre archivo, tamaño, reglas evaluadas)
+8. Limpia el archivo temporal en `finally`
+
+**Manejo de errores**:
+- 422: campo `archivo` faltante (validación de FastAPI), archivo vacío, archivo corrupto
+- 415: tipo de archivo no soportado
+- 413: archivo excede 10 MB
+- 500: error interno del validador
+
+**Archivos**: `validator/api.py`, `flake.nix` (agregado `python-multipart`)
+
+---
+
+### Tarea 5: Tests de contrato
+
+**Fecha**: 02/09/2026  
+**Acción**: Se creó `tests/test_api_contract.py` con 18 tests que verifican el contrato de la API.
+
+**Categorías de tests**:
+- `TestRespuestaExitosa` (11 tests): status 200, semáforo, resumen, resultados, prompts IA, metadatos, coherencia
+- `TestQueryParams` (2 tests): `incluir_prompts_ia=false` desactiva prompts, default los activa
+- `TestErrores` (4 tests): archivo faltante (422), tipo no soportado (415), vacío (422), corrupto (422)
+- `TestParidadAPICLI` (1 test): compara API vs motor directamente (mismos counts, mismo semáforo, mismos rule_ids, mismos passed)
+
+**Resultado**: 18/18 tests pasando.
+
+**Archivos**: `tests/test_api_contract.py`, `pyproject.toml` (configuración de pytest)
+
+---
+
+### Tarea 6: Verificación de paridad API = CLI
+
+**Fecha**: 02/09/2026  
+**Acción**: El test `test_mismos_campos_que_motor` compara la respuesta de la API directamente con la salida del motor interno.
+
+**Verificado**:
+- Mismos counts (`total`, `fallidos_error`, `fallidos_warning`)
+- Mismo semáforo (`verde`/`rojo`)
+- Mismos `rule_id` en ambos
+- Mismos valores `passed`/`paso` por regla
+
+---
+
 ## Evidencias producidas
 
 | Evidencia | Archivo | Competencia curricular |
@@ -84,7 +139,11 @@
 | Shape exacto del motor de validación | `docs/ejemplo_respuesta_motor.json` | Estructura de Datos |
 | Contrato de API completo | `docs/CONTRATO_API.md` | Redes de Computadoras I, Ingeniería de Software I |
 | Modelos Pydantic DTO | `validator/api_models.py` | Estructura de Datos, Ingeniería de Software II |
+| Endpoint FastAPI con integración del motor | `validator/api.py` | Ingeniería de Software II, Redes de Computadoras I |
+| 18 tests de contrato pasando | `tests/test_api_contract.py` | Ingeniería de Software II |
+| Configuración de pytest | `pyproject.toml` | — |
 | Corrección de typo en flake.nix | `flake.nix` (poppler_utils → poppler-utils) | — |
+| Dependencia python-multipart agregada | `flake.nix` | — |
 
 ---
 
@@ -99,21 +158,21 @@
 
 ---
 
-## Pendiente (siguientes tareas de la semana)
+## Pendiente
 
-- [ ] Crear endpoint FastAPI (`validator/api.py`)
-- [ ] Integrar motor existente en el endpoint
-- [ ] Manejo de errores del endpoint
-- [ ] Tests de contrato
-- [ ] Verificar paridad API = CLI
+- [x] Crear endpoint FastAPI (`validator/api.py`)
+- [x] Integrar motor existente en el endpoint
+- [x] Manejo de errores del endpoint
+- [x] Tests de contrato (18/18 pasando)
+- [x] Verificar paridad API = CLI
 - [ ] Screenshot de Swagger UI
-- [ ] Commits atómicos y push
+- [x] Commits atómicos y push
 
 ---
 
 ## Plan semana siguiente (semana 3)
 
-- Implementación completa del endpoint `POST /validar`
-- Tests de integración con archivos DOCX reales
-- Soporte para query params (`incluir_prompts_ia`, `solo_errores`)
+- Soporte PDF (extractor con PyMuPDF)
 - Conexión inicial con el frontend React
+- Tests de integración con archivos DOCX reales y edge cases
+- Agregar reglas nuevas si el motor las requiere
