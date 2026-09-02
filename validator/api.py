@@ -1,0 +1,257 @@
+"""API FastAPI para VistoBueno — endpoint POST /validar.
+
+Expone el motor de validación de formato de tesis como servicio HTTP.
+Recibe un archivo DOCX, lo procesa contra las reglas de formato de la
+UNT, y devuelve un reporte estructurado en JSON.
+
+Uso:
+    python -m validator.api
+    # o con uvicorn directamente:
+    uvicorn validator.api:app --reload
+"""
+import os
+import tempfile
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.responses import JSONResponse
+
+from .api_models import (
+    MetadatosValidacion,
+    PromptIA,
+    ResumenValidacion,
+    ResultadoReglaAPI,
+    ValidarResponse,
+)
+from .engine import build_report, load_rules, validate_docx
+from .models import RuleResult
+from .prompts import build_ai_help_section
+
+# ---------------------------------------------------------------------------
+# Configuración
+# ---------------------------------------------------------------------------
+
+REGLAS_YAML_PATH = str(
+    Path(__file__).resolve().parent.parent / "unt_format_rules_schema.yaml"
+)
+
+TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
+
+TIPOS_ACEPTADOS = {
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/octet-stream",  # algunos navegadores envían esto para .docx
+}
+
+EXTENSION_ACEPTADA = ".docx"
+
+# Cargar reglas una sola vez al iniciar el módulo
+_rules_data: Optional[dict] = None
+
+
+def _get_rules() -> dict:
+    """Carga el YAML de reglas en la primera llamada y lo cachea."""
+    global _rules_data
+    if _rules_data is None:
+        _rules_data = load_rules(REGLAS_YAML_PATH)
+    return _rules_data
+
+
+# ---------------------------------------------------------------------------
+# Mapeo motor interno → DTO API
+# ---------------------------------------------------------------------------
+
+
+def _rule_result_a_dto(r: RuleResult) -> ResultadoReglaAPI:
+    """Convierte un RuleResult del motor a un ResultadoReglaAPI (DTO)."""
+    return ResultadoReglaAPI(
+        rule_id=r.rule_id,
+        paso=r.passed,
+        severidad=r.severity.value,
+        mensaje=r.message,
+        esperado=r.expected,
+        encontrado=r.found,
+        ubicacion=r.location,
+        fuente=r.fuente,
+        cita=r.cita,
+    )
+
+
+def _construir_respuesta(
+    resultados_motor: list,
+    reporte: dict,
+    prompts_data: list,
+    archivo_nombre: str,
+    archivo_tamano: int,
+) -> ValidarResponse:
+    """Ensambla la respuesta completa de la API a partir de la salida del motor."""
+    resultados_dto = [_rule_result_a_dto(r) for r in resultados_motor]
+
+    return ValidarResponse(
+        semaforo=reporte["semaforo"],
+        resumen=ResumenValidacion(
+            total=reporte["resumen"]["total"],
+            fallidos_error=reporte["resumen"]["fallidos_error"],
+            fallidos_warning=reporte["resumen"]["fallidos_warning"],
+        ),
+        resultados=resultados_dto,
+        como_preguntar_a_una_ia=[
+            PromptIA(rule_id=p["rule_id"], prompt=p["prompt"]) for p in prompts_data
+        ],
+        metadatos=MetadatosValidacion(
+            archivo_nombre=archivo_nombre,
+            archivo_tamano_bytes=archivo_tamano,
+            reglas_evaluadas=reporte["resumen"]["total"],
+            version_esquema="2026-09-01",
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Aplicación FastAPI
+# ---------------------------------------------------------------------------
+
+app = FastAPI(
+    title="VistoBueno API",
+    description="API de validación automática de formato de tesis — UNT FECyC",
+    version="1.0.0",
+)
+
+
+@app.post(
+    "/validar",
+    response_model=ValidarResponse,
+    summary="Validar formato de tesis",
+    description=(
+        "Recibe un archivo DOCX de tesis y devuelve un reporte de validación "
+        "contra las reglas de formato de la Universidad Nacional de Trujillo."
+    ),
+    responses={
+        400: {"description": "Sin archivo en la solicitud"},
+        413: {"description": "Archivo excede el tamaño máximo (10 MB)"},
+        415: {"description": "Tipo de archivo no soportado"},
+        422: {"description": "Archivo corrupto o no es DOCX válido"},
+        500: {"description": "Error interno del validador"},
+    },
+)
+async def validar(
+    archivo: UploadFile = File(..., description="Archivo .docx a validar"),
+    incluir_prompts_ia: bool = Query(
+        default=True,
+        alias="incluir_prompts_ia",
+        description="Incluir la sección 'Cómo preguntar a una IA' en la respuesta",
+    ),
+):
+    # --- Validación: ¿hay archivo? ---
+    if archivo.filename is None or archivo.filename == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Campo 'archivo' requerido. Envíe un archivo .docx en el campo 'archivo' del formulario multipart.",
+        )
+
+    # --- Validación: extensión ---
+    if not archivo.filename.lower().endswith(EXTENSION_ACEPTADA):
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Tipo de archivo no soportado: '{archivo.filename}'. "
+                f"Solo se aceptan archivos .docx "
+                f"({EXTENSION_ACEPTADA})."
+            ),
+        )
+
+    # --- Validación: content-type (advisory, no definitivo) ---
+    content_type = archivo.content_type or ""
+    if content_type and content_type not in TIPOS_ACEPTADOS:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Content-Type no soportado: '{content_type}'. "
+                f"Solo se aceptan archivos .docx."
+            ),
+        )
+
+    # --- Leer contenido ---
+    try:
+        contenido = await archivo.read()
+    except Exception:
+        raise HTTPException(
+            status_code=422,
+            detail="No se pudo leer el archivo enviado.",
+        )
+
+    # --- Validación: tamaño ---
+    tamano = len(contenido)
+    if tamano > TAMANO_MAXIMO_BYTES:
+        tamano_mb = round(tamano / (1024 * 1024), 1)
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"El archivo excede el tamaño máximo permitido "
+                f"(10 MB). Tamaño recibido: {tamano_mb} MB."
+            ),
+        )
+
+    if tamano == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="El archivo está vacío.",
+        )
+
+    # --- Guardar en archivo temporal y procesar ---
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=EXTENSION_ACEPTADA
+        ) as tmp:
+            tmp.write(contenido)
+            tmp_path = tmp.name
+
+        rules_data = _get_rules()
+        resultados_motor = validate_docx(tmp_path, rules_data)
+        reporte = build_report(resultados_motor)
+
+        # Prompts de IA (solo si se solicitan)
+        prompts_data = []
+        if incluir_prompts_ia:
+            fallidos = [r for r in resultados_motor if not r.passed]
+            prompts_data = build_ai_help_section(fallidos)
+
+        return _construir_respuesta(
+            resultados_motor=resultados_motor,
+            reporte=reporte,
+            prompts_data=prompts_data,
+            archivo_nombre=archivo.filename,
+            archivo_tamano=tamano,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Error al abrir/procesar el DOCX (ZIP corrupto, XML inválido, etc.)
+        mensaje_error = str(e)
+        if "BadZipFile" in type(e).__name__ or "zip" in mensaje_error.lower():
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No se pudo procesar el archivo DOCX: "
+                    "archivo corrupto o no es un DOCX válido."
+                ),
+            )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno del validador: {type(e).__name__}: {mensaje_error}",
+        )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# Punto de entrada para ejecución directa
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
