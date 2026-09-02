@@ -1,0 +1,49 @@
+{
+  "semaforo": "rojo",
+  "resultados": [
+    {
+      "rule_id": "papel_tamano",
+      "passed": true,
+      "severity": "error",
+      "message": "El tamaño del papel debe ser A4",
+      "expected": "210 x 297 mm",
+      "found": "cumple",
+      "location": "Sección \"Formato general\" (párr. 124-125)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Tamaño A4/papel (210x297 cm)\""
+    },
+    {
+      "rule_id": "caratula_titulo_trabajo_tamano",
+      "passed": false,
+      "severity": "warning",
+      "message": "Tamaño de letra del título del trabajo en carátula",
+      "expected": "14pt",
+      "found": "@w:val=['26'] esperado=28",
+      "location": "Carátula, especificaciones (párr. 177)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\""
+    },
+    {
+      "rule_id": "caratula_autores_mayusculas_sin_negrita",
+      "passed": false,
+      "severity": "error",
+      "message": "Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita",
+      "expected": "MAYÚSCULAS, sin negrita",
+      "found": "textos=1 incumplen=1",
+      "location": "Carátula, especificaciones (párr. 179)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas.\""
+    }
+  ],
+  "resumen": {
+    "total": 31,
+    "fallidos_error": 3,
+    "fallidos_warning": 4
+  },
+  "como_preguntar_a_una_ia": [
+    {
+      "rule_id": "caratula_titulo_trabajo_tamano",
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del título del trabajo en carátula\n- Valor esperado según el reglamento: 14pt\n- Lo que encontró el validador: @w:val=['26'] esperado=28\n- Cita del reglamento: \"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+    }
+  ]
+}
