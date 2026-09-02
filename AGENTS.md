@@ -48,10 +48,19 @@ Frontend (React)
 1. **Nunca trabajar directamente en `master`**.
 2. Crear una rama por tarea o semana:
    ```
-   git checkout -b week3-frontend-integration
+   git checkout -b semana3-frontend-integration
    ```
-3. Hacer push periódicamente a la rama.
-4. Al terminar, abrir PR o hacer merge manual a `master`.
+3. Convención de nombres: `semana{N}-{descripcion-corta}` o `{area}-{descripcion}`.
+   Ejemplos: `semana2-api-contract`, `frontend-upload-component`, `motor-nueva-regla-margenes`.
+4. Hacer push periódicamente a la rama.
+5. Al terminar, abrir PR o hacer merge manual a `master`.
+
+### Merge y aprobación
+
+- Antes de mergear a `master`, verificar que los tests pasen (`pytest tests/ -v`).
+- Si trabajas en la API, coordina con Integrante 3 antes de modificar `engine.py` o `checks.py`.
+- Si trabajas en el frontend, coordina con Integrante 1 antes de cambiar el contrato de la API.
+- El merge a `master` lo hace el integrante que terminó la tarea, después de verificar que todo funciona.
 
 ### Commits
 
@@ -64,6 +73,15 @@ Frontend (React)
   test(api): agregar tests de contrato
   ```
 - Prefijos: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`.
+
+### Cómo verificar antes de commitear
+
+Antes de hacer commit, siempre:
+
+1. **Tests**: `pytest tests/ -v` — todos deben pasar.
+2. **API manual**: levantar con `uvicorn validator.api:app --reload`, probar con `curl` o desde Swagger (`http://localhost:8000/docs`).
+3. **Sin archivos temporales**: verificar que `git status` no muestre archivos que no deban ir al repo (`__pycache__`, `.pyc`, archivos temporales).
+4. **Revisar el diff**: `git diff` antes de `git add` para asegurarse de que solo cambiaste lo que querías cambiar.
 
 ### Idioma
 
@@ -87,6 +105,16 @@ Cada integrante lleva una **bitácora semanal** en `docs/semana{N}_trabajo_{user
 - Relación con competencias curriculares
 - Dificultades y aprendizajes
 - Plan de la semana siguiente
+
+### Convenciones de nombres de archivos
+
+| Tipo | Convención | Ejemplo |
+|------|------------|---------|
+| Bitácora semanal | `docs/semana{N}_trabajo_{username}.md` | `docs/semana2_trabajo_retblast.md` |
+| Contrato de API | `docs/CONTRATO_API.md` | — |
+| Tests | `tests/test_{area}_{descripcion}.py` | `tests/test_api_contract.py` |
+| Modelos Pydantic | `validator/api_models.py` | — |
+| Scripts | `scripts/{descripcion}.py` | `scripts/eval_contra_plantillas.py` |
 
 ---
 
@@ -173,6 +201,22 @@ nix develop   # activa el entorno con todas las dependencias
 
 Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart.
 
+### Gestión de dependencias
+
+`flake.nix` es la **fuente de verdad** para las dependencias del proyecto. Si necesitas un paquete Python nuevo:
+
+1. Agregarlo a la lista `pythonEnv` en `flake.nix`.
+2. Hacer commit del cambio en `flake.nix`.
+3. Correr `nix develop` para que Nix lo instale.
+
+**No instalar paquetes con `pip install`** — no serán reproducibles para otros integrantes.
+
+### Pitfalls conocidos
+
+- `poppler_utils` se renombró a `poppler-utils` en nixpkgs recientes. Si `nix develop` falla, revisa este nombre.
+- FastAPI necesita `python-multipart` para manejar `multipart/form-data`. Sin él, el endpoint de upload no funciona.
+- El engine carga el YAML de reglas una sola vez al iniciar. Si modificas `unt_format_rules_schema.yaml`, reinicia el servidor.
+
 ### Correr la API en desarrollo
 
 ```bash
@@ -202,6 +246,18 @@ pytest tests/ -v
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
 
+### Cómo agregar una regla nueva al YAML
+
+Si necesitas agregar una regla de formato que no existe todavía:
+
+1. Leer el manual oficial (`recursos/MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx`) y encontrar la sección correspondiente.
+2. Definir el `id` en inglés (snake_case), ej. `margen_superior`.
+3. Especificar `tipo`, `descripcion`, `valor_esperado`, `severidad`, `fuente`, `ubicacion`, `cita`.
+4. Si es verificable mecánicamente, agregar `mecanismo_verificable` con sus `checks`.
+5. Cada check necesita: `tipo` (xml_atributo, xml_presencia, texto_regex, secuencia_titulos, imagen_presencia), `xpath`, `comparacion`, `esperado`.
+6. Probar con `python -m validator.cli prueba.docx unt_format_rules_schema.yaml` antes de hacer commit.
+7. Documentar en el YAML si hay desvío entre el manual y las plantillas oficiales (usar nota con prefijo `EVALUADO:`).
+
 ---
 
 ## Roles por integrante
@@ -213,6 +269,18 @@ pytest tests/ -v
 | Integrante 3 | Motor de reglas / Procesamiento | Checks, extractor, nuevas reglas, OCR |
 
 > Ajustar esta tabla según los roles reales del equipo.
+
+### Límites de responsabilidad
+
+Cada integrante tiene su área para evitar conflictos de merge:
+
+| Integrante | Puede modificar | No debe modificar (sin coordinar) |
+|------------|-----------------|-----------------------------------|
+| Integrante 1 (Backend) | `api.py`, `api_models.py`, `tests/`, `docs/CONTRATO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
+| Integrante 2 (Frontend) | `frontend/` (React), `docs/` | `validator/` (coordina con Int1) |
+| Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
+
+Si necesitas modificar un archivo que no es de tu área, **coordina primero** con el integrante responsable.
 
 ---
 
