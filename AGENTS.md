@@ -229,6 +229,92 @@ pytest tests/ -v
 
 ---
 
+## Estructura del repositorio
+
+```
+vistobueno/
+├── AGENTS.md                          # Esta guía
+├── README.md                          # Documentación general del proyecto
+├── flake.nix                          # Entorno de desarrollo Nix
+├── unt_format_rules_schema.yaml       # 43 reglas de formato (fuente de verdad)
+├── validator/
+│   ├── __init__.py                    # Docstring del paquete
+│   ├── engine.py                      # Motor: load_rules, validate_docx, build_report
+│   ├── models.py                      # RuleResult (dataclass), Severity (Enum)
+│   ├── extractor.py                   # Abre .docx, extrae XML (ExtractedDocx)
+│   ├── checks.py                      # Checks individuales (xpath, atributos, regex)
+│   ├── prompts.py                     # Generador de prompts "cómo preguntar a una IA"
+│   ├── api.py                         # FastAPI endpoint POST /validar
+│   ├── api_models.py                  # Pydantic DTOs (ValidarResponse, etc.)
+│   └── cli.py                         # CLI de referencia
+├── tests/
+│   └── test_api_contract.py           # Tests de contrato para la API
+├── docs/
+│   ├── CONTRATO_API.md                # Especificación del endpoint
+│   ├── ejemplo_respuesta_motor.json   # Salida de referencia del motor
+│   └── semana{N}_trabajo_{user}.md    # Bitácoras semanales
+├── scripts/
+│   └── eval_contra_plantillas.py      # Evaluación batch contra plantillas
+└── recursos/                          # Plantillas oficiales y reglamentos (.docx, .pdf)
+```
+
+### Flujo de datos en detalle
+
+1. El frontend envía un archivo `.docx` vía `POST /validar` (multipart/form-data).
+2. `api.py` recibe el archivo, valida tipo y tamaño, lo guarda en un archivo temporal.
+3. `engine.validate_docx()` llama a `extractor.extract()` que abre el ZIP del DOCX y extrae los XML relevantes (`document.xml`, `footer1.xml`, `header1.xml`).
+4. El engine recorre cada regla del YAML que tenga `mecanismo_verificable`.
+5. Para cada regla, ejecuta sus `checks` via `checks.run_check()` (xpath, atributos XML, regex, secuencia de títulos, presencia de imágenes).
+6. Cada check produce un `(passed, detalle)` que se acumula en fallos.
+7. El engine arma `List[RuleResult]` con el resultado de cada regla.
+8. `build_report()` agrupa los resultados, calcula el semáforo y el resumen.
+9. `build_ai_help_section()` genera prompts template para las reglas fallidas.
+10. `api.py` mapea los resultados del motor a los DTOs Pydantic (campos en español).
+11. La respuesta JSON se devuelve al frontend.
+
+### Capa de abstracción: motor vs API
+
+El **motor de validación** (`engine.py`, `models.py`, `extractor.py`, `checks.py`) es un módulo Python puro, sin dependencia de FastAPI. Se puede usar desde:
+- La API (`api.py`)
+- La CLI (`cli.py`)
+- Scripts de evaluación batch (`scripts/`)
+
+La **capa API** (`api.py`, `api_models.py`) es un adaptador delgado que:
+- Recibe HTTP multipart
+- Valida entrada
+- Llama al motor
+- Mapea `RuleResult` → `ResultadoReglaAPI` (DTO)
+- Agrega metadatos (nombre de archivo, tamaño)
+- Devuelve JSON con campos en español
+
+Esto significa que **no debes mover lógica de validación a `api.py`**. Si una lógica pertenece al motor, va en `engine.py` o `checks.py`.
+
+---
+
+## Reglas de comportamiento del agente
+
+### Preguntar cuando no esté claro
+
+Si alguna instrucción, decisión de diseño, o requisito no está claro, **pregunta al usuario antes de asumir**. Es mejor hacer una pregunta rápida que implementar algo incorrecto y tener que rehacerlo. Ejemplos de cuándo preguntar:
+
+- No está claro dónde va un cambio (¿motor? ¿API? ¿frontend?)
+- Hay dos formas de hacer algo y no hay una razón obvia para elegir una
+- Un requisito contradice algo existente en el código
+- No estás seguro del scope de una tarea
+- Algo en el AGENTS.md o el README parece desactualizado
+
+### Este documento es vivo (pero requiere aprobación)
+
+El `AGENTS.md` se puede actualizar conforme el proyecto evolucione:
+- Nuevos componentes → agregar a la tabla de componentes
+- Nuevas convenciones → agregar a la sección correspondiente
+- Cambios de arquitectura → actualizar diagrama y descripciones
+- Nuevos roles o responsabilidades → actualizar tabla de roles
+
+**Restricción**: todo cambio al `AGENTS.md` debe ser **aprobado por el usuario** antes de hacerse commit. No actualices este documento unilateralmente.
+
+---
+
 ## Evidencia para pasantía
 
 Cada integrante debe poder demostrar:
