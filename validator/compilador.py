@@ -5,7 +5,9 @@ Convierte el YAML de reglas (formato DSL) en una colección de
 producir `List[RuleResult]` — el mismo contrato que el motor legacy.
 
 Formato DSL (la regla puede declarar cualquiera de estas secciones, y
-**todas** deben cumplirse para que la regla pase):
+**todas** deben cumplirse para que la regla pase; si una sección se
+declara como **lista**, cada elemento es una comprobación distinta que
+también debe cumplirse):
 
     atributo_xml / presencia_xml -> AnalizadorXML
     patron_texto                -> AnalizadorRegex
@@ -49,6 +51,39 @@ SECCIONES_ANALIZADOR = (
 # ---------------------------------------------------------------------------
 # AutomataSecuencia con interfaz Analizador (se usa a través del DSL)
 # ---------------------------------------------------------------------------
+
+
+def _sig_token(s: str) -> str:
+    """Token "significativo" del motor legacy (checks._check_secuencia).
+
+    Primer token de la cadena con al menos 4 caracteres alfanuméricos
+    (sin puntuación). Si ninguno lo tiene, usa el primer token normalizado.
+    Permite tolerar variantes de redacción ("2.1 Variable(s)..." encaja con
+    "Variable(s) y operacionalización" porque el token significativo coincide).
+    """
+    for tk in s.split():
+        tk = re.sub(r"[^A-ZÁÉÍÓÚÑ0-9]+", "", tk)
+        if len(tk) >= 4:
+            return tk
+    return re.sub(r"[^A-ZÁÉÍÓÚÑ0-9]+", "", s.split()[0]) if s.split() else ""
+
+
+def _matchea_legacy(token: str, patron: re.Pattern, prefijos: bool) -> bool:
+    """Matching idéntico al legacy `checks._check_secuencia`.
+
+    Sustituye la semántica genérica del DFA (search + prefijo) por la del
+    motor legacy: startswith, prefijo del heading, o igualdad del token
+    significativo. Garantiza que el DSL acepte exactamente lo que aceptaba
+    `secuencia_titulos` (paridad de comportamiento en la F1 de migración).
+    """
+    p = patron.pattern
+    if token.startswith(p) or p.startswith(token[: min(len(token), 25)]):
+        return True
+    st = _sig_token(p)
+    tt = _sig_token(token)
+    if st and tt and st == tt:
+        return True
+    return False
 
 
 class AutomataSecuencia(Analizador):
@@ -98,6 +133,7 @@ class AutomataSecuencia(Analizador):
             inicial="__inicio__",
             aceptacion=aceptacion,
             reconocimiento_backtracking=self.reconocimiento == "backtracking",
+            matche=_matchea_legacy,
         )
 
     def _headings(self, extracted: ExtractedDocx) -> List[str]:
@@ -131,20 +167,58 @@ class AutomataSecuencia(Analizador):
                 return "universidad" in t.lower()
         return False
 
+    def _faltantes_legacy(
+        self, estados_cfg: list, headings: List[str], cover_ok: bool
+    ) -> List[str]:
+        """Lista de ítems del esquema que faltan, con la MISMA semántica que
+        `checks._check_secuencia` del motor legacy.
+
+        El DFA solo reporta las transiciones alcanzables desde el estado en
+        que se atascó; legacy, en cambio, sigue intentando matchear los ítems
+        posteriores y solo anota los que no aparecen. Para que el `found` del
+        reporte sea idéntico, al fallar se reproduce aquí el recorrido legacy.
+        """
+        cover_nombres = {"carátula", "caratula"}
+        faltantes: List[str] = []
+        pos = 0
+        for e in estados_cfg:
+            if e.get("opcional"):
+                continue
+            if e.get("nombre", "").lower() in cover_nombres and cover_ok:
+                continue
+            patron = re.compile(
+                re.sub(r"\s+", " ", e.get("patron", e["nombre"]).strip())
+            )
+            found = None
+            for k in range(pos, len(headings)):
+                if _matchea_legacy(headings[k], patron, True):
+                    found = k
+                    break
+            if found is None:
+                faltantes.append(e.get("original", patron.pattern))
+            else:
+                pos = found + 1
+        return faltantes
+
     def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
         estados_cfg = self.config.get("estados", [])
         if not estados_cfg:
             return False, "sin estados definidos en automata_secuencia"
 
-        # Satisface la carátula automáticamente si el primer párrafo del
-        # documento menciona "universidad" (cover_ok del motor legacy).
+        # La carátula se satisface con el primer párrafo del documento que
+        # mencione "universidad" (cover_ok del motor legacy). Si NO hay
+        # portada detectada, el estado carátula se mantiene como ítem
+        # obligatorio de la secuencia (mismo comportamiento que legacy).
         cover_nombres = {"carátula", "caratula"}
         if any(e.get("nombre", "").lower() in cover_nombres for e in estados_cfg):
             cover_ok = self._caratula_ok(extracted)
-            estados_activos = [
-                e for e in estados_cfg
-                if not (e.get("nombre", "").lower() in cover_nombres)
-            ]
+            if cover_ok:
+                estados_activos = [
+                    e for e in estados_cfg
+                    if not (e.get("nombre", "").lower() in cover_nombres)
+                ]
+            else:
+                estados_activos = estados_cfg
         else:
             cover_ok = False
             estados_activos = estados_cfg
@@ -152,13 +226,11 @@ class AutomataSecuencia(Analizador):
         dfa = self._build_dfa(estados_activos)
 
         headings = [self._normalizar(t) for t in self._headings(extracted) if t]
-        aceptado, faltantes = dfa.reconocer(headings)
-        if cover_ok:
-            # La carátula fue satisfecha por detección de párrafo.
-            faltantes = [f for f in faltantes if f.lower() not in cover_nombres]
+        aceptado, _ = dfa.reconocer(headings)
 
         if aceptado:
-            return True, f"headings={len(headings)} secuencia_ok"
+            return True, f"headings={len(headings)} faltantes=[]"
+        faltantes = self._faltantes_legacy(estados_cfg, headings, cover_ok)
         return False, f"headings={len(headings)} faltantes={faltantes[:6]}"
 
 
@@ -247,12 +319,24 @@ class CompilerDSL:
         reglas: List[ReglaCompilada] = []
         for rule in rules_data.get("reglas", []):
             analizadores = []
-            for seccion in SECCIONES_ANALIZADOR:
-                if seccion in rule:
-                    fabrica = _FABRICAS.get(seccion)
-                    if fabrica is None:
-                        continue
-                    analizadores.append(fabrica(rule[seccion]))
+            # Se recorren las secciones en el orden en que aparecen en la
+            # regla (no en orden fijo) para preservar el orden de checks del
+            # formato legacy y producir detalles idénticos al unirse los fallos.
+            for seccion in rule:
+                if seccion not in SECCIONES_ANALIZADOR:
+                    continue
+                fabrica = _FABRICAS.get(seccion)
+                if fabrica is None:
+                    continue
+                # Una sección puede declarar una sola comprobación (dict)
+                # o varias del mismo tipo (lista) — se compilan como
+                # analizadores independientes que TODOS deben cumplirse.
+                configs = rule[seccion]
+                if isinstance(configs, list):
+                    for cfg in configs:
+                        analizadores.append(fabrica(cfg))
+                else:
+                    analizadores.append(fabrica(configs))
             if not analizadores:
                 # Regla declarada pero sin analizadores: no mecanizada.
                 continue

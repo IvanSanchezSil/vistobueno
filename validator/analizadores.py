@@ -132,7 +132,9 @@ class AnalizadorRegex(Analizador):
         def _matchea(s: str) -> bool:
             c = self.config.get("comparacion", "regex")
             if c == "fullmatch":
-                return bool(rx.fullmatch(s.strip()))
+                # Sin strip para preservar el comportamiento del motor legacy
+                # (checks.run_check usa `patron.fullmatch` sobre el w:t tal cual).
+                return bool(rx.fullmatch(s))
             return bool(rx.search(s))
 
         if coincidencia == "todos":
@@ -184,7 +186,8 @@ class AnalizadorImagen(Analizador):
         nodes = self._nodos(extracted, parte, contexto)
         n = len(nodes)
         if n < minimo:
-            return False, f"imágenes={n} mínimo={minimo}"
+            # Detalle idéntico al legacy checks.run_check (imagen_presencia).
+            return False, f"imagenes={n} minimo={minimo}"
         if maximo is not None and n > maximo:
-            return False, f"imágenes={n} máximo={maximo}"
-        return True, f"imágenes={n} mínimo={minimo}"
+            return False, f"imagenes={n} maximo={maximo}"
+        return True, f"imagenes={n} minimo={minimo}"

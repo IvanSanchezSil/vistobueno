@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # DFA — Autómata finito determinista
@@ -48,6 +48,7 @@ class DFA:
         aceptacion: List[str],
         prefijos_parciales: bool = True,
         reconocimiento_backtracking: bool = False,
+        matche: Optional[Callable[[str, "re.Pattern", bool], bool]] = None,
     ):
         self.estados = estados
         self.transiciones = transiciones
@@ -57,6 +58,11 @@ class DFA:
         # histórico de secuencia_titulos) en lugar de fullmatch estricto.
         self.prefijos_parciales = prefijos_parciales
         self.reconocimiento_backtracking = reconocimiento_backtracking
+        # Función de matching sobre el token. Por defecto usa la semántica
+        # genérica del DSL; `AutomataSecuencia` inyecta una versión legacy
+        # (startswith + prefijo + token significativo) para preservar la
+        # paridad de comportamiento con checks._check_secuencia.
+        self._matche = matche or _matchea_token
 
         # normalizar patrones una sola vez
         self._trans_comp: List[Tuple[str, str, re.Pattern, bool]] = []
@@ -98,7 +104,7 @@ class DFA:
                 # Búsqueda greedy desde `pos` para esta transición.
                 found = None
                 for k in range(pos, len(tokens)):
-                    if _matchea_token(tokens[k], patron, self.prefijos_parciales):
+                    if self._matche(tokens[k], patron, self.prefijos_parciales):
                         found = k
                         break
                 if found is not None:
@@ -144,7 +150,7 @@ class DFA:
                         return True
                     continue
                 for k in range(pos, len(tokens)):
-                    if _matchea_token(tokens[k], patron, self.prefijos_parciales):
+                    if self._matche(tokens[k], patron, self.prefijos_parciales):
                         if _dfs(hacia, k + 1):
                             return True
             return False
@@ -173,7 +179,7 @@ class DFA:
                         _dfs(hacia, pos)
                     continue
                 for k in range(pos, len(tokens)):
-                    if _matchea_token(tokens[k], patron, self.prefijos_parciales):
+                    if self._matche(tokens[k], patron, self.prefijos_parciales):
                         if hacia not in alcanzados:
                             alcanzados.add(hacia)
                             _dfs(hacia, k + 1)
