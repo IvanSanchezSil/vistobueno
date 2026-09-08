@@ -1,0 +1,188 @@
+# ============================================================
+# EJEMPLO DE FORMATO DSL — REGLAS DE VALIDACIÓN
+# ------------------------------------------------------------
+# Formato declarativo alternativo a `unt_format_rules_schema.yaml`.
+# En lugar de `rules` + `mecanismo_verificable.checks`, usa la clave
+# top-level `reglas` y secciones de analizadores/autómatas:
+#
+#   atributo_xml      -> AnalizadorXML (xpath + atributo)
+#   presencia_xml     -> AnalizadorXML (exists / not_exists)
+#   patron_texto      -> AnalizadorRegex (expresiones regulares)
+#   lista_texto       -> AnalizadorLista (pertenencia a lista)
+#   imagen            -> AnalizadorImagen (blips / cantidad)
+#   automata_secuencia-> DFA (secuencia ordenada de títulos)
+#   gramatica_estructura -> BNF (estructura jerárquica)
+#
+# Tanto el motor legacy como el DSL producen el mismo contrato:
+# List[RuleResult]. El engine detecta el formato por la presencia de
+# la clave "reglas".
+# ============================================================
+
+namespaces:
+  w: "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  r: "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+reglas:
+
+  # ─── PAPEL (analizador de atributo XML) ──────────────────
+  - id: papel_tamano
+    tipo: atributo_xml
+    descripcion: El tamaño del papel debe ser A4
+    valor_esperado: "210 x 297 mm"
+    severidad: error
+    atributo_xml:
+      parte: document
+      contexto: todos
+      xpath: //w:sectPr[1]/w:pgSz
+      atributo: "@w:w"
+      comparacion: eq
+      esperado: "11906"
+
+  # ─── FUENTE DEL CUERPO (all_eq sobre múltiples nodos) ────
+  - id: fuente_principal
+    tipo: atributo_xml
+    descripcion: La fuente del cuerpo debe ser Times New Roman
+    valor_esperado: "Times New Roman"
+    severidad: error
+    atributo_xml:
+      parte: document
+      contexto: cuerpo
+      xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:rFonts
+      atributo: "@w:ascii"
+      comparacion: all_eq
+      esperado: Times New Roman
+
+  # ─── PRESENCIA DE SECCIÓN (exists) ───────────────────────
+  - id: indice_contenidos_presente
+    tipo: presencia_xml
+    descripcion: Debe existir una sección "Índice de contenidos"
+    valor_esperado: presencia
+    severidad: warning
+    presencia_xml:
+      parte: document
+      xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABC', 'abc'), 'contenidos')]
+      comparacion: exists
+
+  # ─── PATRÓN DE TEXTO (regex) ─────────────────────────────
+  - id: numeracion_paginas_arabiga
+    tipo: patron_texto
+    descripcion: Numeración de página en dígitos arábigos
+    valor_esperado: secuencia de dígitos
+    severidad: error
+    patron_texto:
+      parte: document
+      xpath: //w:body/w:tbl[1]//w:t
+      patron: "^\\d+$"
+      coincidencia: todos      # todos | alguno | ninguno
+      ignore_case: false
+
+  # ─── AUTÓMATA DE SECUENCIA (DFA) ─────────────────────────
+  - id: estructura_tinv_cuantitativo
+    tipo: secuencia
+    descripcion: >
+      Estructura obligatoria del Trabajo de Investigación (Cuantitativo).
+      El orden debe ser exacto.
+    valor_esperado:
+      - "Carátula"
+      - "Dedicatoria (opcional)"
+      - "Jurado evaluador"
+      - "Índice"
+      - "Presentación"
+      - "Resumen"
+      - "Introducción"
+      - "El Problema"
+      - "Objetivos"
+      - "MARCO TEÓRICO"
+      - "METODOLOGÍA"
+      - "RESULTADOS"
+      - "CONCLUSIONES"
+      - "REFERENCIAS"
+      - "ANEXOS"
+    severidad: error
+    automata_secuencia:
+      nivel_titulo: [1, 2, 3]
+      normalizacion: [mayusculas, ignorar_indent]
+      reconocimiento: greedy      # greedy | backtracking
+      estados:
+        - nombre: caratula
+          patron: "universidad"
+          opcional: true
+        - nombre: dedicatoria
+          patron: "dedicatoria"
+          opcional: true
+        - nombre: jurado
+          patron: "jurado"
+        - nombre: indice
+          patron: "índice"
+        - nombre: presentacion
+          patron: "presentación"
+        - nombre: resumen
+          patron: "resumen"
+        - nombre: abstract
+          patron: "abstract"
+        - nombre: introduccion
+          patron: "introducción"
+        - nombre: problema
+          patron: "el problema"
+        - nombre: objetivos
+          patron: "objetivos"
+        - nombre: marco_teorico
+          patron: "marco teórico"
+        - nombre: metodologia
+          patron: "metodología"
+        - nombre: resultados
+          patron: "resultados"
+        - nombre: conclusiones
+          patron: "conclusiones"
+        - nombre: referencias
+          patron: "referencias"
+        - nombre: anexos
+          patron: "anexos"
+
+  # ─── GRAMÁTICA DE ESTRUCTURA (BNF) ───────────────────────
+  - id: estructura_tesis_bnf
+    tipo: estructura
+    descripcion: Estructura general expresada como gramática BNF
+    valor_esperado: CARATULA INDICE INTRODUCCION CUERPO CONCLUSIONES REFERENCIAS
+    severidad: error
+    gramatica_estructura:
+      reglas_sintacticas:
+        - "TESIS → CARATULA INDICE INTRODUCCION CUERPO CONCLUSIONES REFERENCIAS"
+        - "CUERPO → METODOLOGIA RESULTADOS"
+      terminales:
+        - CARATULA
+        - INDICE
+        - INTRODUCCION
+        - METODOLOGIA
+        - RESULTADOS
+        - CONCLUSIONES
+        - REFERENCIAS
+      no_terminales: [TESIS, CUERPO]
+      inicio: TESIS
+
+  # ─── IMAGEN (presencia de blips) ─────────────────────────
+  - id: caratula_logotipo_presente
+    tipo: imagen
+    descripcion: La carátula debe incluir el logotipo de la universidad
+    valor_esperado: 1 imagen mínimo
+    severidad: warning
+    imagen:
+      parte: document
+      xpath: //w:drawing//a:blip
+      formato: png
+      cantidad_minima: 1
+      cantidad_maxima: 4
+
+  # ─── LISTA DE VALORES PERMITIDOS ─────────────────────────
+  - id: caratula_linea_investigacion
+    tipo: lista_texto
+    descripcion: La línea de investigación debe estar en el catálogo
+    valor_esperado: catálogo de líneas de la UNT
+    severidad: error
+    lista_texto:
+      parte: document
+      xpath: //w:body/w:p[contains(., 'línea de investigación')]
+      lista:
+        - "Línea: educación y ciencias de la comunicación"
+        - "Línea: desarrollo sostenible"
+      ignore_case: true
