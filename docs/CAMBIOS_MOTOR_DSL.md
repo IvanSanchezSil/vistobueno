@@ -533,6 +533,60 @@ cuando el DFA crece de forma explosiva.
 
 ---
 
+### Paso 9 — F1 cerrada: migración completa y paridad exacta (2026-09-08)
+
+La F1 del plan ([`PLAN_DSL.md`](PLAN_DSL.md)) convirtió las **32 reglas
+mecanizadas** del YAML legacy al DSL y verificó **paridad exacta** de
+comportamiento entre ambos motores. Los 4 detalles que se ajustaron por paridad:
+
+**1) Hook `matche` en el DFA** (`validator/automata.py`)
+
+El `DFA` acepta un parámetro `matche` (callable) que decide si un token
+satisface un patrón; por defecto usa `_matchea_token`. `AutomataSecuencia`
+inyecta `_matchea_legacy`, que replica **exactamente** la semántica de
+`checks._check_secuencia` del motor legacy:
+
+- `token.startswith(patron)` o `patron.startswith(token[:25])` (tolerancia de
+  prefijo),
+- o igualdad de **token significativo** (`_sig_token`): el primer token con
+  ≥ 4 caracteres alfanuméricos, sin puntuación (p. ej. "1.3. EL PROBLEMA"
+  matchea "EL PROBLEMA").
+
+Sin este hook, el DFA (greedy, 1-char) rechazaba títulos reales numerados como
+"1.5 VARIABLE(S) Y OPERACIONALIZACIÓN" que el legacy sí aceptaba.
+
+**2) `_faltantes_legacy`: el detalle de secuencia ya no usa el DFA**
+
+> Nota: **supera** la descripción de los Pasos 6 y 7. El DFA sigue siendo quien
+> decide `passed`, pero el `found` ("faltantes=…") ya no es la lista de
+> transiciones alcanzables: ahora `AutomataSecuencia._faltantes_legacy()`
+> reproduce el escaneo del motor legacy — recorre los estados en orden, salta
+> los `opcional` y la carátula si `cover_ok`, matchea con `_matchea_legacy` y
+> reporta el ítem **original** del `valor_esperado` (tope 6). Así el texto del
+> reporte es idéntico al legacy incluso cuando el DFA y el escaneo discrepan.
+
+**3) Secciones con lista de configuraciones** (`compilar()`)
+
+El valor de una sección DSL puede ser una **lista** de configs (semántica AND).
+Lo requieren 4 reglas legacy con múltiples checks del mismo tipo:
+`papel_tamano`, `interlineado` (2× `atributo_xml`), `numeracion_posicion`
+(2× presencia + 1 atributo) e `indice_subdivisiones` (3× presencia).
+
+**4) Orden de secciones según la regla**
+
+`compilar()` itera las secciones en el **orden en que aparecen en la regla**
+(no la tabla fija `SECCIONES_ANALIZADOR`), para que el `found` de
+`numeracion_posicion` conserve el orden "exists / nodos / atributo" del legacy.
+
+**Verificación F1**: `tests/test_paridad_formatos.py` (3 DOCX sintéticos) +
+`scripts/evaluar_paridad_plantillas.py` contra los 6 `.docx` reales de
+`recursos/` (5 plantillas + manual): paridad **exacta** en `rule_id`, `passed`
+y `found`. Suite completa: **37 tests**. `reglas_unt.yaml` se genera con
+`scripts/migrar_legacy_a_dsl.py` y **no lo carga la API todavía** (ver
+`README.md`).
+
+---
+
 ## 5. Mapeo con los cursos (Lenguajes Formales y Autómatas · Compiladores)
 
 | Concepto de la semana | Concepto de los cursos | Componente |
@@ -578,7 +632,75 @@ edita `flake.nix` **antes** de usarla, y se hace commit de ese cambio solo.
 
 ---
 
-## 7. Verificación realizada (en la semana 3)
+### Paso 10 — F2: tokenizer, PDA y sección `automata_pila` (2026-09-09)
+
+La F2 del plan ([`PLAN_DSL.md`](PLAN_DSL.md)) sube un nivel en la jerarquía de
+Chomsky: del **lenguaje regular** (DFA) al **lenguaje libre de contexto**
+(PDA), y centraliza el **análisis léxico** del documento en un tokenizer.
+
+**1) `validator/tokenizer.py` — análisis léxico**
+
+Convierte `<w:body>` en un flujo tipado de tokens en orden de documento:
+
+| Tipo | Origen |
+|---|---|
+| `TITULO(nivel, texto)` | párrafo con pStyle que contiene "eading"/"tulo" (paridad legacy) |
+| `PARRAFO(texto)` | párrafo sin estilo de encabezado |
+| `TABLA` | bloque `w:tbl` (incluye los párrafos anidados de sus celdas) |
+| `IMAGEN` | un blip embebido (`w:drawing//a:blip`) |
+| `SALTO_SECCION` | `w:sectPr` (directo en body o anidado en pPr, emitido tras el párrafo) |
+
+Recorre `body.iter(...)` (párrafos anidados dentro de tablas incluidos, como el
+XPath `//w:body//w:p` del legacy). Expone `solo()` (filtro por `tipos`) y
+`textos()` (proyección de texto para DFA/PDA/gramática).
+
+**2) `PDA` en `validator/automata.py`**
+
+`TransicionPDA` extiende `Transicion` con `push`/`pop`. La clase `PDA` hereda
+el motor greedy del DFA y verifica anidación:
+
+- **Aceptación**: estado final **Y pila vacía** → "estructura cerrada". Si se
+  llega a un estado de aceptación con pila no vacía, reporta los símbolos sin
+  cerrar (`estructura sin cerrar: falta …`).
+- `pop` exige que el tope de la pila sea el símbolo pedido (tope inesperado →
+  rechazo inmediato).
+- Transiciones **épsilon** (`consumir: false`) para moverse sin avanzar la
+  entrada.
+
+**3) Sección DSL `automata_pila`** (`validator/compilador.py`)
+
+Nueva sección de analizador + alta en `SECCIONES_ANALIZADOR` y `_FABRICAS`.
+Configura `inicial`, `aceptacion` y `transiciones` (con `push`/`pop`), y opciones
+compartidas con los otros autómatas: `tipo_flujo`, `tipos`, `normalizacion`.
+
+**4) `tipo_flujo` y gramática con tokens**
+
+- `AutomataSecuencia` acepta `tipo_flujo: titulos | documento`. `titulos`
+  (default) usa solo los `TITULO` — reproducción exacta de la proyección
+  histórica. `documento` proyecta el flujo completo filtrado por `tipos`.
+- `gramatica_estructura` acepta `tipo_flujo`/`tipos`: la BNF consume el
+  flujo tokenizado en lugar de la lista de headings (backward compatible).
+
+**5) Refactor de las proyecciones históricas**
+
+`AutomataSecuencia._headings()` y la ruta de títulos de
+`GramaticaEstructuraAnalizador` ya **no recorren el XML**: consumen
+`solo(tokenizar(...), [TITULO])`. Quedó duplicada la misma semántica legacy
+(condición "eading"/"tulo", `text_of().strip()`, orden documental) y se eliminó
+el import `W` del compilador. La paridad se re-verificó tras el refactor.
+
+**Regla de ejemplo**: `estructura_capitulos_pila` en `reglas_dsl_ejemplo.yaml`
+(abre `CAPÍTULO` con `push`, cierra con `FIN DE CAPÍTULO`/`pop` y exige
+`EPÍLOGO` final con la pila vacía).
+
+**Verificación F2**: `tests/test_f2_automatas.py` (16 tests: tokenizer, PDA
+puro, `automata_pila` end-to-end y gramática con tokens) + suite completa
+**53 tests** + paridad `scripts/evaluar_paridad_plantillas.py` OK en los 6
+`.docx` reales. Nota de entorno: esta sesión corrió sin Nix (`/nix/store`
+ausente); se usaron `pytest`, `fastapi`, `httpx` y `python-multipart` como runner
+de tests sin tocar `flake.nix`.
+
+---
 
 1. Sintaxis de todos los módulos: `python3 -c "import ast; …"` OK.
 2. Imports en cadena: `engine → compilador → analizadores/automata →
