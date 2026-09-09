@@ -138,7 +138,15 @@ python -m validator.cli tesis.docx unt_format_rules_schema.yaml --json
 
 # evaluar un lote de plantillas/tesis de prueba
 python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/plantillas/
+
+# suite completa de tests (incluye contrato API y paridad)
+pytest tests/ -v
 ```
+
+La suite (**117 tests**) incluye los **tests de propiedad** (F6): un factory
+determinista de DOCX (`tests/docx_factory.py`) genera un documento "bueno"
+(39/41) y 41 mutaciones de una sola propiedad (`tests/test_propiedad.py`),
+verificando que un desvío mínimo invalida solo su regla.
 
 ## Stack técnico
 

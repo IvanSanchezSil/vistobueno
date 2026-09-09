@@ -1,6 +1,6 @@
 # Plan integral: consolidación del motor DSL — VistoBueno
 
-**Estado**: F1, F2 y F3 **cerradas** (25/11/2025… 2026-09-09). Quedan F4, F5, F6
+**Estado**: F1, F2, F3 y F6 **cerradas** (25/11/2025… 2026-09-09). Quedan F4 y F5
 (ver sección 7 para las decisiones aún pendientes).
 **Fecha**: 2026-09-07
 
@@ -95,12 +95,30 @@ Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 11 y `tests/test_f3_mecanizacion.py` (21 te
   (AGENTS.md). Alternativa sin tocar la API: codificar la traza dentro de
   `encontrado` (ya existe). (decisión 1).
 
-### F6 — Tests de propiedad (F)
+### F6 — Tests de propiedad (F) ✅ cerrada 2026-09-09
 
-- `tests/docx_factory.py` (extraer el helper de `tests/test_dsl.py`).
-- `tests/test_propiedad.py` con generadores deterministas de DOCX sintéticos.
-- Propiedades: todo DOCX "bueno" pasa; todo DOCX con una regla violada
-  falla **solo** esa regla.
+- `tests/docx_factory.py`: factory determinista OPC. `configuracion_base()`
+  genera el DOCX "bueno" (pasa **39/41**), `aplicar_mutacion(rule_id, cfg)`
+  aplica un desvío **mínimo** por regla y `compilar_docx(cfg)` arma el paquete
+  .docx.
+- `tests/test_propiedad.py` (43 tests): `test_doc_bueno_pasa_39` verifica que
+  el documento base solo falla los esquemas alternativos de estructura; y
+  `test_mutacion_afecta_solo_esa_regla` (41 casos paramétricos) verifica que
+  cada desvío cambia el resultado **solo** de su regla (comparación punto a
+  punto `(passed, found)`).
+- **Exclusiones documentadas** (no quebrar el aislamiento):
+  - el documento base no puede cumplir simultáneamente los esquemas de
+    estructura cuantitativo/cualitativo/revisión (`EXCLUIDAS_BASE`), por ser
+    mutuamente excluyentes;
+  - los autómatas embeben un contador `headings=N` en `found`: para las 3
+    reglas `estructura_tinv_*` el observable comparado es solo `passed`;
+  - reglas con mecanismo **idéntico** (no diferenciables por contenido):
+    las 3 `referencias_minimo_*` (mismo conteo, mínimos 20/30/20) y
+    `caratula_universidad_negrita_mayusculas`/`caratula_ciudad_pais_negrita`
+    (el XPath `[1]` de "trujillo" resuelve a la línea de la universidad).
+    Ver `REGLAS_ACOPLADAS` en el factory.
+
+Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 12. Suite completa: **117 tests**.
 
 ## 4. Dependencias y orden
 
@@ -161,6 +179,13 @@ Modificados:
    2 `anexos_minimos_*`, `caratula_orcid`, `proyecto_caratula_texto`),
    aplicando las referencias mínimas sin detectar tipo (severidad `warning`).
    Las 3 restantes más difíciles quedan documentadas como no-automatizables.
+5. **Exclusiones de F6**: ✅ **tomada**. El documento base pasa **39/41**
+   (no existe un DOCX que pase 41/41: los esquemas de estructura son
+   mutuamente excluyentes). Las reglas con mecanismo idéntico se declaran en
+   `REGLAS_ACOPLADAS` (`referencias_minimo_*` y la pareja
+   universidad/ciudad-nota de negrita) y se validan con su conjunto esperado.
+   Los autómatas de estructura se comparan por `passed` (su `found` embebe
+   `headings=N`). Detalle en la sección F6.
 
 ## 8. Notas
 

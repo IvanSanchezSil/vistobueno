@@ -794,6 +794,55 @@ aceptaba secuencias incompletas.
 
 ---
 
+### Paso 12 — F6: tests de propiedad con factory determinista (2026-09-09)
+
+**Objetivo**: probar la correlación regla ↔ resultado: sobre un documento
+"bueno", un desvío MÍNIMO debe invalidar **solo** su regla.
+
+#### `tests/docx_factory.py` (nuevo) — factory determinista
+- Reutiliza la semántica OPC de `test_paridad_formatos.py` y
+  `test_f3_mecanizacion.py` **sin depender de esos archivos** (módulo de
+  soporte importable).
+- `configuracion_base()`: DOCX "bueno" con portada completa, 29 cabeceras del
+  plan cuantitativo, RESUMEN ≥159 palabras + palabras clave, 30 referencias,
+  anexos (unión de los listados cuantitativo y cualitativo), footer con campo
+  PAGE alineado a la derecha, numeración romana en preliminares, hipervínculo
+  ORCID y línea "PROYECTO DE INVESTIGACIÓN" a 13 pt.
+- `aplicar_mutacion(rule_id, cfg)`: **41 desvíos de una sola propiedad** —
+  por construcción, cada knob del factory está ligado a una única regla.
+- `REGLAS_ACOPLADAS`: reglas con mecanismo **idéntico** (no aislables):
+  - `referencias_minimo_cuantitativo`/`referencias_minimo_revision`
+    (`cantidad_minima` 20) y `referencias_minimo_cualitativo` (30): bajar de
+    30 referencias cae el trío (mismo `conteo_nodos`).
+  - `caratula_universidad_negrita_mayusculas`/`caratula_ciudad_pais_negrita`:
+    el XPath `[1]` de la ciudad resuelve a la línea "UNIVERSIDAD NACIONAL DE
+    TRUJILLO" (contiene "trujillo"); cambiar su negrita afecta a ambas.
+
+#### `tests/test_propiedad.py` (nuevo, 43 tests)
+- `test_doc_bueno_pasa_39`: el documento base falla **exactamente** los dos
+  esquemas alternativos de estructura (`estructura_tinv_cualitativo`,
+  `estructura_tinv_revision_literatura`); las otras 39 pasan.
+- `test_mutacion_afecta_solo_esa_regla` (41 casos `@parametrize`): compara
+  punto a punto `(passed, found)` entre base y mutado; `diffs == {regla}` (o
+  su conjunto acoplado declarado).
+
+#### Supuestos verificados empíricamente durante el diseño
+1. **No existe un DOCX 41/41**: los esquemas de estructura cuantitativo,
+   cualitativo y revisión de literatura son mutuamente excluyentes.
+2. Los autómatas de estructura exponen `headings=N` en `found`: el contador
+   cambia ante cualquier inserción/renombrado de cabeceras (detalle interno,
+   no semántico). Por eso las reglas `estructura_tinv_*` se comparan solo por
+   `passed`.
+3. Para `estructura_tinv_cualitativo`/`estructura_tinv_revision_literatura`
+   (que fallan en la base) la mutación **arregla** la regla (intercalando las
+   cabeceras del esquema alternativo): se valida el aislamiento en la
+   dirección "empezar a cumplir" también.
+
+**Verificación**: suite completa **117 tests passed** y `PARIDAD: OK`
+(scripts/evaluar_paridad_plantillas.py) dentro de `nix develop`.
+
+---
+
 ## 8. Resumen técnico
 
 | Archivo | Estado | Descripción |
@@ -806,6 +855,8 @@ aceptaba secuencias incompletas.
 | `tests/test_dsl.py` | **nuevo** | 16 tests con DOCX sintéticos en memoria |
 | `tests/test_f2_automatas.py` | **nuevo** | 16 tests: tokenizer, PDA, automata_pila, gramática con tokens |
 | `tests/test_f3_mecanizacion.py` | **nuevo** | 21 tests: seccion() y los 4 analizadores F3 contra reglas/41 |
+| `tests/docx_factory.py` | **nuevo** | Factory determinista OPC: `configuracion_base()` (39/41), `aplicar_mutacion()` (41 desvíos), `compilar_docx()` |
+| `tests/test_propiedad.py` | **nuevo** | 43 tests: `test_doc_bueno_pasa_39` + 41 mutaciones A/B aisladas (`REGLAS_ACOPLADAS`) |
 | `reglas_unt.yaml` | **modificado** | 32 legacy → **41 reglas** (9 mecanizadas a mano; anotación en `_migracion`) |
 | `reglas_dsl_ejemplo.yaml` | **nuevo** | 13 reglas de ejemplo (12 familias de analizador) |
 | `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL (incluye tokenizer, automata_pila y F3) |
