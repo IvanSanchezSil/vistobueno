@@ -911,7 +911,217 @@ reglas:
     xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'figuras')]
     comparacion: exists
+
+# ============================================================
+# F3 — MECANIZACIÓN DE REGLAS ANTES NO-DETERMINISTAS (2026-09-09)
+# ------------------------------------------------------------
+# Reglas agregadas a MANO sobre reglas_unt.yaml. NO las emite
+# scripts/migrar_legacy_a_dsl.py (solo regenera las 32 legacy);
+# si se re-ejecuta ese script, estas reglas se pierden.
+# EVALUADO: las secciones se acotan con el tokenizer (entre
+# títulos). Las 3 reglas restantes sin mecanismo fiable se
+# documentan como no-automatizables al final de este bloque.
+# ============================================================
+
+- id: resumen_longitud
+  tipo: estructura
+  descripcion: El Resumen debe tener una extensión mínima de 159 palabras
+  valor_esperado: '>= 159 palabras'
+  severidad: warning
+  ubicacion: 'Sección Resumen (párr. 201)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Su extensión mínima 159 y su extensión máxima..."'
+  patron_cantidad:
+    seccion:
+      inicio: resumen
+    operacion: count_words
+    cantidad_minima: 159
+
+- id: palabras_clave_minimo
+  tipo: estructura
+  descripcion: Resumen y Abstract deben incluir mínimo 3 palabras clave
+  valor_esperado: '>= 3 palabras clave'
+  severidad: error
+  ubicacion: 'Plantilla Resumen (párr. 86 de la plantilla Educación Inicial)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Palabras clave: (mínimo 03 palabras clave)"'
+  patron_cantidad:
+    seccion:
+      inicio: resumen
+    operacion: count_entries
+    filtro: '^palabras clave'
+    ignore_case: true
+    cantidad_minima: 3
+
+# ─── REFERENCIAS MÍNIMAS SEGÚN TIPO DE INVESTIGACIÓN ────────
+# EVALUADO: el MVP no detecta tipo de investigación. Se aplican las
+# 3 reglas con su severidad warning (no bloquean), exactamente como
+# se definen en el reporte legacy. Ver docs/PLAN_DSL.md decisión F3.
+
+- id: referencias_minimo_cuantitativo
+  tipo: estructura
+  descripcion: Mínimo de referencias bibliográficas para Trabajo de Investigación Cuantitativo
+  valor_esperado: '>= 20 referencias'
+  severidad: warning
+  ubicacion: 'Sección Referencias del Trabajo Cuantitativo (párr. 271)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Debe haber revisado un mínimo de 20 referencias."'
+  conteo_nodos:
+    seccion:
+      inicio: referencias
+    cantidad_minima: 20
+
+- id: referencias_minimo_cualitativo
+  tipo: estructura
+  descripcion: Mínimo de referencias bibliográficas para Trabajo de Investigación Cualitativo
+  valor_esperado: '>= 30 referencias'
+  severidad: warning
+  ubicacion: 'Sección Referencias del Trabajo Cualitativo (párr. 376)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Debe haber revisado un mínimo de 30 referencias."'
+  conteo_nodos:
+    seccion:
+      inicio: referencias
+    cantidad_minima: 30
+
+- id: referencias_minimo_revision
+  tipo: estructura
+  descripcion: Mínimo de referencias bibliográficas para Trabajo de Revisión de la Literatura
+  valor_esperado: '>= 20 referencias'
+  severidad: warning
+  ubicacion: 'Sección Referencias del Trabajo de Revisión (párr. 532)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Debe haber revisado un mínimo de 20 referencias."'
+  conteo_nodos:
+    seccion:
+      inicio: referencias
+    cantidad_minima: 20
+
+# ─── ANEXOS OBLIGATORIOS ────────────────────────────────────
+
+- id: anexos_minimos_cuantitativo
+  tipo: estructura
+  descripcion: Anexos obligatorios para Trabajo de Investigación Cuantitativo
+  valor_esperado:
+  - Matriz de consistencia
+  - Instrumento(s) de recolección de datos
+  - Ficha técnica del instrumento
+  - Consentimiento informado
+  - Base de datos cuantitativa
+  - Reporte de similitud
+  - Carta de autorización institucional
+  - Declaración jurada
+  - Carta de autorización de publicación
+  severidad: warning
+  ubicacion: 'Esquema del Trabajo Cuantitativo (párr. 311-319)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Lista de anexos en párr. 311-319
+  lista_obligatoria:
+    seccion:
+      inicio: anexo
+    ignore_case: true
+    items:
+    - Matriz de consistencia
+    - Instrumento(s) de recolección de datos
+    - Ficha técnica del instrumento
+    - Consentimiento informado
+    - Base de datos cuantitativa
+    - Reporte de similitud
+    - Carta de autorización institucional
+    - Declaración jurada
+    - Carta de autorización de publicación
+
+- id: anexos_minimos_cualitativo
+  tipo: estructura
+  descripcion: Anexos obligatorios para Trabajo de Investigación Cualitativo
+  valor_esperado:
+  - Matriz de consistencia
+  - Instrumento(s) de recolección de datos
+  - Consentimiento informado
+  - Juicio de expertos
+  - Base de datos cualitativa
+  - Carta de autorización institucional
+  - Declaración jurada
+  - Carta de autorización de publicación
+  severidad: warning
+  ubicacion: 'Esquema del Trabajo Cualitativo (párr. 413-420)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Lista de anexos en párr. 413-420
+  lista_obligatoria:
+    seccion:
+      inicio: anexo
+    ignore_case: true
+    items:
+    - Matriz de consistencia
+    - Instrumento(s) de recolección de datos
+    - Consentimiento informado
+    - Juicio de expertos
+    - Base de datos cualitativa
+    - Carta de autorización institucional
+    - Declaración jurada
+    - Carta de autorización de publicación
+
+# ─── CARÁTULA: ORCID COMO HIPERVÍNCULO ──────────────────────
+
+- id: caratula_orcid
+  tipo: formato_texto
+  descripcion: El código ORCID del autor y asesor se muestra como hipervínculo, entre paréntesis, debajo del nombre
+  valor_esperado: 'https://orcid.org/XXXXXXXXXXXX'
+  severidad: warning
+  ubicacion: 'Carátula, especificaciones (párr. 179-180)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos..."'
+  hipervinculo_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body//w:hyperlink
+    patron: 'https?://orcid\.org/\d{4}-?\d{4}-?\d{4}-?\d{4}'
+    cantidad_minima: 1
+
+# ─── CARÁTULA DEL PROYECTO ──────────────────────────────────
+# EVALUADO: se valida la línea de tipo y su tamaño 13pt (sz val 26).
+# Negrita/centrado quedan como matiz semántico; el manual no especifica
+# XPath único para el párrafo exacto.
+
+- id: proyecto_caratula_texto
+  tipo: formato_texto
+  descripcion: En la carátula del Proyecto, la línea de tipo dice "Proyecto de Investigación" (no "Trabajo de Investigación para optar...")
+  valor_esperado: Proyecto de Investigación
+  severidad: error
+  ubicacion: 'Carátula del Proyecto (párr. 618, 641)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Proyecto de Investigación: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos)."'
+  patron_texto:
+    parte: document
+    contexto: todos
+    xpath: '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "proyecto de investigación")]//w:t'
+    patron: 'proyecto de investigación'
+    coincidencia: alguno
+    comparacion: regex
+    ignore_case: true
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "proyecto de investigación")][1]/w:r[1]/w:rPr/w:sz'
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: '26'
+
+# ─── F3: REGLAS DOCUMENTADAS COMO NO-AUTOMATIZABLES ─────────
+# - sistema_citas (APA): heurística autor-año débil, fuera de F3.
+# - proyecto_formato_general: metaregla cubierta por las reglas
+#   generales (A4/TNR/1.5/márgenes) que ya validan el documento entero.
+# - suficiencia_profesional_formato: misma metaregla; mismo razonamiento.
 _migracion:
   fuente: unt_format_rules_schema.yaml
   total_reglas: 32
   sin_mecanismo_omitidas: 12
+  total_reglas_con_f3: 41
+  f3_reglas_agregadas_manualmente: 9
+  # 41 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
+  # palabras_clave_minimo, referencias_minimo_*, anexos_minimos_*,
+  # caratula_orcid, proyecto_caratula_texto). Re-ejecutar
+  # scripts/migrar_legacy_a_dsl.py regenera SOLO las 32 y descarta la F3.
+  f3_no_automatizables: 3
+  # sistema_citas, proyecto_formato_general, suficiencia_profesional_formato
+  # quedan documentadas como no-automatizables (ver bloque F3).

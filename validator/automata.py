@@ -71,6 +71,9 @@ class DFA:
                 (t.desde, t.hacia, re.compile(_normalizar_patron(t.patron)), t.consumir)
             )
 
+        # Traza (F4): ruta de estados recorrida por el último `reconocer`.
+        self.ruta_estados: List[str] = []
+
     def reconocer(self, tokens: List[str]) -> Tuple[bool, List[str]]:
         """Reconoce una secuencia de tokens (búsqueda greedy dirigida).
 
@@ -83,6 +86,7 @@ class DFA:
             return self.reconocer_con_backtracking(tokens)
 
         if not self._trans_comp:
+            self.ruta_estados = [self.inicial]
             return False, ["autómata sin transiciones"]
 
         estado = self.inicial
@@ -116,6 +120,7 @@ class DFA:
             if not progreso:
                 break
 
+        self.ruta_estados = ruta
         if estado in self.aceptacion:
             return True, []
 
@@ -135,30 +140,37 @@ class DFA:
         # cache de visitados (estado, pos) para acotar la búsqueda
         visitados = set()
 
-        def _dfs(estado: str, pos: int) -> bool:
+        def _dfs(estado: str, pos: int) -> Optional[List[str]]:
+            """Devuelve la ruta de estados hasta un estado de aceptación
+            (o None si no hay camino desde `(estado, pos)`)."""
             if estado in self.aceptacion:
-                return True
+                return [estado]
             clave = (estado, pos)
             if clave in visitados:
-                return False
+                return None
             visitados.add(clave)
             for desde, hacia, patron, consumir in self._trans_comp:
                 if desde != estado:
                     continue
                 if not consumir:
-                    if _dfs(hacia, pos):
-                        return True
+                    sub = _dfs(hacia, pos)
+                    if sub is not None:
+                        return [estado] + sub
                     continue
                 for k in range(pos, len(tokens)):
                     if self._matche(tokens[k], patron, self.prefijos_parciales):
-                        if _dfs(hacia, k + 1):
-                            return True
-            return False
+                        sub = _dfs(hacia, k + 1)
+                        if sub is not None:
+                            return [estado] + sub
+            return None
 
-        if _dfs(self.inicial, 0):
+        camino = _dfs(self.inicial, 0)
+        if camino is not None:
+            self.ruta_estados = camino
             return True, []
 
         # Reportar cuántos estados quedaron sin cubrir.
+        self.ruta_estados = []
         alcanzables = set()
         for desde, hacia, patron, _ in self._trans_comp:
             if desde in self._reconocidos_en(tokens):
@@ -416,14 +428,19 @@ class PDA:
                 )
             )
 
+        # Traza (F4): ruta de estados del último `reconocer`.
+        self.ruta_estados: List[str] = []
+
     def reconocer(self, tokens: List[str]) -> Tuple[bool, List[str]]:
         """Reconoce `tokens` con la pila. Devuelve (aceptado, faltantes)."""
         if not self._trans_comp:
+            self.ruta_estados = [self.inicial]
             return False, ["autómata sin transiciones"]
 
         pila: List[str] = []
         estado = self.inicial
         pos = 0
+        ruta: List[str] = [estado]
 
         while True:
             progreso = False
@@ -435,6 +452,7 @@ class PDA:
                     # Épsilon: no avanza la entrada (puede tocar la pila).
                     if pop is not None:
                         if not pila or pila[-1] != pop:
+                            self.ruta_estados = ruta
                             return False, [
                                 f"tope de pila inesperado: esperaba {pop}"
                             ]
@@ -442,6 +460,7 @@ class PDA:
                     if push is not None:
                         pila.append(push)
                     estado = hacia
+                    ruta.append(estado)
                     progreso = True
                     break
 
@@ -453,6 +472,7 @@ class PDA:
                 if found is not None:
                     if pop is not None:
                         if not pila or pila[-1] != pop:
+                            self.ruta_estados = ruta
                             return False, [
                                 f"tope de pila inesperado: esperaba {pop}, había "
                                 f"{pila[-1] if pila else 'nada'}"
@@ -461,6 +481,7 @@ class PDA:
                     if push is not None:
                         pila.append(push)
                     estado = hacia
+                    ruta.append(estado)
                     pos = found + 1
                     progreso = True
                     break
@@ -468,6 +489,7 @@ class PDA:
             if not progreso:
                 break
 
+        self.ruta_estados = ruta
         if estado in self.aceptacion and not pila:
             return True, []
         if estado in self.aceptacion:

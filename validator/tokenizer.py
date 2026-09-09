@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
 from .extractor import ExtractedDocx, NS, W, text_of
 
@@ -106,6 +106,67 @@ def solo(tokens: Sequence[Token], tipos) -> List[Token]:
     """Filtra el flujo conservando solo los tipos indicados."""
     permitidos = set(tipos)
     return [t for t in tokens if t.tipo in permitidos]
+
+
+def seccion(
+    tokens: Sequence[Token],
+    inicio: str,
+    fin: Optional[str] = None,
+) -> List[Token]:
+    """Slice de una sección delimitada por títulos (F3).
+
+    Parámetros
+    ----------
+    tokens:
+        Flujo tipado emitido por `tokenizar` (o cualquier secuencia de
+        Token con títulos).
+    inicio:
+        Regex que debe matchear el texto del primer TITULO que abre la
+        sección. Ese título NO se incluye en el resultado; sí el resto del
+        flujo hasta el corte.
+    fin:
+        Regex de corte (opcional). Solo un TITULO posterior cuyo texto la
+        matchee cierra la sección; si se omite, corta ante el primer
+        TITULO posterior (o al final del flujo si no hay más títulos).
+
+    Semántica y advertencias
+    ------------------------
+    - Los límites se evalúan SOLO sobre tokens de tipo TITULO.
+    - Las regex se aplican con ``re.search`` e IGNORECASE: es un match de
+      subcadena, no exige el texto completo. Por eso conviene anclarlas
+      (``^...$``); un fin ``"anexos"`` también cortaría ante un título
+      "ANEXOS Y RECURSOS".
+    - Sin ningún TITULO que matchee `inicio`: devuelve ``[]``.
+    - Si `inicio` matchea y `fin` es ``None`` (o nunca matchea): devuelve
+      el resto del flujo.
+    - `inicio`/`fin` vacíos o en blanco: levanta ``ValueError``.
+
+    Ejemplos
+    --------
+    >>> seccion(flujo, r"^resumen$")            # resumen → siguiente título
+    >>> seccion(flujo, r"^referencias$", fin=r"^anexos$")   # hasta ANEXOS
+    >>> seccion(flujo, "referencias", fin="anexos")  # ojo: corta en
+    # "ANEXOS Y RECURSOS" también (match de subcadena, sin anclar).
+    """
+    if not inicio or not inicio.strip():
+        raise ValueError("'inicio' no puede ser una regex vacía o en blanco")
+    if fin is not None and (not fin or not fin.strip()):
+        raise ValueError("'fin' no puede ser una regex vacía o en blanco")
+    rx0 = re.compile(inicio, re.IGNORECASE)
+    rx1 = re.compile(fin, re.IGNORECASE) if fin else None
+    begin = -1
+    for i, t in enumerate(tokens):
+        if t.tipo != TITULO:
+            continue
+        if begin == -1:
+            if rx0.search(t.texto):
+                begin = i
+            continue
+        if rx1 is None or rx1.search(t.texto):
+            return list(tokens[begin + 1 : i])
+    if begin == -1:
+        return []
+    return list(tokens[begin + 1 :])
 
 
 def textos(tokens: Sequence[Token]) -> List[str]:

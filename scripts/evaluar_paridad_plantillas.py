@@ -47,8 +47,8 @@ def main() -> None:
             errores_totales += 1
             continue
 
-        if set(legacy) != set(dsl):
-            print(f"== {docx_path.name[:60]}  CONJUNTOS DISTINTOS")
+        if not set(legacy) <= set(dsl):
+            print(f"== {docx_path.name[:60]}  CONJUNTOS DISTINTOS (faltan reglas legacy en el DSL)")
             errores_totales += 1
             continue
 

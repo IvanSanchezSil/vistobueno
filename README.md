@@ -95,11 +95,12 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 > **Dos formatos de reglas coexisten (ver [`docs/DSL.md`](docs/DSL.md)):**
 > - `unt_format_rules_schema.yaml` — formato **legacy** (checks con
 >   `mecanismo_verificable`). **Es el que carga la API** (`validator/api.py`).
-> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), generado por
->   `scripts/migrar_legacy_a_dsl.py` (F1 del plan en [`docs/PLAN_DSL.md`](docs/PLAN_DSL.md)).
->   **La API todavía NO lo carga**: cambiarla es una fase coordinada. Ambos
->   motores dan resultados idénticos (paridad verificada con
->   `scripts/evaluar_paridad_plantillas.py` contra `recursos/`).
+> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **41 reglas**:
+>   las 32 legacy migradas (F1) + 9 reglas antes no-deterministas mecanizadas
+>   a mano en la F3 (tokenizer + analizadores de conteo/lista/hipervínculo).
+>   **La API todavía NO lo carga**: cambiarla es una fase coordinada. Para las
+>   32 reglas compartidas, ambos motores dan resultados idénticos (paridad
+>   verificada con `scripts/evaluar_paridad_plantillas.py` contra `recursos/`).
 
 ```
 validator/
@@ -137,7 +138,22 @@ python -m validator.cli tesis.docx unt_format_rules_schema.yaml --json
 
 # evaluar un lote de plantillas/tesis de prueba
 python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/plantillas/
+
+# suite completa de tests (incluye contrato API y paridad)
+pytest tests/ -v
 ```
+
+La suite (**140 tests**) incluye los **tests de propiedad** (F6): un factory
+determinista de DOCX (`tests/docx_factory.py`, descompuesto en
+`tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
+este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)
+genera un documento "bueno" (39/41) y 41 mutaciones de una sola propiedad
+(`tests/test_propiedad.py`), verificando que un desvío mínimo invalida solo
+su regla. Sobre eso, las **mejoras de ingeniería F4** agregaron: un **linter
+del DSL** (`validator/dsl_check.py`) que valida la configuración al cargar
+(regex inválida, comparaciones sin `esperado`, estados inalcanzables,
+ciclos épsilon), **cache de consultas XPath** por documento y la
+**traza del autómata** (`ruta_estados` / `ultima_ruta`).
 
 ## Stack técnico
 

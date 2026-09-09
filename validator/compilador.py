@@ -16,6 +16,10 @@ también debe cumplirse):
     automata_secuencia          -> AutomataSecuencia (DFA)
     gramatica_estructura        -> GramaticaEstructura (BNF)
     automata_pila               -> AutomataPila (PDA, push/pop)
+    patron_cantidad             -> AnalizadorCantidadPatron (conteo)
+    conteo_nodos                -> AnalizadorConteoNodos (min/máx)
+    lista_obligatoria           -> AnalizadorListaObligatoria (anexos)
+    hipervinculo_texto          -> AnalizadorHipervinculo (ORCID)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
@@ -28,12 +32,17 @@ from typing import List, Optional, Tuple
 
 from .analizadores import (
     Analizador,
+    AnalizadorCantidadPatron,
+    AnalizadorConteoNodos,
+    AnalizadorHipervinculo,
     AnalizadorImagen,
     AnalizadorLista,
+    AnalizadorListaObligatoria,
     AnalizadorRegex,
     AnalizadorXML,
 )
 from .automata import DFA, GramaticaEstructura, PDA, Transicion, TransicionPDA
+from .dsl_check import linter_o_alzar
 from .extractor import ExtractedDocx, NS, text_of
 from .tokenizer import TITULO, solo, textos, tokenizar
 from .models import RuleResult, Severity
@@ -48,6 +57,10 @@ SECCIONES_ANALIZADOR = (
     "automata_secuencia",
     "gramatica_estructura",
     "automata_pila",
+    "patron_cantidad",
+    "conteo_nodos",
+    "lista_obligatoria",
+    "hipervinculo_texto",
 )
 
 
@@ -131,6 +144,8 @@ class AutomataSecuencia(Analizador):
         self.reconocimiento: str = config.get("reconocimiento", "greedy")
         self.tipo_flujo: str = config.get("tipo_flujo", "titulos")
         self.tipos: List[str] = config.get("tipos", ["TITULO"])
+        # Traza (F4): estados recorridos por el último análisis.
+        self.ultima_ruta: List[str] = []
 
     def _build_dfa(self, estados_cfg: list) -> DFA:
         estados: List[str] = []
@@ -258,6 +273,7 @@ class AutomataSecuencia(Analizador):
         else:
             headings = [self._normalizar(t) for t in self._headings(extracted) if t]
         aceptado, _ = dfa.reconocer(headings)
+        self.ultima_ruta = dfa.ruta_estados
 
         if aceptado:
             return True, f"headings={len(headings)} faltantes=[]"
@@ -315,6 +331,8 @@ class AutomataPila(Analizador):
         self.tipos: List[str] = config.get("tipos", ["TITULO"])
         self.normalizacion: List[str] = config.get("normalizacion", [])
         self.reconocimiento: str = config.get("reconocimiento", "greedy")
+        # Traza (F4): estados recorridos por el último análisis.
+        self.ultima_ruta: List[str] = []
 
     def _build_pda(self) -> PDA:
         transiciones = [
@@ -345,6 +363,7 @@ class AutomataPila(Analizador):
         pda = self._build_pda()
         flujo = _flujo_texto(extracted, self.normalizacion, self.tipo_flujo, self.tipos)
         aceptado, faltantes = pda.reconocer(flujo)
+        self.ultima_ruta = pda.ruta_estados
 
         if aceptado:
             return True, f"tokens={len(flujo)} pila_ok"
@@ -365,6 +384,10 @@ _FABRICAS = {
     "automata_secuencia": AutomataSecuencia,
     "gramatica_estructura": GramaticaEstructuraAnalizador,
     "automata_pila": AutomataPila,
+    "patron_cantidad": AnalizadorCantidadPatron,
+    "conteo_nodos": AnalizadorConteoNodos,
+    "lista_obligatoria": AnalizadorListaObligatoria,
+    "hipervinculo_texto": AnalizadorHipervinculo,
 }
 
 
@@ -404,7 +427,11 @@ class ReglaCompilada:
 class CompilerDSL:
     """Compila el YAML DSL en un conjunto de `ReglaCompilada`."""
 
-    def compilar(self, rules_data: dict) -> List[ReglaCompilada]:
+    def compilar(self, rules_data: dict, linter: bool = True) -> List[ReglaCompilada]:
+        if linter:
+            # Error de configuración (regex, comparacion, autómatas) se
+            # detecta AL CARGAR, no al validar contra un documento (F4).
+            linter_o_alzar(rules_data)
         reglas: List[ReglaCompilada] = []
         for rule in rules_data.get("reglas", []):
             analizadores = []

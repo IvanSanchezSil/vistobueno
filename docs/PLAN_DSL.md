@@ -1,7 +1,11 @@
 # Plan integral: consolidación del motor DSL — VistoBueno
 
-**Estado**: Pendiente de decisiones (sección 7).
-**Fecha**: 2026-09-07
+**Estado**: F1, F2, F3, F4 y F6 **cerradas** (25/11/2025… 2026-09-09). Falta F5
+(traza en el reporte — pendiente de coordinar contrato con Integrante 1).
+**Fecha**: 2026-09-09
+> Nota (2026-09-09): se aplicaron las correcciones de revisión del PR #11
+> (Paso 14 de `CAMBIOS_MOTOR_DSL.md`): factory modular, sincronización de
+> mutaciones en import y documentación de `seccion()`. Suite: **140 tests**.
 
 ## 1. Objetivo
 
@@ -26,7 +30,7 @@ API y de `validate_docx` se preserva** (forma: `List[RuleResult]`).
 
 ## 3. Fases
 
-### F1 — Migración completa al DSL (A)
+### F1 — Migración completa al DSL (A) ✅ cerrada 2026-09-08
 
 Script `scripts/migrar_legacy_a_dsl.py` con tabla de mapeo legacy → DSL:
 
@@ -44,7 +48,7 @@ Script `scripts/migrar_legacy_a_dsl.py` con tabla de mapeo legacy → DSL:
 - Salida: DSL unificado + `engine.py` sin bifurcación + legacy archivado
   (según decisión 2).
 
-### F2 — Extender autómatas y gramáticas (B)
+### F2 — Extender autómatas y gramáticas (B) ✅ cerrada 2026-09-09
 
 - `validator/tokenizer.py`: flujo tipado `TITULO(nivel, texto)`, `PARRAFO`,
   `TABLA`, `IMAGEN`, `SALTO_SECCION`. `automata_secuencia` gana
@@ -54,29 +58,41 @@ Script `scripts/migrar_legacy_a_dsl.py` con tabla de mapeo legacy → DSL:
 - `GramaticaEstructura` capaz de consumir tokens del tokenizer (no solo
   headings).
 
-### F3 — Mecanizar no_deterministas (C)
+### F3 — Mecanizar no_deterministas (C) ✅ cerrada 2026-09-09
 
-Nuevos analizadores:
+Nuevos analizadores (implementados y con tests):
 
 | Analizador | Uso | Reglas que mecaniza |
 |---|---|---|
-| `patron_cantidad` | contar matches de una regex en texto; comparar min/máx/rango | `resumen_longitud` (≥159 palabras), `palabras_clave_minimo` (≥3), `sistema_citas` (heurístico parcial) |
-| `conteo_nodos` | contador genérico de nodos XPath con min/max (refactor de `imagen`) | `referencias_minimo_*` (≥20/30), `anexos_minimos_*` |
+| `patron_cantidad` | contar palabras / matches regex / entradas (`;`/`,`); min/máx/rango | `resumen_longitud` (≥159 palabras), `palabras_clave_minimo` (≥3) |
+| `conteo_nodos` | contador genérico de nodos XPath o párrafos de una sección (refactor de `imagen`; `cantidades_multiples` opcional) | `referencias_minimo_*` (≥20/30) |
+| `lista_obligatoria` | subcadenas obligatorias por sección (ignore case) | `anexos_minimos_*` |
 | `hipervinculo_texto` | detecta enlaces (w:hyperlink) que matcheen regex ORCID | `caratula_orcid` |
 
-Cobertura esperada: **32/44 → ~40/44**. Quedan fuera las genuinamente
-semánticas (redacción en prosa, verbos en infinitivo, traducción del
-abstract, etc.).
+Más `proyecto_caratula_texto` (patron_texto + atributo_xml, 13pt).
 
-### F4 — Mejoras de ingeniería (D)
+**Decisión 4 (resuelta)**: se mecanizaron las **9 reglas claramente
+verificables** (32 → **41/44**), aplicando las 3 de referencias mínimas sin
+detectar tipo y con su severidad `warning` original. Quedan documentadas
+como no-automatizables: `sistema_citas`, `proyecto_formato_general`,
+`suficiencia_profesional_formato` (ver `reglas_unt.yaml`, bloque F3).
+Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 11 y `tests/test_f3_mecanizacion.py` (21 tests).
+
+### F4 — Mejoras de ingeniería (D) ✅ cerrada 2026-09-09
 
 - Cache de consultas XML por `(parte, contexto, xpath)` en `ExtractedDocx`
-  — evita re-ejecutar XPath por analizador.
-- Traza del autómata (ruta de estados recorridos) en `DFA`/`AutomataSecuencia`.
-- Linter del DSL (`validator/dsl_check.py`): al compilar, detectar estados
-  inalcanzables, ciclos, regex inválida, `comparacion` sin `esperado` —
-  errores en carga, no en runtime.
-- Evaluación paralela opcional (según decisión 3).
+  — evita re-ejecutar XPath por analizador (`extracted.xpath()`).
+- Traza del autómata (`ruta_estados`) en `DFA`/`PDA`; expuesta al DSL como
+  `AutomataSecuencia.ultima_ruta` / `AutomataPila.ultima_ruta`.
+- Linter del DSL (`validator/dsl_check.py`): al compilar (`compilar()`),
+  detectar estados inalcanzables, ciclos épsilon, regex inválida,
+  `comparacion` sin `esperado`/`atributo` y esquema "todo opcional" —
+  errores en carga (`DSLValidationError`), no en runtime.
+- Evaluación paralela opcional: **NO incluida** (decisión 3).
+
+Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 13 y `tests/test_f4_ingenieria.py`
+(21 tests). Suite completa: **138 tests** + `PARIDAD: OK`. Tras las
+correcciones de revisión 2026-09-09 (Paso 14): **140 tests**.
 
 ### F5 — Traza en el reporte (E)
 
@@ -88,12 +104,30 @@ abstract, etc.).
   (AGENTS.md). Alternativa sin tocar la API: codificar la traza dentro de
   `encontrado` (ya existe). (decisión 1).
 
-### F6 — Tests de propiedad (F)
+### F6 — Tests de propiedad (F) ✅ cerrada 2026-09-09
 
-- `tests/docx_factory.py` (extraer el helper de `tests/test_dsl.py`).
-- `tests/test_propiedad.py` con generadores deterministas de DOCX sintéticos.
-- Propiedades: todo DOCX "bueno" pasa; todo DOCX con una regla violada
-  falla **solo** esa regla.
+- `tests/docx_factory.py`: factory determinista OPC. `configuracion_base()`
+  genera el DOCX "bueno" (pasa **39/41**), `aplicar_mutacion(rule_id, cfg)`
+  aplica un desvío **mínimo** por regla y `compilar_docx(cfg)` arma el paquete
+  .docx.
+- `tests/test_propiedad.py` (43 tests): `test_doc_bueno_pasa_39` verifica que
+  el documento base solo falla los esquemas alternativos de estructura; y
+  `test_mutacion_afecta_solo_esa_regla` (41 casos paramétricos) verifica que
+  cada desvío cambia el resultado **solo** de su regla (comparación punto a
+  punto `(passed, found)`).
+- **Exclusiones documentadas** (no quebrar el aislamiento):
+  - el documento base no puede cumplir simultáneamente los esquemas de
+    estructura cuantitativo/cualitativo/revisión (`EXCLUIDAS_BASE`), por ser
+    mutuamente excluyentes;
+  - los autómatas embeben un contador `headings=N` en `found`: para las 3
+    reglas `estructura_tinv_*` el observable comparado es solo `passed`;
+  - reglas con mecanismo **idéntico** (no diferenciables por contenido):
+    las 3 `referencias_minimo_*` (mismo conteo, mínimos 20/30/20) y
+    `caratula_universidad_negrita_mayusculas`/`caratula_ciudad_pais_negrita`
+    (el XPath `[1]` de "trujillo" resuelve a la línea de la universidad).
+    Ver `REGLAS_ACOPLADAS` en el factory.
+
+Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 12. Suite completa: **117 tests**.
 
 ## 4. Dependencias y orden
 
@@ -137,19 +171,31 @@ Modificados:
 - API `ValidarResponse` — solo cambio **aditivo opcional** en `resultados[]`
   (decisión 1).
 
-## 7. Decisiones pendientes de confirmar
+## 7. Decisiones de confirmación (estado)
 
 1. **Contrato API (E)**: ¿agregar `detalle_traza` a `resultados[]` (cambio
    aditivo, sube `CONTRATO_API.md` a v1.1, requiere coordinar con Integrante 1)
-   o embeber la traza en `encontrado` sin tocar la API?
-2. **YAML unificado (A)**: ¿reemplazar `unt_format_rules_schema.yaml` por el
-   DSL nuevo (`reglas_unt.yaml`) y archivar el legacy, o mantener ambos
-   formatos durante una transición?
-3. **Evaluación paralela (D)**: ¿incluirla o dejarla como pendiente opcional
-   (agrega complejidad a cambio de velocidad en documentos grandes)?
-4. **Scope de (C)**: ¿apuntar a las ~8 reglas claramente mecanizables
-   (subir a ~40/44) y dejar las semánticas documentadas como
-   no-automatizables?
+   o embeber la traza en `encontrado` sin tocar la API? — pendiente (F5).
+2. **YAML unificado (A)**: ✅ **tomada (transición)**. Se mantienen ambos
+   formatos durante la transición: `unt_format_rules_schema.yaml` (legacy,
+   sin cambios) y `reglas_unt.yaml` (DSL, 41 reglas). El motor auto-detecta
+   por la clave `rules`/`reglas`.
+3. **Evaluación paralela (D)**: ✅ **tomada (se omitió)**. La paralelización no
+   se incluyó en F4 (complejidad a cambio de velocidad en documentos grandes);
+   queda como mejora futura opcional. F4 entregó linter, cache de XPath y
+   traza del autómata.
+4. **Scope de (C)**: ✅ **tomada**. Se mecanizaron **9 reglas**
+   (`resumen_longitud`, `palabras_clave_minimo`, 3 `referencias_minimo_*`,
+   2 `anexos_minimos_*`, `caratula_orcid`, `proyecto_caratula_texto`),
+   aplicando las referencias mínimas sin detectar tipo (severidad `warning`).
+   Las 3 restantes más difíciles quedan documentadas como no-automatizables.
+5. **Exclusiones de F6**: ✅ **tomada**. El documento base pasa **39/41**
+   (no existe un DOCX que pase 41/41: los esquemas de estructura son
+   mutuamente excluyentes). Las reglas con mecanismo idéntico se declaran en
+   `REGLAS_ACOPLADAS` (`referencias_minimo_*` y la pareja
+   universidad/ciudad-nota de negrita) y se validan con su conjunto esperado.
+   Los autómatas de estructura se comparan por `passed` (su `found` embebe
+   `headings=N`). Detalle en la sección F6.
 
 ## 8. Notas
 

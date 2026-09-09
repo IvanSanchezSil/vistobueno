@@ -221,3 +221,53 @@ reglas:
         - "Línea: educación y ciencias de la comunicación"
         - "Línea: desarrollo sostenible"
       ignore_case: true
+
+  # ─── PATRÓN CON CANTIDAD (F3) ─────────────────────────────
+  - id: resumen_longitud_ejemplo
+    tipo: estructura
+    descripcion: El Resumen debe tener al menos 159 palabras
+    valor_esperado: '>= 159 palabras'
+    severidad: warning
+    patron_cantidad:
+      seccion:
+        inicio: resumen
+      operacion: count_words
+      cantidad_minima: 159
+
+  # ─── CONTEOS MÚLTIPLES POR SECCIÓN (F3) ───────────────────
+  - id: referencias_minimas_ejemplo
+    tipo: estructura
+    descripcion: Mínimo de referencias según tipo de investigación
+    valor_esperado: '20, 30 o 20 dependiendo del esquema'
+    severidad: warning
+    conteo_nodos:
+      seccion:
+        inicio: referencias
+      cantidades_multiples: [20, 30, 20]
+
+  # ─── LISTA DE CONTENIDOS OBLIGATORIOS (F3) ────────────────
+  - id: anexos_minimos_ejemplo
+    tipo: estructura
+    descripcion: El anexo debe incluir la matriz y el consentimiento
+    valor_esperado: anexos obligatorios presentes
+    severidad: warning
+    lista_obligatoria:
+      seccion:
+        inicio: anexo
+      ignore_case: true
+      items:
+        - Matriz de consistencia
+        - Consentimiento informado
+
+  # ─── HIPERVÍNCULOS (F3) ───────────────────────────────────
+  - id: caratula_orcid_ejemplo
+    tipo: formato_texto
+    descripcion: El código ORCID se muestra como hipervínculo de 16 dígitos
+    valor_esperado: 'https://orcid.org/XXXX-XXXX-XXXX-XXXX'
+    severidad: warning
+    hipervinculo_texto:
+      parte: document
+      contexto: todos
+      xpath: //w:body//w:hyperlink
+      patron: 'https?://orcid\.org/\d{4}-?\d{4}-?\d{4}-?\d{4}'
+      cantidad_minima: 1

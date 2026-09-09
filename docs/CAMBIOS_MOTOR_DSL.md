@@ -700,6 +700,80 @@ puro, `automata_pila` end-to-end y gramática con tokens) + suite completa
 ausente); se usaron `pytest`, `fastapi`, `httpx` y `python-multipart` como runner
 de tests sin tocar `flake.nix`.
 
+### Paso 11 — F3: mecanización de reglas no deterministas (2026-09-09)
+
+La F3 del plan (ver `docs/PLAN_DSL.md`) toma las **12 reglas sin mecanismo**
+(aquellas cuya validación dependía del análisis semántico humano) y mecaniza
+las **9 que tienen criterio verificable**, agregándolas a `reglas_unt.yaml`.
+Se hizo **a mano** (el migrador `scripts/migrar_legacy_a_dsl.py` solo regen-era
+las 32 legacy y las descartaría al re-ejecutar — está anotado en `_migracion`).
+
+**Decisión de alcance** (aprobada): las 3 reglas de **referencias mínimas**
+se aplican **sin detectar tipo de investigación**, con su severidad original
+`warning` (no bloquean la entrega). Quedaron **documentadas como
+no-automatizables**: `sistema_citas` (heurística autor-año débil),
+`proyecto_formato_general` y `suficiencia_profesional_formato` (metareglas ya
+cubiertas por las reglas generales de A4/TNR/1.5/márgenes).
+
+**1) `tokenizer.seccion()` — acotar la validación por sección**
+
+Nuevo helper del tokenizer (F2): `seccion(flujo, inicio, fin=None)` devuelve
+los tokens posteriores al primer `TITULO` que matchea la regex `inicio`
+(ignore case) y hasta el siguiente `TITULO`. Si `fin` es una regex, solo un
+título que la matchee corta; sin más títulos, toma el final del flujo. Sin
+match → lista vacía (la regla cae como fallo). Todas las secciones de F3 la
+usan para no validar sobre todo el documento.
+
+**2) Cuatro analizadores nuevos en `validator/analizadores.py`**
+
+| Sección DSL | Analizador | Qué cuenta | Reglas que habilita |
+|---|---|---|---|
+| `patron_cantidad` | `AnalizadorCantidadPatron` | palabras / matches regex / entradas (`;`/`,`) | `resumen_longitud`, `palabras_clave_minimo` |
+| `conteo_nodos` | `AnalizadorConteoNodos` | párrafos de una sección o nodos XPath (min/máx/múltiples) | `referencias_minimo_*` |
+| `lista_obligatoria` | `AnalizadorListaObligatoria` | subcadenas normalizadas (ignore case) | `anexos_minimos_*` |
+| `hipervinculo_texto` | `AnalizadorHipervinculo` | `w:hyperlink` cuyo texto matchea un patrón | `caratula_orcid` |
+
+- `AnalizadorConteoNodos` es el **contador genérico**; `AnalizadorImagen` =
+  subclase suya con etiqueta fija `imagenes` (el detalle `imagenes=N
+  minimo=M` del legacy se conserva, paridad intacta).
+- `AnalizadorCantidadPatron` soporta `filtro` por párrafo (`^palabras clave`)
+  y `operacion: count_entries` para el texto posterior al primer `:`.
+- `conteo_nodos` soporta `cantidades_multiples: [20, 30, 20]` (cumple si la
+  cantidad alcanza cualquiera) — preparado para cuando se detecte el tipo de
+  investigación.
+
+**3) Registro en `validator/compilador.py`**
+
+Alta de las 4 secciones en `SECCIONES_ANALIZADOR` y en `_FABRICAS` (mismo
+patrón que F1/F2), con sus importaciones. Cada regla ejecuta todas sus
+secciones (las secciones F3 coexisten con `patron_texto`/`atributo_xml` en la
+misma regla, p. ej. `proyecto_caratula_texto`).
+
+**4) Reglas agregadas a `reglas_unt.yaml` (32 → 41)**
+
+Las 9 reglas F3 (resumen_longitud, palabras_clave_minimo,
+referencias_minimo_cuantitativo/cualitativo/revision,
+anexos_minimos_cuantitativo/cualitativo, caratula_orcid,
+proyecto_caratula_texto) se insertan **antes de `_migracion:`**, que se anota
+con `f3_reglas_agregadas_manualmente: 9` y `f3_no_automatizables: 3`. El
+bloque de reglas se cierra con los 3 ids no-automatizables comentados. Las
+severidades originales de cada regla **se respetan** (palabras_clave_error,
+proyecto_caratula_texto error; el resto warning).
+
+**5) Ajuste de la paridad (los motores siguen siendo equivalentes)**
+
+El contrato de paridad exige que las 32 reglas legacy se comporten **igual**
+en ambos motores — no que el DSL no tenga reglas extra. Se relajaron las
+aserciones de `tests/test_paridad_formatos.py` y
+`scripts/evaluar_paridad_plantillas.py`: ahora exigen `set(legacy) <=
+set(dsl)` y comparan las 32 legacy una a una (`passed` y `found`).
+
+**Verificación F3**: `tests/test_f3_mecanizacion.py` (21 tests: `seccion()`,
+analizadores por regla, `cantidades_multiples`, imagen refactor, smoke de las
+41 reglas en `reglas_unt.yaml`) + suite completa **74 tests** verdes +
+paridad `PARIDAD: OK` (6/6 plantillas reales). Sin cambios en `flake.nix`
+(solo `lxml`, `re` y stdlib). Entorno: igual que F2, sin Nix disponible.
+
 ---
 
 1. Sintaxis de todos los módulos: `python3 -c "import ast; …"` OK.
@@ -720,21 +794,165 @@ aceptaba secuencias incompletas.
 
 ---
 
+### Paso 12 — F6: tests de propiedad con factory determinista (2026-09-09)
+
+**Objetivo**: probar la correlación regla ↔ resultado: sobre un documento
+"bueno", un desvío MÍNIMO debe invalidar **solo** su regla.
+
+#### `tests/docx_factory.py` (nuevo) — factory determinista
+- Reutiliza la semántica OPC de `test_paridad_formatos.py` y
+  `test_f3_mecanizacion.py` **sin depender de esos archivos** (módulo de
+  soporte importable).
+- `configuracion_base()`: DOCX "bueno" con portada completa, 29 cabeceras del
+  plan cuantitativo, RESUMEN ≥159 palabras + palabras clave, 30 referencias,
+  anexos (unión de los listados cuantitativo y cualitativo), footer con campo
+  PAGE alineado a la derecha, numeración romana en preliminares, hipervínculo
+  ORCID y línea "PROYECTO DE INVESTIGACIÓN" a 13 pt.
+- `aplicar_mutacion(rule_id, cfg)`: **41 desvíos de una sola propiedad** —
+  por construcción, cada knob del factory está ligado a una única regla.
+- `REGLAS_ACOPLADAS`: reglas con mecanismo **idéntico** (no aislables):
+  - `referencias_minimo_cuantitativo`/`referencias_minimo_revision`
+    (`cantidad_minima` 20) y `referencias_minimo_cualitativo` (30): bajar de
+    30 referencias cae el trío (mismo `conteo_nodos`).
+  - `caratula_universidad_negrita_mayusculas`/`caratula_ciudad_pais_negrita`:
+    el XPath `[1]` de la ciudad resuelve a la línea "UNIVERSIDAD NACIONAL DE
+    TRUJILLO" (contiene "trujillo"); cambiar su negrita afecta a ambas.
+
+#### `tests/test_propiedad.py` (nuevo, 43 tests)
+- `test_doc_bueno_pasa_39`: el documento base falla **exactamente** los dos
+  esquemas alternativos de estructura (`estructura_tinv_cualitativo`,
+  `estructura_tinv_revision_literatura`); las otras 39 pasan.
+- `test_mutacion_afecta_solo_esa_regla` (41 casos `@parametrize`): compara
+  punto a punto `(passed, found)` entre base y mutado; `diffs == {regla}` (o
+  su conjunto acoplado declarado).
+
+#### Supuestos verificados empíricamente durante el diseño
+1. **No existe un DOCX 41/41**: los esquemas de estructura cuantitativo,
+   cualitativo y revisión de literatura son mutuamente excluyentes.
+2. Los autómatas de estructura exponen `headings=N` en `found`: el contador
+   cambia ante cualquier inserción/renombrado de cabeceras (detalle interno,
+   no semántico). Por eso las reglas `estructura_tinv_*` se comparan solo por
+   `passed`.
+3. Para `estructura_tinv_cualitativo`/`estructura_tinv_revision_literatura`
+   (que fallan en la base) la mutación **arregla** la regla (intercalando las
+   cabeceras del esquema alternativo): se valida el aislamiento en la
+   dirección "empezar a cumplir" también.
+
+**Verificación**: suite completa **117 tests passed** y `PARIDAD: OK`
+(scripts/evaluar_paridad_plantillas.py) dentro de `nix develop`.
+
+---
+
+### Paso 13 — F4: linter del DSL, cache de XPath y traza (2026-09-09)
+
+**Objetivo**: mejoras de ingeniería — errores de configuración en CARGA (no
+en runtime), menos re-evaluación XPath y ruta de estados para diagnósticos.
+
+#### `validator/dsl_check.py` (nuevo) — linter del DSL
+- `linter(rules_data) -> List[str]` + `linter_o_alzar()` (levanta
+  `DSLValidationError`). El compilador lo invoca al inicio de `compilar()`
+  (se puede desactivar con `linter=False`).
+- Detecta: **regex inválida** en `patron`/`filtro` (incluye los `patron` de
+  estados/transiciones de autómatas), **`comparacion` sin `esperado`** o sin
+  `atributo` (eq/all_eq/contains), **estados inalcanzables** y **aceptación
+  inalcanzable** en `automata_pila`, **ciclos épsilon** (riesgo de bucle
+  infinito en el reconocedor greedy), estados duplicados o esquema
+  "todo opcional" en `automata_secuencia`.
+
+#### Cache de XPath en `ExtractedDocx`
+- `ExtractedDocx.xpath(parte, expr, contexto)`: cache por
+  `(parte, contexto, xpath)` — cada consulta se evalúa UNA vez por documento.
+  `Analizador._nodos` delega en él, así que secciones con el mismo XPath
+  dentro de una regla comparten el resultado.
+
+#### Traza del autómata
+- `DFA.ruta_estados`, `DFA.reconocer_con_backtracking` (el `_dfs` ahora
+  devuelve el camino ganador) y `PDA.ruta_estados`; expuestos en el DSL como
+  `AutomataSecuencia.ultima_ruta` / `AutomataPila.ultima_ruta`.
+
+**Verificación**: suite completa **138 tests passed** (117 + 21 de F4) y
+`PARIDAD: OK` dentro de `nix develop`. Sin cambios de contrato (API/CLI).
+
+### Paso 14 — Correcciones de revisión: factory modular, sincronización en import y documentación de `seccion()` (2026-09-09)
+
+Correcciones pedidas por la revisión del PR consolidado (puntos 2, 5 y 6).
+**Sin cambios de comportamiento ni de contrato** — refactor y endurecimiento
+de garantías; la suite pasó de 138 a **140 tests**.
+
+#### `tests/docx_factory.py` — fachada en lugar de monolito (539 líneas)
+Se dividió el factory en módulos internos del directorio de tests, dejando
+`docx_factory.py` como **fachada** que re-exporta la API pública. Como pytest
+inyecta `tests/` al `sys.path` (`testpaths=["tests"]`, import mode prepend),
+los módulos internos se importan top-level sin necesidad de convertirlos en
+paquete:
+
+| Módulo | Contenido |
+|---|---|
+| `tests/_xml_constants.py` | `WNS/ANS/PNS/RNS/WPN`, `CONTENT_TYPES`, `RELS` |
+| `tests/_docx_builder.py` | `ANEXOS_BASE`, listas de headings, helpers XML, `configuracion_base()`, `compilar_docx()` |
+| `tests/_mutations.py` | `REGLAS`/`REGLAS_ACOPLADAS`/`EXCLUIDAS_BASE`, `aplicar_mutacion()`, `_MUTACIONES`, constantes derivadas y **guard de sincronización** |
+
+Los imports de `test_propiedad.py` (`from docx_factory import ...`) no cambian.
+Sin ciclos de import: `_mutations` importa de `_docx_builder` (nunca al revés).
+
+#### `tests/_mutations.py` — sincronización con YAML garantizada en import
+`_validar_sincronizacion()` corre al importar el módulo: compara
+`set(_MUTACIONES)` contra los `id` de `reglas_unt.yaml` (resuelto con
+`Path(__file__).parent.parent`). Si faltan mutaciones (regla nueva en el YAML
+sin desvío definido) o sobran (mutación cuya regla ya no existe), el import
+**falla con `RuntimeError`** listando ambas colecciones. Es una garantía real
+(todo test que importa el factory la dispara en la recolecta), no solo el
+safety net del test a runtime. Se mantiene `test_mutaciones_cubren_las_41_reglas`
+como verificación explícita redundante en `test_propiedad.py`.
+
+#### `validator/tokenizer.py` — documentación y validación de `seccion()`
+- Docstring ampliado con parámetros, semántica exacta (`re.search` +
+  `IGNORECASE` = match de subcadena, límites solo sobre tokens `TITULO`,
+  `fin=None` → resto del flujo, sin match de `inicio` → `[]`), advertencia de
+  pitfall (un `fin="anexos"` sin anclar corta también ante "ANEXOS Y
+  RECURSOS") y **ejemplos** con anclas `^...$`.
+- Validación temprana: `ValueError` cuando `inicio`/`fin` son vacíos o solo
+  espacios.
+- 2 tests nuevos en `TestSeccion` (`tests/test_f3_mecanizacion.py`):
+  `fin` anclado que NO corta ante un título derivado, y patrón vacío →
+  `ValueError`.
+
+**Verificación**: suite completa **140 tests passed** + `PARIDAD: OK` dentro
+de `nix develop`, y comprobación manual del fallo del guard al simular una
+mutación faltante.
+
+---
+
 ## 8. Resumen técnico
 
 | Archivo | Estado | Descripción |
 |---|---|---|
-| `validator/automata.py` | **nuevo** | `Transicion`, `DFA` (greedy + backtracking), `GramaticaEstructura` (BNF) — teoría pura |
-| `validator/analizadores.py` | **nuevo** | `Analizador` (ABC) + `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorImagen` |
-| `validator/compilador.py` | **nuevo** | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, tabla `_FABRICAS` |
+| `validator/automata.py` | **nuevo** | `Transicion`, `DFA` (greedy + backtracking), `GramaticaEstructura` (BNF), `TransicionPDA`, `PDA` (push/pop) — teoría pura |
+| `validator/tokenizer.py` | **nuevo** | Análisis léxico: flujo tipado (`TITULO`, `PARRAFO`, `TABLA`, `IMAGEN`, `SALTO_SECCION`, `nivel`), `seccion()`, `solo()`, `textos()` |
+| `validator/analizadores.py` | **nuevo** | `Analizador` (ABC) + `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos` (+ `AnalizadorImagen` como subclase), `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo` |
+| `validator/compilador.py` | **nuevo** | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila`, tabla `_FABRICAS` |
 | `validator/engine.py` | **modificado** | detección de formato DSL vs legacy (`_validate_legacy`) |
 | `tests/test_dsl.py` | **nuevo** | 16 tests con DOCX sintéticos en memoria |
-| `reglas_dsl_ejemplo.yaml` | **nuevo** | 8 reglas de ejemplo (6 familias de analizador) |
-| `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL |
+| `tests/test_f2_automatas.py` | **nuevo** | 16 tests: tokenizer, PDA, automata_pila, gramática con tokens |
+| `tests/test_f3_mecanizacion.py` | **nuevo** | 21 tests: seccion() y los 4 analizadores F3 contra reglas/41 |
+| `tests/docx_factory.py` | **modificado** | Fachada del factory (Paso 14): re-exporta la API de `_xml_constants`, `_docx_builder` y `_mutations` |
+| `tests/_xml_constants.py` | **nuevo** | Namespaces OPC + plantillas `CONTENT_TYPES`/`RELS` del factory (Paso 14) |
+| `tests/_docx_builder.py` | **nuevo** | Definición y compilación del DOCX: `configuracion_base()`, headings, `compilar_docx()` (Paso 14) |
+| `tests/_mutations.py` | **nuevo** | `_MUTACIONES` (41 desvíos), metadata de reglas y guard de sincronización con `reglas_unt.yaml` en import (Pasos 6 y 14) |
+| `tests/test_propiedad.py` | **nuevo** | 43 tests: `test_doc_bueno_pasa_39` + 41 mutaciones A/B aisladas (`REGLAS_ACOPLADAS`) |
+| `validator/dsl_check.py` | **nuevo** | Linter del DSL: regex inválida, `comparacion` sin `esperado`/`atributo`, estados inalcanzables, ciclos épsilon, esquema vacío |
+| `tests/test_f4_ingenieria.py` | **nuevo** | 21 tests: linter, cache de XPath y traza del autómata (DFA/PDA/analizadores) |
+| `validator/extractor.py` | **modificado** | `ExtractedDocx.xpath()` con cache por (parte, contexto, xpath) (F4) |
+| `validator/analizadores.py` | **modificado** | `_nodos` delega en la cache de XPath (F4) |
+| `validator/automata.py` | **modificado** | traza `ruta_estados` en DFA/PDA; backtracking devuelve el camino (F4) |
+| `validator/compilador.py` | **modificado** | linter en `compilar()`; `ultima_ruta` en secuencia/pila (F4) |
+| `reglas_unt.yaml` | **modificado** | 32 legacy → **41 reglas** (9 mecanizadas a mano; anotación en `_migracion`) |
+| `reglas_dsl_ejemplo.yaml` | **nuevo** | 13 reglas de ejemplo (12 familias de analizador) |
+| `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL (incluye tokenizer, automata_pila y F3) |
 | `docs/PLAN_DSL.md` | **nuevo** | Plan futuro (migración, tokenizer, PDA, mecanizar reglas, traza, tests de propiedad) con 4 decisiones pendientes |
 
-**Sin cambios**: `models.py`, `extractor.py`, `checks.py`, `prompts.py`,
-`api.py`, `api_models.py`, `cli.py`, `flake.nix`, `unt_format_rules_schema.yaml`.
+**Sin cambios**: `models.py`, `checks.py`, `prompts.py`, `api.py`,
+`api_models.py`, `cli.py`, `flake.nix`, `unt_format_rules_schema.yaml`.
 
 ---
 
