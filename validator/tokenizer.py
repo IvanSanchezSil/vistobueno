@@ -115,12 +115,43 @@ def seccion(
 ) -> List[Token]:
     """Slice de una sección delimitada por títulos (F3).
 
-    Devuelve los tokens posteriores al primer TITULO cuyo texto matchee la
-    regex `inicio` (ignore case) y hasta el siguiente TITULO (excluido).
-    Si `fin` es una regex, solo un TITULO que la matchee corta la sección;
-    si no, cualquier TITULO posterior la corta (o el final del flujo).
-    Sin ningún TITULO que matchee `inicio`, devuelve la lista vacía.
+    Parámetros
+    ----------
+    tokens:
+        Flujo tipado emitido por `tokenizar` (o cualquier secuencia de
+        Token con títulos).
+    inicio:
+        Regex que debe matchear el texto del primer TITULO que abre la
+        sección. Ese título NO se incluye en el resultado; sí el resto del
+        flujo hasta el corte.
+    fin:
+        Regex de corte (opcional). Solo un TITULO posterior cuyo texto la
+        matchee cierra la sección; si se omite, corta ante el primer
+        TITULO posterior (o al final del flujo si no hay más títulos).
+
+    Semántica y advertencias
+    ------------------------
+    - Los límites se evalúan SOLO sobre tokens de tipo TITULO.
+    - Las regex se aplican con ``re.search`` e IGNORECASE: es un match de
+      subcadena, no exige el texto completo. Por eso conviene anclarlas
+      (``^...$``); un fin ``"anexos"`` también cortaría ante un título
+      "ANEXOS Y RECURSOS".
+    - Sin ningún TITULO que matchee `inicio`: devuelve ``[]``.
+    - Si `inicio` matchea y `fin` es ``None`` (o nunca matchea): devuelve
+      el resto del flujo.
+    - `inicio`/`fin` vacíos o en blanco: levanta ``ValueError``.
+
+    Ejemplos
+    --------
+    >>> seccion(flujo, r"^resumen$")            # resumen → siguiente título
+    >>> seccion(flujo, r"^referencias$", fin=r"^anexos$")   # hasta ANEXOS
+    >>> seccion(flujo, "referencias", fin="anexos")  # ojo: corta en
+    # "ANEXOS Y RECURSOS" también (match de subcadena, sin anclar).
     """
+    if not inicio or not inicio.strip():
+        raise ValueError("'inicio' no puede ser una regex vacía o en blanco")
+    if fin is not None and (not fin or not fin.strip()):
+        raise ValueError("'fin' no puede ser una regex vacía o en blanco")
     rx0 = re.compile(inicio, re.IGNORECASE)
     rx1 = re.compile(fin, re.IGNORECASE) if fin else None
     begin = -1

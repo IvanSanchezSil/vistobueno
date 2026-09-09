@@ -2,7 +2,10 @@
 
 **Estado**: F1, F2, F3, F4 y F6 **cerradas** (25/11/2025… 2026-09-09). Falta F5
 (traza en el reporte — pendiente de coordinar contrato con Integrante 1).
-**Fecha**: 2026-09-07
+**Fecha**: 2026-09-09
+> Nota (2026-09-09): se aplicaron las correcciones de revisión del PR #11
+> (Paso 14 de `CAMBIOS_MOTOR_DSL.md`): factory modular, sincronización de
+> mutaciones en import y documentación de `seccion()`. Suite: **140 tests**.
 
 ## 1. Objetivo
 
@@ -88,7 +91,8 @@ Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 11 y `tests/test_f3_mecanizacion.py` (21 te
 - Evaluación paralela opcional: **NO incluida** (decisión 3).
 
 Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 13 y `tests/test_f4_ingenieria.py`
-(21 tests). Suite completa: **138 tests** + `PARIDAD: OK`.
+(21 tests). Suite completa: **138 tests** + `PARIDAD: OK`. Tras las
+correcciones de revisión 2026-09-09 (Paso 14): **140 tests**.
 
 ### F5 — Traza en el reporte (E)
 

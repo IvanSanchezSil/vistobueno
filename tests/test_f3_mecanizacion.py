@@ -16,6 +16,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from validator.engine import load_rules, validate_docx
 from validator.extractor import extract
 from validator.models import RuleResult
@@ -129,6 +131,32 @@ class TestSeccion:
             _para("cuerpo"),
         ])
         assert seccion(flujo, "resumen") == []
+
+    def test_fin_anclado_no_corta_en_titulo_derivado(self):
+        """`fin` con ^...$ no corta ante títulos que solo contienen la
+        subcadena (p. ej. "ANEXOS Y RECURSOS") — el pitfall de no anclar."""
+        flujo = self._extracted([
+            _para("REFERENCIAS", "Ttulo1"),
+            _para("Autor, A. (2020). Título."),
+            _para("ANEXOS Y RECURSOS", "Ttulo1"),
+            _para("anexo 1"),
+        ])
+        corte = seccion(flujo, r"^referencias$", fin=r"^anexos$")
+        textos = [t.texto for t in corte]
+        assert "Autor, A. (2020). Título." in textos
+        assert "ANEXOS Y RECURSOS" in textos
+        assert "anexo 1" in textos
+
+    def test_patron_vacio_lanza_valueerror(self):
+        """`inicio`/`fin` vacíos o en blanco fallan temprano con ValueError."""
+        flujo = self._extracted([
+            _para("RESUMEN", "Ttulo1"),
+            _para("cuerpo"),
+        ])
+        with pytest.raises(ValueError):
+            seccion(flujo, "resumen", fin="   ")
+        with pytest.raises(ValueError):
+            seccion(flujo, "")
 
 
 # ---------------------------------------------------------------------------

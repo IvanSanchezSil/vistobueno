@@ -873,6 +873,54 @@ en runtime), menos re-evaluación XPath y ruta de estados para diagnósticos.
 **Verificación**: suite completa **138 tests passed** (117 + 21 de F4) y
 `PARIDAD: OK` dentro de `nix develop`. Sin cambios de contrato (API/CLI).
 
+### Paso 14 — Correcciones de revisión: factory modular, sincronización en import y documentación de `seccion()` (2026-09-09)
+
+Correcciones pedidas por la revisión del PR consolidado (puntos 2, 5 y 6).
+**Sin cambios de comportamiento ni de contrato** — refactor y endurecimiento
+de garantías; la suite pasó de 138 a **140 tests**.
+
+#### `tests/docx_factory.py` — fachada en lugar de monolito (539 líneas)
+Se dividió el factory en módulos internos del directorio de tests, dejando
+`docx_factory.py` como **fachada** que re-exporta la API pública. Como pytest
+inyecta `tests/` al `sys.path` (`testpaths=["tests"]`, import mode prepend),
+los módulos internos se importan top-level sin necesidad de convertirlos en
+paquete:
+
+| Módulo | Contenido |
+|---|---|
+| `tests/_xml_constants.py` | `WNS/ANS/PNS/RNS/WPN`, `CONTENT_TYPES`, `RELS` |
+| `tests/_docx_builder.py` | `ANEXOS_BASE`, listas de headings, helpers XML, `configuracion_base()`, `compilar_docx()` |
+| `tests/_mutations.py` | `REGLAS`/`REGLAS_ACOPLADAS`/`EXCLUIDAS_BASE`, `aplicar_mutacion()`, `_MUTACIONES`, constantes derivadas y **guard de sincronización** |
+
+Los imports de `test_propiedad.py` (`from docx_factory import ...`) no cambian.
+Sin ciclos de import: `_mutations` importa de `_docx_builder` (nunca al revés).
+
+#### `tests/_mutations.py` — sincronización con YAML garantizada en import
+`_validar_sincronizacion()` corre al importar el módulo: compara
+`set(_MUTACIONES)` contra los `id` de `reglas_unt.yaml` (resuelto con
+`Path(__file__).parent.parent`). Si faltan mutaciones (regla nueva en el YAML
+sin desvío definido) o sobran (mutación cuya regla ya no existe), el import
+**falla con `RuntimeError`** listando ambas colecciones. Es una garantía real
+(todo test que importa el factory la dispara en la recolecta), no solo el
+safety net del test a runtime. Se mantiene `test_mutaciones_cubren_las_41_reglas`
+como verificación explícita redundante en `test_propiedad.py`.
+
+#### `validator/tokenizer.py` — documentación y validación de `seccion()`
+- Docstring ampliado con parámetros, semántica exacta (`re.search` +
+  `IGNORECASE` = match de subcadena, límites solo sobre tokens `TITULO`,
+  `fin=None` → resto del flujo, sin match de `inicio` → `[]`), advertencia de
+  pitfall (un `fin="anexos"` sin anclar corta también ante "ANEXOS Y
+  RECURSOS") y **ejemplos** con anclas `^...$`.
+- Validación temprana: `ValueError` cuando `inicio`/`fin` son vacíos o solo
+  espacios.
+- 2 tests nuevos en `TestSeccion` (`tests/test_f3_mecanizacion.py`):
+  `fin` anclado que NO corta ante un título derivado, y patrón vacío →
+  `ValueError`.
+
+**Verificación**: suite completa **140 tests passed** + `PARIDAD: OK` dentro
+de `nix develop`, y comprobación manual del fallo del guard al simular una
+mutación faltante.
+
 ---
 
 ## 8. Resumen técnico
@@ -887,7 +935,10 @@ en runtime), menos re-evaluación XPath y ruta de estados para diagnósticos.
 | `tests/test_dsl.py` | **nuevo** | 16 tests con DOCX sintéticos en memoria |
 | `tests/test_f2_automatas.py` | **nuevo** | 16 tests: tokenizer, PDA, automata_pila, gramática con tokens |
 | `tests/test_f3_mecanizacion.py` | **nuevo** | 21 tests: seccion() y los 4 analizadores F3 contra reglas/41 |
-| `tests/docx_factory.py` | **nuevo** | Factory determinista OPC: `configuracion_base()` (39/41), `aplicar_mutacion()` (41 desvíos), `compilar_docx()` |
+| `tests/docx_factory.py` | **modificado** | Fachada del factory (Paso 14): re-exporta la API de `_xml_constants`, `_docx_builder` y `_mutations` |
+| `tests/_xml_constants.py` | **nuevo** | Namespaces OPC + plantillas `CONTENT_TYPES`/`RELS` del factory (Paso 14) |
+| `tests/_docx_builder.py` | **nuevo** | Definición y compilación del DOCX: `configuracion_base()`, headings, `compilar_docx()` (Paso 14) |
+| `tests/_mutations.py` | **nuevo** | `_MUTACIONES` (41 desvíos), metadata de reglas y guard de sincronización con `reglas_unt.yaml` en import (Pasos 6 y 14) |
 | `tests/test_propiedad.py` | **nuevo** | 43 tests: `test_doc_bueno_pasa_39` + 41 mutaciones A/B aisladas (`REGLAS_ACOPLADAS`) |
 | `validator/dsl_check.py` | **nuevo** | Linter del DSL: regex inválida, `comparacion` sin `esperado`/`atributo`, estados inalcanzables, ciclos épsilon, esquema vacío |
 | `tests/test_f4_ingenieria.py` | **nuevo** | 21 tests: linter, cache de XPath y traza del autómata (DFA/PDA/analizadores) |
