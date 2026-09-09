@@ -1,0 +1,917 @@
+# ============================================================
+# REGLAS UNT EN FORMATO DSL — GENERADO POR scripts/migrar_legacy_a_dsl.py
+# ------------------------------------------------------------
+# Migración de `unt_format_rules_schema.yaml` (formato legacy) al
+# formato declarativo (Fase F1 del PLAN_DSL). Este archivo NO es
+# el que carga la API (`api.py` sigue apuntando al YAML legacy).
+# Se usa para el test de paridad legacy-vs-DSL y como base de
+# las fases siguientes (unificación de YAML, F3).
+# ============================================================
+
+namespaces:
+  w: http://schemas.openxmlformats.org/wordprocessingml/2006/main
+  r: http://schemas.openxmlformats.org/officeDocument/2006/relationships
+  a: http://schemas.openxmlformats.org/drawingml/2006/main
+  pic: http://schemas.openxmlformats.org/drawingml/2006/picture
+reglas:
+- id: papel_tamano
+  tipo: atributo_xml
+  descripcion: El tamaño del papel debe ser A4
+  valor_esperado: 210 x 297 mm
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 124-125 para Trabajo de Investigación Cuantitativo; se repite
+    idéntico en párr. 443-444, 593-594 para otros tipos)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Tamaño A4/papel (210x297 cm)"'
+  atributo_xml:
+  - parte: document
+    contexto: todos
+    xpath: //w:sectPr[1]/w:pgSz
+    atributo: '@w:w'
+    comparacion: eq
+    esperado: '11906'
+  - parte: document
+    contexto: todos
+    xpath: //w:sectPr[1]/w:pgSz
+    atributo: '@w:h'
+    comparacion: eq
+    esperado: '16838'
+- id: fuente_principal
+  tipo: atributo_xml
+  descripcion: La fuente del cuerpo del texto debe ser Times New Roman
+  valor_esperado: Times New Roman
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 126-127)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Times New Roman: 12 puntos"'
+  atributo_xml:
+    parte: document
+    contexto: cuerpo
+    xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:rFonts
+    atributo: '@w:ascii'
+    comparacion: all_eq
+    esperado: Times New Roman
+- id: tamano_cuerpo
+  tipo: atributo_xml
+  descripcion: El tamaño de letra del cuerpo del texto debe ser 12 puntos
+  valor_esperado: 12pt
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 126-127)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Times New Roman: 12 puntos"'
+  atributo_xml:
+    parte: document
+    contexto: cuerpo
+    xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:sz
+    atributo: '@w:val'
+    comparacion: all_eq
+    esperado: '24'
+- id: caratula_universidad_tamano
+  tipo: atributo_xml
+  descripcion: Tamaño de letra del nombre de la Universidad en carátula
+  valor_esperado: 18pt
+  severidad: error
+  ubicacion: 'Carátula, especificaciones (párr. 174); nota indicativa en párr. 153: "(Times New Román
+    18 puntos/13 puntos/13 puntos)"'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'universidad')][1]/w:r[1]/w:rPr/w:sz
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: '36'
+- id: caratula_facultad_escuela_tamano
+  tipo: atributo_xml
+  descripcion: Tamaño de letra de Facultad y Escuela Profesional en carátula
+  valor_esperado: 13pt
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 175)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13
+    puntos)."'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'escuela'))][1]/w:r[1]/w:rPr/w:sz
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: '26'
+- id: caratula_titulo_trabajo_tamano
+  tipo: atributo_xml
+  descripcion: Tamaño de letra del título del trabajo en carátula
+  valor_esperado: 14pt
+  severidad: warning
+  ubicacion: Carátula, especificaciones (párr. 177)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas
+    (tamaño de letra, 14 puntos)."'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]/w:r[1]/w:rPr/w:sz
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: '28'
+- id: caratula_optar_grado_tamano
+  tipo: atributo_xml
+  descripcion: Tamaño de letra de la línea "Trabajo de Investigación para optar el grado de Bachiller
+    en..."
+  valor_esperado: 13pt
+  severidad: warning
+  ubicacion: Carátula, especificaciones (párr. 178)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas
+    (tamaño de letra, 13 puntos)."'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'para optar')][1]/w:r[1]/w:rPr/w:sz
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: '26'
+- id: caratula_autores_tamano
+  tipo: atributo_xml
+  descripcion: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula
+  valor_esperado: 12pt
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 161, 168, 179-183)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"(Times New Román 12 puntos)" para autores; "Línea de investigación, con letras mayúsculas y
+    minúsculas (tamaño de letra, 12 puntos)."'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:sz
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: '24'
+- id: caratula_logotipo_tamano
+  tipo: imagen
+  descripcion: Tamaño del logotipo de la Universidad en carátula
+  valor_esperado: 4.84 cm alto x 6.73 cm ancho
+  severidad: warning
+  ubicacion: Carátula, especificaciones (párr. 176)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Logotipo de la Universidad: Centrado, tamaño: 4.84 cm de alto x 6.73 cm de ancho."'
+  imagen:
+    parte: document
+    xpath: //w:drawing//a:blip
+    formato: png
+    cantidad_minima: 1
+- id: interlineado
+  tipo: atributo_xml
+  descripcion: El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)
+  valor_esperado: 1.5 (ONE_POINT_FIVE)
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 128-129)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Interlineado: 1.5 puntos"'
+  atributo_xml:
+  - parte: document
+    contexto: cuerpo
+    xpath: //w:body//w:p[w:pPr/w:spacing]/w:pPr/w:spacing
+    atributo: '@w:line'
+    comparacion: all_eq
+    esperado: '360'
+  - parte: document
+    contexto: cuerpo
+    xpath: //w:body//w:p[w:pPr/w:spacing]/w:pPr/w:spacing
+    atributo: '@w:lineRule'
+    comparacion: all_eq
+    esperado: auto
+- id: alineacion_cuerpo
+  tipo: atributo_xml
+  descripcion: El cuerpo del texto debe estar justificado
+  valor_esperado: justificada
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 130-131)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Alineación: Justificada"'
+  atributo_xml:
+    parte: document
+    contexto: cuerpo
+    xpath: //w:body//w:p[w:pPr/w:jc]/w:pPr/w:jc
+    atributo: '@w:val'
+    comparacion: all_eq
+    esperado: both
+- id: alineacion_caratula_todos_elementos
+  tipo: atributo_xml
+  descripcion: Todos los elementos de la carátula deben estar centrados
+  valor_esperado: centrado
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 174-183)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Nombre de la Universidad: Centrado...", "Facultad y Escuela Profesional: Centrado...", "Título
+    del Trabajo...: Centrado...", etc.'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'universidad') or (contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'escuela')) or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'para optar') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'mención') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')]/w:pPr/w:jc
+    atributo: '@w:val'
+    comparacion: all_eq
+    esperado: center
+- id: margen_superior
+  tipo: atributo_xml
+  descripcion: Margen superior del documento
+  valor_esperado: 2.5 cm
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 132-133)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Superior: 2.5 cm"'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: (//w:sectPr)/w:pgMar
+    atributo: '@w:top'
+    comparacion: all_eq
+    esperado: '1418'
+- id: margen_inferior
+  tipo: atributo_xml
+  descripcion: Margen inferior del documento
+  valor_esperado: 2.5 cm
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 132-134)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Inferior: 2.5 cm"'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: (//w:sectPr)/w:pgMar
+    atributo: '@w:bottom'
+    comparacion: all_eq
+    esperado: '1418'
+- id: margen_derecho
+  tipo: atributo_xml
+  descripcion: Margen derecho del documento
+  valor_esperado: 2.5 cm
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 132-135)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Derecho: 2.5 cm"'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: (//w:sectPr)/w:pgMar
+    atributo: '@w:right'
+    comparacion: all_eq
+    esperado: '1418'
+- id: margen_izquierdo
+  tipo: atributo_xml
+  descripcion: Margen izquierdo del documento
+  valor_esperado: 3.0 cm
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 132-136)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Izquierdo: 3.0 cm"'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: (//w:sectPr)/w:pgMar
+    atributo: '@w:left'
+    comparacion: all_eq
+    esperado: '1701'
+- id: sangria_parrafo
+  tipo: atributo_xml
+  descripcion: La primera línea de cada párrafo debe tener sangría de 1.27 cm
+  valor_esperado: 1.27 cm (½ pulgada)
+  severidad: warning
+  ubicacion: Sección "Formato general" (párr. 141)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27
+    cm (½ pulgada) desde el margen izquierdo."'
+  atributo_xml:
+    parte: document
+    contexto: cuerpo
+    xpath: //w:body//w:p[w:pPr/w:ind]/w:pPr/w:ind
+    atributo: '@w:firstLine'
+    comparacion: all_eq
+    esperado: '720'
+- id: numeracion_posicion
+  tipo: presencia_xml
+  descripcion: La numeración de página se ubica en el margen inferior derecho
+  valor_esperado: margen inferior derecho
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 137-138)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Numeración de la página: Margen inferior derecho."'
+  presencia_xml:
+  - parte: document
+    contexto: todos
+    xpath: //w:sectPr[1]/w:footerReference
+    comparacion: exists
+  - parte: footer
+    contexto: todos
+    xpath: //w:instrText[contains(., 'PAGE')]
+    comparacion: exists
+  atributo_xml:
+    parte: footer
+    contexto: todos
+    xpath: //w:p/w:pPr/w:jc
+    atributo: '@w:val'
+    comparacion: eq
+    esperado: right
+- id: numeracion_preliminares_romano
+  tipo: atributo_xml
+  descripcion: Las páginas preliminares se numeran en romanos minúsculos; la carátula no se enumera pero
+    se cuenta; la Dedicatoria inicia con "ii"
+  valor_esperado: romanos minúsculos (ii, iii, iv...); carátula = i (sin mostrar)
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 139)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula
+    no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos ("ii") en romano..."'
+  atributo_xml:
+    parte: document
+    contexto: todos
+    xpath: (//w:sectPr)[position() < last()]/w:pgNumType
+    atributo: '@w:fmt'
+    comparacion: all_eq
+    esperado: lowerRoman
+- id: numeracion_cuerpo_arabigo
+  tipo: presencia_xml
+  descripcion: La numeración en arábigos se inicia en la Introducción, continuando el correlativo desde
+    los romanos
+  valor_esperado: arábigos consecutivos desde Introducción
+  severidad: error
+  ubicacion: Sección "Formato general" (párr. 140)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"La numeración en arábigos se inicia en la introducción contando el número de páginas en romanos
+    (por ejemplo, si la numeración de las páginas preliminares termina en "xi", corresponde a la primera
+    página de la Introducción el número 12)."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: (//w:sectPr)[position() = last()]/w:pgNumType
+    comparacion: not_exists
+- id: caratula_no_se_enumera
+  tipo: presencia_xml
+  descripcion: La carátula (página i) no muestra número visible
+  valor_esperado: oculta
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 184)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"La página número i, se cuenta, pero no se enumera."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:sectPr[1]/w:titlePg
+    comparacion: exists
+- id: caratula_universidad_negrita_mayusculas
+  tipo: presencia_xml
+  descripcion: El nombre de la Universidad en carátula debe ser con negrita y mayúsculas
+  valor_esperado: negrita + MAYÚSCULAS
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 174)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'universidad')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    comparacion: exists
+  patron_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'universidad')][1]//w:t
+    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+    comparacion: fullmatch
+    coincidencia: todos
+- id: caratula_facultad_negrita_mayusculas
+  tipo: presencia_xml
+  descripcion: 'Facultad y Escuela en carátula: negrita y mayúsculas'
+  valor_esperado: negrita + MAYÚSCULAS
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 175)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13
+    puntos)."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'escuela'))][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    comparacion: exists
+  patron_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'escuela'))][1]//w:t
+    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+    comparacion: fullmatch
+    coincidencia: todos
+- id: caratula_titulo_negrita_mixta
+  tipo: presencia_xml
+  descripcion: 'El título del trabajo en carátula: negrita con mayúsculas y minúsculas (no todo mayúsculas)'
+  valor_esperado: negrita + Mayúsculas y minúsculas
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 177)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas
+    (tamaño de letra, 14 puntos)."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    comparacion: exists
+  patron_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]//w:t
+    patron: .*[a-záéíóúñ].*
+    comparacion: fullmatch
+    coincidencia: todos
+- id: caratula_autores_mayusculas_sin_negrita
+  tipo: presencia_xml
+  descripcion: 'Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita'
+  valor_esperado: MAYÚSCULAS, sin negrita
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 179)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    comparacion: not_exists
+  patron_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]//w:t
+    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+    comparacion: fullmatch
+    coincidencia: todos
+- id: caratula_asesor_negrita
+  tipo: presencia_xml
+  descripcion: 'El asesor en carátula: con negrita'
+  valor_esperado: negrita
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 180)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas..."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'asesor')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    comparacion: exists
+- id: caratula_ciudad_pais_negrita
+  tipo: presencia_xml
+  descripcion: 'Ciudad y país en carátula: centrado, con negrita, mayúsculas y minúsculas'
+  valor_esperado: negrita + Mayúsculas y minúsculas
+  severidad: error
+  ubicacion: Carátula, especificaciones (párr. 182)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos)."'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'trujillo')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    comparacion: exists
+  patron_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'trujillo')][1]//w:t
+    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+    comparacion: fullmatch
+    coincidencia: todos
+- id: caratula_linea_investigacion
+  tipo: lista_texto
+  descripcion: La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por
+    el RCU-N°220-2022/UNT
+  valor_esperado: Línea de investigación aprobada (RCU-N°220-2022/UNT)
+  severidad: error
+  ubicacion: Carátula, campo "Línea de Investigación"
+  fuente: RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf
+  cita: '"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por
+    RCU-N°220-2022/UNT)"'
+  lista_texto:
+    parte: document
+    contexto: todos
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'línea de investigación')][1]/following-sibling::w:p[1]//w:t
+    lista:
+    - alimentos y bebidas
+    - arqueología
+    - automatización y sistemas de control
+    - biología celular y microbiología
+    - bioquímica y biología molecular
+    - biotecnología industrial
+    - ciencias del cuidado de la salud y servicios (administración de hospitales, financiamiento)
+    - conservación de la biodiversidad
+    - farmacología y farmacia
+    - ingeniería de los materiales
+    - matemática aplicada
+    - medicina complementaria (sistemas alternativos)
+    - nanomateriales (producción y propiedades)
+    - nutrición y dietas
+    - óptica
+    - parasitología
+    - protección y nutrición de las plantas
+    - recubrimiento y películas
+    - salud pública
+    - ciencias animales y lechería
+    - ciencias del medio ambiente
+    - enfermería
+    - ingeniería industrial
+    - otras biologías
+    - otras ingenierías y tecnologías
+    - otros temas de medicina clínica
+    - arquitectura y urbanismo
+    - biología marina y del agua
+    - ciencias de la computación
+    - ciencias de la información y bioinformática
+    - ciencias jurídicas
+    - ciencias políticas
+    - diseño arquitectónico
+    - econometría
+    - ciencias económicas
+    - ingeniería arquitectónica
+    - ingeniería de sistemas y comunicaciones
+    - ingeniería eléctrica y electrónica
+    - ingeniería mecánica
+    - mecánica aplicada
+    - negocios y managment
+    - odontología, cirugía oral y medicina oral
+    - otras ciencias agropecuarias
+    - otras ciencias sociales
+    - historias especializadas
+    - ingeniería de bioprocesos y biomateriales
+    - robótica y control automático
+    - ciencias físicas
+    - ciencias matemáticas
+    - educación y ciencias de la comunicación y desarrollo sostenible
+    ignore_case: true
+- id: estructura_tinv_cuantitativo
+  tipo: secuencia
+  descripcion: 'Estructura obligatoria del Trabajo de Investigación (Cuantitativo). El orden debe ser
+    exacto.
+
+    '
+  valor_esperado:
+  - Carátula
+  - Dedicatoria (opcional)
+  - Jurado evaluador
+  - Agradecimiento (opcional)
+  - Índice
+  - Presentación
+  - Resumen
+  - Abstract
+  - Introducción
+  - '  El Problema'
+  - '    Situación problemática'
+  - '    Enunciado del problema'
+  - '    Justificación o importancia'
+  - '  Objetivos'
+  - '  Variable(s) y operacionalización'
+  - MARCO TEÓRICO
+  - '  Antecedentes (Estado del arte)'
+  - '  Bases teóricas'
+  - METODOLOGÍA
+  - '  Población y muestra'
+  - '  Diseño de investigación'
+  - '  Instrumento(s) usado(s) en la recolección de datos'
+  - '  Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos'
+  - RESULTADOS
+  - CONCLUSIONES
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Trabajo de Investigación Cuantitativo (párr. 275-319)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 276-319 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula
+    - nombre: dedicatoria_opcional
+      patron: DEDICATORIA
+      original: Dedicatoria (opcional)
+      opcional: true
+    - nombre: jurado_evaluador
+      patron: JURADO EVALUADOR
+      original: Jurado evaluador
+    - nombre: agradecimiento_opcional
+      patron: AGRADECIMIENTO
+      original: Agradecimiento (opcional)
+      opcional: true
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: presentacion
+      patron: PRESENTACIÓN
+      original: Presentación
+    - nombre: resumen
+      patron: RESUMEN
+      original: Resumen
+    - nombre: abstract
+      patron: ABSTRACT
+      original: Abstract
+    - nombre: introduccion
+      patron: INTRODUCCIÓN
+      original: Introducción
+    - nombre: el_problema
+      patron: EL PROBLEMA
+      original: '  El Problema'
+    - nombre: situacion_problematica
+      patron: SITUACIÓN PROBLEMÁTICA
+      original: '    Situación problemática'
+    - nombre: enunciado_del_problema
+      patron: ENUNCIADO DEL PROBLEMA
+      original: '    Enunciado del problema'
+    - nombre: justificacion_o_importancia
+      patron: JUSTIFICACIÓN O IMPORTANCIA
+      original: '    Justificación o importancia'
+    - nombre: objetivos
+      patron: OBJETIVOS
+      original: '  Objetivos'
+    - nombre: variable_s_y_operacionalizacion
+      patron: VARIABLE(S) Y OPERACIONALIZACIÓN
+      original: '  Variable(s) y operacionalización'
+    - nombre: marco_teorico
+      patron: MARCO TEÓRICO
+      original: MARCO TEÓRICO
+    - nombre: antecedentes_estado_del_arte
+      patron: ANTECEDENTES (ESTADO DEL ARTE)
+      original: '  Antecedentes (Estado del arte)'
+    - nombre: bases_teoricas
+      patron: BASES TEÓRICAS
+      original: '  Bases teóricas'
+    - nombre: metodologia
+      patron: METODOLOGÍA
+      original: METODOLOGÍA
+    - nombre: poblacion_y_muestra
+      patron: POBLACIÓN Y MUESTRA
+      original: '  Población y muestra'
+    - nombre: diseno_de_investigacion
+      patron: DISEÑO DE INVESTIGACIÓN
+      original: '  Diseño de investigación'
+    - nombre: instrumento_s_usado_s_en_la_recoleccion_de_datos
+      patron: INSTRUMENTO(S) USADO(S) EN LA RECOLECCIÓN DE DATOS
+      original: '  Instrumento(s) usado(s) en la recolección de datos'
+    - nombre: metodos_tecnicas_y_procedimientos_usados_en_el_analisis_e_interpretacion_de_datos
+      patron: MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS
+      original: '  Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos'
+    - nombre: resultados
+      patron: RESULTADOS
+      original: RESULTADOS
+    - nombre: conclusiones
+      patron: CONCLUSIONES
+      original: CONCLUSIONES
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+- id: estructura_tinv_cualitativo
+  tipo: secuencia
+  descripcion: 'Estructura obligatoria del Trabajo de Investigación (Cualitativo). Diferencia clave: incluye
+    "Categorías, matriz de categorización y unidad de análisis" y termina con "ANÁLISIS Y DISCUSIÓN DE
+    RESULTADOS" en vez de solo "RESULTADOS".
+
+    '
+  valor_esperado:
+  - Carátula
+  - Dedicatoria (opcional)
+  - Jurado evaluador
+  - Agradecimiento (opcional)
+  - Índice
+  - Presentación
+  - Resumen
+  - Abstract
+  - Introducción
+  - '  El Problema'
+  - '  Objetivos'
+  - '  Categorías, matriz de categorización y unidad de análisis'
+  - MARCO TEÓRICO
+  - METODOLOGÍA
+  - '  Participantes'
+  - '  Diseño'
+  - '  Instrumentos usados en la recolección de información'
+  - '  Métodos, técnicas, procedimientos y estrategias usadas en el análisis e interpretación de datos'
+  - ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+  - CONCLUSIONES
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Trabajo de Investigación Cualitativo (párr. 380-420)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 381-420 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula
+    - nombre: dedicatoria_opcional
+      patron: DEDICATORIA
+      original: Dedicatoria (opcional)
+      opcional: true
+    - nombre: jurado_evaluador
+      patron: JURADO EVALUADOR
+      original: Jurado evaluador
+    - nombre: agradecimiento_opcional
+      patron: AGRADECIMIENTO
+      original: Agradecimiento (opcional)
+      opcional: true
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: presentacion
+      patron: PRESENTACIÓN
+      original: Presentación
+    - nombre: resumen
+      patron: RESUMEN
+      original: Resumen
+    - nombre: abstract
+      patron: ABSTRACT
+      original: Abstract
+    - nombre: introduccion
+      patron: INTRODUCCIÓN
+      original: Introducción
+    - nombre: el_problema
+      patron: EL PROBLEMA
+      original: '  El Problema'
+    - nombre: objetivos
+      patron: OBJETIVOS
+      original: '  Objetivos'
+    - nombre: categorias_matriz_de_categorizacion_y_unidad_de_analisis
+      patron: CATEGORÍAS, MATRIZ DE CATEGORIZACIÓN Y UNIDAD DE ANÁLISIS
+      original: '  Categorías, matriz de categorización y unidad de análisis'
+    - nombre: marco_teorico
+      patron: MARCO TEÓRICO
+      original: MARCO TEÓRICO
+    - nombre: metodologia
+      patron: METODOLOGÍA
+      original: METODOLOGÍA
+    - nombre: participantes
+      patron: PARTICIPANTES
+      original: '  Participantes'
+    - nombre: diseno
+      patron: DISEÑO
+      original: '  Diseño'
+    - nombre: instrumentos_usados_en_la_recoleccion_de_informacion
+      patron: INSTRUMENTOS USADOS EN LA RECOLECCIÓN DE INFORMACIÓN
+      original: '  Instrumentos usados en la recolección de información'
+    - nombre: metodos_tecnicas_procedimientos_y_estrategias_usadas_en_el_analisis_e_interpretacion_de_datos
+      patron: MÉTODOS, TÉCNICAS, PROCEDIMIENTOS Y ESTRATEGIAS USADAS EN EL ANÁLISIS E INTERPRETACIÓN DE
+        DATOS
+      original: '  Métodos, técnicas, procedimientos y estrategias usadas en el análisis e interpretación
+        de datos'
+    - nombre: analisis_y_discusion_de_resultados
+      patron: ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+      original: ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+    - nombre: conclusiones
+      patron: CONCLUSIONES
+      original: CONCLUSIONES
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+- id: estructura_tinv_revision_literatura
+  tipo: secuencia
+  descripcion: 'Estructura obligatoria del Trabajo de Investigación basado en Revisión de la Literatura.
+
+    '
+  valor_esperado:
+  - Carátula
+  - Dedicatoria (opcional)
+  - Jurado evaluador
+  - Agradecimiento (opcional)
+  - Índice
+  - Presentación
+  - Resumen
+  - Abstract
+  - INTRODUCCIÓN
+  - METODOLOGÍA DE REVISIÓN
+  - DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA
+  - CONCLUSIONES Y RECOMENDACIONES
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Trabajo de Revisión de la Literatura (párr. 536-559)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 537-559 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula
+    - nombre: dedicatoria_opcional
+      patron: DEDICATORIA
+      original: Dedicatoria (opcional)
+      opcional: true
+    - nombre: jurado_evaluador
+      patron: JURADO EVALUADOR
+      original: Jurado evaluador
+    - nombre: agradecimiento_opcional
+      patron: AGRADECIMIENTO
+      original: Agradecimiento (opcional)
+      opcional: true
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: presentacion
+      patron: PRESENTACIÓN
+      original: Presentación
+    - nombre: resumen
+      patron: RESUMEN
+      original: Resumen
+    - nombre: abstract
+      patron: ABSTRACT
+      original: Abstract
+    - nombre: introduccion
+      patron: INTRODUCCIÓN
+      original: INTRODUCCIÓN
+    - nombre: metodologia_de_revision
+      patron: METODOLOGÍA DE REVISIÓN
+      original: METODOLOGÍA DE REVISIÓN
+    - nombre: desarrollo_o_analisis_critico_de_la_literatura
+      patron: DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA
+      original: DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA
+    - nombre: conclusiones_y_recomendaciones
+      patron: CONCLUSIONES Y RECOMENDACIONES
+      original: CONCLUSIONES Y RECOMENDACIONES
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+- id: indice_subdivisiones
+  tipo: presencia_xml
+  descripcion: 'El Índice se subdivide en: índice de contenidos, índice de tablas y índice de figuras;
+    cada uno en página separada'
+  valor_esperado: índice de contenidos + índice de tablas + índice de figuras, en páginas separadas
+  severidad: warning
+  ubicacion: Sección Índice (párr. 192-196)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas
+    separadas)."'
+  presencia_xml:
+  - parte: document
+    contexto: todos
+    xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'contenidos')]
+    comparacion: exists
+  - parte: document
+    contexto: todos
+    xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'tablas')]
+    comparacion: exists
+  - parte: document
+    contexto: todos
+    xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'figuras')]
+    comparacion: exists
+_migracion:
+  fuente: unt_format_rules_schema.yaml
+  total_reglas: 32
+  sin_mecanismo_omitidas: 12

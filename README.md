@@ -92,6 +92,15 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 
 ## Motor de reglas (re-arquitecturado — reemplaza al prototipo `eval_checks2.py`)
 
+> **Dos formatos de reglas coexisten (ver [`docs/DSL.md`](docs/DSL.md)):**
+> - `unt_format_rules_schema.yaml` — formato **legacy** (checks con
+>   `mecanismo_verificable`). **Es el que carga la API** (`validator/api.py`).
+> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), generado por
+>   `scripts/migrar_legacy_a_dsl.py` (F1 del plan en [`docs/PLAN_DSL.md`](docs/PLAN_DSL.md)).
+>   **La API todavía NO lo carga**: cambiarla es una fase coordinada. Ambos
+>   motores dan resultados idénticos (paridad verificada con
+>   `scripts/evaluar_paridad_plantillas.py` contra `recursos/`).
+
 ```
 validator/
   __init__.py

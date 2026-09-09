@@ -1,11 +1,21 @@
 """Motor de reglas: carga el YAML, ejecuta las reglas mecanizadas contra
 un DOCX extraído, y arma el reporte agrupado con filtro de severidad.
+
+Soporta dos formatos de reglas:
+- LEGACY  (`rules` con `mecanismo_verificable.checks`): el formato original,
+  evaluado por `checks.run_check`. Se conserva para compatibilidad.
+- DSL     (`reglas` con secciones `atributo_xml`, `automata_secuencia`,
+  `gramatica_estructura`, etc.): el formato declarativo compilado por
+  `CompilerDSL`, basado en analizadores y autómatas.
+
+Ambos formatos producen el mismo contrato: `List[RuleResult]`.
 """
 from typing import Iterable, List, Optional
 
 import yaml
 
 from .checks import run_check
+from .compilador import CompilerDSL
 from .extractor import extract
 from .models import RuleResult, Severity
 
@@ -16,14 +26,27 @@ def load_rules(yaml_path: str) -> dict:
 
 
 def validate_docx(docx_path: str, rules_data: dict) -> List[RuleResult]:
-    """Ejecuta todas las reglas con `mecanismo_verificable` contra un DOCX.
+    """Ejecuta todas las reglas mecanizadas contra un DOCX.
 
-    Las reglas SIN mecanismo_verificable (contenido semántico: mínimos de
-    referencias, extensión del resumen, sistema de citas, etc.) se omiten
-    aquí — no son verificables por estructura de archivo. Ver la sección
-    `no_deterministas` / reglas sin mecanismo del YAML.
+    Si `rules_data` usa el formato DSL (`reglas`), delega en `CompilerDSL`.
+    En caso contrario, usa el motor legacy (`rules` con `mecanismo_verificable`).
+
+    Las reglas sin mecanismo verificable (contenido semántico) se omiten
+    en ambos formatos — no son verificables por estructura de archivo.
+    Ver la sección `no_deterministas` del YAML.
     """
     extracted = extract(docx_path)
+
+    # Formato DSL (nuevo, declarativo con analizadores/autómatas).
+    if "reglas" in rules_data:
+        return CompilerDSL().ejecutar(rules_data, extracted)
+
+    # Formato legacy.
+    return _validate_legacy(rules_data, extracted)
+
+
+def _validate_legacy(rules_data: dict, extracted) -> List[RuleResult]:
+    """Evalúa el YAML legacy (`rules` + `mecanismo_verificable`)."""
     results: List[RuleResult] = []
 
     for rule in rules_data.get("rules", []):
