@@ -58,13 +58,9 @@ class Analizador(ABC):
 
     # -- utilidades compartidas -------------------------------------------
     def _nodos(self, extracted: ExtractedDocx, parte: str, contexto: str):
-        tree = extracted.part(parte)
-        if tree is None:
-            raise ValueError(f"parte '{parte}' no disponible en este archivo")
-        nodes = tree.xpath(self.config.get("xpath", ""), namespaces=NS)
-        if contexto == "cuerpo":
-            return [n for n in nodes if extracted.is_cuerpo(n)]
-        return nodes
+        # Consulta XPath con cache (F4): mismo (parte, contexto, xpath) se
+        # evalúa una sola vez por documento.
+        return extracted.xpath(parte, self.config.get("xpath", ""), contexto)
 
 
 class AnalizadorXML(Analizador):

@@ -8,8 +8,8 @@ estilo Normal o sin estilo explícito. Ver unt_format_rules_schema.yaml
 para la convención completa de mecanismo_verificable.
 """
 import zipfile
-from dataclasses import dataclass
-from typing import Optional, Set
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Set
 
 from lxml import etree
 
@@ -56,6 +56,9 @@ class ExtractedDocx:
     footer: Optional["etree._Element"]
     header: Optional["etree._Element"]
     _cuerpo: Set
+    # Cache de consultas XPath (F4): clave (parte, contexto, xpath). Evita
+    # re-ejecutar la misma consulta por cada analizador de la regla.
+    _cache: Dict = field(default_factory=dict, repr=False)
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
@@ -66,6 +69,26 @@ class ExtractedDocx:
             "footer": self.footer,
             "header": self.header,
         }.get(name)
+
+    def xpath(self, parte: str, xpath_expr: str, contexto: str = "todos") -> list:
+        """Consulta XPath con cache por (parte, contexto, xpath).
+
+        Es el punto único por el que los analizadores consultan los árboles:
+        dos secciones con el mismo XPath comparten el resultado. Con
+        `contexto == "cuerpo"` se filtra por los párrafos de la última
+        sección (mismo significado que `_nodos` de los analizadores).
+        """
+        clave = (parte, contexto, xpath_expr)
+        if clave in self._cache:
+            return self._cache[clave]
+        tree = self.part(parte)
+        if tree is None:
+            raise ValueError(f"parte '{parte}' no disponible en este archivo")
+        nodos = tree.xpath(xpath_expr, namespaces=NS)
+        if contexto == "cuerpo":
+            nodos = [n for n in nodos if self.is_cuerpo(n)]
+        self._cache[clave] = nodos
+        return nodos
 
 
 def extract(docx_path: str) -> ExtractedDocx:

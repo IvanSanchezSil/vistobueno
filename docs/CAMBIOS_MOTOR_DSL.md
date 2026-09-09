@@ -843,6 +843,38 @@ aceptaba secuencias incompletas.
 
 ---
 
+### Paso 13 — F4: linter del DSL, cache de XPath y traza (2026-09-09)
+
+**Objetivo**: mejoras de ingeniería — errores de configuración en CARGA (no
+en runtime), menos re-evaluación XPath y ruta de estados para diagnósticos.
+
+#### `validator/dsl_check.py` (nuevo) — linter del DSL
+- `linter(rules_data) -> List[str]` + `linter_o_alzar()` (levanta
+  `DSLValidationError`). El compilador lo invoca al inicio de `compilar()`
+  (se puede desactivar con `linter=False`).
+- Detecta: **regex inválida** en `patron`/`filtro` (incluye los `patron` de
+  estados/transiciones de autómatas), **`comparacion` sin `esperado`** o sin
+  `atributo` (eq/all_eq/contains), **estados inalcanzables** y **aceptación
+  inalcanzable** en `automata_pila`, **ciclos épsilon** (riesgo de bucle
+  infinito en el reconocedor greedy), estados duplicados o esquema
+  "todo opcional" en `automata_secuencia`.
+
+#### Cache de XPath en `ExtractedDocx`
+- `ExtractedDocx.xpath(parte, expr, contexto)`: cache por
+  `(parte, contexto, xpath)` — cada consulta se evalúa UNA vez por documento.
+  `Analizador._nodos` delega en él, así que secciones con el mismo XPath
+  dentro de una regla comparten el resultado.
+
+#### Traza del autómata
+- `DFA.ruta_estados`, `DFA.reconocer_con_backtracking` (el `_dfs` ahora
+  devuelve el camino ganador) y `PDA.ruta_estados`; expuestos en el DSL como
+  `AutomataSecuencia.ultima_ruta` / `AutomataPila.ultima_ruta`.
+
+**Verificación**: suite completa **138 tests passed** (117 + 21 de F4) y
+`PARIDAD: OK` dentro de `nix develop`. Sin cambios de contrato (API/CLI).
+
+---
+
 ## 8. Resumen técnico
 
 | Archivo | Estado | Descripción |
@@ -857,13 +889,19 @@ aceptaba secuencias incompletas.
 | `tests/test_f3_mecanizacion.py` | **nuevo** | 21 tests: seccion() y los 4 analizadores F3 contra reglas/41 |
 | `tests/docx_factory.py` | **nuevo** | Factory determinista OPC: `configuracion_base()` (39/41), `aplicar_mutacion()` (41 desvíos), `compilar_docx()` |
 | `tests/test_propiedad.py` | **nuevo** | 43 tests: `test_doc_bueno_pasa_39` + 41 mutaciones A/B aisladas (`REGLAS_ACOPLADAS`) |
+| `validator/dsl_check.py` | **nuevo** | Linter del DSL: regex inválida, `comparacion` sin `esperado`/`atributo`, estados inalcanzables, ciclos épsilon, esquema vacío |
+| `tests/test_f4_ingenieria.py` | **nuevo** | 21 tests: linter, cache de XPath y traza del autómata (DFA/PDA/analizadores) |
+| `validator/extractor.py` | **modificado** | `ExtractedDocx.xpath()` con cache por (parte, contexto, xpath) (F4) |
+| `validator/analizadores.py` | **modificado** | `_nodos` delega en la cache de XPath (F4) |
+| `validator/automata.py` | **modificado** | traza `ruta_estados` en DFA/PDA; backtracking devuelve el camino (F4) |
+| `validator/compilador.py` | **modificado** | linter en `compilar()`; `ultima_ruta` en secuencia/pila (F4) |
 | `reglas_unt.yaml` | **modificado** | 32 legacy → **41 reglas** (9 mecanizadas a mano; anotación en `_migracion`) |
 | `reglas_dsl_ejemplo.yaml` | **nuevo** | 13 reglas de ejemplo (12 familias de analizador) |
 | `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL (incluye tokenizer, automata_pila y F3) |
 | `docs/PLAN_DSL.md` | **nuevo** | Plan futuro (migración, tokenizer, PDA, mecanizar reglas, traza, tests de propiedad) con 4 decisiones pendientes |
 
-**Sin cambios**: `models.py`, `extractor.py`, `checks.py`, `prompts.py`,
-`api.py`, `api_models.py`, `cli.py`, `flake.nix`, `unt_format_rules_schema.yaml`.
+**Sin cambios**: `models.py`, `checks.py`, `prompts.py`, `api.py`,
+`api_models.py`, `cli.py`, `flake.nix`, `unt_format_rules_schema.yaml`.
 
 ---
 

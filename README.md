@@ -143,10 +143,15 @@ python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/pla
 pytest tests/ -v
 ```
 
-La suite (**117 tests**) incluye los **tests de propiedad** (F6): un factory
+La suite (**138 tests**) incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`) genera un documento "bueno"
 (39/41) y 41 mutaciones de una sola propiedad (`tests/test_propiedad.py`),
-verificando que un desvío mínimo invalida solo su regla.
+verificando que un desvío mínimo invalida solo su regla. Sobre eso, las
+**mejoras de ingeniería F4** agregaron: un **linter del DSL** (
+`validator/dsl_check.py`) que valida la configuración al cargar
+(regex inválida, comparaciones sin `esperado`, estados inalcanzables,
+ciclos épsilon), **cache de consultas XPath** por documento y la
+**traza del autómata** (`ruta_estados` / `ultima_ruta`).
 
 ## Stack técnico
 

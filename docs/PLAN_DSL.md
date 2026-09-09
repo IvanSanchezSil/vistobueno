@@ -1,7 +1,7 @@
 # Plan integral: consolidación del motor DSL — VistoBueno
 
-**Estado**: F1, F2, F3 y F6 **cerradas** (25/11/2025… 2026-09-09). Quedan F4 y F5
-(ver sección 7 para las decisiones aún pendientes).
+**Estado**: F1, F2, F3, F4 y F6 **cerradas** (25/11/2025… 2026-09-09). Falta F5
+(traza en el reporte — pendiente de coordinar contrato con Integrante 1).
 **Fecha**: 2026-09-07
 
 ## 1. Objetivo
@@ -75,15 +75,20 @@ como no-automatizables: `sistema_citas`, `proyecto_formato_general`,
 `suficiencia_profesional_formato` (ver `reglas_unt.yaml`, bloque F3).
 Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 11 y `tests/test_f3_mecanizacion.py` (21 tests).
 
-### F4 — Mejoras de ingeniería (D)
+### F4 — Mejoras de ingeniería (D) ✅ cerrada 2026-09-09
 
 - Cache de consultas XML por `(parte, contexto, xpath)` en `ExtractedDocx`
-  — evita re-ejecutar XPath por analizador.
-- Traza del autómata (ruta de estados recorridos) en `DFA`/`AutomataSecuencia`.
-- Linter del DSL (`validator/dsl_check.py`): al compilar, detectar estados
-  inalcanzables, ciclos, regex inválida, `comparacion` sin `esperado` —
-  errores en carga, no en runtime.
-- Evaluación paralela opcional (según decisión 3).
+  — evita re-ejecutar XPath por analizador (`extracted.xpath()`).
+- Traza del autómata (`ruta_estados`) en `DFA`/`PDA`; expuesta al DSL como
+  `AutomataSecuencia.ultima_ruta` / `AutomataPila.ultima_ruta`.
+- Linter del DSL (`validator/dsl_check.py`): al compilar (`compilar()`),
+  detectar estados inalcanzables, ciclos épsilon, regex inválida,
+  `comparacion` sin `esperado`/`atributo` y esquema "todo opcional" —
+  errores en carga (`DSLValidationError`), no en runtime.
+- Evaluación paralela opcional: **NO incluida** (decisión 3).
+
+Ver `docs/CAMBIOS_MOTOR_DSL.md` Paso 13 y `tests/test_f4_ingenieria.py`
+(21 tests). Suite completa: **138 tests** + `PARIDAD: OK`.
 
 ### F5 — Traza en el reporte (E)
 
@@ -171,9 +176,10 @@ Modificados:
    formatos durante la transición: `unt_format_rules_schema.yaml` (legacy,
    sin cambios) y `reglas_unt.yaml` (DSL, 41 reglas). El motor auto-detecta
    por la clave `rules`/`reglas`.
-3. **Evaluación paralela (D)**: ¿incluirla o dejarla como pendiente opcional
-   (agrega complejidad a cambio de velocidad en documentos grandes)? —
-   pendiente (F4, opcional).
+3. **Evaluación paralela (D)**: ✅ **tomada (se omitió)**. La paralelización no
+   se incluyó en F4 (complejidad a cambio de velocidad en documentos grandes);
+   queda como mejora futura opcional. F4 entregó linter, cache de XPath y
+   traza del autómata.
 4. **Scope de (C)**: ✅ **tomada**. Se mecanizaron **9 reglas**
    (`resumen_longitud`, `palabras_clave_minimo`, 3 `referencias_minimo_*`,
    2 `anexos_minimos_*`, `caratula_orcid`, `proyecto_caratula_texto`),
