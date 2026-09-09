@@ -2,6 +2,7 @@
 # ESQUEMA DE REGLAS DE FORMATO — UNT FECyC
 # Fuente primaria: MANUAL REVISADO TERCERA VERSION (11-07-2025)
 # Generado: 2026-09-01
+# Version del esquema: 2026-09-01
 #
 # CONVENCIÓN DE NIVEL DE VERIFICACIÓN:
 # - Las reglas con campo "mecanismo_verificable" se comprueban
@@ -63,6 +64,8 @@
 #   con el primer párrafo que contiene "Universidad" (la portada no usa
 #   estilo de encabezado).
 # ============================================================
+
+version: "2026-09-01"
 
 namespaces:
   w: "http://schemas.openxmlformats.org/wordprocessingml/2006/main"

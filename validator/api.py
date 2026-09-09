@@ -83,6 +83,7 @@ def _construir_respuesta(
     prompts_data: list,
     archivo_nombre: str,
     archivo_tamano: int,
+    rules_data: dict,
 ) -> ValidarResponse:
     """Ensambla la respuesta completa de la API a partir de la salida del motor."""
     resultados_dto = [_rule_result_a_dto(r) for r in resultados_motor]
@@ -102,7 +103,7 @@ def _construir_respuesta(
             archivo_nombre=archivo_nombre,
             archivo_tamano_bytes=archivo_tamano,
             reglas_evaluadas=reporte["resumen"]["total"],
-            version_esquema="2026-09-01",
+            version_esquema=rules_data.get("version", "desconocido"),
         ),
     )
 
@@ -223,6 +224,7 @@ async def validar(
             prompts_data=prompts_data,
             archivo_nombre=archivo.filename,
             archivo_tamano=tamano,
+            rules_data=rules_data,
         )
 
     except HTTPException:
