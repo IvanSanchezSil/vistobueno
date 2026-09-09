@@ -294,9 +294,13 @@ def _verificar_paridad(docx_path: str) -> dict:
     legacy = _por_regla(validate_docx(docx_path, legacy_data))
     dsl = _por_regla(validate_docx(docx_path, dsl_data))
 
-    assert set(legacy) == set(dsl), (
-        f"Los motores ejecutan reglas distintas: "
-        f"legacy={set(legacy)} dsl={set(dsl)}"
+    # Desde la F3 el DSL puede traer reglas extra (mecanizadas a mano).
+    # La paridad garantiza que TODAS las legacy se comportan igual; las
+    # reglas adicionales no existen en el motor legacy y se ignoran aquí.
+    ids_legacy = set(legacy)
+    assert ids_legacy <= set(dsl), (
+        f"El DSL no ejecuta reglas legacy: "
+        f"{ids_legacy - set(dsl)}"
     )
     diffs = []
     for rid in sorted(legacy):

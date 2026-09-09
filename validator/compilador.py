@@ -16,6 +16,10 @@ también debe cumplirse):
     automata_secuencia          -> AutomataSecuencia (DFA)
     gramatica_estructura        -> GramaticaEstructura (BNF)
     automata_pila               -> AutomataPila (PDA, push/pop)
+    patron_cantidad             -> AnalizadorCantidadPatron (conteo)
+    conteo_nodos                -> AnalizadorConteoNodos (min/máx)
+    lista_obligatoria           -> AnalizadorListaObligatoria (anexos)
+    hipervinculo_texto          -> AnalizadorHipervinculo (ORCID)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
@@ -28,8 +32,12 @@ from typing import List, Optional, Tuple
 
 from .analizadores import (
     Analizador,
+    AnalizadorCantidadPatron,
+    AnalizadorConteoNodos,
+    AnalizadorHipervinculo,
     AnalizadorImagen,
     AnalizadorLista,
+    AnalizadorListaObligatoria,
     AnalizadorRegex,
     AnalizadorXML,
 )
@@ -48,6 +56,10 @@ SECCIONES_ANALIZADOR = (
     "automata_secuencia",
     "gramatica_estructura",
     "automata_pila",
+    "patron_cantidad",
+    "conteo_nodos",
+    "lista_obligatoria",
+    "hipervinculo_texto",
 )
 
 
@@ -365,6 +377,10 @@ _FABRICAS = {
     "automata_secuencia": AutomataSecuencia,
     "gramatica_estructura": GramaticaEstructuraAnalizador,
     "automata_pila": AutomataPila,
+    "patron_cantidad": AnalizadorCantidadPatron,
+    "conteo_nodos": AnalizadorConteoNodos,
+    "lista_obligatoria": AnalizadorListaObligatoria,
+    "hipervinculo_texto": AnalizadorHipervinculo,
 }
 
 

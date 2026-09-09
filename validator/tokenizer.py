@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
 from .extractor import ExtractedDocx, NS, W, text_of
 
@@ -106,6 +106,36 @@ def solo(tokens: Sequence[Token], tipos) -> List[Token]:
     """Filtra el flujo conservando solo los tipos indicados."""
     permitidos = set(tipos)
     return [t for t in tokens if t.tipo in permitidos]
+
+
+def seccion(
+    tokens: Sequence[Token],
+    inicio: str,
+    fin: Optional[str] = None,
+) -> List[Token]:
+    """Slice de una sección delimitada por títulos (F3).
+
+    Devuelve los tokens posteriores al primer TITULO cuyo texto matchee la
+    regex `inicio` (ignore case) y hasta el siguiente TITULO (excluido).
+    Si `fin` es una regex, solo un TITULO que la matchee corta la sección;
+    si no, cualquier TITULO posterior la corta (o el final del flujo).
+    Sin ningún TITULO que matchee `inicio`, devuelve la lista vacía.
+    """
+    rx0 = re.compile(inicio, re.IGNORECASE)
+    rx1 = re.compile(fin, re.IGNORECASE) if fin else None
+    begin = -1
+    for i, t in enumerate(tokens):
+        if t.tipo != TITULO:
+            continue
+        if begin == -1:
+            if rx0.search(t.texto):
+                begin = i
+            continue
+        if rx1 is None or rx1.search(t.texto):
+            return list(tokens[begin + 1 : i])
+    if begin == -1:
+        return []
+    return list(tokens[begin + 1 :])
 
 
 def textos(tokens: Sequence[Token]) -> List[str]:
