@@ -15,6 +15,7 @@ también debe cumplirse):
     imagen                      -> AnalizadorImagen
     automata_secuencia          -> AutomataSecuencia (DFA)
     gramatica_estructura        -> GramaticaEstructura (BNF)
+    automata_pila               -> AutomataPila (PDA, push/pop)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
@@ -32,8 +33,9 @@ from .analizadores import (
     AnalizadorRegex,
     AnalizadorXML,
 )
-from .automata import DFA, GramaticaEstructura, Transicion
-from .extractor import ExtractedDocx, W, NS, text_of
+from .automata import DFA, GramaticaEstructura, PDA, Transicion, TransicionPDA
+from .extractor import ExtractedDocx, NS, text_of
+from .tokenizer import TITULO, solo, textos, tokenizar
 from .models import RuleResult, Severity
 
 # Secciones del DSL que indican que una regla es verificable.
@@ -45,6 +47,7 @@ SECCIONES_ANALIZADOR = (
     "imagen",
     "automata_secuencia",
     "gramatica_estructura",
+    "automata_pila",
 )
 
 
@@ -86,6 +89,33 @@ def _matchea_legacy(token: str, patron: re.Pattern, prefijos: bool) -> bool:
     return False
 
 
+def _normalizar_texto(s: str, normalizacion: List[str]) -> str:
+    """Normaliza el texto de un token igual que `AutomataSecuencia`."""
+    if "mayusculas" in normalizacion:
+        s = s.upper()
+    if "ignorar_indent" in normalizacion:
+        s = s.strip()
+    s = re.sub(r"\s+", " ", s.replace("(OPCIONAL)", " ").strip(" ."))
+    return s
+
+
+def _flujo_texto(
+    extracted: ExtractedDocx, normalizacion: List[str], tipo_flujo: str, tipos
+) -> List[str]:
+    """Proyección de texto (normalizada) del flujo tokenizado.
+
+    `tipo_flujo: titulos` (default) usa SOLO los títulos — reproduce la
+    proyección histórica `_headings()` (paridad). `tipo_flujo: documento`
+    usa el flujo completo filtrado por `tipos` (TITULO, PARRAFO, TABLA,
+    IMAGEN, SALTO_SECCION).
+    """
+    tipos_flujo = tipos if tipo_flujo == "documento" else ["TITULO"]
+    return [
+        _normalizar_texto(t.texto, normalizacion)
+        for t in solo(tokenizar(extracted), tipos_flujo)
+    ]
+
+
 class AutomataSecuencia(Analizador):
     """Reconoce una secuencia de títulos usando un DFA.
 
@@ -99,6 +129,8 @@ class AutomataSecuencia(Analizador):
         self.nivel_titulo: List[int] = config.get("nivel_titulo", [1, 2, 3])
         self.normalizacion: List[str] = config.get("normalizacion", [])
         self.reconocimiento: str = config.get("reconocimiento", "greedy")
+        self.tipo_flujo: str = config.get("tipo_flujo", "titulos")
+        self.tipos: List[str] = config.get("tipos", ["TITULO"])
 
     def _build_dfa(self, estados_cfg: list) -> DFA:
         estados: List[str] = []
@@ -137,17 +169,13 @@ class AutomataSecuencia(Analizador):
         )
 
     def _headings(self, extracted: ExtractedDocx) -> List[str]:
-        doc = extracted.document
-        textos: List[str] = []
-        for p in doc.xpath("//w:body//w:p", namespaces=NS):
-            val = None
-            pPr = p.find(W + "pPr")
-            st = pPr.find(W + "pStyle") if pPr is not None else None
-            if st is not None:
-                val = st.get(W + "val")
-            if val and ("eading" in val or "tulo" in val):
-                textos.append(text_of(p).strip())
-        return textos
+        """Títulos en orden de documento.
+
+        Misma semántica que el legacy `checks._check_secuencia` (pStyle con
+        "eading"/"tulo"), pero consume el flujo del tokenizer (F2) en lugar
+        de recorrer el XML directamente.
+        """
+        return [t.texto for t in solo(tokenizar(extracted), [TITULO])]
 
     def _normalizar(self, s: str) -> str:
         if "mayusculas" in self.normalizacion:
@@ -225,7 +253,10 @@ class AutomataSecuencia(Analizador):
 
         dfa = self._build_dfa(estados_activos)
 
-        headings = [self._normalizar(t) for t in self._headings(extracted) if t]
+        if self.tipo_flujo == "documento":
+            headings = _flujo_texto(extracted, self.normalizacion, self.tipo_flujo, self.tipos)
+        else:
+            headings = [self._normalizar(t) for t in self._headings(extracted) if t]
         aceptado, _ = dfa.reconocer(headings)
 
         if aceptado:
@@ -246,21 +277,78 @@ class GramaticaEstructuraAnalizador(Analizador):
             inicio=cfg.get("inicio", ""),
         )
 
-        doc = extracted.document
-        headings: List[str] = []
-        for p in doc.xpath("//w:body//w:p", namespaces=NS):
-            val = None
-            pPr = p.find(W + "pPr")
-            st = pPr.find(W + "pStyle") if pPr is not None else None
-            if st is not None:
-                val = st.get(W + "val")
-            if val and ("eading" in val or "tulo" in val):
-                headings.append(text_of(p).strip())
+        if cfg.get("tipo_flujo"):
+            # La gramática consume el flujo tokenizado (F2): proyecta el
+            # texto de los tipos seleccionados y deja que `analizar` lo
+            # normalice (mayúsculas) como hace hoy con los headings.
+            normalizacion = cfg.get("normalizacion", [])
+            flujo = _flujo_texto(extracted, normalizacion, cfg["tipo_flujo"], cfg.get("tipos", ["TITULO"]))
+            aceptado, faltantes = gramatica.analizar(flujo)
+            detalle = f"tokens={len(flujo)} gramática_ok" if aceptado else f"tokens={len(flujo)} faltantes={faltantes[:6]}"
+            return aceptado, detalle
 
+        headings = [t.texto for t in solo(tokenizar(extracted), [TITULO])]
         aceptado, faltantes = gramatica.analizar(headings)
         if aceptado:
             return True, f"headings={len(headings)} gramática_ok"
         return False, f"headings={len(headings)} faltantes={faltantes[:6]}"
+
+
+class AutomataPila(Analizador):
+    """Reconoce estructuras ANIDADAS con un autómata de pila (PDA).
+
+    Config DSL (sección `automata_pila`):
+      tipo_flujo:   titulos | documento   (default titulos)
+      tipos:        tipos de token del flujo documento (default TITULO)
+      normalizacion: [mayusculas, ignorar_indent]
+      inicial / aceptacion: estados del PDA
+      transiciones: [desde, hacia, patron, consumir, push, pop]
+
+    La pila valida ANIDACIÓN (capítulos → secciones) que un DFA no puede:
+    `push` abre un nivel, `pop` lo cierra exigiendo el símbolo correcto.
+    La aceptación requiere estado final Y pila vacía (estructura cerrada).
+    """
+
+    def __init__(self, config: dict):
+        super().__init__(config)
+        self.tipo_flujo: str = config.get("tipo_flujo", "titulos")
+        self.tipos: List[str] = config.get("tipos", ["TITULO"])
+        self.normalizacion: List[str] = config.get("normalizacion", [])
+        self.reconocimiento: str = config.get("reconocimiento", "greedy")
+
+    def _build_pda(self) -> PDA:
+        transiciones = [
+            TransicionPDA(
+                desde=t["desde"],
+                hacia=t["hacia"],
+                patron=t["patron"],
+                consumir=t.get("consumir", True),
+                push=t.get("push"),
+                pop=t.get("pop"),
+            )
+            for t in self.config.get("transiciones", [])
+        ]
+        return PDA(
+            estados=[t["desde"] for t in self.config.get("transiciones", [])],
+            transiciones=transiciones,
+            inicial=self.config.get("inicial", "__inicio__"),
+            aceptacion=self.config.get("aceptacion", []),
+        )
+
+    def _normalizar(self, s: str) -> str:
+        return _normalizar_texto(s, self.normalizacion)
+
+    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+        if not self.config.get("transiciones"):
+            return False, "sin transiciones en automata_pila"
+
+        pda = self._build_pda()
+        flujo = _flujo_texto(extracted, self.normalizacion, self.tipo_flujo, self.tipos)
+        aceptado, faltantes = pda.reconocer(flujo)
+
+        if aceptado:
+            return True, f"tokens={len(flujo)} pila_ok"
+        return False, f"tokens={len(flujo)} faltantes={faltantes[:6]}"
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +364,7 @@ _FABRICAS = {
     "imagen": AnalizadorImagen,
     "automata_secuencia": AutomataSecuencia,
     "gramatica_estructura": GramaticaEstructuraAnalizador,
+    "automata_pila": AutomataPila,
 }
 
 

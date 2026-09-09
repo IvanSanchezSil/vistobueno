@@ -12,6 +12,7 @@
 #   imagen            -> AnalizadorImagen (blips / cantidad)
 #   automata_secuencia-> DFA (secuencia ordenada de títulos)
 #   gramatica_estructura -> BNF (estructura jerárquica)
+#   automata_pila    -> PDA (estructura ANIDADA, push/pop)
 #
 # Tanto el motor legacy como el DSL producen el mismo contrato:
 # List[RuleResult]. El engine detecta el formato por la presencia de
@@ -159,6 +160,40 @@ reglas:
         - REFERENCIAS
       no_terminales: [TESIS, CUERPO]
       inicio: TESIS
+
+  # ─── AUTÓMATA DE PILA (PDA - estructura anidada) ─────────
+  - id: estructura_capitulos_pila
+    tipo: estructura
+    descripcion: >
+      Los capítulos abren un nivel y deben cerrarse: cada "CAPÍTULO" se
+      apila y "FIN DE CAPÍTULO" lo desapila. La obra solo puede terminar
+      con la pila vacía (estructura cerrada) tras el "EPÍLOGO".
+    valor_esperado: capítulos balanceados (pila vacía) y epílogo final
+    severidad: error
+    automata_pila:
+      tipo_flujo: titulos
+      normalizacion: [mayusculas, ignorar_indent]
+      inicial: inicio
+      aceptacion: [fin]
+      transiciones:
+        - desde: inicio
+          hacia: cap
+          patron: "CAPÍTULO"
+          consumir: true
+          push: cap
+        - desde: cap
+          hacia: cap
+          patron: "SECCIÓN"
+          consumir: true
+        - desde: cap
+          hacia: inicio
+          patron: "FIN DE CAPÍTULO"
+          consumir: true
+          pop: cap
+        - desde: inicio
+          hacia: fin
+          patron: "EPÍLOGO"
+          consumir: true
 
   # ─── IMAGEN (presencia de blips) ─────────────────────────
   - id: caratula_logotipo_presente

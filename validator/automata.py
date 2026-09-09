@@ -352,3 +352,143 @@ def _item_matchea_token(item: str, token: str) -> bool:
     if tk and tk == re.sub(r"[^A-ZÁÉÍÓÚÑ0-9]+", "", token):
         return True
     return False
+
+
+# ---------------------------------------------------------------------------
+# PDA — Autómata de pila (push/pop) para estructuras anidadas
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class TransicionPDA:
+    """Transición de un PDA.
+
+    Igual que `Transicion` del DFA, más las anotaciones de pila:
+    `push` apila el símbolo indicado al dispararse la transición; `pop`
+    desapila el símbolo (exige que el tope de la pila sea ese símbolo).
+    Si `consumir` es False, es una transición épsilon (no avanza la entrada).
+    """
+    desde: str
+    hacia: str
+    patron: str
+    consumir: bool = True
+    push: Optional[str] = None
+    pop: Optional[str] = None
+
+
+class PDA:
+    """Autómata de pila determinista (reconocimiento greedy).
+
+    Extiende al DFA con una pila: reconoce LENGUAJES LIBRES DE CONTEXTO
+    (anidación), que el DFA no puede. Recorre la entrada con puntero greedy;
+    cada transición puede apilar (`push`) o desapilar (`pop`, exigiéndose
+    que el tope de la pila coincida).
+
+    Aceptación: estado final Y pila VACÍA — "estructura cerrada": todo lo
+    que se abrió se cerró. Si la pila queda no vacía en un estado de
+    aceptación, la estructura está incompleta (reporta los símbolos sin
+    cerrar como faltantes).
+    """
+
+    def __init__(
+        self,
+        estados: List[str],
+        transiciones: List[TransicionPDA],
+        inicial: str,
+        aceptacion: List[str],
+        matche: Optional[Callable[[str, "re.Pattern", bool], bool]] = None,
+    ):
+        self.estados = estados
+        self.inicial = inicial
+        self.aceptacion = set(aceptacion)
+        self._matche = matche or _matchea_token
+
+        self._trans_comp = []
+        for t in transiciones:
+            self._trans_comp.append(
+                (
+                    t.desde,
+                    t.hacia,
+                    re.compile(_normalizar_patron(t.patron)),
+                    t.consumir,
+                    t.push,
+                    t.pop,
+                )
+            )
+
+    def reconocer(self, tokens: List[str]) -> Tuple[bool, List[str]]:
+        """Reconoce `tokens` con la pila. Devuelve (aceptado, faltantes)."""
+        if not self._trans_comp:
+            return False, ["autómata sin transiciones"]
+
+        pila: List[str] = []
+        estado = self.inicial
+        pos = 0
+
+        while True:
+            progreso = False
+            for desde, hacia, patron, consumir, push, pop in self._trans_comp:
+                if desde != estado:
+                    continue
+
+                if not consumir:
+                    # Épsilon: no avanza la entrada (puede tocar la pila).
+                    if pop is not None:
+                        if not pila or pila[-1] != pop:
+                            return False, [
+                                f"tope de pila inesperado: esperaba {pop}"
+                            ]
+                        pila.pop()
+                    if push is not None:
+                        pila.append(push)
+                    estado = hacia
+                    progreso = True
+                    break
+
+                found = None
+                for k in range(pos, len(tokens)):
+                    if self._matche(tokens[k], patron, True):
+                        found = k
+                        break
+                if found is not None:
+                    if pop is not None:
+                        if not pila or pila[-1] != pop:
+                            return False, [
+                                f"tope de pila inesperado: esperaba {pop}, había "
+                                f"{pila[-1] if pila else 'nada'}"
+                            ]
+                        pila.pop()
+                    if push is not None:
+                        pila.append(push)
+                    estado = hacia
+                    pos = found + 1
+                    progreso = True
+                    break
+
+            if not progreso:
+                break
+
+        if estado in self.aceptacion and not pila:
+            return True, []
+        if estado in self.aceptacion:
+            # Estado final alcanzado pero falta cerrar lo apilado.
+            return False, [f"estructura sin cerrar: falta {', '.join(reversed(pila))}"]
+
+        pendiente = self._siguientes_aceptables(estado)
+        return False, pendiente or ["secuencia incompleta"]
+
+    def _siguientes_aceptables(self, estado: str) -> List[str]:
+        """Patrones alcanzables desde `estado` (reporte de faltantes)."""
+        alcanzables: List[str] = []
+        visitados: set = set()
+        cola = [estado]
+        while cola:
+            s = cola.pop(0)
+            if s in visitados:
+                continue
+            visitados.add(s)
+            for desde, hacia, patron, _, _, _ in self._trans_comp:
+                if desde == s:
+                    alcanzables.append(patron.pattern)
+                    cola.append(hacia)
+        return list(dict.fromkeys(alcanzables))
