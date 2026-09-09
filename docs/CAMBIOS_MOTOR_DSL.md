@@ -700,6 +700,80 @@ puro, `automata_pila` end-to-end y gramática con tokens) + suite completa
 ausente); se usaron `pytest`, `fastapi`, `httpx` y `python-multipart` como runner
 de tests sin tocar `flake.nix`.
 
+### Paso 11 — F3: mecanización de reglas no deterministas (2026-09-09)
+
+La F3 del plan (ver `docs/PLAN_DSL.md`) toma las **12 reglas sin mecanismo**
+(aquellas cuya validación dependía del análisis semántico humano) y mecaniza
+las **9 que tienen criterio verificable**, agregándolas a `reglas_unt.yaml`.
+Se hizo **a mano** (el migrador `scripts/migrar_legacy_a_dsl.py` solo regen-era
+las 32 legacy y las descartaría al re-ejecutar — está anotado en `_migracion`).
+
+**Decisión de alcance** (aprobada): las 3 reglas de **referencias mínimas**
+se aplican **sin detectar tipo de investigación**, con su severidad original
+`warning` (no bloquean la entrega). Quedaron **documentadas como
+no-automatizables**: `sistema_citas` (heurística autor-año débil),
+`proyecto_formato_general` y `suficiencia_profesional_formato` (metareglas ya
+cubiertas por las reglas generales de A4/TNR/1.5/márgenes).
+
+**1) `tokenizer.seccion()` — acotar la validación por sección**
+
+Nuevo helper del tokenizer (F2): `seccion(flujo, inicio, fin=None)` devuelve
+los tokens posteriores al primer `TITULO` que matchea la regex `inicio`
+(ignore case) y hasta el siguiente `TITULO`. Si `fin` es una regex, solo un
+título que la matchee corta; sin más títulos, toma el final del flujo. Sin
+match → lista vacía (la regla cae como fallo). Todas las secciones de F3 la
+usan para no validar sobre todo el documento.
+
+**2) Cuatro analizadores nuevos en `validator/analizadores.py`**
+
+| Sección DSL | Analizador | Qué cuenta | Reglas que habilita |
+|---|---|---|---|
+| `patron_cantidad` | `AnalizadorCantidadPatron` | palabras / matches regex / entradas (`;`/`,`) | `resumen_longitud`, `palabras_clave_minimo` |
+| `conteo_nodos` | `AnalizadorConteoNodos` | párrafos de una sección o nodos XPath (min/máx/múltiples) | `referencias_minimo_*` |
+| `lista_obligatoria` | `AnalizadorListaObligatoria` | subcadenas normalizadas (ignore case) | `anexos_minimos_*` |
+| `hipervinculo_texto` | `AnalizadorHipervinculo` | `w:hyperlink` cuyo texto matchea un patrón | `caratula_orcid` |
+
+- `AnalizadorConteoNodos` es el **contador genérico**; `AnalizadorImagen` =
+  subclase suya con etiqueta fija `imagenes` (el detalle `imagenes=N
+  minimo=M` del legacy se conserva, paridad intacta).
+- `AnalizadorCantidadPatron` soporta `filtro` por párrafo (`^palabras clave`)
+  y `operacion: count_entries` para el texto posterior al primer `:`.
+- `conteo_nodos` soporta `cantidades_multiples: [20, 30, 20]` (cumple si la
+  cantidad alcanza cualquiera) — preparado para cuando se detecte el tipo de
+  investigación.
+
+**3) Registro en `validator/compilador.py`**
+
+Alta de las 4 secciones en `SECCIONES_ANALIZADOR` y en `_FABRICAS` (mismo
+patrón que F1/F2), con sus importaciones. Cada regla ejecuta todas sus
+secciones (las secciones F3 coexisten con `patron_texto`/`atributo_xml` en la
+misma regla, p. ej. `proyecto_caratula_texto`).
+
+**4) Reglas agregadas a `reglas_unt.yaml` (32 → 41)**
+
+Las 9 reglas F3 (resumen_longitud, palabras_clave_minimo,
+referencias_minimo_cuantitativo/cualitativo/revision,
+anexos_minimos_cuantitativo/cualitativo, caratula_orcid,
+proyecto_caratula_texto) se insertan **antes de `_migracion:`**, que se anota
+con `f3_reglas_agregadas_manualmente: 9` y `f3_no_automatizables: 3`. El
+bloque de reglas se cierra con los 3 ids no-automatizables comentados. Las
+severidades originales de cada regla **se respetan** (palabras_clave_error,
+proyecto_caratula_texto error; el resto warning).
+
+**5) Ajuste de la paridad (los motores siguen siendo equivalentes)**
+
+El contrato de paridad exige que las 32 reglas legacy se comporten **igual**
+en ambos motores — no que el DSL no tenga reglas extra. Se relajaron las
+aserciones de `tests/test_paridad_formatos.py` y
+`scripts/evaluar_paridad_plantillas.py`: ahora exigen `set(legacy) <=
+set(dsl)` y comparan las 32 legacy una a una (`passed` y `found`).
+
+**Verificación F3**: `tests/test_f3_mecanizacion.py` (21 tests: `seccion()`,
+analizadores por regla, `cantidades_multiples`, imagen refactor, smoke de las
+41 reglas en `reglas_unt.yaml`) + suite completa **74 tests** verdes +
+paridad `PARIDAD: OK` (6/6 plantillas reales). Sin cambios en `flake.nix`
+(solo `lxml`, `re` y stdlib). Entorno: igual que F2, sin Nix disponible.
+
 ---
 
 1. Sintaxis de todos los módulos: `python3 -c "import ast; …"` OK.
@@ -724,13 +798,17 @@ aceptaba secuencias incompletas.
 
 | Archivo | Estado | Descripción |
 |---|---|---|
-| `validator/automata.py` | **nuevo** | `Transicion`, `DFA` (greedy + backtracking), `GramaticaEstructura` (BNF) — teoría pura |
-| `validator/analizadores.py` | **nuevo** | `Analizador` (ABC) + `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorImagen` |
-| `validator/compilador.py` | **nuevo** | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, tabla `_FABRICAS` |
+| `validator/automata.py` | **nuevo** | `Transicion`, `DFA` (greedy + backtracking), `GramaticaEstructura` (BNF), `TransicionPDA`, `PDA` (push/pop) — teoría pura |
+| `validator/tokenizer.py` | **nuevo** | Análisis léxico: flujo tipado (`TITULO`, `PARRAFO`, `TABLA`, `IMAGEN`, `SALTO_SECCION`, `nivel`), `seccion()`, `solo()`, `textos()` |
+| `validator/analizadores.py` | **nuevo** | `Analizador` (ABC) + `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos` (+ `AnalizadorImagen` como subclase), `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo` |
+| `validator/compilador.py` | **nuevo** | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila`, tabla `_FABRICAS` |
 | `validator/engine.py` | **modificado** | detección de formato DSL vs legacy (`_validate_legacy`) |
 | `tests/test_dsl.py` | **nuevo** | 16 tests con DOCX sintéticos en memoria |
-| `reglas_dsl_ejemplo.yaml` | **nuevo** | 8 reglas de ejemplo (6 familias de analizador) |
-| `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL |
+| `tests/test_f2_automatas.py` | **nuevo** | 16 tests: tokenizer, PDA, automata_pila, gramática con tokens |
+| `tests/test_f3_mecanizacion.py` | **nuevo** | 21 tests: seccion() y los 4 analizadores F3 contra reglas/41 |
+| `reglas_unt.yaml` | **modificado** | 32 legacy → **41 reglas** (9 mecanizadas a mano; anotación en `_migracion`) |
+| `reglas_dsl_ejemplo.yaml` | **nuevo** | 13 reglas de ejemplo (12 familias de analizador) |
+| `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL (incluye tokenizer, automata_pila y F3) |
 | `docs/PLAN_DSL.md` | **nuevo** | Plan futuro (migración, tokenizer, PDA, mecanizar reglas, traza, tests de propiedad) con 4 decisiones pendientes |
 
 **Sin cambios**: `models.py`, `extractor.py`, `checks.py`, `prompts.py`,
