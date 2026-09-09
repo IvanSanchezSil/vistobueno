@@ -209,6 +209,30 @@ class TestErrores:
         assert respuesta.status_code == 422
         assert "detail" in respuesta.json()
 
+    def test_archivo_demasiado_grande(self):
+        """Archivo >10 MB → 413."""
+        # Crear contenido de 11 MB (11 * 1024 * 1024 bytes)
+        contenido_grande = b"x" * (11 * 1024 * 1024)
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("grande.docx", contenido_grande, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        assert respuesta.status_code == 413
+        assert "10 MB" in respuesta.json()["detail"]
+
+    def test_content_type_octet_stream(self):
+        """Algunos navegadores envían application/octet-stream para .docx → debe aceptarse."""
+        if not PLANTILLA.exists():
+            pytest.skip("Plantilla de prueba no disponible")
+        with open(PLANTILLA, "rb") as f:
+            respuesta = CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", f, "application/octet-stream")},
+            )
+        # Debe aceptar el archivo (extensión .docx válida)
+        assert respuesta.status_code == 200
+        assert respuesta.json()["semaforo"] in ("verde", "rojo")
+
 
 # ---------------------------------------------------------------------------
 # Tests: paridad API = CLI

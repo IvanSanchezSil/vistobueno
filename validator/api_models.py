@@ -36,6 +36,24 @@ class ResultadoReglaAPI(BaseModel):
     fuente: str = Field(default="", description="Archivo fuente del que se extrajo la regla")
     cita: str = Field(default="", description="Cita textual del reglamento")
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "rule_id": "papel_tamano",
+                    "paso": True,
+                    "severidad": "error",
+                    "mensaje": "El tamaño del papel debe ser A4",
+                    "esperado": "210 x 297 mm",
+                    "encontrado": "cumple",
+                    "ubicacion": "Sección \"Formato general\" (párr. 124-125)",
+                    "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+                    "cita": "\"Tamaño A4/papel (210x297 cm)\"",
+                }
+            ]
+        }
+    }
+
 
 class PromptIA(BaseModel):
     """Bloque 'cómo preguntar a una IA' para una regla fallida.
@@ -86,3 +104,38 @@ class ValidarResponse(BaseModel):
         description="Bloques de prompts IA para reglas fallidas",
     )
     metadatos: MetadatosValidacion = Field(..., description="Metadatos del procesamiento")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "semaforo": "verde",
+                    "resumen": {
+                        "total": 31,
+                        "fallidos_error": 0,
+                        "fallidos_warning": 2,
+                    },
+                    "resultados": [
+                        {
+                            "rule_id": "papel_tamano",
+                            "paso": True,
+                            "severidad": "error",
+                            "mensaje": "El tamaño del papel debe ser A4",
+                            "esperado": "210 x 297 mm",
+                            "encontrado": "cumple",
+                            "ubicacion": "Sección \"Formato general\" (párr. 124-125)",
+                            "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+                            "cita": "\"Tamaño A4/papel (210x297 cm)\"",
+                        }
+                    ],
+                    "como_preguntar_a_una_ia": [],
+                    "metadatos": {
+                        "archivo_nombre": "mi_tesis.docx",
+                        "archivo_tamano_bytes": 123456,
+                        "reglas_evaluadas": 31,
+                        "version_esquema": "2026-09-01",
+                    },
+                }
+            ]
+        }
+    }

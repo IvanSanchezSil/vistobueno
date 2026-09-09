@@ -1,8 +1,8 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.0.0 (Semana 2)  
-**Fecha**: 2026-09-02  
-**Estado**: Diseño
+**Versión**: 1.1.0 (Semana 3)  
+**Fecha**: 2026-09-09  
+**Estado**: Implementado
 
 ---
 
@@ -160,9 +160,12 @@ FastAPI valida automáticamente que el campo `archivo` esté presente. Si no se 
 
 ```json
 {
-  "detail": "Error interno del validador. Intente nuevamente o contacte al administrador."
+  "detail": "Error interno del validador: ExceptionType: mensaje de error"
 }
 ```
+
+> **Nota**: El detalle incluye el tipo de excepción y el mensaje para facilitar
+> el diagnóstico en desarrollo. En producción podría omitirse por seguridad.
 
 ---
 
@@ -217,3 +220,20 @@ El motor interno (`validator.engine`) devuelve `RuleResult` (dataclass) y `build
 | `build_report()["resultados"]` | `resultados` | Mapeado a DTO |
 | `build_ai_help_section()` | `como_preguntar_a_una_ia` | Solo si `incluir_prompts_ia=true` |
 | — | `metadatos` | Agregado por la API (no existe en motor) |
+
+---
+
+## Changelog
+
+### v1.1.0 (2026-09-09 — Semana 3)
+
+- Estado: **Implementado** (antes: Diseño)
+- Corregido ejemplo 500 para reflejar comportamiento real (incluye tipo de excepción)
+- Documentación del flujo completo en `docs/FLUJO_API.md`
+
+### v1.0.0 (2026-09-02 — Semana 2)
+
+- Estado: Diseño
+- Contrato inicial del endpoint `POST /validar`
+- Modelos Pydantic DTO con campos en español
+- Ejemplos JSON para todos los códigos de respuesta
