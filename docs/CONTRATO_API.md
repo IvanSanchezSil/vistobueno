@@ -126,9 +126,21 @@ FastAPI valida automáticamente que el campo `archivo` esté presente. Si no se 
 
 ### 415 Unsupported Media Type — Tipo incorrecto
 
+El endpoint valida primero la extensión del archivo y luego el Content-Type. Dependiendo de cuál falle, devuelve un mensaje diferente:
+
+**Extensión incorrecta** (ej. enviar un `.txt`):
+
 ```json
 {
-  "detail": "Tipo de archivo no soportado: 'text/plain'. Solo se aceptan archivos .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document)."
+  "detail": "Tipo de archivo no soportado: 'documento.txt'. Solo se aceptan archivos .docx (.docx)."
+}
+```
+
+**Content-Type no soportado** (extensión correcta pero MIME type inválido):
+
+```json
+{
+  "detail": "Content-Type no soportado: 'text/plain'. Solo se aceptan archivos .docx."
 }
 ```
 
@@ -172,9 +184,8 @@ FastAPI valida automáticamente que el campo `archivo` esté presente. Si no se 
 ## Ejemplo de solicitud curl
 
 ```bash
-curl -X POST "http://localhost:8000/validar" \
-  -F "archivo=@mi_tesis.docx" \
-  -F "incluir_prompts_ia=true"
+curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
+  -F "archivo=@mi_tesis.docx"
 ```
 
 ---
