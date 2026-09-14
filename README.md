@@ -104,20 +104,42 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 
 ```
 validator/
-  __init__.py
-  models.py     — RuleResult, Severity (error|warning)
-  extractor.py  — abre el .docx (zip OPC), expone document.xml/footer1.xml/header1.xml
-                  y el contexto "cuerpo" (párrafos de la última sección)
-  checks.py     — ejecuta cada tipo de check (xml_atributo, xml_presencia,
-                  texto_regex, texto_en_lista, secuencia_titulos, imagen_presencia)
-  engine.py     — carga el YAML, corre las reglas mecanizadas, arma el reporte
-  prompts.py    — genera el bloque "cómo preguntar a una IA" por cada regla
-                  fallida (template-based, sin LLM en runtime)
-  cli.py        — CLI de referencia para correr el validador contra un DOCX
+  __init__.py         # Docstring del paquete
+  models.py           # RuleResult (dataclass), Severity (Enum)
+  extractor.py        # Abre .docx, extrae XML (ExtractedDocx)
+  checks.py           # Checks individuales (xpath, atributos, regex)
+  engine.py           # Carga YAML, corre reglas, arma reporte
+  prompts.py          # Generador de prompts "cómo preguntar a una IA"
+  cli.py              # CLI de referencia
+  api.py              # FastAPI endpoint POST /validar
+  api_models.py       # Pydantic DTOs (ValidarResponse, etc.)
+  tokenizer.py        # Análisis léxico DSL (TITULO, PARRAFO, etc.)
+  analizadores.py     # Analizadores de hoja (XML, regex, lista, imagen)
+  automata.py         # DFA, GramaticaEstructura, PDA
+  compilador.py       # CompilerDSL: YAML → analizadores → RuleResult
+  dsl_check.py        # Linter del DSL (valida config al cargar)
+
+tests/
+  test_api_contract.py      # Tests de contrato para la API
+  test_dsl.py               # Tests del DSL (DFA, gramática, compilador)
+  test_f2_automatas.py      # Tests F2: tokenizer, PDA, automata_pila
+  test_f3_mecanizacion.py   # Tests F3: reglas no deterministas
+  test_f4_ingenieria.py     # Tests F4: linter, cache, traza
+  test_paridad_formatos.py  # Paridad legacy vs DSL
+  test_propiedad.py         # Tests de propiedad (factory + mutaciones)
+  docx_factory.py           # Factory determinista de DOCX
+  _docx_builder.py          # Builder interno de DOCX
+  _mutations.py             # Mutaciones sincronizadas con reglas_unt.yaml
+  _xml_constants.py         # Constantes XML para el builder
 
 scripts/
-  eval_contra_plantillas.py  — corre el motor contra un directorio de .docx
-                                (reemplaza el batch-eval de eval_checks2.py)
+  eval_contra_plantillas.py       # Evaluación batch contra plantillas
+  evaluar_paridad_plantillas.py   # Paridad legacy vs DSL (recursos/)
+  migrar_legacy_a_dsl.py          # Migra YAML legacy → DSL
+  ocr_pdfs.py                     # OCR de reglamentos escaneados
+
+reglas_unt.yaml            # Reglas en formato DSL (41 reglas)
+reglas_dsl_ejemplo.yaml    # Ejemplo de reglas DSL
 ```
 
 **Filtro de severidad**: `engine.build_report(resultados, severities=["error"])` filtra el reporte detallado por severidad, pero el semáforo SIEMPRE se calcula sobre todos los `error` sin filtrar — un filtro de visualización nunca puede ocultar un bloqueo real de la entrega.
@@ -125,9 +147,22 @@ scripts/
 ### Cómo correrlo
 
 ```bash
-nix develop   # entorno con python, pyyaml, lxml, etc.
+nix develop   # entorno con todas las dependencias
 
-# validar un DOCX
+# tests (vía nix run — recomendado)
+nix run .#test -- tests/ -v
+
+# tests (directo, requiere nix develop activo)
+pytest tests/ -v
+
+# API en desarrollo
+nix run .#serve -- validator.api:app --reload
+# Swagger UI: http://localhost:8000/docs
+
+# API (directo)
+uvicorn validator.api:app --reload
+
+# validar un DOCX desde CLI
 python -m validator.cli tesis.docx unt_format_rules_schema.yaml
 
 # solo errores bloqueantes
@@ -139,8 +174,8 @@ python -m validator.cli tesis.docx unt_format_rules_schema.yaml --json
 # evaluar un lote de plantillas/tesis de prueba
 python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/plantillas/
 
-# suite completa de tests (incluye contrato API y paridad)
-pytest tests/ -v
+# verificación completa (tests + lint del flake)
+nix flake check
 ```
 
 La suite (**140 tests**) incluye los **tests de propiedad** (F6): un factory
@@ -163,7 +198,8 @@ ciclos épsilon), **cache de consultas XPath** por documento y la
 - **Parsing PDF**: `PyMuPDF` (fitz).
 - **Config de reglas**: YAML (`pyyaml`).
 - **Hosting**: on-premise en infraestructura de la universidad. Sin dependencias de servicios externos en tiempo de ejecución (sin llamadas a APIs de LLM en producción, bajo la restricción actual).
-- **Entorno de desarrollo**: Nix flake (`flake.nix`) — Python 3.14 + dependencias del motor + toolchain de OCR (`ocrmypdf`, `tesseract` con español, `poppler_utils`) para procesar los reglamentos escaneados pendientes.
+- **Frontend tooling**: Vite + React (`frontend/`).
+- **Entorno de desarrollo**: Nix flake (`flake.nix`) — Python 3.14 + dependencias del motor + toolchain de OCR (`ocrmypdf`, `tesseract` con español, `poppler_utils`). Incluye `nix run .#test` (pytest), `nix run .#serve` (uvicorn) y `nix flake check` para verificación completa.
 
 ## Extensiones futuras (fuera de alcance por ahora)
 
@@ -172,4 +208,6 @@ ciclos épsilon), **cache de consultas XPath** por documento y la
 
 ## Estado actual
 
-Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba y contra las 5 plantillas oficiales (25/32 mecanizadas PASS). Los dos RCU escaneados fueron leídos vía OCR (2026-09-02) y quedaron reflejados en el YAML: la lista de líneas de investigación del RCU-220 alimenta la regla `caratula_linea_investigacion` y el aporte del RCU-274 (Anexo 5) se registró como no determinista. Aún no hay API (FastAPI) ni frontend React conectados. Próximos pasos: exponer el motor vía `POST /validar` en FastAPI y conectar el frontend en React.
+Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba y contra las 5 plantillas oficiales (25/32 mecanizadas PASS). Los dos RCU escaneados fueron leídos vía OCR (2026-09-02) y quedaron reflejados en el YAML: la lista de líneas de investigación del RCU-220 alimenta la regla `caratula_linea_investigacion` y el aporte del RCU-274 (Anexo 5) se registró como no determinista.
+
+**API FastAPI** implementada (`POST /validar`) con validación de entrada, manejo de errores, DTOs Pydantic y suite de tests de contrato (ver `docs/CONTRATO_API.md`). **Frontend React** inicializado con Vite (`frontend/`), con mockups de las pantallas de carga y reporte (`mockups/`). **Motor DSL** consolidado (F1–F6): 41 reglas mecanizadas, linter, cache XPath, traza de autómata y tests de propiedad con factory determinista de DOCX.
