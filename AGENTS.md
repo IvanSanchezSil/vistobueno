@@ -199,6 +199,16 @@ El semáforo **siempre** se calcula sobre TODOS los errores, independiente del f
 nix develop   # activa el entorno con todas las dependencias
 ```
 
+Al entrar, el shellHook muestra los comandos disponibles. Herramientas principales:
+
+| Comando | Qué hace |
+|---------|----------|
+| `nix run .#test -- tests/ -v` | Ejecuta la suite de tests |
+| `nix run .#serve -- validator.api:app --reload` | Inicia la API en desarrollo |
+| `nix flake check` | Verificación completa (tests + lint del flake) |
+| `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
+| `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |
+
 Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng).
 
 ### Gestión de dependencias
@@ -213,7 +223,7 @@ Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMu
 
 ### Pitfalls conocidos
 
-- El atributo de nixpkgs para las utilidades de Poppler es `pkgs.poppler_utils` (con guion bajo), NO `poppler-utils`. En Nix los atributos de paquetes usan `_`, no `-`. Si usas `pkgs.poppler-utils`, `nix develop` falla por atributo inexistente.
+- El atributo canónico de nixpkgs para las utilidades de Poppler es `pkgs.poppler_utils` (con guion bajo). En nixpkgs actual también existe `poppler-utils` (alias), pero `poppler_utils` es el nombre estable.
 - FastAPI necesita `python-multipart` para manejar `multipart/form-data`. Sin él, el endpoint de upload no funciona.
 - El engine carga el YAML de reglas una sola vez al iniciar. Si modificas `unt_format_rules_schema.yaml`, reinicia el servidor.
 
@@ -304,7 +314,7 @@ Cada integrante tiene su área para evitar conflictos de merge:
 |------------|-----------------|-----------------------------------|
 | Integrante 1 (Backend) | `api.py`, `api_models.py`, `tests/`, `docs/CONTRATO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
 | Integrante 2 (Frontend) | `frontend/` (React), `docs/` | `validator/` (coordina con Int1) |
-| Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
+| Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
 
 Si necesitas modificar un archivo que no es de tu área, **coordina primero** con el integrante responsable.
 
@@ -330,7 +340,8 @@ vistobueno/
 ├── AGENTS.md                          # Esta guía
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
-├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad)
+├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
+├── reglas_unt.yaml                    # Reglas en formato DSL (41 reglas)
 ├── validator/
 │   ├── __init__.py                    # Docstring del paquete
 │   ├── engine.py                      # Motor: load_rules, validate_docx, build_report
@@ -340,15 +351,37 @@ vistobueno/
 │   ├── prompts.py                     # Generador de prompts "cómo preguntar a una IA"
 │   ├── api.py                         # FastAPI endpoint POST /validar
 │   ├── api_models.py                  # Pydantic DTOs (ValidarResponse, etc.)
-│   └── cli.py                         # CLI de referencia
+│   ├── cli.py                         # CLI de referencia
+│   ├── tokenizer.py                   # Análisis léxico DSL
+│   ├── analizadores.py                # Analizadores de hoja (XML, regex, lista, imagen)
+│   ├── automata.py                    # DFA, GramaticaEstructura, PDA
+│   ├── compilador.py                  # CompilerDSL: YAML → analizadores → RuleResult
+│   └── dsl_check.py                   # Linter del DSL
 ├── tests/
-│   └── test_api_contract.py           # Tests de contrato para la API
+│   ├── test_api_contract.py           # Tests de contrato para la API
+│   ├── test_dsl.py                    # Tests del DSL (DFA, gramática, compilador)
+│   ├── test_f2_automatas.py           # Tests F2: tokenizer, PDA, automata_pila
+│   ├── test_f3_mecanizacion.py        # Tests F3: reglas no deterministas
+│   ├── test_f4_ingenieria.py          # Tests F4: linter, cache, traza
+│   ├── test_paridad_formatos.py       # Paridad legacy vs DSL
+│   ├── test_propiedad.py              # Tests de propiedad (factory + mutaciones)
+│   ├── docx_factory.py                # Factory determinista de DOCX
+│   ├── _docx_builder.py               # Builder interno de DOCX
+│   ├── _mutations.py                  # Mutaciones sincronizadas con reglas_unt.yaml
+│   └── _xml_constants.py              # Constantes XML para el builder
 ├── docs/
 │   ├── CONTRATO_API.md                # Especificación del endpoint
+│   ├── openapi_spec.json              # Especificación OpenAPI
+│   ├── DSL.md                         # Referencia del DSL declarativo
+│   ├── PLAN_DSL.md                    # Plan de fases DSL (F1-F6)
 │   ├── ejemplo_respuesta_motor.json   # Salida de referencia del motor
 │   └── semana{N}_trabajo_{user}.md    # Bitácoras semanales
 ├── scripts/
-│   └── eval_contra_plantillas.py      # Evaluación batch contra plantillas
+│   ├── eval_contra_plantillas.py      # Evaluación batch contra plantillas
+│   ├── evaluar_paridad_plantillas.py  # Paridad legacy vs DSL
+│   ├── migrar_legacy_a_dsl.py         # Migra YAML legacy → DSL
+│   └── ocr_pdfs.py                    # OCR de reglamentos escaneados
+├── frontend/                          # React + Vite (en desarrollo)
 └── recursos/                          # Plantillas oficiales y reglamentos (.docx, .pdf)
 ```
 
