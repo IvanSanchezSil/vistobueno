@@ -115,7 +115,7 @@ def _construir_respuesta(
 app = FastAPI(
     title="VistoBueno API",
     description="API de validación automática de formato de tesis — UNT FECyC",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 
