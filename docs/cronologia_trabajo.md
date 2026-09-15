@@ -27,6 +27,21 @@ comienza en la **Semana 2**.
 | [#7](https://github.com/retblast/vistobueno/pull/7) `feat(DSL): F3 — mecanización de 9 reglas` | Trabajo parcial; fue consolidado dentro de #11 |
 | [#9](https://github.com/retblast/vistobueno/pull/9) `F6: tests de propiedad` | Trabajo parcial; fue consolidado dentro de #11 |
 
+## Bitácoras del integrante (reclasificadas por cronología real)
+
+| Bitácora | Contenido | Semana real |
+|---|---|---|
+| `docs/semana3_trabajo_ivanSanchezSil.md` | F1 (migración al DSL) | **3** (07/09) |
+| `docs/semana3_1_trabajo_ivanSanchezSil.md` | F2 + F3 (tokenizer/PDA, mecanización 32→41) | **3** (09/09) |
+| `docs/semana3_2_trabajo_ivanSanchezSil.md` | F6 (tests de propiedad, factory) | **3** (09/09) |
+| `docs/semana3_3_trabajo_ivanSanchezSil.md` | F4 (linter, cache XPath, traza) — **renombrada desde `semana4_trabajo_ivanSanchezSil.md`** | **3** (09/09) |
+| (semana 4, en curso) | Documentación de diseño + F5 | **4** (14–18/09) |
+
+> El trabajo de las fases F1–F4 y F6 se realizó íntegramente en la **Semana 3**;
+> se reclasificó `docs/semana4_trabajo_ivanSanchezSil.md` → `docs/semana3_3_…md`
+> porque su contenido (F4) pertenece a la Semana 3. La bitácora de la Semana 4
+> real (docs de diseño + F5) no existe como `semana4_…` aún; está en este PR #22.
+
 ## Nota sobre los merge commits de master
 
 Los títulos de los commits de merge en `master` ("Merge pull request #N
