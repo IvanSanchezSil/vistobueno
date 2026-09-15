@@ -1,22 +1,23 @@
-# Diseño — F5: conexión de la API al DSL (PROPUESTA, por ejecutar)
+# Diseño — F5: conexión de la API al DSL (IMPLEMENTADA — Opción A)
 
 > Documento: `09_f5_enlace_api_propuesta.md`
-> ⚠️ **Estado: PROPUESTA** — describe el diseño de un trabajo **pendiente**
-> (F5 del `PLAN_DSL.md`). No está implementado. Este documento documenta la
-> decisión de diseño *antes* de escribir el código (a diferencia del resto
-> del paquete, que documenta lo ya construido).
+> Estado: ✅ **IMPLEMENTADA** (Opción A) — el enlace `api.py → reglas_unt.yaml`
+> y la traza en `found` están realizados en la rama `semana4`. Originalmente
+> nació como propuesta (F5 del `PLAN_DSL.md`); se documenta la decisión de
+> diseño *antes* de escribir el código (a diferencia del resto del paquete,
+> que documenta lo ya construido).
 
 ## 1. Contexto
 
-Actualmente:
+Estado previo a F5 (documentado para la traza de decisión):
 
-- La **API** (`api.py`) carga **el YAML legacy** `unt_format_rules_schema.yaml`
+- La **API** (`api.py`) cargaba **el YAML legacy** `unt_format_rules_schema.yaml`
   (44 reglas, motor legacy).
-- El **motor directo** (CLI/scripts) puede usar `reglas_unt.yaml` (41 reglas,
+- El **motor directo** (CLI/scripts) podía usar `reglas_unt.yaml` (41 reglas,
   motor DSL con las 9 reglas F3 adicionales).
 - Las 9 reglas F3 agregadas (`resumen_longitud`, `referencias_minimo_*`,
   `anexos_minimos_*`, `caratula_orcid`, `proyecto_caratula_texto`) **no se
-  evalúan** en las respuestas de la API.
+  evaluaban** en las respuestas de la API.
 
 **F5 consiste en dos cosas** (según `docs/NOTA_F5_Y_API_DSL.md`):
 1. **Enlazar la API al DSL**: `REGLAS_YAML_PATH` apunta a `reglas_unt.yaml`
@@ -55,23 +56,26 @@ sequenceDiagram
     C-->>U: semáforo + fallos (con traza)
 ```
 
-## 3a. Opción A — traza embebida en `found`
+## 3a. Opción A — traza embebida en `found` ✅ IMPLEMENTADA
 
-Modificación mínima: `AutomataSecuencia.analizar()` ya devuelve
-`self.ultima_ruta` después de `dfa.reconocer()`. Solo falta **incluirla** en
-el detalle cuando falla:
+Modificación mínima ejecutada: `ReglaCompilada.ejecutar()` (compilador.py)
+anexa `ultima_ruta` al detalle de un fallo de autómata
+(`_detalle_con_traza`):
 
 ```
 act: ok=False, detail = "headings=18 faltantes=[...]"
 nuevo: detail += f" ruta={' -> '.join(ultima_ruta)}"
 ```
 
-Pros: sin cambio de contrato API. Contras: el `found` se vuelve más largo.
-Impacto en tests: `test_paridad` y `test_propiedad` deben ajustarse porque
-comparan `found` literal; y los `estructura_tinv_*` solo comparan `passed`
-(no hay problema con la traza).
+Pros (cumplidos): sin cambio de contrato API. Contras (aceptados): el
+`found` se vuelve más largo. Impacto en tests (aplicado): `test_paridad`
+y `test_propiedad` comparan para los `estructura_tinv_*` solo `passed` (la
+traza modifica el `found` literal de esas reglas); las demás reglas
+conservan paridad `(passed, found)`.
 
-## 3b. Opción B — campo nuevo opcional en el reporte
+## 3b. Opción B — campo nuevo opcional en el reporte ❌ DESCARTADA
+
+(mantenida como alternativa documentada; no implementada)
 
 Agregar a `RuleResult` un campo `traza: List[str]` (o `None`) poblado solo
 por los analizadores de autómatas, y a `ResultadoReglaAPI` un campo
@@ -96,7 +100,7 @@ flowchart LR
 |---|--------------------|-------------|---------------|
 | F1 | `REGLAS_YAML_PATH` → `reglas_unt.yaml` | Seguir con legacy | Único cambio para que la API evalúe las 9 reglas F3 que ya están en el DSL. No rompe el contrato (`RuleResult` igual) |
 | F2 | Traza disponible ya en F4 (`ultima_ruta`) | Recalcular | La ruta la produce el autómata durante el análisis; duplicarla sería derroche |
-| F3 | Opción B preferida si se quiere *producto*; Opción A si se quiere *mínimo* | — | La traza en `found` es más barata pero ensucia el mensaje; el campo estructurado es más profesional y testeable |
+| F3 | Opción A elegida (traza en `found`) | Opción B descartada | La traza en `found` es más barata y no rompe el contrato v1.1 ni el DTO del Integrante 1; el campo estructurado seguirá siendo la mejora si en el futuro se versiona a v1.2 |
 | F4 | Mantener la paridad: los `estructura_tinv_*` comparan solo `passed` | Comparar también `found` | El `found` de estos autómatas lleva el contador interno `headings=N` (cambia ante reordenamientos de cabeceras) — compararlo rompería tests |
 | F5 | Probar `nix flake check` tras el cambio | — | El envejecido array de checks y el contrato deben seguir pasando (142 tests) |
 
@@ -109,12 +113,13 @@ flowchart LR
 | El contrato `openapi_spec.json` queda desactualizado (Opción B) | Regenerar desde FastAPI (`/openapi.json`) |
 | La regla `proyecto_formato_general` no está en el DSL (no automatizable) | Queda documentada como no-automatizable, sin impacto |
 
-**Checklist**:
-- [ ] Cambiar `REGLAS_YAML_PATH` (1 línea).
-- [ ] Decidir Opción A o B.
-- [ ] Correr `nix flake check` / `pytest tests/ -q` (142 tests).
-- [ ] Regenerar `ejemplo_respuesta_motor.json` y `openapi_spec.json`.
-- [ ] Actualizar `docs/CONTRATO_API.md` changelog v1.1 → v1.2 (si Opción B).
+**Checklist** (estado real):
+- [x] Cambiar `REGLAS_YAML_PATH` → `reglas_unt.yaml` (api.py).
+- [x] Decidir Opción A (traza en `found`).
+- [x] Correr `pytest tests/ -q` — **142 passed**.
+- [x] Regenerar `ejemplo_respuesta_motor.json` (ahora salida DSL, 41 reglas).
+- [ ] `openapi_spec.json`: **no cambia** (Opción A no altera el contrato v1.1).
+- [ ] `docs/CONTRATO_API.md` changelog: no aplica (sigue v1.1).
 
 ## 6. Mapeo académico (LFA / Compiladores)
 
