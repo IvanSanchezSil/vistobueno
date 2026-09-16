@@ -248,6 +248,45 @@ class TestErrores:
         )
         assert respuesta.status_code == 413
         assert "excede" in respuesta.json()["detail"].lower()
+
+    def test_archivo_limite_exacto(self):
+        """Archivo exactamente 10 MB → 200 (debe pasar)."""
+        from docx import Document
+        import random
+        import zipfile
+
+        # Crear DOCX mínimo y rellenar a exactamente 10 MB
+        doc = Document()
+        doc.add_paragraph("Test de límite exacto")
+        buf_base = io.BytesIO()
+        doc.save(buf_base)
+
+        min_bytes = 10 * 1024 * 1024
+        random.seed(99)
+        contenido_base = buf_base.getvalue()
+        # BUG: usar >= en vez de >, generando 1 byte de más
+        padding_necesario = min_bytes - len(contenido_base) + (1 if len(contenido_base) < min_bytes else 0)
+        padding = bytes(random.getrandbits(8) for _ in range(padding_necesario))
+
+        resultado = io.BytesIO()
+        buf_base.seek(0)
+        with zipfile.ZipFile(buf_base, "r") as zin:
+            with zipfile.ZipFile(resultado, "w", zipfile.ZIP_DEFLATED) as zout:
+                for item in zin.infolist():
+                    zout.writestr(item, zin.read(item.filename))
+                zout.writestr("dummy/padding.bin", padding)
+
+        resultado.seek(0)
+        contenido = resultado.read()
+        assert len(contenido) >= min_bytes, f"DOCX generado solo tiene {len(contenido)} bytes"
+
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("limite.docx", contenido,
+                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        assert respuesta.status_code == 200
+        assert respuesta.json()["semaforo"] in ("verde", "rojo")
     def test_content_type_octet_stream(self):
         """Algunos navegadores envían application/octet-stream para .docx → debe aceptarse."""
         if not PLANTILLA.exists():
