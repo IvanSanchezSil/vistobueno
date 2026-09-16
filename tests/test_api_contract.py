@@ -287,6 +287,37 @@ class TestErrores:
         )
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
+    def test_archivo_sin_nombre(self):
+        """UploadFile con nombre vacío → 400 o 422."""
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("", b"contenido", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        assert respuesta.status_code in (400, 422)
+
+    def test_content_type_omitido(self):
+        """Sin Content-Type específico → debe aceptarse por extensión .docx."""
+        if not PLANTILLA.exists():
+            pytest.skip("Plantilla de prueba no disponible")
+        with open(PLANTILLA, "rb") as f:
+            respuesta = CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", f, "")},
+            )
+        assert respuesta.status_code == 200
+
+    def test_archivo_nombre_con_espacios(self):
+        """Nombre con espacios y caracteres especiales → debe procesarse."""
+        if not PLANTILLA.exists():
+            pytest.skip("Plantilla de prueba no disponible")
+        with open(PLANTILLA, "rb") as f:
+            respuesta = CLIENTE.post(
+                "/validar",
+                files={"archivo": ("mi tesis (copia).docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            )
+        assert respuesta.status_code == 200
+        assert respuesta.json()["metadatos"]["archivo_nombre"] == "mi tesis (copia).docx"
+
     def test_content_type_octet_stream(self):
         """Algunos navegadores envían application/octet-stream para .docx → debe aceptarse."""
         if not PLANTILLA.exists():
