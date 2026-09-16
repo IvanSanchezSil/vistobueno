@@ -233,7 +233,7 @@ class TestErrores:
 
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
-        from _docx_builder import build_large_docx
+        from _docx_generator import build_large_docx
 
         contenido = build_large_docx(target_bytes=11 * 1024 * 1024)
         assert len(contenido) > 10 * 1024 * 1024
@@ -248,7 +248,7 @@ class TestErrores:
 
     def test_archivo_limite_exacto(self):
         """Archivo justo bajo 10 MB → 200 (debe pasar)."""
-        from _docx_builder import build_large_docx
+        from _docx_generator import build_large_docx
 
         min_bytes = 10 * 1024 * 1024
         contenido = build_large_docx(target_bytes=min_bytes, seed=99)
@@ -304,6 +304,40 @@ class TestErrores:
         # Debe aceptar el archivo (extensión .docx válida)
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
+
+    def test_mensajes_error_son_descriptivos(self):
+        """Todos los mensajes de error deben tener 'detail' con información útil."""
+        # Sin archivo → FastAPI devuelve 422 con lista de errores
+        r1 = CLIENTE.post("/validar")
+        assert r1.status_code == 422
+        assert "detail" in r1.json()
+
+        # Tipo no soportado → mensaje en español
+        r2 = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("prueba.txt", b"contenido", "text/plain")},
+        )
+        assert r2.status_code == 415
+        assert isinstance(r2.json()["detail"], str)
+        assert len(r2.json()["detail"]) > 0
+
+        # Archivo vacío
+        r3 = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("vacio.docx", b"", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        assert r3.status_code == 422
+        assert isinstance(r3.json()["detail"], str)
+        assert len(r3.json()["detail"]) > 0
+
+        # Archivo corrupto
+        r4 = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("corrupto.docx", b"no es zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        assert r4.status_code in (422, 500)
+        assert isinstance(r4.json()["detail"], str)
+        assert len(r4.json()["detail"]) > 0
 
 
 # ---------------------------------------------------------------------------
