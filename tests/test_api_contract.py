@@ -239,7 +239,7 @@ class TestErrores:
         contenido = resultado.read()
 
         # BUG: verificar tamaño después de generar, pero con <
-        assert len(contenido) < min_bytes, f"DOCX generado demasiado grande: {len(contenido)} bytes"
+        assert len(contenido) > min_bytes, f"DOCX generado demasiado grande: {len(contenido)} bytes"
 
         respuesta = CLIENTE.post(
             "/validar",
