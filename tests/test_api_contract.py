@@ -10,6 +10,8 @@ import io
 import json
 from pathlib import Path
 
+from _docx_builder import build_large_docx
+
 import pytest
 from fastapi.testclient import TestClient
 
