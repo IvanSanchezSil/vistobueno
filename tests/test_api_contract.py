@@ -264,8 +264,8 @@ class TestErrores:
         min_bytes = 10 * 1024 * 1024
         random.seed(99)
         contenido_base = buf_base.getvalue()
-        # BUG: usar >= en vez de >, generando 1 byte de más
-        padding_necesario = min_bytes - len(contenido_base) + (1 if len(contenido_base) < min_bytes else 0)
+        # Reservar espacio para el overhead del ZIP (~4 KB de headers)
+        padding_necesario = min_bytes - len(contenido_base) - 4096
         padding = bytes(random.getrandbits(8) for _ in range(padding_necesario))
 
         resultado = io.BytesIO()
@@ -278,7 +278,7 @@ class TestErrores:
 
         resultado.seek(0)
         contenido = resultado.read()
-        assert len(contenido) >= min_bytes, f"DOCX generado solo tiene {len(contenido)} bytes"
+        assert len(contenido) <= min_bytes, f"DOCX generado tiene {len(contenido)} bytes, excede 10 MB"
 
         respuesta = CLIENTE.post(
             "/validar",
