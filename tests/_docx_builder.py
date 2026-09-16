@@ -36,7 +36,7 @@ def build_large_docx(target_bytes, seed=42):
     doc.save(buf_base)
 
     contenido_base = buf_base.getvalue()
-    # Reservar ~4 KB para overhead de headers del ZIP
+    # Reservar espacio para overhead de headers del ZIP
     padding_necesario = target_bytes - len(contenido_base) - 4096
 
     if padding_necesario <= 0:

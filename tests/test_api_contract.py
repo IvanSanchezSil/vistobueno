@@ -10,8 +10,6 @@ import io
 import json
 from pathlib import Path
 
-from _docx_builder import build_large_docx
-
 import pytest
 from fastapi.testclient import TestClient
 
@@ -235,35 +233,10 @@ class TestErrores:
 
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
-        from docx import Document
-        import random
-        import zipfile
+        from _docx_builder import build_large_docx
 
-        # Crear DOCX mínimo válido y rellenar con bytes aleatorios
-        doc = Document()
-        doc.add_paragraph("Test de tamaño máximo")
-        buf_base = io.BytesIO()
-        doc.save(buf_base)
-
-        min_bytes = 10 * 1024 * 1024
-        random.seed(42)
-        contenido_base = buf_base.getvalue()
-        padding_necesario = min_bytes - len(contenido_base) + 1024
-        padding = bytes(random.getrandbits(8) for _ in range(padding_necesario))
-
-        resultado = io.BytesIO()
-        buf_base.seek(0)
-        with zipfile.ZipFile(buf_base, "r") as zin:
-            with zipfile.ZipFile(resultado, "w", zipfile.ZIP_DEFLATED) as zout:
-                for item in zin.infolist():
-                    zout.writestr(item, zin.read(item.filename))
-                zout.writestr("dummy/padding.bin", padding)
-
-        resultado.seek(0)
-        contenido = resultado.read()
-
-        # BUG: verificar tamaño después de generar, pero con <
-        assert len(contenido) > min_bytes, f"DOCX generado demasiado grande: {len(contenido)} bytes"
+        contenido = build_large_docx(target_bytes=11 * 1024 * 1024)
+        assert len(contenido) > 10 * 1024 * 1024
 
         respuesta = CLIENTE.post(
             "/validar",
@@ -274,35 +247,12 @@ class TestErrores:
         assert "excede" in respuesta.json()["detail"].lower()
 
     def test_archivo_limite_exacto(self):
-        """Archivo exactamente 10 MB → 200 (debe pasar)."""
-        from docx import Document
-        import random
-        import zipfile
-
-        # Crear DOCX mínimo y rellenar a exactamente 10 MB
-        doc = Document()
-        doc.add_paragraph("Test de límite exacto")
-        buf_base = io.BytesIO()
-        doc.save(buf_base)
+        """Archivo justo bajo 10 MB → 200 (debe pasar)."""
+        from _docx_builder import build_large_docx
 
         min_bytes = 10 * 1024 * 1024
-        random.seed(99)
-        contenido_base = buf_base.getvalue()
-        # Reservar espacio para el overhead del ZIP (~4 KB de headers)
-        padding_necesario = min_bytes - len(contenido_base) - 4096
-        padding = bytes(random.getrandbits(8) for _ in range(padding_necesario))
-
-        resultado = io.BytesIO()
-        buf_base.seek(0)
-        with zipfile.ZipFile(buf_base, "r") as zin:
-            with zipfile.ZipFile(resultado, "w", zipfile.ZIP_DEFLATED) as zout:
-                for item in zin.infolist():
-                    zout.writestr(item, zin.read(item.filename))
-                zout.writestr("dummy/padding.bin", padding)
-
-        resultado.seek(0)
-        contenido = resultado.read()
-        assert len(contenido) <= min_bytes, f"DOCX generado tiene {len(contenido)} bytes, excede 10 MB"
+        contenido = build_large_docx(target_bytes=min_bytes, seed=99)
+        assert len(contenido) <= min_bytes
 
         respuesta = CLIENTE.post(
             "/validar",
