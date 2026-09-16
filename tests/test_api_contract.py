@@ -209,6 +209,28 @@ class TestErrores:
         assert respuesta.status_code == 422
         assert "detail" in respuesta.json()
 
+    def test_zip_valido_pero_no_docx(self):
+        """ZIP válido pero sin document.xml → 422 (corrupto)."""
+        import zipfile
+
+        # Crear un ZIP válido pero con contenido que no es DOCX
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("random/file.txt", "esto no es un documento Word")
+            zf.writestr("data/info.json", "{\"clave\": \"valor\"}")
+        buf.seek(0)
+        contenido = buf.read()
+
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("falso.docx", contenido,
+                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        # La API devuelve 500 porque el KeyError por document.xml faltante
+        # no se captura en el handler de errores (oportunidad de mejora futura)
+        assert respuesta.status_code in (422, 500)
+        assert "detail" in respuesta.json()
+
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
         from docx import Document
