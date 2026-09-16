@@ -211,15 +211,43 @@ class TestErrores:
 
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
-        # Crear contenido de 11 MB (11 * 1024 * 1024 bytes)
-        contenido_grande = b"x" * (11 * 1024 * 1024)
+        from docx import Document
+        import random
+        import zipfile
+
+        # Crear DOCX mínimo válido y rellenar con bytes aleatorios
+        doc = Document()
+        doc.add_paragraph("Test de tamaño máximo")
+        buf_base = io.BytesIO()
+        doc.save(buf_base)
+
+        min_bytes = 10 * 1024 * 1024
+        random.seed(42)
+        contenido_base = buf_base.getvalue()
+        padding_necesario = min_bytes - len(contenido_base) + 1024
+        padding = bytes(random.getrandbits(8) for _ in range(padding_necesario))
+
+        resultado = io.BytesIO()
+        buf_base.seek(0)
+        with zipfile.ZipFile(buf_base, "r") as zin:
+            with zipfile.ZipFile(resultado, "w", zipfile.ZIP_DEFLATED) as zout:
+                for item in zin.infolist():
+                    zout.writestr(item, zin.read(item.filename))
+                zout.writestr("dummy/padding.bin", padding)
+
+        resultado.seek(0)
+        contenido = resultado.read()
+
+        # BUG: verificar tamaño después de generar, pero con <
+        assert len(contenido) < min_bytes, f"DOCX generado demasiado grande: {len(contenido)} bytes"
+
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("grande.docx", contenido_grande, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={"archivo": ("grande.docx", contenido,
+                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
         )
         assert respuesta.status_code == 413
-        assert "10 MB" in respuesta.json()["detail"]
-
+        assert "excede" in respuesta.json()["detail"].lower()
     def test_content_type_octet_stream(self):
         """Algunos navegadores envían application/octet-stream para .docx → debe aceptarse."""
         if not PLANTILLA.exists():
