@@ -7,7 +7,7 @@
 > **Ejecutado 2026-09-15/16 (Fase 1 parcial)**:
 > - **15 — Calidad de ingeniería** ✅: *ruff + mypy + coverage + pre-commit* agregados a `flake.nix`; config en `pyproject.toml`; `.pre-commit-config.yaml`; CI `.github/workflows/ci.yml` (Nix); `nix flake check` verde. Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
 > - **16 — Exportación de reporte** ✅ (solo CLI): `validator/exportador.py` (Markdown + PDF vía WeasyPrint) + `--formato/--salida` en CLI. **Pendiente para el compañero de API/frontend**: exponer `formato` en `POST /validar` (afecta `CONTRATO_API.md` v1.2.0 y `openapi_spec.json`). Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
-> - **1 — Paginación real** ✅ (parcial, 2026-09-21, F2 ítem 1): mapa párrafo→página en `extractor._paginacion_para()` (`w:lastRenderedPageBreak` + `w:br w:type="page"`), `ExtractedDocx.pagina_de()`, sección DSL `paginacion` (`AnalizadorPaginacion`, `paginas_distintas`) y regla `indice_paginas_separadas` (warning). **Pendiente**: enriquecer `location` a `"página 14 (párr. 124-125)"` vía render DOCX→PDF (ver "Decisiones pendientes").
+> - **1 — Paginación real** ✅ (2026-09-21, F2 ítem 1): mapa párrafo→página en `extractor._paginacion_para()` (`w:lastRenderedPageBreak` + `w:br w:type="page"`), `ExtractedDocx.pagina_de()`, sección DSL `paginacion` (`AnalizadorPaginacion`, `paginas_distintas`), regla `indice_paginas_separadas` (warning) **y enriquecimiento de `location`** con "página N" cuando el analizador falla (`ultimo_nodo` en la base `Analizador` + fallback heurístico **sin** LibreOffice; ver "Decisiones pendientes"). La regla de carátula sin enumerar (`caratula_no_se_enumera`) ya estaba mecanizada (presencia de `w:titlePg`). Detalle: [`docs/diseno/11_ubicacion_pagina.md`](diseno/11_ubicacion_pagina.md).
 
 ---
 
@@ -17,7 +17,7 @@ Nuevas reglas para zonas del DOCX que hoy el motor no toca.
 
 | # | Línea de trabajo | Dónde vive |
 |---|---|---|
-| 1 | **Paginación real + ubicación por página** (parcial ✅): correlacionar párrafos con página (DOCX→render→PyMuPDF) → `location` pasa de `"párr. 124"` a `"página 14 (párr. 124-125)"`. Hecho: mapa párrafo→página (`w:lastRenderedPageBreak`/`w:br page`), `AnalizadorPaginacion`, `indice_paginas_separadas`. Pendiente: el enriquecimiento de `location`. También pendientes: reglas de carátula sin enumerar. | extractor + reglas nuevas |
+| 1 | **Paginación real + ubicación por página** ✅: `location` se enriquece con "página N" desde la **heurística actual** (`w:lastRenderedPageBreak`/`w:br page`; decisión del 2026-09-21: sin LibreOffice). Hecho: mapa párrafo→página, `pagina_de()`, `AnalizadorPaginacion`, `indice_paginas_separadas`, enriquecimiento en `compilador.ejecutar()` (`base Analizador.ultimo_nodo`). Nota: `caratula_no_se_enumera` (carátula sin enumerar) ya estaba mecanizada vía `w:titlePg`. | extractor + compilador |
 | 2 | **Encabezados y pies de página** (`w:hdr`/`w:ftr`): número de página, logo repetido, formato del encabezado. | extractor + analizador nuevo |
 | 3 | **Notas al pie** (`w:footnote`): presencia, consistencia de numeración. | extractor + analizador nuevo |
 | 4 | **Track changes**: detectar `w:ins`/`w:del` pendientes de aceptar/rechazar → advertencia de "documento con cambios sin resolver". | extractor + regla nueva |
@@ -79,7 +79,7 @@ Mejoras que no tocan reglas pero sí el ecosistema del motor.
 
 ---
 
-## Decisiones pendientes
+## Decisiones tomadas / pendientes
 
-- **Render DOCX→PDF**: PyMuPDF ya está en `flake.nix`, pero obtener el número de página real requiere renderizar el DOCX a PDF. Opciones: LibreOffice headless (dependencia nueva en Nix) u otro método de estimación de página.
-- **Reglas nuevas como `warning`**: para no cambiar el semáforo de las plantillas oficiales existentes, las reglas nuevas deberían entrar como `warning` hasta que se validen contra las 5 plantillas y el benchmark del punto 13.
+- **Render DOCX→PDF** ✅ (2026-09-21): **no se agrega LibreOffice**. El enriquecimiento de `location` usa la heurística con `w:lastRenderedPageBreak` y `w:br w:type="page"`; si un párrafo no tiene página en el mapa, se omite el sufijo (sin ruido "página no disponible"). PyMuPDF queda disponible en el flake para otros usos.
+- **Reglas nuevas como `warning`**: para no cambiar el semáforo de las plantillas oficiales existentes, las reglas nuevas entran como `warning` hasta que se validen contra las 5 plantillas y el benchmark del punto 13.

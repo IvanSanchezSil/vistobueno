@@ -58,6 +58,7 @@ flowchart LR
 
     subgraph CALIDAD["Calidad y producto"]
         J["10_calidad_y_exportacion.md<br/>Tooling + export Markdown/PDF"]
+        K["11_ubicacion_pagina.md<br/>Paginación real + location"]
     end
 
     subgraph FUTURO["F5 (implementada)"]
@@ -85,6 +86,7 @@ flowchart LR
 | **08** | OCR de reglamentos | Flujo híbrido PyMuPDF + Tesseract | Todo el equipo |
 | **09** | F5 (propuesta) | Enlace API → DSL, traza | Coordinación (API) |
 | **10** | Calidad + exportación | Tooling (ruff/mypy/coverage/CI), export MD/PDF | Todo el equipo |
+| **11** | Paginación + `location` | Mapa párrafo→página, `ultimo_nodo`, enriquecimiento | Todo el equipo |
 
 ## 2.1 Fases de diseño F1–F6 (E)
 
@@ -122,7 +124,7 @@ flowchart LR
 ## 3. Convenciones
 
 - **Fuente de verdad**: las configuraciones mostradas en los diagramas de
-  estados provienen de `reglas_unt.yaml` (41 reglas) y de los tests
+  estados provienen de `reglas_unt.yaml` (42 reglas) y de los tests
   `test_f2_automatas.py`; los nombres de módulos y clases reflejan el código
   real en `validator/`.
 - **Fases del plan**: se referencian las fases F1–F6 de `docs/PLAN_DSL.md`
@@ -141,7 +143,7 @@ flowchart LR
 3. **05** explica cómo se compila y se valida contra un documento.
 4. **06** (migración), **07** (tests) y **08** (OCR) son procesos transversales.
 5. **09** es la única propuesta a futuro (F5): el resto documenta lo ya
-   implementado y verificado por la suite (142 tests).
+      implementado y verificado por la suite (167 tests).
 
 ---
 

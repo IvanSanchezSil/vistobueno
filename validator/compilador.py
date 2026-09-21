@@ -423,6 +423,7 @@ class ReglaCompilada:
 
     def ejecutar(self, extracted: ExtractedDocx) -> RuleResult:
         fallos: list[str] = []
+        pagina: int | None = None
         for an in self.analizadores:
             try:
                 ok, detalle = an.analizar(extracted)
@@ -430,10 +431,19 @@ class ReglaCompilada:
                 ok, detalle = False, f"error ejecutando analizador: {type(e).__name__}: {e}"
             if not ok:
                 fallos.append(self._detalle_con_traza(detalle, an))
+                # Enriquecer la ubicación con la página física real (ítem 1):
+                # se usa el nodo objetivo del primer analizador que falló.
+                if pagina is None and getattr(an, "ultimo_nodo", None) is not None:
+                    pagina = extracted.pagina_de(an.ultimo_nodo)
 
         esperados = self.rule.get("valor_esperado", "")
         if isinstance(esperados, list):
             esperados = "; ".join(map(str, esperados))
+
+        ubicacion = self.rule.get("ubicacion") or ""
+        if fallos and pagina is not None and ubicacion:
+            ubicacion = f"{ubicacion}; página {pagina}"
+
         return RuleResult(
             rule_id=self.rule["id"],
             passed=not fallos,
@@ -441,7 +451,7 @@ class ReglaCompilada:
             message=self.rule.get("descripcion", self.rule["id"]),
             expected=str(esperados),
             found="; ".join(fallos) if fallos else "cumple",
-            location=self.rule.get("ubicacion"),
+            location=ubicacion or None,
             fuente=self.rule.get("fuente", ""),
             cita=self.rule.get("cita", ""),
         )

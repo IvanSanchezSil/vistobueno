@@ -257,3 +257,36 @@ def test_paginacion_es_seccion_dsl_valida():
     assert len(compiladas) == 1
     assert compiladas[0].rule["id"] == "paginacion_test"
     assert compiladas[0].analizadores[0].__class__.__name__ == "AnalizadorPaginacion"
+
+
+# ---------------------------------------------------------------------------
+# Enriquecimiento de `location` con la página física (ítem 1, bloque A)
+# ---------------------------------------------------------------------------
+
+
+def _resultado_dsl(cfg, rule_id):
+    rules = load_rules(str(YAML_PATH))
+    path = compilar_docx(cfg)
+    try:
+        res = validate_docx(path, rules)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    return next(r for r in res if r.rule_id == rule_id)
+
+
+def test_regla_fallida_enriquece_location_con_pagina():
+    # sangria_parrafo falla (firstLine=0); su primera línea del cuerpo cae en
+    # la página 4 del DOCX sintético (3 saltos previos: contenido, tablas y
+    # figuras). El motor debe anexar "página 4" a `location` (ítem 1).
+    cfg = aplicar_mutacion("sangria_parrafo", configuracion_base())
+    r = _resultado_dsl(cfg, "sangria_parrafo")
+    assert not r.passed
+    assert r.location is not None
+    assert r.location == 'Sección "Formato general" (párr. 141); página 4'
+
+
+def test_regla_cumplida_no_altera_location():
+    # Regla cumplida: la ubicación queda tal cual (sin sufijo de página).
+    r = _resultado_dsl(configuracion_base(), "sangria_parrafo")
+    assert r.passed
+    assert r.location == 'Sección "Formato general" (párr. 141)'

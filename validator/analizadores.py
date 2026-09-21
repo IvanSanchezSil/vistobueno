@@ -51,6 +51,9 @@ class Analizador(ABC):
 
     def __init__(self, config: dict):
         self.config = config or {}
+        # Nodo objetivo (párrafo/subnodo) que determinó la última ejecución.
+        # Permite que el motor enriquezca `location` con "página N" (ítem 1).
+        self.ultimo_nodo = None
 
     @abstractmethod
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]: ...
@@ -59,7 +62,9 @@ class Analizador(ABC):
     def _nodos(self, extracted: ExtractedDocx, parte: str, contexto: str):
         # Consulta XPath con cache (F4): mismo (parte, contexto, xpath) se
         # evalúa una sola vez por documento.
-        return extracted.xpath(parte, self.config.get("xpath", ""), contexto)
+        nodos = extracted.xpath(parte, self.config.get("xpath", ""), contexto)
+        self.ultimo_nodo = nodos[0] if nodos else None
+        return nodos
 
 
 class AnalizadorXML(Analizador):
@@ -349,6 +354,7 @@ class AnalizadorPaginacion(Analizador):
             if not nodos:
                 return False, f"no_encontrado={xpath}"
             para = nodos[0]
+            self.ultimo_nodo = para
             pagina = extracted.pagina_de(para)
             if pagina is None:
                 return False, f"pagina_no_disponible={xpath}"
