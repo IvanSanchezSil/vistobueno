@@ -226,10 +226,11 @@ class TestErrores:
             files={"archivo": ("falso.docx", contenido,
                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
         )
-        # La API devuelve 500 porque el KeyError por document.xml faltante
-        # no se captura en el handler de errores (oportunidad de mejora futura)
-        assert respuesta.status_code in (422, 500)
+        # El KeyError por document.xml faltante ahora se captura
+        # y devuelve 422 con un mensaje descriptivo.
+        assert respuesta.status_code == 422
         assert "detail" in respuesta.json()
+        assert "Word válido" in respuesta.json()["detail"]
 
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
