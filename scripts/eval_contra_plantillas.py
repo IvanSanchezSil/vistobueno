@@ -9,6 +9,7 @@ hardcodeadas.
 Uso:
     python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/plantillas/
 """
+
 import argparse
 import sys
 from pathlib import Path

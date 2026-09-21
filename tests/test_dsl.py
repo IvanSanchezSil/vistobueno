@@ -9,11 +9,12 @@ Verifica las piezas nuevas del motor sin depender de plantillas externas:
 Uso:
     pytest tests/test_dsl.py -v
 """
+
 import tempfile
 import zipfile
 from pathlib import Path
 
-from validator.automata import DFA, Transicion, GramaticaEstructura
+from validator.automata import DFA, GramaticaEstructura, Transicion
 from validator.compilador import CompilerDSL
 from validator.engine import build_report, validate_docx
 from validator.models import RuleResult
@@ -40,10 +41,8 @@ RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 def _para(texto: str, estilo: str = "") -> str:
     pPr = ""
     if estilo:
-        pPr = f"<w:pPr><w:pStyle w:val=\"{estilo}\"/></w:pPr>"
-    return (
-        f"<w:p>{pPr}<w:r><w:t xml:space=\"preserve\">{texto}</w:t></w:r></w:p>"
-    )
+        pPr = f'<w:pPr><w:pStyle w:val="{estilo}"/></w:pPr>'
+    return f'<w:p>{pPr}<w:r><w:t xml:space="preserve">{texto}</w:t></w:r></w:p>'
 
 
 def _docxml_headings(headings, cover="") -> str:
@@ -54,9 +53,7 @@ def _docxml_headings(headings, cover="") -> str:
         paras.append(_para(cover))
     for h in headings:
         paras.append(_para(h, "Ttulo1"))
-    paras.append(
-        '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>'
-    )
+    paras.append('<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>')
     body = "".join(paras)
     return (
         f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -92,9 +89,7 @@ class TestDFA:
             inicial="__inicio__",
             aceptacion=["resultados"],
         )
-        ok, faltantes = dfa.reconocer(
-            ["PREAMBULO", "INTRODUCCION", "METODOS", "RESULTADOS"]
-        )
+        ok, faltantes = dfa.reconocer(["PREAMBULO", "INTRODUCCION", "METODOS", "RESULTADOS"])
         assert ok
         assert faltantes == []
 
@@ -170,14 +165,26 @@ class TestGramatica:
                 "TESIS → CARATULA INDICE INTRODUCCION CUERPO",
                 "CUERPO → METODOLOGIA RESULTADOS CONCLUSIONES",
             ],
-            terminales=["CARATULA", "INDICE", "INTRODUCCION",
-                        "METODOLOGIA", "RESULTADOS", "CONCLUSIONES"],
+            terminales=[
+                "CARATULA",
+                "INDICE",
+                "INTRODUCCION",
+                "METODOLOGIA",
+                "RESULTADOS",
+                "CONCLUSIONES",
+            ],
             no_terminales=["TESIS", "CUERPO"],
             inicio="TESIS",
         )
         secuencias = g.secuencias_esperadas()
-        assert ["CARATULA", "INDICE", "INTRODUCCION",
-                "METODOLOGIA", "RESULTADOS", "CONCLUSIONES"] in secuencias
+        assert [
+            "CARATULA",
+            "INDICE",
+            "INTRODUCCION",
+            "METODOLOGIA",
+            "RESULTADOS",
+            "CONCLUSIONES",
+        ] in secuencias
 
     def test_analizar_ok(self):
         g = GramaticaEstructura(
@@ -350,8 +357,15 @@ class TestContratoMotor:
             assert all(isinstance(r, RuleResult) for r in resultados)
             d = resultados[0].to_dict()
             assert set(d.keys()) == {
-                "rule_id", "passed", "severity", "message", "expected",
-                "found", "location", "fuente", "cita",
+                "rule_id",
+                "passed",
+                "severity",
+                "message",
+                "expected",
+                "found",
+                "location",
+                "fuente",
+                "cita",
             }
         finally:
             Path(path).unlink(missing_ok=True)

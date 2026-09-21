@@ -1,10 +1,10 @@
 """Modelos de datos para resultados de validación."""
+
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     ERROR = "error"
     WARNING = "warning"
 
@@ -17,7 +17,7 @@ class RuleResult:
     message: str
     expected: str = ""
     found: str = ""
-    location: Optional[str] = None
+    location: str | None = None
     fuente: str = ""
     cita: str = ""
 

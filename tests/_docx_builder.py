@@ -5,6 +5,7 @@ helpers XML de WordprocessingML y la compilación del paquete OPC
 (`compilar_docx`). No conoce reglas individuales: es un generador de
 DOCX puro, sin lógica de mutaciones (ver `_mutations`).
 """
+
 import tempfile
 import zipfile
 
@@ -60,11 +61,11 @@ _HEADINGS_CUANT = [
 # plan cuantitativo, permiten reconocer AMBOS esquemas a la vez (el autómata
 # salta las cabeceras que no matchean su transición actual).
 _ANADIDAS_CUALITATIVO = [
-    "CATEGORÍAS, MATRIZ DE CATEGORIZACIÓN Y UNIDAD DE ANÁLISIS",   # tras OBJETIVOS
-    "PARTICIPANTES",                                               # tras METODOLOGÍA
-    "INSTRUMENTOS USADOS EN LA RECOLECCIÓN DE INFORMACIÓN",        # tras DISEÑO DE INVESTIGACIÓN
+    "CATEGORÍAS, MATRIZ DE CATEGORIZACIÓN Y UNIDAD DE ANÁLISIS",  # tras OBJETIVOS
+    "PARTICIPANTES",  # tras METODOLOGÍA
+    "INSTRUMENTOS USADOS EN LA RECOLECCIÓN DE INFORMACIÓN",  # tras DISEÑO DE INVESTIGACIÓN
     "MÉTODOS, TÉCNICAS, PROCEDIMIENTOS Y ESTRATEGIAS USADAS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS",  # tras MÉTODOS... DATOS
-    "ANÁLISIS Y DISCUSIÓN DE RESULTADOS",                          # tras lo anterior
+    "ANÁLISIS Y DISCUSIÓN DE RESULTADOS",  # tras lo anterior
 ]
 
 _ANADIDAS_REVISION = [
@@ -101,7 +102,7 @@ def _cover_para(spec: dict) -> str:
         return (
             f'<w:p><w:pPr><w:jc w:val="{spec.get("jc", "center")}"/></w:pPr>'
             f'<w:hyperlink r:id="rIdOrc" xmlns:r="{RNS}">'
-            f"<w:r><w:t xml:space=\"preserve\">https://orcid.org/0000-0002-1825-0097</w:t></w:r>"
+            f'<w:r><w:t xml:space="preserve">https://orcid.org/0000-0002-1825-0097</w:t></w:r>'
             f"</w:hyperlink></w:p>"
         )
     jc = spec.get("jc", "center")
@@ -141,8 +142,8 @@ def _heading(texto: str) -> str:
 
 def _logo() -> str:
     return (
-        '<w:r><w:drawing><wp:inline><a:graphic><a:graphicData '
-        f'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+        "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
+        'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
         "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"
         "</w:drawing></w:r>"
@@ -158,7 +159,7 @@ def _footer_xml(jc: str) -> str:
         )
         texto = instr
     else:
-        texto = '<w:r><w:t>UNIVERSIDAD</w:t></w:r>'
+        texto = "<w:r><w:t>UNIVERSIDAD</w:t></w:r>"
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f'<w:ftr xmlns:w="{WNS}">'
@@ -177,22 +178,36 @@ def configuracion_base() -> dict:
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
         "logo": {"logo": True},
-        "facultad": {"texto": "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
-                     "negrita": True, "sz": 26},
-        "escuela": {"texto": "ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL",
-                    "negrita": True, "sz": 26},
-        "titulo": {"texto": "Título del trabajo de investigación: Estrategias lúdicas "
-                            "para el desarrollo de la motricidad fina.",
-                   "negrita": True, "sz": 28},
-        "optar": {"texto": "Para optar el Grado de Bachiller en Educación Inicial",
-                  "negrita": True, "sz": 26},
+        "facultad": {
+            "texto": "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
+            "negrita": True,
+            "sz": 26,
+        },
+        "escuela": {"texto": "ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL", "negrita": True, "sz": 26},
+        "titulo": {
+            "texto": "Título del trabajo de investigación: Estrategias lúdicas "
+            "para el desarrollo de la motricidad fina.",
+            "negrita": True,
+            "sz": 28,
+        },
+        "optar": {
+            "texto": "Para optar el Grado de Bachiller en Educación Inicial",
+            "negrita": True,
+            "sz": 26,
+        },
         "autores_label": {"texto": "Autores: ", "negrita": False, "sz": 24},
         "autores_nombre": {"texto": "ANA MARÍA PÉREZ GARCÍA", "negrita": False, "sz": 24},
-        "asesor": {"texto": "Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA",
-                   "negrita": True, "sz": 24},
+        "asesor": {
+            "texto": "Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA",
+            "negrita": True,
+            "sz": 24,
+        },
         "linea_label": {"texto": "Línea de investigación: ", "negrita": False, "sz": 24},
-        "linea": {"texto": "Educación y Ciencias de la Comunicación y Desarrollo Sostenible",
-                  "negrita": False, "sz": 24},
+        "linea": {
+            "texto": "Educación y Ciencias de la Comunicación y Desarrollo Sostenible",
+            "negrita": False,
+            "sz": 24,
+        },
         "ciudad": {"texto": "TRUJILLO - PERÚ, 2026", "negrita": True, "sz": 24},
         "proyecto": {"texto": "PROYECTO DE INVESTIGACIÓN", "negrita": False, "sz": 26},
         "orcid": {"orcid": True, "jc": "center"},
@@ -245,7 +260,9 @@ def _document_xml(cfg: dict) -> str:
     for h in cfg["headings"]:
         paras.append(_heading(h))
         if h == "RESUMEN":
-            paras.append(_body_para(" ".join(f"resumen{i}" for i in range(cfg["resumen_palabras"]))))
+            paras.append(
+                _body_para(" ".join(f"resumen{i}" for i in range(cfg["resumen_palabras"])))
+            )
             claves = ", ".join(f"clave{i}" for i in range(cfg["palabras_clave_n"]))
             paras.append(_body_para(f"Palabras clave: {claves}"))
         if h == "REFERENCIAS":
@@ -255,13 +272,14 @@ def _document_xml(cfg: dict) -> str:
             )
         if h == "ANEXOS":
             paras.extend(
-                _body_para(f"Anexo {i + 1}. {item}")
-                for i, item in enumerate(cfg["anexos_items"])
+                _body_para(f"Anexo {i + 1}. {item}") for i, item in enumerate(cfg["anexos_items"])
             )
 
     # Marcador de sección (fin de preliminares) y cuerpo
     paras.append(_sect_marker(cfg))
-    paras.append(_cuerpo_para("La motricidad fina se desarrolla a través de estrategias lúdicas.", cfg))
+    paras.append(
+        _cuerpo_para("La motricidad fina se desarrolla a través de estrategias lúdicas.", cfg)
+    )
     paras.append(_cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg))
     paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
     paras.append(_sect_final(cfg))
@@ -285,7 +303,7 @@ def _sect_marker(cfg: dict) -> str:
         f'w:bottom="{m["bottom"]}" w:left="{m["left"]}"/>'
         f"{titlepg}{_footer_ref()}"
         f'<w:pgNumType w:fmt="{cfg["prel_numfmt"]}"/>'
-        "</w:sectPr></w:pPr><w:r><w:t xml:space=\"preserve\"> </w:t></w:r></w:p>"
+        '</w:sectPr></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>'
     )
 
 

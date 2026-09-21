@@ -7,9 +7,9 @@ necesarios (document.xml, footer1.xml, header1.xml) más el contexto
 estilo Normal o sin estilo explícito. Ver unt_format_rules_schema.yaml
 para la convención completa de mecanismo_verificable.
 """
+
 import zipfile
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Set
 
 from lxml import etree
 
@@ -17,7 +17,7 @@ W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 NS = {
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
-    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    "r": "http://schemas.openxmlformats.org/officeDocument/officeDocument/relationships",
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
     "pic": "http://schemas.openxmlformats.org/drawingml/2006/picture",
 }
@@ -35,35 +35,37 @@ def _para_ancestor(node):
     return cur
 
 
-def _cuerpo_paras(doc) -> Set:
+def _cuerpo_paras(doc) -> set:
+    """Párrafos de la última sección del documento (después del último sectPr)."""
     paras = doc.xpath("//w:body/w:p", namespaces=NS)
     boundary = -1
     for idx, p in enumerate(paras):
         if p.find(f"{W}pPr/{W}sectPr") is not None:
             boundary = idx
     result = set()
-    for p in paras[boundary + 1:]:
+    for p in paras[boundary + 1 :]:
         pPr = p.find(W + "pPr")
         st = pPr.find(W + "pStyle") if pPr is not None else None
         if st is None or st.get(W + "val") in (None, "", "Normal"):
             result.add(p)
     return result
 
-
 @dataclass
 class ExtractedDocx:
-    document: "etree._Element"
-    footer: Optional["etree._Element"]
-    header: Optional["etree._Element"]
-    _cuerpo: Set
-    # Cache de consultas XPath (F4): clave (parte, contexto, xpath). Evita
+    """Árboles XML extraídos + caché XPath."""
+
+    document: etree._Element
+    footer: etree._Element | None
+    header: etree._Element | None
+    _cuerpo: set
+    # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
-    _cache: Dict = field(default_factory=dict, repr=False)
+    _cache: dict = field(default_factory=dict, repr=False)
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
 
-    def part(self, name: str) -> Optional["etree._Element"]:
+    def part(self, name: str) -> etree._Element | None:
         return {
             "document": self.document,
             "footer": self.footer,
@@ -98,15 +100,12 @@ def extract(docx_path: str) -> ExtractedDocx:
         names = z.namelist()
         document = etree.fromstring(z.read("word/document.xml"))
         footer = (
-            etree.fromstring(z.read("word/footer1.xml"))
-            if "word/footer1.xml" in names
-            else None
+            etree.fromstring(z.read("word/footer1.xml")) if "word/footer1.xml" in names else None
         )
         header = (
-            etree.fromstring(z.read("word/header1.xml"))
-            if "word/header1.xml" in names
-            else None
+            etree.fromstring(z.read("word/header1.xml")) if "word/header1.xml" in names else None
         )
+
     return ExtractedDocx(
         document=document,
         footer=footer,

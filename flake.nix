@@ -24,7 +24,16 @@
           pytest
           httpx
           python-multipart
+          pytest-cov
+          coverage
+          markdown
+          weasyprint
         ]);
+
+        pythonTooling = pkgs.buildEnv {
+          name = "vistobueno-python-tooling";
+          paths = [ pkgs.ruff pkgs.mypy pkgs.pre-commit ];
+        };
 
         tesseractSpa = pkgs.tesseract.override {
           enableLanguages = [ "spa" "eng" ];
@@ -35,6 +44,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             pythonEnv
+            pythonTooling
             pkgs.ocrmypdf
             tesseractSpa
             pkgs.poppler-utils
@@ -48,6 +58,8 @@
             echo "  nix run .#test -- tests/ -v                    # ejecutar tests"
             echo "  nix run .#serve -- validator.api:app --reload  # iniciar API"
             echo "  nix flake check                                # tests + verificación"
+            echo "  ruff check validator/ scripts/ tests/          # lint Python"
+            echo "  mypy validator/ scripts/                       # tipos Python"
             echo "  python3 scripts/generate_openapi.py            # regenerar OpenAPI spec"
             echo "  python3 scripts/eval_contra_plantillas.py recursos/  # evaluar batch"
             echo ""
@@ -72,10 +84,12 @@
         # Verificaciones: pytest via nix flake check
         checks = {
           default = pkgs.runCommand "vistobueno-tests" {
-            buildInputs = [ pythonEnv ];
+            buildInputs = [ pythonEnv pythonTooling ];
           } ''
             cp -r ${self}/* .
-            pytest tests/ -v
+            pytest tests/ -v --cov=validator --cov-report=term
+            ruff check validator/ scripts/ tests/
+            mypy validator/ scripts/
             touch $out
           '';
         };

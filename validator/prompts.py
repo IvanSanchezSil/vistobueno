@@ -4,7 +4,6 @@ LLM en tiempo de ejecución, para que el prompt sugerido sea siempre
 consistente y no dependa de que un modelo "recuerde" bien qué falló
 (ver README, sección "Restricción de diseño clave").
 """
-from typing import List
 
 from .models import RuleResult
 
@@ -27,12 +26,8 @@ def build_prompt(result: RuleResult) -> str:
     )
 
 
-def build_ai_help_section(results: List[RuleResult]) -> List[dict]:
+def build_ai_help_section(results: list[RuleResult]) -> list[dict]:
     """Devuelve, por cada regla fallida, {rule_id, prompt} para la sección
     "cómo preguntar a una IA" del reporte. Incluye warnings, no solo errores
     — el estudiante puede querer corregirlos aunque no bloqueen la entrega."""
-    return [
-        {"rule_id": r.rule_id, "prompt": build_prompt(r)}
-        for r in results
-        if not r.passed
-    ]
+    return [{"rule_id": r.rule_id, "prompt": build_prompt(r)} for r in results if not r.passed]

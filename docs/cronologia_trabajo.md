@@ -17,7 +17,7 @@ comienza en la **Semana 2**.
 | **Semana 2** | Reglas de formato en YAML legacy (`unt_format_rules_schema.yaml`, 32 mecanizadas/44 totales) + flujo de OCR (PyMuPDF + Tesseract spa+eng) | PR [#3](https://github.com/retblast/vistobueno/pull/3) `feat(reglas): formato legacy UNT en YAML + flujo OCR` | `semana2-Reglas,-OCR` | Fusionado |
 | **Semana 3 — 1ª parte** | Motor DSL completo: DFA, analizadores, compilador, F1 migración legacy→DSL, F2 tokenizer/PDA, paridad exacta | PR [#6](https://github.com/retblast/vistobueno/pull/6) `feat(motor): motor de validación DSL — DFA, analizadores y compilador` | `semana3-DSL` | Fusionado |
 | **Semana 3 — 2ª parte** | F3 mecanización manual (+9 reglas, 32→41), F4 linter/cache XPath/traza, F6 tests de propiedad con factory | PR [#11](https://github.com/retblast/vistobueno/pull/11) `feat(DSL): consolidación final F1–F4 + F6, paridad OK` | `semana4-f4` | Fusionado |
-| **Semana 4** | Documentación de diseño a posteriori (10 docs, 38 diagramas Mermaid) + F5: API conectada al DSL + traza de autómatas | PR [#22](https://github.com/retblast/vistobueno/pull/22) `feat(F5): API conectada al DSL + traza de autómatas · docs de diseño` | `semana4` | Abierto |
+| **Semana 4** | Documentación de diseño a posteriori (10 docs, 38 diagramas Mermaid) + F5: API conectada al DSL + traza de autómatas + backlog futuro + **tareas 15 y 16** (calidad de ingeniería y exportación de reporte a Markdown/PDF) | PR [#22](https://github.com/retblast/vistobueno/pull/22) `feat(F5): API conectada al DSL + traza de autómatas · docs de diseño` | `semana4` | Abierto |
 
 ### PRs cerrados (no fusionados, ramas suprimidas)
 
@@ -35,12 +35,12 @@ comienza en la **Semana 2**.
 | `docs/semana3_1_trabajo_ivanSanchezSil.md` | F2 + F3 (tokenizer/PDA, mecanización 32→41) | **3** (09/09) |
 | `docs/semana3_2_trabajo_ivanSanchezSil.md` | F6 (tests de propiedad, factory) | **3** (09/09) |
 | `docs/semana3_3_trabajo_ivanSanchezSil.md` | F4 (linter, cache XPath, traza) — **renombrada desde `semana4_trabajo_ivanSanchezSil.md`** | **3** (09/09) |
-| (semana 4, en curso) | Documentación de diseño + F5 | **4** (14–18/09) |
+| `docs/semana4_trabajo_ivanSanchezSil.md` | Docs de diseño + F5 + backlog + **tareas 15/16** (calidad, exportación) | **4** (14–18/09) |
 
 > El trabajo de las fases F1–F4 y F6 se realizó íntegramente en la **Semana 3**;
 > se reclasificó `docs/semana4_trabajo_ivanSanchezSil.md` → `docs/semana3_3_…md`
 > porque su contenido (F4) pertenece a la Semana 3. La bitácora de la Semana 4
-> real (docs de diseño + F5) no existe como `semana4_…` aún; está en este PR #22.
+> real (docs de diseño + F5 + tareas 15/16) vive en `docs/semana4_trabajo_ivanSanchezSil.md`.
 
 ## Nota sobre los merge commits de master
 

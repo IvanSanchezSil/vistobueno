@@ -14,6 +14,7 @@ Diseño:
 Uso:
     python scripts/ocr_pdfs.py [PDF...] [-o carpeta] [--umbral N]
 """
+
 import argparse
 import shutil
 from pathlib import Path
@@ -31,6 +32,7 @@ def _ocr_page(page, dpi: int = 300) -> str:
     pix = page.get_pixmap(dpi=dpi)
     png = pix.tobytes("png")
     import pytesseract
+
     text = pytesseract.image_to_string(png, lang="spa+eng")
     return text.strip()
 
@@ -43,7 +45,8 @@ def extraer_pdf(pdf_path: Path, out_path: Path, umbral: int) -> dict:
     pendientes = []
 
     buckets = []
-    for i, page in enumerate(doc):
+    for i in range(len(doc)):
+        page = doc[i]
         header = f"=== PÁGINA {i + 1} ==="
         native = (page.get_text() or "").strip()
         if len(native) < umbral:
@@ -73,7 +76,9 @@ def main():
     parser = argparse.ArgumentParser(description="Extrae/OCR texto de PDFs RCU")
     parser.add_argument("pdfs", nargs="*", help="Rutas a PDFs (default: los dos RCU del repo)")
     parser.add_argument("-o", "--out", default="recursos/ocr", help="Carpeta de salida")
-    parser.add_argument("--umbral", type=int, default=DEFAULT_UMBRAL, help="chars mínimos de texto nativo")
+    parser.add_argument(
+        "--umbral", type=int, default=DEFAULT_UMBRAL, help="chars mínimos de texto nativo"
+    )
     args = parser.parse_args()
 
     repo = Path(__file__).resolve().parent.parent
@@ -98,7 +103,10 @@ def main():
             estado.append(f"OCR en págs {res['ocr_aplicado']}")
         if res["pendientes"]:
             estado.append(f"PENDIENTES (sin tesseract): pág {res['pendientes']}")
-        print(f"OK {p.name}: {res['paginas']} págs -> {out}" + (f" | {', '.join(estado)}" if estado else " (texto nativo)"))
+        print(
+            f"OK {p.name}: {res['paginas']} págs -> {out}"
+            + (f" | {', '.join(estado)}" if estado else " (texto nativo)")
+        )
 
 
 if __name__ == "__main__":

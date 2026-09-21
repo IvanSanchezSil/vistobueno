@@ -18,13 +18,13 @@ A diferencia del `checks.py` legacy (que opera sobre una regla completa
 comprobación declarada y la ejecutan de forma autocontenida. Esto los
 hace componibles y testables por separado.
 """
+
 from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from typing import List, Tuple
 
-from .extractor import W, ExtractedDocx, NS, text_of
+from .extractor import NS, ExtractedDocx, W, text_of
 from .tokenizer import PARRAFO, seccion, tokenizar
 
 # Prefijos de namespace para resolver names en atributos (ej. "@w:val").
@@ -53,8 +53,7 @@ class Analizador(ABC):
         self.config = config or {}
 
     @abstractmethod
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
-        ...
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]: ...
 
     # -- utilidades compartidas -------------------------------------------
     def _nodos(self, extracted: ExtractedDocx, parte: str, contexto: str):
@@ -69,7 +68,7 @@ class AnalizadorXML(Analizador):
     Se usa para los DSL `atributo_xml` y `presencia_xml`.
     """
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
         comp = self.config.get("comparacion", "exists")
@@ -98,9 +97,7 @@ class AnalizadorXML(Analizador):
         elif comp == "contains":
             ignore_case = self.config.get("ignore_case", False)
             if ignore_case:
-                ok = bool(vals) and all(
-                    str(esperado).lower() in str(v).lower() for v in vals
-                )
+                ok = bool(vals) and all(str(esperado).lower() in str(v).lower() for v in vals)
             else:
                 ok = bool(vals) and all(esperado in v for v in vals)
         else:
@@ -115,7 +112,7 @@ class AnalizadorRegex(Analizador):
     `alguno` (al menos uno), `ninguno` (ninguno).
     """
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
         patron = self.config.get("patron", "")
@@ -154,7 +151,7 @@ class AnalizadorRegex(Analizador):
 class AnalizadorLista(Analizador):
     """Verifica que el texto de los nodos pertenezca a una lista permitida."""
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
         lista = self.config.get("lista", [])
@@ -198,7 +195,7 @@ class AnalizadorConteoNodos(Analizador):
         )
         return len(nodos)
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         minimo = self.config.get("cantidad_minima", 1)
         maximo = self.config.get("cantidad_maxima")
         multiples = self.config.get("cantidades_multiples")
@@ -240,7 +237,7 @@ class AnalizadorCantidadPatron(Analizador):
     opcional por párrafo) o de nodos XPath.
     """
 
-    def _piezas(self, extracted: ExtractedDocx) -> List[str]:
+    def _piezas(self, extracted: ExtractedDocx) -> list[str]:
         sec = self.config.get("seccion")
         xpath_cfg = self.config.get("xpath")
         if sec:
@@ -257,13 +254,11 @@ class AnalizadorCantidadPatron(Analizador):
             return []
         filtro = self.config.get("filtro")
         if filtro:
-            rx = re.compile(
-                filtro, re.IGNORECASE if self.config.get("ignore_case", True) else 0
-            )
+            rx = re.compile(filtro, re.IGNORECASE if self.config.get("ignore_case", True) else 0)
             piezas = [p for p in piezas if rx.search(p)]
         return piezas
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         operacion = self.config.get("operacion", "count_words")
         minimo = self.config.get("cantidad_minima", 1)
         maximo = self.config.get("cantidad_maxima")
@@ -310,7 +305,7 @@ class AnalizadorListaObligatoria(Analizador):
         )
         return " ".join(text_of(n) for n in nodos)
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         items = self.config.get("items", [])
         texto = self._texto(extracted)
         ignore = self.config.get("ignore_case", True)
@@ -326,6 +321,7 @@ class AnalizadorListaObligatoria(Analizador):
         return False, f"items_obligatorios={len(items)} faltan={faltan[:8]}"
 
 
+
 class AnalizadorHipervinculo(Analizador):
     """Detecta hipervínculos (w:hyperlink) cuyo texto coincida con un patrón.
 
@@ -333,7 +329,7 @@ class AnalizadorHipervinculo(Analizador):
     `https://orcid.org/XXXXXXXXXXXXXXXX` (16 dígitos).
     """
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
         patron = self.config.get("patron", "")

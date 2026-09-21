@@ -9,6 +9,7 @@ los mismos resultados (mismo set de reglas, mismo `passed`, mismo
 Uso:
     pytest tests/test_paridad_formatos.py -v
 """
+
 import tempfile
 import zipfile
 from pathlib import Path
@@ -60,7 +61,7 @@ def _cuerpo_para(texto: str, conforme: bool) -> str:
     """
     if not conforme:
         return (
-            '<w:p><w:r>'
+            "<w:p><w:r>"
             '<w:rPr><w:rFonts w:ascii="Arial"/><w:sz w:val="30"/></w:rPr>'
             f'<w:t xml:space="preserve">{texto}</w:t></w:r></w:p>'
         )
@@ -76,10 +77,7 @@ def _cuerpo_para(texto: str, conforme: bool) -> str:
 
 
 def _heading(texto: str, nivel: int = 1) -> str:
-    return (
-        f'<w:p><w:pPr><w:pStyle w:val="Ttulo{nivel}"/></w:pPr>'
-        f'{_run(texto)}</w:p>'
-    )
+    return f'<w:p><w:pPr><w:pStyle w:val="Ttulo{nivel}"/></w:pPr>{_run(texto)}</w:p>'
 
 
 def _sect_marker(conforme: bool) -> str:
@@ -95,7 +93,7 @@ def _sect_marker(conforme: bool) -> str:
         f'<w:pgMar w:top="{top}" w:right="{top}" w:bottom="{top}" w:left="{left}"/>'
         f"{titlepg}{_footer_ref()}"
         f'<w:pgNumType w:fmt="{fmt}"/>'
-        "</w:sectPr></w:pPr><w:r><w:t xml:space=\"preserve\"> </w:t></w:r></w:p>"
+        '</w:sectPr></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>'
     )
 
 
@@ -121,24 +119,24 @@ def _sect_final(conforme: bool) -> str:
 
 def _logo() -> str:
     return (
-        '<w:r><w:drawing><wp:inline><a:graphic><a:graphicData '
-        f'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
-        "<pic:pic><pic:blipFill><a:blip r:embed=\"rIdImg\"/></pic:blipFill>"
+        "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
+        'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+        '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
         "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"
         "</w:drawing></w:r>"
     )
 
 
 _HEADINGS_CUANT = [
-    "DEDICATORIA",                    # opcional en el esquema
+    "DEDICATORIA",  # opcional en el esquema
     "JURADO EVALUADOR",
-    "AGRADECIMIENTO",                 # opcional
+    "AGRADECIMIENTO",  # opcional
     "ÍNDICE",
     "PRESENTACIÓN",
     "RESUMEN",
     "ABSTRACT",
     "INTRODUCCIÓN",
-    "1.3. EL PROBLEMA",               # ejercita el token significativo
+    "1.3. EL PROBLEMA",  # ejercita el token significativo
     "SITUACIÓN PROBLEMÁTICA",
     "ENUNCIADO DEL PROBLEMA",
     "JUSTIFICACIÓN O IMPORTANCIA",
@@ -164,53 +162,60 @@ def _document_xml(conforme: bool, estructura: bool) -> str:
 
     # ── Portada ─────────────────────────────────────────────
     if conforme:
-        paras.append(_cover_para("UNIVERSIDAD NACIONAL DE TRUJILLO",
-                                 '<w:b/><w:sz w:val="36"/>'))
+        paras.append(_cover_para("UNIVERSIDAD NACIONAL DE TRUJILLO", '<w:b/><w:sz w:val="36"/>'))
         paras.append(f"<w:p>{_logo()}</w:p>")
-        paras.append(_cover_para("FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
-                                 '<w:b/><w:sz w:val="26"/>'))
-        paras.append(_cover_para("ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL",
-                                 '<w:b/><w:sz w:val="26"/>'))
-        paras.append(_cover_para(
-            "Título del trabajo de investigación: Estrategias lúdicas para el "
-            "desarrollo de la motricidad fina.",
-            '<w:b/><w:sz w:val="28"/>'))
-        paras.append(_cover_para("Para optar el Grado de Bachiller en Educación Inicial",
-                                 '<w:b/><w:sz w:val="26"/>'))
-        paras.append(_cover_para("Autores: ",
-                                 '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("ANA MARÍA PÉREZ GARCÍA",
-                                 '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA",
-                                 '<w:b/><w:sz w:val="24"/>'))
-        paras.append(_cover_para("Línea de investigación: ",
-                                 '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("Educación y Ciencias de la Comunicación y "
-                                 "Desarrollo Sostenible",
-                                 '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("TRUJILLO - PERÚ, 2026",
-                                 '<w:b/><w:sz w:val="24"/>'))
+        paras.append(
+            _cover_para(
+                "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN", '<w:b/><w:sz w:val="26"/>'
+            )
+        )
+        paras.append(
+            _cover_para("ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL", '<w:b/><w:sz w:val="26"/>')
+        )
+        paras.append(
+            _cover_para(
+                "Título del trabajo de investigación: Estrategias lúdicas para el "
+                "desarrollo de la motricidad fina.",
+                '<w:b/><w:sz w:val="28"/>',
+            )
+        )
+        paras.append(
+            _cover_para(
+                "Para optar el Grado de Bachiller en Educación Inicial", '<w:b/><w:sz w:val="26"/>'
+            )
+        )
+        paras.append(_cover_para("Autores: ", '<w:sz w:val="24"/>'))
+        paras.append(_cover_para("ANA MARÍA PÉREZ GARCÍA", '<w:sz w:val="24"/>'))
+        paras.append(
+            _cover_para(
+                "Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA", '<w:b/><w:sz w:val="24"/>'
+            )
+        )
+        paras.append(_cover_para("Línea de investigación: ", '<w:sz w:val="24"/>'))
+        paras.append(
+            _cover_para(
+                "Educación y Ciencias de la Comunicación y Desarrollo Sostenible",
+                '<w:sz w:val="24"/>',
+            )
+        )
+        paras.append(_cover_para("TRUJILLO - PERÚ, 2026", '<w:b/><w:sz w:val="24"/>'))
     else:
-        paras.append(_cover_para("Universidad Nacional de Trujillo",
-                                 '<w:sz w:val="24"/>', jc="left"))
-        paras.append(_cover_para("Facultad de Educación",
-                                 '<w:sz w:val="20"/>'))
-        paras.append(_cover_para("Título del trabajo de investigación: Estrategias lúdicas.",
-                                 '<w:sz w:val="30"/>'))
-        paras.append(_cover_para("Para optar el grado de bachiller.",
-                                 '<w:sz w:val="30"/>'))
-        paras.append(_cover_para("Autores: ",
-                                 '<w:b/><w:sz w:val="30"/>'))
-        paras.append(_cover_para("Avalos Quispe, María",
-                                 '<w:b/><w:sz w:val="30"/>'))
-        paras.append(_cover_para("Asesor(a): Mag. Rodrigo.",
-                                 '<w:sz w:val="30"/>'))
-        paras.append(_cover_para("Línea de investigación: ",
-                                 '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("Alimentos y bebidas procesados",
-                                 '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("Trujillo - Perú, 2026",
-                                 '<w:sz w:val="30"/>'))
+        paras.append(
+            _cover_para("Universidad Nacional de Trujillo", '<w:sz w:val="24"/>', jc="left")
+        )
+        paras.append(_cover_para("Facultad de Educación", '<w:sz w:val="20"/>'))
+        paras.append(
+            _cover_para(
+                "Título del trabajo de investigación: Estrategias lúdicas.", '<w:sz w:val="30"/>'
+            )
+        )
+        paras.append(_cover_para("Para optar el grado de bachiller.", '<w:sz w:val="30"/>'))
+        paras.append(_cover_para("Autores: ", '<w:b/><w:sz w:val="30"/>'))
+        paras.append(_cover_para("Avalos Quispe, María", '<w:b/><w:sz w:val="30"/>'))
+        paras.append(_cover_para("Asesor(a): Mag. Rodrigo.", '<w:sz w:val="30"/>'))
+        paras.append(_cover_para("Línea de investigación: ", '<w:sz w:val="24"/>'))
+        paras.append(_cover_para("Alimentos y bebidas procesados", '<w:sz w:val="24"/>'))
+        paras.append(_cover_para("Trujillo - Perú, 2026", '<w:sz w:val="30"/>'))
 
     # ── Preliminares (headings de estructura) ───────────────
     for h in _HEADINGS_CUANT:
@@ -232,12 +237,13 @@ def _document_xml(conforme: bool, estructura: bool) -> str:
     paras.append(_sect_marker(conforme))
 
     # ── Cuerpo (párrafos regulares, no headings) ────────────
-    paras.append(_cuerpo_para("La motricidad fina se desarrolla a través de "
-                              "estrategias lúdicas.", conforme))
-    paras.append(_cuerpo_para("Se aplicó un estudio cuantitativo con diseño "
-                              "experimental.", conforme))
-    paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.",
-                              conforme))
+    paras.append(
+        _cuerpo_para("La motricidad fina se desarrolla a través de estrategias lúdicas.", conforme)
+    )
+    paras.append(
+        _cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", conforme)
+    )
+    paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", conforme))
 
     paras.append(_sect_final(conforme))
 
@@ -265,7 +271,7 @@ def _footer_xml(conforme: bool) -> str:
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         f'<w:ftr xmlns:w="{WNS}">'
         '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
-        '<w:r><w:t>UNIVERSIDAD</w:t></w:r>'
+        "<w:r><w:t>UNIVERSIDAD</w:t></w:r>"
         "</w:p></w:ftr>"
     )
 
@@ -298,10 +304,7 @@ def _verificar_paridad(docx_path: str) -> dict:
     # La paridad garantiza que TODAS las legacy se comportan igual; las
     # reglas adicionales no existen en el motor legacy y se ignoran aquí.
     ids_legacy = set(legacy)
-    assert ids_legacy <= set(dsl), (
-        f"El DSL no ejecuta reglas legacy: "
-        f"{ids_legacy - set(dsl)}"
-    )
+    assert ids_legacy <= set(dsl), f"El DSL no ejecuta reglas legacy: {ids_legacy - set(dsl)}"
 
     # F5: el DSL anexa la traza `ruta=...` al `found` de las reglas de
     # autómata fallidas. Para los esquemas de estructura la paridad
@@ -315,16 +318,16 @@ def _verificar_paridad(docx_path: str) -> dict:
     }
     diffs = []
     for rid in sorted(legacy):
-        l, d = legacy[rid], dsl[rid]
+        legacy_res, dsl_res = legacy[rid], dsl[rid]
         if rid in solo_passed:
-            if l.passed != d.passed:
+            if legacy_res.passed != dsl_res.passed:
                 diffs.append(
-                    f"{rid}: legacy(passed={l.passed}) != dsl(passed={d.passed})"
+                    f"{rid}: legacy(passed={legacy_res.passed}) != dsl(passed={dsl_res.passed})"
                 )
-        elif l.passed != d.passed or l.found != d.found:
+        elif legacy_res.passed != dsl_res.passed or legacy_res.found != dsl_res.found:
             diffs.append(
-                f"{rid}: legacy(passed={l.passed}, found={l.found!r}) "
-                f"!= dsl(passed={d.passed}, found={d.found!r})"
+                f"{rid}: legacy(passed={legacy_res.passed}, found={legacy_res.found!r}) "
+                f"!= dsl(passed={dsl_res.passed}, found={dsl_res.found!r})"
             )
     assert not diffs, "Diferencias de paridad:\n" + "\n".join(diffs)
     return {"total": len(legacy), "fallos": sum(1 for r in legacy.values() if not r.passed)}
@@ -372,8 +375,11 @@ def test_paridad_estructura_incompleta():
     try:
         resumen = _verificar_paridad(path)
         assert resumen["total"] == 32
-        for rid in ("estructura_tinv_cuantitativo", "estructura_tinv_cualitativo",
-                    "estructura_tinv_revision_literatura"):
+        for _rid in (
+            "estructura_tinv_cuantitativo",
+            "estructura_tinv_cualitativo",
+            "estructura_tinv_revision_literatura",
+        ):
             assert True  # la paridad exacta ya se verificó en _verificar_paridad
     finally:
         _finalizar(path)

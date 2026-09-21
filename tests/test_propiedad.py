@@ -25,19 +25,20 @@ cabeceras (aunque la semántica no cambie). Por eso, para las reglas
 Uso:
     pytest tests/test_propiedad.py -v
 """
+
 from pathlib import Path
 
 import pytest
-
-from validator.engine import load_rules, validate_docx
 from docx_factory import (
+    EXCLUIDAS_BASE,
     REGLAS,
     REGLAS_ACOPLADAS,
-    EXCLUIDAS_BASE,
-    configuracion_base,
     aplicar_mutacion,
     compilar_docx,
+    configuracion_base,
 )
+
+from validator.engine import load_rules, validate_docx
 
 RULES = load_rules("reglas_unt.yaml")
 
@@ -71,8 +72,7 @@ def _compare(path_a: str, path_b: str, esperado: set, rule_id: str):
     assert set(a) == set(b) == set(REGLAS)
     diffs = {rid for rid in a if a[rid] != b[rid]}
     assert diffs == esperado, (
-        f"regla {rule_id}: la mutación cambió {sorted(diffs)}, "
-        f"esperado {sorted(esperado)}"
+        f"regla {rule_id}: la mutación cambió {sorted(diffs)}, esperado {sorted(esperado)}"
     )
 
 

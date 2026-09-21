@@ -1,0 +1,29 @@
+# Hooks de pre-commit para VistoBueno.
+# Corren solo herramientas Python (sin Node) — se ejecutan dentro del
+# entorno Nix del proyecto (ver flake.nix).
+#
+# Instalación:
+#   nix develop --command pre-commit install
+#   nix develop --command pre-commit run --all-files
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        args: ["validator", "scripts"]
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: ["--maxkb=2000"]

@@ -14,6 +14,7 @@ Uso:
     python scripts/evaluar_paridad_plantillas.py [carpeta]
     # por defecto: recursos/ (plantillas y manual)
 """
+
 from __future__ import annotations
 
 import sys
@@ -54,9 +55,11 @@ def main() -> None:
 
         diffs = []
         for rid in sorted(legacy):
-            l, d = legacy[rid], dsl[rid]
-            if l.passed != d.passed or l.found != d.found:
-                diffs.append(f"    {rid}: legacy={l.found!r} dsl={d.found!r} (passed {l.passed})")
+            legacy_res, dsl_res = legacy[rid], dsl[rid]
+            if legacy_res.passed != dsl_res.passed or legacy_res.found != dsl_res.found:
+                diffs.append(
+                    f"    {rid}: legacy={legacy_res.found!r} dsl={dsl_res.found!r} (passed {legacy_res.passed})"
+                )
 
         fallos = sum(1 for r in legacy.values() if not r.passed)
         estado = "OK" if not diffs else f"{len(diffs)} DIFERENCIAS"
