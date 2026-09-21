@@ -281,6 +281,18 @@ class TestErrores:
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
 
+    def test_zip_magic_bytes_invalidos(self):
+        """Archivo .docx con contenido basura que no es ZIP → 422."""
+        contenido = b"MZ" + b"\x00" * 200  # cabecera MZ (EXE) + relleno
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("falso.docx", contenido,
+                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        # No es un ZIP válido → BadZipFile → 422
+        assert respuesta.status_code == 422
+        assert "detail" in respuesta.json()
+
     def test_mensajes_error_son_descriptivos(self):
         """Todos los mensajes de error deben tener 'detail' con información útil."""
         # Sin archivo → FastAPI devuelve 422 con lista de errores
