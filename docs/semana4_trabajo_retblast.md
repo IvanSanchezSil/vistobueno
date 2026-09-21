@@ -90,7 +90,7 @@ Se agregó `test_mensajes_error_son_descriptivos` que verifica que todos los pat
 
 #### Parte A — Corrección del manejo de errores en la API
 
-Durante el día anterior se identificó que un ZIP válido sin `word/document.xml` producía un 500 interno en lugar de un 422 informativo. Se investigó la causa: el extractor lanza `KeyError` al intentar leer el archivo内核 del paquete OPC, y el handler genérico solo detectaba `BadZipFile`.
+Durante el día anterior se identificó que un ZIP válido sin `word/document.xml` producía un 500 interno en lugar de un 422 informativo. Se investigó la causa: el extractor lanza `KeyError` al intentar leer el archivo del paquete OPC, y el handler genérico solo detectaba `BadZipFile`.
 
 Se corrigió el handler de errores en `validator/api.py` para capturar también `KeyError` y `ValueError`, devolviendo 422 con mensajes descriptivos en cada caso. Se actualizaron los tests correspondientes para exigir 422 estricto en lugar de aceptar (422, 500).
 
@@ -106,7 +106,7 @@ Ambos se corrigieron y se regeneró la especificación, actualizando la versión
 
 #### Parte C — Refactorización de fixtures de tests
 
-Se creó `tests/conftest.py` con los常量s y fixtures que se comparten entre módulos de test: `CLIENTE`, `PLANTILLA`, `CAMPOS_RESULTADO`, `CAMPOS_RESUMEN`, `CAMPOS_METADATOS`, y fixtures parametrizados. Se actualizaron los imports en `test_api_contract.py` para usar el conftest en lugar de definiciones duplicadas.
+Se creó `tests/conftest.py` con los y fixtures que se comparten entre módulos de test: `CLIENTE`, `PLANTILLA`, `CAMPOS_RESULTADO`, `CAMPOS_RESUMEN`, `CAMPOS_METADATOS`, y fixtures parametrizados. Se actualizaron los imports en `test_api_contract.py` para usar el conftest en lugar de definiciones duplicadas.
 
 #### Parte D — Test de magic bytes inválidos
 
@@ -190,5 +190,5 @@ Se ejecutó `scripts/generate_openapi.py` para sincronizar `docs/openapi_spec.js
 
 ## Plan siguiente
 
-- **Día 2 (22/09)**: Completar validación de content-type con verificación de magic bytes, investigar endpoints de DSpace.
-- **Día 3 (23/09)**: Consolidar documentación, preparar evidencia de cierre de actividad 5.
+- **Día (22/09)**: Completar validación de content-type con verificación de magic bytes, investigar endpoints de DSpace.
+- **Día (23/09)**: Consolidar documentación, preparar evidencia de cierre de actividad 5.
