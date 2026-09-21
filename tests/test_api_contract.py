@@ -7,11 +7,8 @@ Uso:
     pytest tests/test_api_contract.py -v
 """
 import io
-import json
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
 
 from conftest import (
     CAMPOS_METADATOS,
