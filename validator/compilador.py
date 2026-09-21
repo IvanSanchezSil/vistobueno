@@ -20,6 +20,7 @@ también debe cumplirse):
     conteo_nodos                -> AnalizadorConteoNodos (min/máx)
     lista_obligatoria           -> AnalizadorListaObligatoria (anexos)
     hipervinculo_texto          -> AnalizadorHipervinculo (ORCID)
+    paginacion                  -> AnalizadorPaginacion (párrafo↔página física)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
@@ -39,6 +40,7 @@ from .analizadores import (
     AnalizadorImagen,
     AnalizadorLista,
     AnalizadorListaObligatoria,
+    AnalizadorPaginacion,
     AnalizadorRegex,
     AnalizadorXML,
 )
@@ -62,6 +64,7 @@ SECCIONES_ANALIZADOR = (
     "conteo_nodos",
     "lista_obligatoria",
     "hipervinculo_texto",
+    "paginacion",
 )
 
 
@@ -393,6 +396,7 @@ _FABRICAS: dict[str, Callable[[dict], Analizador]] = {
     "conteo_nodos": AnalizadorConteoNodos,
     "lista_obligatoria": AnalizadorListaObligatoria,
     "hipervinculo_texto": AnalizadorHipervinculo,
+    "paginacion": AnalizadorPaginacion,
 }
 
 

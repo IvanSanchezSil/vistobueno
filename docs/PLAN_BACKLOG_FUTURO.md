@@ -7,6 +7,7 @@
 > **Ejecutado 2026-09-15/16 (Fase 1 parcial)**:
 > - **15 — Calidad de ingeniería** ✅: *ruff + mypy + coverage + pre-commit* agregados a `flake.nix`; config en `pyproject.toml`; `.pre-commit-config.yaml`; CI `.github/workflows/ci.yml` (Nix); `nix flake check` verde. Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
 > - **16 — Exportación de reporte** ✅ (solo CLI): `validator/exportador.py` (Markdown + PDF vía WeasyPrint) + `--formato/--salida` en CLI. **Pendiente para el compañero de API/frontend**: exponer `formato` en `POST /validar` (afecta `CONTRATO_API.md` v1.2.0 y `openapi_spec.json`). Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
+> - **1 — Paginación real** ✅ (parcial, 2026-09-21, F2 ítem 1): mapa párrafo→página en `extractor._paginacion_para()` (`w:lastRenderedPageBreak` + `w:br w:type="page"`), `ExtractedDocx.pagina_de()`, sección DSL `paginacion` (`AnalizadorPaginacion`, `paginas_distintas`) y regla `indice_paginas_separadas` (warning). **Pendiente**: enriquecer `location` a `"página 14 (párr. 124-125)"` vía render DOCX→PDF (ver "Decisiones pendientes").
 
 ---
 
@@ -16,7 +17,7 @@ Nuevas reglas para zonas del DOCX que hoy el motor no toca.
 
 | # | Línea de trabajo | Dónde vive |
 |---|---|---|
-| 1 | **Paginación real + ubicación por página**: correlacionar párrafos con página (DOCX→render→PyMuPDF) → `location` pasa de `"párr. 124"` a `"página 14 (párr. 124-125)"`. Incluye reglas de saltos de página (`w:br type=page`) y carátula sin enumerar. | extractor + reglas nuevas |
+| 1 | **Paginación real + ubicación por página** (parcial ✅): correlacionar párrafos con página (DOCX→render→PyMuPDF) → `location` pasa de `"párr. 124"` a `"página 14 (párr. 124-125)"`. Hecho: mapa párrafo→página (`w:lastRenderedPageBreak`/`w:br page`), `AnalizadorPaginacion`, `indice_paginas_separadas`. Pendiente: el enriquecimiento de `location`. También pendientes: reglas de carátula sin enumerar. | extractor + reglas nuevas |
 | 2 | **Encabezados y pies de página** (`w:hdr`/`w:ftr`): número de página, logo repetido, formato del encabezado. | extractor + analizador nuevo |
 | 3 | **Notas al pie** (`w:footnote`): presencia, consistencia de numeración. | extractor + analizador nuevo |
 | 4 | **Track changes**: detectar `w:ins`/`w:del` pendientes de aceptar/rechazar → advertencia de "documento con cambios sin resolver". | extractor + regla nueva |

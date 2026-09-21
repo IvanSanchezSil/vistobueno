@@ -321,6 +321,48 @@ class AnalizadorListaObligatoria(Analizador):
         return False, f"items_obligatorios={len(items)} faltan={faltan[:8]}"
 
 
+class AnalizadorPaginacion(Analizador):
+    """Verifica que los párrafos objetivo estén en páginas físicas distintas.
+
+    Sección DSL `paginacion` (F2 ítem 1). La paginación real se calcula en
+    el extractor contando los saltos que Word persiste en el XML
+    (`w:lastRenderedPageBreak` y `w:br w:type="page"`). Cada párrafo objetivo
+    (p. ej., un índice de contenidos/tablas/figuras) debe caer en una página
+    física distinta para que la regla pase.
+
+    Uso:
+        paginacion:
+          xpaths:
+            - //w:body//w:p[contains(...)]
+            - //w:body//w:p[contains(...)]
+          comparacion: paginas_distintas
+    """
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        xpaths = self.config.get("xpaths")
+        if not isinstance(xpaths, list) or len(xpaths) < 2:
+            return False, "paginacion requiere xpaths (>=2)"
+
+        ubicaciones = []
+        for xpath in xpaths:
+            nodos = extracted.xpath("document", xpath, "todos")
+            if not nodos:
+                return False, f"no_encontrado={xpath}"
+            para = nodos[0]
+            pagina = extracted.pagina_de(para)
+            if pagina is None:
+                return False, f"pagina_no_disponible={xpath}"
+            ubicaciones.append((pagina, para))
+
+        paginas = [p for p, _ in ubicaciones]
+        ok = len(set(paginas)) == len(paginas)
+        detalle = "; ".join(
+            f"{i + 1}: página {p}" for i, (p, _) in enumerate(ubicaciones)
+        )
+        if ok:
+            return True, f"paginas_distintas={paginas}"
+        return False, f"paginas_repetidas={paginas}; {detalle}"
+
 
 class AnalizadorHipervinculo(Analizador):
     """Detecta hipervínculos (w:hyperlink) cuyo texto coincida con un patrón.

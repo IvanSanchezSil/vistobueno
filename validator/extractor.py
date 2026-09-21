@@ -50,9 +50,40 @@ def _cuerpo_paras(doc) -> set:
             result.add(p)
     return result
 
+
+def _paginacion_para(document) -> dict[int, int]:
+    """Calcula el mapa de paginación real (párrafo -> página física).
+
+    Word persiste en el XML dos marcadores fiables de saltos de página:
+    ``w:lastRenderedPageBreak`` (insertado al guardar un documento renderizado)
+    y ``w:br w:type="page"`` (salto explícito). Recorremos los párrafos en
+    orden de documento y correlacionamos cada uno con su número físico de
+    página sin necesidad de renderizar el documento.
+
+    La página 1 es la carátula (aunque el manual indique que no se enumera
+    visualmente, se cuenta para el correlativo del resto del documento).
+    """
+    # El mapa usa como clave el ELEMENTO (proxy lxml) y no `id()`: los
+    # proxies se liberan y recrean (su `id()` cambia) si no hay una
+    # referencia fuerte, lo que rompería las consultas posteriores.
+    paginacion: dict = {}
+    pagina = 1
+
+    for p in document.xpath("//w:body//w:p", namespaces=NS):
+        tiene_salto = (
+            p.find(f".//{W}lastRenderedPageBreak", namespaces=NS) is not None
+            or p.find(f".//{W}br[@w:type='page']", namespaces=NS) is not None
+        )
+        paginacion[p] = pagina
+        if tiene_salto:
+            pagina += 1
+
+    return paginacion
+
+
 @dataclass
 class ExtractedDocx:
-    """Árboles XML extraídos + caché XPath."""
+    """Árboles XML extraídos + caché XPath + paginación física."""
 
     document: etree._Element
     footer: etree._Element | None
@@ -61,9 +92,21 @@ class ExtractedDocx:
     # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
     _cache: dict = field(default_factory=dict, repr=False)
+    # Paginación real (ítem 1 de la Fase 2): párrafo -> número físico de
+    # página, calculada a partir de los saltos que Word persiste en el XML.
+    _paginacion: dict = field(default_factory=dict, repr=False)
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
+
+    def pagina_de(self, node) -> int | None:
+        """Número físico de página de un párrafo (None si no es un párrafo
+        del cuerpo del documento). Es la forma de "devolver también el
+        número de página real" pedida en el ítem 1 de la Fase 2."""
+        if node is None:
+            return None
+        p = _para_ancestor(node)
+        return self._paginacion.get(p)
 
     def part(self, name: str) -> etree._Element | None:
         return {
@@ -95,7 +138,13 @@ class ExtractedDocx:
 
 def extract(docx_path: str) -> ExtractedDocx:
     """Abre un .docx (zip OPC) y devuelve sus partes XML relevantes ya
-    parseadas, listas para que checks.run_check las consulte."""
+    parseadas, listas para que checks.run_check las consulte.
+
+    Además de los árboles XML, calcula la paginación física real (párrafo ->
+    página) a partir de los saltos de página que Word persiste en el XML,
+    para que el motor pueda correlacionar texto con número de página sin
+    renderizar el documento.
+    """
     with zipfile.ZipFile(docx_path) as z:
         names = z.namelist()
         document = etree.fromstring(z.read("word/document.xml"))
@@ -111,4 +160,5 @@ def extract(docx_path: str) -> ExtractedDocx:
         footer=footer,
         header=header,
         _cuerpo=_cuerpo_paras(document),
+        _paginacion=_paginacion_para(document),
     )

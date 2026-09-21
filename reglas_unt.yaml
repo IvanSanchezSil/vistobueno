@@ -1108,6 +1108,21 @@ reglas:
     comparacion: eq
     esperado: '26'
 
+- id: indice_paginas_separadas
+  tipo: paginacion
+  descripcion: "Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)."
+  valor_esperado: índice de contenidos + índice de tablas + índice de figuras en páginas distintas
+  severidad: warning
+  ubicacion: "Sección Índice (párr. 193, 1066, 2600, 3495)"
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)." — Manual, párrafo 193.'
+  paginacion:
+    comparacion: paginas_distintas
+    xpaths:
+      - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "contenidos")]'
+      - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
+      - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
+
 # ─── F3: REGLAS DOCUMENTADAS COMO NO-AUTOMATIZABLES ─────────
 # - sistema_citas (APA): heurística autor-año débil, fuera de F3.
 # - proyecto_formato_general: metaregla cubierta por las reglas
@@ -1117,11 +1132,12 @@ _migracion:
   fuente: unt_format_rules_schema.yaml
   total_reglas: 32
   sin_mecanismo_omitidas: 12
-  total_reglas_con_f3: 41
+  total_reglas_con_f3: 42
   f3_reglas_agregadas_manualmente: 9
-  # 41 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
+  # 42 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
   # palabras_clave_minimo, referencias_minimo_*, anexos_minimos_*,
-  # caratula_orcid, proyecto_caratula_texto). Re-ejecutar
+  # caratula_orcid, proyecto_caratula_texto) + indice_paginas_separadas
+  # (paginación real, F2 ítem 1). Re-ejecutar
   # scripts/migrar_legacy_a_dsl.py regenera SOLO las 32 y descarta la F3.
   f3_no_automatizables: 3
   # sistema_citas, proyecto_formato_general, suficiencia_profesional_formato

@@ -34,6 +34,7 @@ _SECCIONES = (
     "conteo_nodos",
     "lista_obligatoria",
     "hipervinculo_texto",
+    "paginacion",
 )
 
 # Campos interpretados como expresiones regulares por los analizadores.

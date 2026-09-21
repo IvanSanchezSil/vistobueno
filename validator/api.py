@@ -32,7 +32,7 @@ from .prompts import build_ai_help_section
 # Configuración
 # ---------------------------------------------------------------------------
 
-# F5: la API consume el motor DSL (reglas_unt.yaml, 41 reglas) en lugar del
+# F5: la API consume el motor DSL (reglas_unt.yaml, 42 reglas) en lugar del
 # YAML legacy (unt_format_rules_schema.yaml, 32 mecánicas). Esto activa las
 # 9 reglas F3 (resumen_longitud, referencias_minimo_*, anexos_minimos_*,
 # caratula_orcid, proyecto_caratula_texto) dentro de POST /validar.

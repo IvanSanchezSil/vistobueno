@@ -19,7 +19,7 @@ import yaml
 from _docx_builder import _ANADIDAS_REVISION, _HEADINGS_CUANT, _headings_insertadas
 
 # ---------------------------------------------------------------------------
-# Nombres de las reglas de reglas_unt.yaml (41).
+# Nombres de las reglas de reglas_unt.yaml (42).
 # ---------------------------------------------------------------------------
 
 REGLAS = [
@@ -64,6 +64,7 @@ REGLAS = [
     "anexos_minimos_cualitativo",
     "caratula_orcid",
     "proyecto_caratula_texto",
+    "indice_paginas_separadas",
 ]
 
 # Reglas cuyo mecanismo es IDÉNTICO entre sí (mismo conteo de nodos con la
@@ -90,6 +91,10 @@ REGLAS_ACOPLADAS = {
     },
     "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
     "caratula_ciudad_pais_negrita": {"caratula_universidad_negrita_mayusculas"},
+    # indice_subdivisiones renombra "INDICE DE CONTENIDOS" -> "ÍNDICE GENERAL",
+    # y el xpath de indice_paginas_separadas busca "contenidos": al no encontrarlo
+    # falla también paginas_distintas. Acople unidireccional.
+    "indice_subdivisiones": {"indice_paginas_separadas"},
 }
 
 # Exclusión documentada: el documento base (plan tipo cuantitativo) no puede
@@ -204,6 +209,7 @@ _MUTACIONES = {
     "anexos_minimos_cualitativo": lambda c: c["anexos_items"].remove("Juicio de expertos"),
     "caratula_orcid": lambda c: c["portada"].pop("orcid"),
     "proyecto_caratula_texto": lambda c: c["portada"]["proyecto"].update(sz=24),
+    "indice_paginas_separadas": lambda c: c.update(indices_paginas_separadas=False),
 }
 
 
@@ -215,7 +221,7 @@ RUTA_REGLAS_YAML = Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
 
 
 def _validar_sincronizacion() -> None:
-    """Falla el import si `_MUTACIONES` no cubre exactamente las 41 reglas.
+    """Falla el import si `_MUTACIONES` no cubre exactamente las 42 reglas.
 
     Evita la desincronización silenciosa factory↔YAML: el error ocurre en la
     recolecta de tests (cuando se importa el factory), no cuando un test

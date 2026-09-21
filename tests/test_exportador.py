@@ -43,7 +43,7 @@ REPORTE = {
             "cita": '"Margen superior 2,5 cm"',
         },
     ],
-    "resumen": {"total": 41, "fallidos_error": 1, "fallidos_warning": 0},
+    "resumen": {"total": 42, "fallidos_error": 1, "fallidos_warning": 0},
     "como_preguntar_a_una_ia": [
         {"rule_id": "margen_superior", "prompt": "¿Cómo corrijo el margen superior?"}
     ],
@@ -54,7 +54,7 @@ def test_markdown_contiene_semaforo_resumen_y_tabla():
     md = reporte_a_markdown(REPORTE)
     assert "# Reporte de validación" in md
     assert "ROJO" in md
-    assert "Total de reglas evaluadas: **41**" in md
+    assert "Total de reglas evaluadas: **42**" in md
     assert "`papel_tamano`" in md
     assert "`margen_superior`" in md
     assert "✅ cumple" in md

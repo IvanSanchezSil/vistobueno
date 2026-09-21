@@ -174,7 +174,7 @@ def _footer_xml(jc: str) -> str:
 
 
 def configuracion_base() -> dict:
-    """Devuelve la configuración del DOCX que pasa 39/41 reglas."""
+    """Devuelve la configuración del DOCX que pasa 40/42 reglas."""
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
         "logo": {"logo": True},
@@ -230,6 +230,7 @@ def configuracion_base() -> dict:
         "palabras_clave_n": 3,
         "referencias_n": 30,
         "anexos_items": list(ANEXOS_BASE),
+        "indices_paginas_separadas": True,
     }
 
 
@@ -249,6 +250,18 @@ def _headings_insertadas(base: list, anadidas: list) -> list:
     return resultado
 
 
+def _page_break_para() -> str:
+    """Párrafo con salto de página real (w:lastRenderedPageBreak) para
+    simular paginación física en el DOCX sintético."""
+    return (
+        "<w:p><w:pPr><w:rPr>"
+        "<w:rFonts w:ascii='Times New Roman' w:hAnsi='Times New Roman'/>"
+        "</w:rPr></w:pPr>"
+        "<w:r><w:lastRenderedPageBreak/></w:r>"
+        "</w:p>"
+    )
+
+
 def _document_xml(cfg: dict) -> str:
     paras = []
 
@@ -257,7 +270,10 @@ def _document_xml(cfg: dict) -> str:
         paras.append(_cover_para(spec))
 
     # Preliminares (resumen con su contenido, luego referencias y anexos)
+    indices_separados = cfg.get("indices_paginas_separadas", False)
     for h in cfg["headings"]:
+        if indices_separados and h in ("INDICE DE CONTENIDOS", "INDICE DE TABLAS", "INDICE DE FIGURAS"):
+            paras.append(_page_break_para())
         paras.append(_heading(h))
         if h == "RESUMEN":
             paras.append(

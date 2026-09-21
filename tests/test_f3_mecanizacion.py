@@ -7,7 +7,7 @@ Cubre los analizadores nuevos del DSL:
 - `hipervinculo_texto`: ORCID en carátula.
 - `proyecto_caratula_texto` (patron_texto + atributo_xml, 13pt).
 - Helper `seccion()` del tokenizer (acotar secciones por títulos).
-- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (41 reglas).
+- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (42 reglas).
 
 Uso:
     pytest tests/test_f3_mecanizacion.py -v
@@ -521,15 +521,15 @@ class TestImagenRefactor:
 
 
 class TestReglasUntCompletas:
-    """Smoke: las 41 reglas de reglas_unt.yaml validan sin excepción."""
+    """Smoke: las 42 reglas de reglas_unt.yaml validan sin excepción."""
 
-    def test_41_reglas_validan(self):
+    def test_42_reglas_validan(self):
         rules = load_rules("reglas_unt.yaml")
-        assert len(rules["reglas"]) == 41
+        assert len(rules["reglas"]) == 42
         path = _make_docx([_para("RESUMEN", "Ttulo1"), _para("cuerpo breve")])
         try:
             resultados = validate_docx(path, rules)
-            assert len(resultados) == 41
+            assert len(resultados) == 42
             assert all(isinstance(r, RuleResult) for r in resultados)
         finally:
             Path(path).unlink(missing_ok=True)
