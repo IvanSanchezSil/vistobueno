@@ -65,6 +65,8 @@ REGLAS = [
     "caratula_orcid",
     "proyecto_caratula_texto",
     "indice_paginas_separadas",
+    "encabezado_membrete",
+    "encabezado_formato",
 ]
 
 # Reglas cuyo mecanismo es IDÉNTICO entre sí (mismo conteo de nodos con la
@@ -210,6 +212,8 @@ _MUTACIONES = {
     "caratula_orcid": lambda c: c["portada"].pop("orcid"),
     "proyecto_caratula_texto": lambda c: c["portada"]["proyecto"].update(sz=24),
     "indice_paginas_separadas": lambda c: c.update(indices_paginas_separadas=False),
+    "encabezado_membrete": lambda c: c.update(header_logo=False),
+    "encabezado_formato": lambda c: c.update(header_fuente="Arial"),
 }
 
 

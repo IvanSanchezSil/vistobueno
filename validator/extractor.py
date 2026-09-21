@@ -83,11 +83,17 @@ def _paginacion_para(document) -> dict[int, int]:
 
 @dataclass
 class ExtractedDocx:
-    """Árboles XML extraídos + caché XPath + paginación física."""
+    """Árboles XML extraídos + caché XPath + paginación física.
+
+    `headers`/`footers` contienen TODAS las partes del paquete
+    (`header1.xml`, `header2.xml`, ...). Los accesores `header`/`footer`
+    (propiedades) devuelven la primera parte, por compatibilidad con el
+    motor legacy (`checks.py` consulta `part("footer")`).
+    """
 
     document: etree._Element
-    footer: etree._Element | None
-    header: etree._Element | None
+    headers: list
+    footers: list
     _cuerpo: set
     # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
@@ -95,6 +101,14 @@ class ExtractedDocx:
     # Paginación real (ítem 1 de la Fase 2): párrafo -> número físico de
     # página, calculada a partir de los saltos que Word persiste en el XML.
     _paginacion: dict = field(default_factory=dict, repr=False)
+
+    @property
+    def header(self) -> etree._Element | None:
+        return self.headers[0] if self.headers else None
+
+    @property
+    def footer(self) -> etree._Element | None:
+        return self.footers[0] if self.footers else None
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
@@ -115,21 +129,31 @@ class ExtractedDocx:
             "header": self.header,
         }.get(name)
 
+    def _arboles(self, parte: str) -> list:
+        return {
+            "document": [self.document],
+            "footer": self.footers,
+            "header": self.headers,
+        }.get(parte, [])
+
     def xpath(self, parte: str, xpath_expr: str, contexto: str = "todos") -> list:
         """Consulta XPath con cache por (parte, contexto, xpath).
 
         Es el punto único por el que los analizadores consultan los árboles:
-        dos secciones con el mismo XPath comparten el resultado. Con
-        `contexto == "cuerpo"` se filtra por los párrafos de la última
-        sección (mismo significado que `_nodos` de los analizadores).
+        dos secciones con el mismo XPath comparten el resultado. Para encabe-
+        zados/pies consulta TODAS las partes del tipo (`header*.xml`,
+        `footer*.xml`) y combina los resultados. Con `contexto == "cuerpo"`
+        se filtra por los párrafos de la última sección.
         """
         clave = (parte, contexto, xpath_expr)
         if clave in self._cache:
             return self._cache[clave]
-        tree = self.part(parte)
-        if tree is None:
+        arboles = self._arboles(parte)
+        if not arboles:
             raise ValueError(f"parte '{parte}' no disponible en este archivo")
-        nodos = tree.xpath(xpath_expr, namespaces=NS)
+        nodos = []
+        for tree in arboles:
+            nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
         if contexto == "cuerpo":
             nodos = [n for n in nodos if self.is_cuerpo(n)]
         self._cache[clave] = nodos
@@ -148,17 +172,19 @@ def extract(docx_path: str) -> ExtractedDocx:
     with zipfile.ZipFile(docx_path) as z:
         names = z.namelist()
         document = etree.fromstring(z.read("word/document.xml"))
-        footer = (
-            etree.fromstring(z.read("word/footer1.xml")) if "word/footer1.xml" in names else None
-        )
-        header = (
-            etree.fromstring(z.read("word/header1.xml")) if "word/header1.xml" in names else None
-        )
+        headers = [
+            etree.fromstring(z.read(n))
+            for n in sorted(x for x in names if x.startswith("word/header") and x.endswith(".xml"))
+        ]
+        footers = [
+            etree.fromstring(z.read(n))
+            for n in sorted(x for x in names if x.startswith("word/footer") and x.endswith(".xml"))
+        ]
 
     return ExtractedDocx(
         document=document,
-        footer=footer,
-        header=header,
+        headers=headers,
+        footers=footers,
         _cuerpo=_cuerpo_paras(document),
         _paginacion=_paginacion_para(document),
     )

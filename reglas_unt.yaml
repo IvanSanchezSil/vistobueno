@@ -1123,6 +1123,43 @@ reglas:
       - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
       - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
 
+# ─── F2 ítem 2: ENCABEZADOS Y PIES DE PÁGINA (2026-09-21) ──────
+# EVALUADO: el manual no define el membrete del encabezado (solo la posición
+# de la numeración, regla `numeracion_posicion`). Estas reglas codifican el
+# ESTÁNDAR INSTITUCIONAL UNT (logotipo repetido en el encabezado y misma
+# familia tipográfica que el cuerpo). Por eso entran como `warning`, sin
+# afectar el semáforo de las plantillas oficiales hasta validarlas contra el
+# benchmark (ítem 13). El extractor lee TODAS las partes `header*.xml`/
+# `footer*.xml` (encabezado/pie por sección).
+- id: encabezado_membrete
+  tipo: presencia_xml
+  descripcion: El encabezado repite el membrete institucional con el logotipo de la UNT
+  valor_esperado: imagen (dibujo) en el encabezado
+  severidad: warning
+  ubicacion: Encabezado de página (estándar institucional UNT)
+  fuente: Formato institucional UNT (plantillas oficiales)
+  cita: '"Membrete institucional: logotipo de la UNT repetido en el encabezado de página."'
+  presencia_xml:
+    parte: header
+    contexto: todos
+    xpath: '//w:drawing'
+    comparacion: exists
+- id: encabezado_formato
+  tipo: atributo_xml
+  descripcion: El texto del encabezado usa la misma familia tipográfica que el cuerpo (Times New Roman)
+  valor_esperado: Times New Roman
+  severidad: warning
+  ubicacion: Encabezado de página (estándar institucional UNT)
+  fuente: Formato institucional UNT (plantillas oficiales)
+  cita: '"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman)."'
+  atributo_xml:
+    parte: header
+    contexto: todos
+    xpath: '//w:r/w:rPr/w:rFonts'
+    atributo: '@w:ascii'
+    comparacion: all_eq
+    esperado: Times New Roman
+
 # ─── F3: REGLAS DOCUMENTADAS COMO NO-AUTOMATIZABLES ─────────
 # - sistema_citas (APA): heurística autor-año débil, fuera de F3.
 # - proyecto_formato_general: metaregla cubierta por las reglas
@@ -1132,12 +1169,13 @@ _migracion:
   fuente: unt_format_rules_schema.yaml
   total_reglas: 32
   sin_mecanismo_omitidas: 12
-  total_reglas_con_f3: 42
+  total_reglas_con_f3: 44
   f3_reglas_agregadas_manualmente: 9
-  # 42 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
+  # 44 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
   # palabras_clave_minimo, referencias_minimo_*, anexos_minimos_*,
   # caratula_orcid, proyecto_caratula_texto) + indice_paginas_separadas
-  # (paginación real, F2 ítem 1). Re-ejecutar
+  # (paginación real, F2 ítem 1) + encabezado_membrete/encabezado_formato
+  # (F2 ítem 2: encabezados y pies). Re-ejecutar
   # scripts/migrar_legacy_a_dsl.py regenera SOLO las 32 y descarta la F3.
   f3_no_automatizables: 3
   # sistema_citas, proyecto_formato_general, suficiencia_profesional_formato

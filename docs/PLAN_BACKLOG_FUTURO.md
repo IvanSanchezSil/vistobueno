@@ -9,6 +9,8 @@
 > - **16 — Exportación de reporte** ✅ (solo CLI): `validator/exportador.py` (Markdown + PDF vía WeasyPrint) + `--formato/--salida` en CLI. **Pendiente para el compañero de API/frontend**: exponer `formato` en `POST /validar` (afecta `CONTRATO_API.md` v1.2.0 y `openapi_spec.json`). Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
 > - **1 — Paginación real** ✅ (2026-09-21, F2 ítem 1): mapa párrafo→página en `extractor._paginacion_para()` (`w:lastRenderedPageBreak` + `w:br w:type="page"`), `ExtractedDocx.pagina_de()`, sección DSL `paginacion` (`AnalizadorPaginacion`, `paginas_distintas`), regla `indice_paginas_separadas` (warning) **y enriquecimiento de `location`** con "página N" cuando el analizador falla (`ultimo_nodo` en la base `Analizador` + fallback heurístico **sin** LibreOffice; ver "Decisiones pendientes"). La regla de carátula sin enumerar (`caratula_no_se_enumera`) ya estaba mecanizada (presencia de `w:titlePg`). Detalle: [`docs/diseno/11_ubicacion_pagina.md`](diseno/11_ubicacion_pagina.md).
 
+> - **2 — Encabezados y pies** ✅ (2026-09-21, F2 ítem 2): extractor multi-parte y reglas `encabezado_membrete`/`encabezado_formato` (warning). Detalle: [`docs/diseno/12_encabezados_pies.md`](diseno/12_encabezados_pies.md).
+
 ---
 
 ## Bloque A — Territorio no validado hoy (extractor/analizadores)
@@ -18,7 +20,7 @@ Nuevas reglas para zonas del DOCX que hoy el motor no toca.
 | # | Línea de trabajo | Dónde vive |
 |---|---|---|
 | 1 | **Paginación real + ubicación por página** ✅: `location` se enriquece con "página N" desde la **heurística actual** (`w:lastRenderedPageBreak`/`w:br page`; decisión del 2026-09-21: sin LibreOffice). Hecho: mapa párrafo→página, `pagina_de()`, `AnalizadorPaginacion`, `indice_paginas_separadas`, enriquecimiento en `compilador.ejecutar()` (`base Analizador.ultimo_nodo`). Nota: `caratula_no_se_enumera` (carátula sin enumerar) ya estaba mecanizada vía `w:titlePg`. | extractor + compilador |
-| 2 | **Encabezados y pies de página** (`w:hdr`/`w:ftr`): número de página, logo repetido, formato del encabezado. | extractor + analizador nuevo |
+| 2 | **Encabezados y pies de página** ✅: el extractor lee TODAS las partes `header*.xml`/`footer*.xml`; reglas `encabezado_membrete` (logo = `w:drawing`) y `encabezado_formato` (TNR), ambas `warning` (estándar institucional, el manual no las define). | extractor + reglas nuevas |
 | 3 | **Notas al pie** (`w:footnote`): presencia, consistencia de numeración. | extractor + analizador nuevo |
 | 4 | **Track changes**: detectar `w:ins`/`w:del` pendientes de aceptar/rechazar → advertencia de "documento con cambios sin resolver". | extractor + regla nueva |
 | 5 | **Metadatos del DOCX** (`core.xml`): autor, título, fechas; regla de consistencia con carátula. | extractor + regla nueva |

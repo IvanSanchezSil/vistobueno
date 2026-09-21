@@ -32,10 +32,11 @@ from .prompts import build_ai_help_section
 # Configuración
 # ---------------------------------------------------------------------------
 
-# F5: la API consume el motor DSL (reglas_unt.yaml, 42 reglas) en lugar del
+# F5: la API consume el motor DSL (reglas_unt.yaml, 44 reglas) en lugar del
 # YAML legacy (unt_format_rules_schema.yaml, 32 mecánicas). Esto activa las
 # 9 reglas F3 (resumen_longitud, referencias_minimo_*, anexos_minimos_*,
-# caratula_orcid, proyecto_caratula_texto) dentro de POST /validar.
+# caratula_orcid, proyecto_caratula_texto) y las de la F2 (paginación,
+# encabezados/pies) dentro de POST /validar.
 REGLAS_YAML_PATH = str(Path(__file__).resolve().parent.parent / "reglas_unt.yaml")
 
 TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB

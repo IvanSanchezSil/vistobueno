@@ -521,15 +521,15 @@ class TestImagenRefactor:
 
 
 class TestReglasUntCompletas:
-    """Smoke: las 42 reglas de reglas_unt.yaml validan sin excepción."""
+    """Smoke: las 44 reglas de reglas_unt.yaml validan sin excepción."""
 
-    def test_42_reglas_validan(self):
+    def test_44_reglas_validan(self):
         rules = load_rules("reglas_unt.yaml")
-        assert len(rules["reglas"]) == 42
+        assert len(rules["reglas"]) == 44
         path = _make_docx([_para("RESUMEN", "Ttulo1"), _para("cuerpo breve")])
         try:
             resultados = validate_docx(path, rules)
-            assert len(resultados) == 42
+            assert len(resultados) == 44
             assert all(isinstance(r, RuleResult) for r in resultados)
         finally:
             Path(path).unlink(missing_ok=True)

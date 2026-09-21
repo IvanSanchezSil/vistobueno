@@ -59,6 +59,7 @@ flowchart LR
     subgraph CALIDAD["Calidad y producto"]
         J["10_calidad_y_exportacion.md<br/>Tooling + export Markdown/PDF"]
         K["11_ubicacion_pagina.md<br/>Paginación real + location"]
+        L["12_encabezados_pies.md<br/>Encabezados y pies"]
     end
 
     subgraph FUTURO["F5 (implementada)"]
@@ -87,6 +88,7 @@ flowchart LR
 | **09** | F5 (propuesta) | Enlace API → DSL, traza | Coordinación (API) |
 | **10** | Calidad + exportación | Tooling (ruff/mypy/coverage/CI), export MD/PDF | Todo el equipo |
 | **11** | Paginación + `location` | Mapa párrafo→página, `ultimo_nodo`, enriquecimiento | Todo el equipo |
+| **12** | Encabezados y pies | Multi-parte header/footer, membrete y formato (ítem 2) | Todo el equipo |
 
 ## 2.1 Fases de diseño F1–F6 (E)
 

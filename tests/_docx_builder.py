@@ -168,13 +168,31 @@ def _footer_xml(jc: str) -> str:
     )
 
 
+def _header_xml(cfg: dict) -> str:
+    """Encabezado con membrete: logo UNT (imagen) + nombre, en Times New Roman."""
+    logo = _logo() if cfg.get("header_logo", True) else ""
+    rpr = (
+        '<w:rPr><w:rFonts w:ascii="'
+        f'{cfg.get("header_fuente", "Times New Roman")}" w:hAnsi="'
+        f'{cfg.get("header_fuente", "Times New Roman")}"/></w:rPr>'
+    )
+    texto = f"<w:r>{rpr}<w:t>UNIVERSIDAD NACIONAL DE TRUJILLO</w:t></w:r>"
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:hdr xmlns:w="{WNS}" xmlns:r="{RNS}" xmlns:a="{ANS}" '
+        f'xmlns:pic="{PNS}" xmlns:wp="{WPN}">'
+        f'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>{logo}{texto}'
+        "</w:p></w:hdr>"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Configuración base del documento "bueno".
 # ---------------------------------------------------------------------------
 
 
 def configuracion_base() -> dict:
-    """Devuelve la configuración del DOCX que pasa 40/42 reglas."""
+    """Devuelve la configuración del DOCX que pasa 42/44 reglas."""
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
         "logo": {"logo": True},
@@ -231,6 +249,8 @@ def configuracion_base() -> dict:
         "referencias_n": 30,
         "anexos_items": list(ANEXOS_BASE),
         "indices_paginas_separadas": True,
+        "header_logo": True,
+        "header_fuente": "Times New Roman",
     }
 
 
@@ -317,10 +337,14 @@ def _sect_marker(cfg: dict) -> str:
         f'<w:pgSz w:w="{cfg["pg"]["w"]}" w:h="{cfg["pg"]["h"]}"/>'
         f'<w:pgMar w:top="{m["top"]}" w:right="{m["right"]}" '
         f'w:bottom="{m["bottom"]}" w:left="{m["left"]}"/>'
-        f"{titlepg}{_footer_ref()}"
+        f"{titlepg}{_header_ref()}{_footer_ref()}"
         f'<w:pgNumType w:fmt="{cfg["prel_numfmt"]}"/>'
         '</w:sectPr></w:pPr><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>'
     )
+
+
+def _header_ref() -> str:
+    return '<w:headerReference w:type="default" r:id="rIdHeader"/>'
 
 
 def _footer_ref() -> str:
@@ -335,7 +359,7 @@ def _sect_final(cfg: dict) -> str:
         f'<w:pgSz w:w="{cfg["pg"]["w"]}" w:h="{cfg["pg"]["h"]}"/>'
         f'<w:pgMar w:top="{m["top"]}" w:right="{m["right"]}" '
         f'w:bottom="{m["bottom"]}" w:left="{m["left"]}"/>'
-        f"{_footer_ref()}{pgtype}"
+        f"{_header_ref()}{_footer_ref()}{pgtype}"
         "</w:sectPr>"
     )
 
@@ -348,5 +372,6 @@ def compilar_docx(cfg: dict) -> str:
         z.writestr("[Content_Types].xml", CONTENT_TYPES)
         z.writestr("_rels/.rels", RELS)
         z.writestr("word/document.xml", _document_xml(cfg))
+        z.writestr("word/header1.xml", _header_xml(cfg))
         z.writestr("word/footer1.xml", _footer_xml(cfg["footer_jc"]))
     return path
