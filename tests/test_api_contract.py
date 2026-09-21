@@ -331,12 +331,12 @@ class TestErrores:
         assert isinstance(r3.json()["detail"], str)
         assert len(r3.json()["detail"]) > 0
 
-        # Archivo corrupto
+        # Archivo corrupto → 422 (BadZipFile capturado)
         r4 = CLIENTE.post(
             "/validar",
             files={"archivo": ("corrupto.docx", b"no es zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
         )
-        assert r4.status_code in (422, 500)
+        assert r4.status_code == 422
         assert isinstance(r4.json()["detail"], str)
         assert len(r4.json()["detail"]) > 0
 
