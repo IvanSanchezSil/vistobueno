@@ -10,6 +10,12 @@ Uso:
 import argparse
 import json
 import sys
+from pathlib import Path
+
+# Agregar la raíz del proyecto al path para que el import de validator funcione
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from validator.api import app
 
