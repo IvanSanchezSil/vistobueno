@@ -11,7 +11,7 @@ import argparse
 import json
 import sys
 
-from api import app
+from validator.api import app
 
 
 def main():
