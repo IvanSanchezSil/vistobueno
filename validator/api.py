@@ -260,6 +260,17 @@ async def validar(
                 ),
             )
 
+        # ValueError: el extractor no encontró una parte esperada del DOCX
+        # (lanzado por ExtractedDocx.xpath cuando una parte no está disponible).
+        if nombre_tipo == "ValueError":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "El archivo no contiene un documento Word válido: "
+                    f"{e}."
+                ),
+            )
+
         raise HTTPException(
             status_code=500,
             detail=f"Error interno del validador: {nombre_tipo}: {mensaje_error}",
