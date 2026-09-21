@@ -13,38 +13,13 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from validator.api import app
-
-# ---------------------------------------------------------------------------
-# Configuración de tests
-# ---------------------------------------------------------------------------
-
-CLIENTE = TestClient(app)
-
-RECURSOS_DIR = Path(__file__).resolve().parent.parent / "recursos"
-PLANTILLA = RECURSOS_DIR / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
-
-# Campos esperados en cada resultado de regla
-CAMPOS_RESULTADO = {
-    "rule_id",
-    "paso",
-    "severidad",
-    "mensaje",
-    "esperado",
-    "encontrado",
-    "ubicacion",
-    "fuente",
-    "cita",
-}
-
-CAMPOS_RESUMEN = {"total", "fallidos_error", "fallidos_warning"}
-
-CAMPOS_METADATOS = {
-    "archivo_nombre",
-    "archivo_tamano_bytes",
-    "reglas_evaluadas",
-    "version_esquema",
-}
+from conftest import (
+    CAMPOS_METADATOS,
+    CAMPOS_RESUMEN,
+    CAMPOS_RESULTADO,
+    CLIENTE,
+    PLANTILLA,
+)
 
 
 # ---------------------------------------------------------------------------
