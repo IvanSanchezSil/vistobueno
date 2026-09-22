@@ -1176,6 +1176,36 @@ reglas:
   nota_pie:
     operacion: numeracion_consistente
 
+# ─── F2 ítems 11-12: ÍNDICE / TABLA DE CONTENIDOS (2026-09-22) ────
+# EVALUADO: el manual define el índice de contenidos como "Lista estructurada
+# de los segmentos que integran la investigación, según orden de presentación"
+# (párr. 194). NO prohíbe números de página en el índice (el índice de TABLAS
+# los exige, párr. 195); por eso ambas reglas validan estructura, no páginas.
+# Ítem 11 original: "que el índice apunte a secciones reales del documento".
+# Ítem 12 original: "que el índice respete la jerarquía de la numeración".
+# Severidad warning: el manual no explicita sanción por incumplimiento y el
+# alcance cubre SOLO la región del índice (no el resto del documento).
+- id: indice_apunta_secciones
+  tipo: toc_apunta
+  descripcion: Los títulos listados en el índice de contenidos corresponden a secciones reales del documento
+  valor_esperado: Cada entrada del índice tiene su título en el cuerpo
+  severidad: warning
+  ubicacion: 'Índice de contenidos (párr. 194: "Lista estructurada de los segmentos que integran la investigación")'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Índice de contenidos: Lista estructurada de los segmentos que integran la investigación, según orden de presentación."'
+  toc_apunta:
+    operacion: entradas_corresponden
+- id: indice_numeracion_jerarquica
+  tipo: toc_numeracion
+  descripcion: La numeración de los títulos del índice respeta la jerarquía (capítulos romanos consecutivos; subsecciones decimales en preorder bajo su capítulo)
+  valor_esperado: Capítulos I, II... consecutivos y subsecciones K.1, K.1.1... en orden
+  severidad: warning
+  ubicacion: 'Índice de contenidos (párr. 194: "Lista estructurada de los segmentos que integran la investigación")'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Índice de contenidos: Lista estructurada de los segmentos que integran la investigación, según orden de presentación."'
+  toc_numeracion:
+    operacion: jerarquia_consistente
+
 # ─── F3: REGLAS DOCUMENTADAS COMO NO-AUTOMATIZABLES ─────────
 # - sistema_citas (APA): heurística autor-año débil, fuera de F3.
 # - proyecto_formato_general: metaregla cubierta por las reglas
@@ -1185,13 +1215,15 @@ _migracion:
   fuente: unt_format_rules_schema.yaml
   total_reglas: 32
   sin_mecanismo_omitidas: 12
-  total_reglas_con_f3: 45
+  total_reglas_con_f3: 47
   f3_reglas_agregadas_manualmente: 9
-  # 45 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
+  # 47 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
   # palabras_clave_minimo, referencias_minimo_*, anexos_minimos_*,
   # caratula_orcid, proyecto_caratula_texto) + indice_paginas_separadas
   # (paginación real, F2 ítem 1) + encabezado_membrete/encabezado_formato
-  # (F2 ítem 2: encabezados y pies) + notas_al_pie_consistencia (F2 ítem 3).
+  # (F2 ítem 2: encabezados y pies) + notas_al_pie_consistencia (F2 ítem 3)
+  # + indice_apunta_secciones/indice_numeracion_jerarquica (F2 ítems 11-12:
+  # índice apunta a secciones reales y jerarquía de numeración).
   # Re-ejecutar
   # scripts/migrar_legacy_a_dsl.py regenera SOLO las 32 y descarta la F3.
   f3_no_automatizables: 3

@@ -22,6 +22,8 @@ también debe cumplirse):
     hipervinculo_texto          -> AnalizadorHipervinculo (ORCID)
     paginacion                  -> AnalizadorPaginacion (párrafo↔página física)
     nota_pie                    -> AnalizadorNotaPie (numeración de notas al pie)
+    toc_apunta                  -> AnalizadorTocApunta (índice apunta a secciones reales)
+    toc_numeracion              -> AnalizadorTocNumeracion (jerarquía de numeración)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
@@ -44,6 +46,8 @@ from .analizadores import (
     AnalizadorNotaPie,
     AnalizadorPaginacion,
     AnalizadorRegex,
+    AnalizadorTocApunta,
+    AnalizadorTocNumeracion,
     AnalizadorXML,
 )
 from .automata import DFA, PDA, GramaticaEstructura, Transicion, TransicionPDA
@@ -68,6 +72,8 @@ SECCIONES_ANALIZADOR = (
     "hipervinculo_texto",
     "paginacion",
     "nota_pie",
+    "toc_apunta",
+    "toc_numeracion",
 )
 
 
@@ -401,6 +407,8 @@ _FABRICAS: dict[str, Callable[[dict], Analizador]] = {
     "hipervinculo_texto": AnalizadorHipervinculo,
     "paginacion": AnalizadorPaginacion,
     "nota_pie": AnalizadorNotaPie,
+    "toc_apunta": AnalizadorTocApunta,
+    "toc_numeracion": AnalizadorTocNumeracion,
 }
 
 

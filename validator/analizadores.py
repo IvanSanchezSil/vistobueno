@@ -9,6 +9,8 @@ Definen la clase base `Analizador` y los analizadores atómicos:
 - AnalizadorCantidadPatron: cuenta palabras/matches/entradas (patron_cantidad).
 - AnalizadorListaObligatoria: ítems obligatorios en una sección (lista_obligatoria).
 - AnalizadorHipervinculo: hipervínculos que matchean un patrón (hipervinculo_texto).
+- AnalizadorTocApunta: entradas del índice apuntan a secciones reales (toc_apunta).
+- AnalizadorTocNumeracion: jerarquía de numeración del índice (toc_numeracion).
 
 Los analizadores de tipo compuesto (secuencia, gramática, pila) viven en
 `automata.py`; la clase base `Analizador` los integra a todos.
@@ -25,7 +27,7 @@ import re
 from abc import ABC, abstractmethod
 
 from .extractor import NS, ExtractedDocx, W, text_of
-from .tokenizer import PARRAFO, seccion, tokenizar
+from .tokenizer import PARRAFO, _es_heading, seccion, tokenizar
 
 # Prefijos de namespace para resolver names en atributos (ej. "@w:val").
 PREFIX_NS = NS
@@ -433,3 +435,216 @@ class AnalizadorNotaPie(Analizador):
         if faltantes:
             detalle += f" sin_definir={faltantes}"
         return ok, detalle
+
+
+# ---------------------------------------------------------------------------
+# Índice / tabla de contenidos (ítems 11 y 12 del PLAN_BACKLOG_FUTURO).
+# ---------------------------------------------------------------------------
+
+# Título que abre la región del índice de contenidos. Cubre "ÍNDICE" (plantilla
+# y factory) y "INDICE DE CONTENIDOS" (factory). IGNORECASE vía `re` en el
+# analizador. El texto se compara SIN acentos (re.IGNORECASE no iguala "Í" con
+# "I"), así que el patrón es ASCII; la lógica de región elimina tildes primero.
+REFERENCIA_INDICE = r"^indice(\s+de\s+contenidos)?$"
+
+# Mapa para quitar tildes al normalizar (matching tolerante en el ítem 11).
+_MAP_ACENTOS = str.maketrans("ÁÉÍÓÚÜÑáéíóúüñ", "AEIOUUNaeiouun")
+
+
+def _sin_acentos(s: str) -> str:
+    """Elimina tildes de un texto (para matching ASCII de regiones)."""
+    return s.translate(_MAP_ACENTOS)
+
+
+def _norm_indice(texto: str) -> str:
+    """Texto de una entrada de índice normalizado para MATCHING (ítem 11).
+
+    Quita el prefijo de numeración (romano "I." o decimal "1.1."), el número
+    de página al final (arábigo "10" o romano "ii"), separadores sueltos,
+    tildes y colapsa el whitespace, en mayúsculas.
+    """
+    s = texto.strip()
+    s = re.sub(r"^\s*(?:[IVXLC]+\s*\.|(?:\d+)+(?:\.\d+)*\s*\.?\s*)", "", s)
+    s = re.sub(r"\s*[ivxlc]{1,5}\s*$", "", s)
+    s = re.sub(r"\s*\d+\s*$", "", s)
+    s = re.sub(r"[()\[\],;:¿?¡!.]", " ", s)
+    s = s.translate(_MAP_ACENTOS)
+    return re.sub(r"\s+", " ", s).upper().strip()
+
+
+def _sigpalabra(s: str) -> str:
+    """Primera palabra con >=4 caracteres de un texto normalizado (o vacío)."""
+    for tk in s.split():
+        if len(tk) >= 4:
+            return tk
+    return ""
+
+
+def _entradas_indice(
+    extracted: ExtractedDocx, regex_indice: str = REFERENCIA_INDICE
+) -> list[dict]:
+    """Entradas del índice de contenidos en orden de documento.
+
+    Regiones: párrafos NO-título que siguen a un título que matchea
+    `regex_indice` (solo estilos de encabezado), hasta el siguiente título
+    de cualquier nivel. Se acumulan TODAS las regiones que matcheen (la
+    plantilla usa un único "Índice"; el factory "ÍNDICE" + "INDICE DE
+    CONTENIDOS"). Cada entrada lleva su nodo `w:p` (para `ultimo_nodo`).
+    """
+    body = extracted.document.find(W + "body")
+    if body is None:
+        return []
+    rx = re.compile(regex_indice, re.IGNORECASE)
+    entradas: list[dict] = []
+    en_region = False
+    for p in body.findall(W + "p"):
+        st = p.find(f"{W}pPr/{W}pStyle")
+        estilo = st.get(W + "val") if st is not None else ""
+        texto = text_of(p).strip()
+        if _es_heading(estilo):
+            en_region = bool(rx.search(_sin_acentos(texto)))
+            continue
+        if en_region and texto:
+            entradas.append({"texto": texto, "nivel": 1, "nodo": p})
+    return entradas
+
+
+def _títulos_cuerpo(extracted: ExtractedDocx) -> set[str]:
+    """Títulos del cuerpo normalizados (solo estilos de encabezado)."""
+    body = extracted.document.find(W + "body")
+    if body is None:
+        return set()
+    titulos: set[str] = set()
+    for p in body.findall(W + "p"):
+        st = p.find(f"{W}pPr/{W}pStyle")
+        estilo = st.get(W + "val") if st is not None else ""
+        if _es_heading(estilo):
+            texto = text_of(p).strip()
+            if texto:
+                titulos.add(_norm_indice(texto))
+    return titulos
+
+
+def _parse_numero_indice(texto: str) -> tuple | None:
+    """Número de una entrada del índice: ("romano", n) o ("decimal", (k, ...))."""
+    m = re.match(r"^\s*([IVXLC]+)[\.\s]+(.+)$", texto)
+    if m:
+        letras = m.group(1).upper()
+        valores = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
+        total = 0
+        for i, c in enumerate(letras):
+            v = valores[c]
+            if i + 1 < len(letras) and valores[letras[i + 1]] > v:
+                total -= v
+            else:
+                total += v
+        return ("romano", total)
+    m = re.match(r"^\s*(\d+(?:\.\d+)+)\s*\.?\s*(.+)$", texto)
+    if m:
+        return ("decimal", tuple(int(x) for x in m.group(1).split(".")))
+    return None
+
+
+class AnalizadorTocApunta(Analizador):
+    """Verifica que el índice apunte a secciones reales del documento (ítem 11).
+
+    Sección DSL `toc_apunta`, `operacion: entradas_corresponden`: cada
+    entrada de la región del índice de contenidos debe tener su palabra
+    significativa (>=4 caracteres, sin numeración, número de página, tildes
+    ni separadores) como subcadena de ALGÚN título del cuerpo. Un documento
+    sin región de índice pasa (n/a documentado).
+
+    Fiel al manual (párr. 194): "Lista estructurada de los segmentos que
+    integran la investigación, según orden de presentación". NO prohíbe
+    números de página (el índice de tablas los exige).
+    """
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        operacion = self.config.get("operacion", "entradas_corresponden")
+        if operacion != "entradas_corresponden":
+            return False, f"operación '{operacion}' no soportada"
+
+        entradas = _entradas_indice(extracted, self.config.get("regex_indice", REFERENCIA_INDICE))
+        if not entradas:
+            return True, "sin_indice (n/a)"
+
+        titulos = _títulos_cuerpo(extracted)
+        faltan: list[str] = []
+        self.ultimo_nodo = None
+        for e in entradas:
+            norm = _norm_indice(e["texto"])
+            sig = _sigpalabra(norm)
+            if not sig or any(sig in t for t in titulos):
+                continue
+            if self.ultimo_nodo is None:
+                self.ultimo_nodo = e["nodo"]
+            faltan.append(e["texto"][:60])
+
+        if faltan:
+            return False, f"entrada_sin_seccion={faltan[:6]}"
+        return True, "entradas_corresponden"
+
+
+class AnalizadorTocNumeracion(Analizador):
+    """Valida la jerarquía de numeración del índice (ítem 12).
+
+    Sección DSL `toc_numeracion`, `operacion: jerarquia_consistente`:
+
+    - Capítulos en romano (I, II, ...) consecutivos, sin saltos.
+    - Subsecciones decimales (1.1, 1.1.1, ...) bajo el capítulo actual y en
+      orden preorder estricto (un padre precede a sus hijos; 1.1 < 1.1.1 <
+      1.1.2 < 1.2 < 1.3 ...).
+    - La primera subsección de cada capítulo es K.1.
+
+    NO exige contigüidad de subsecciones hermanas (1.1 → 1.3 es aceptable)
+    para evitar falsos positivos cuando una sección "no aplica" y se omite;
+    solo orden y pertenencia al capítulo. Un documento sin región de índice
+    pasa (n/a documentado).
+    """
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        operacion = self.config.get("operacion", "jerarquia_consistente")
+        if operacion != "jerarquia_consistente":
+            return False, f"operación '{operacion}' no soportada"
+
+        entradas = _entradas_indice(extracted, self.config.get("regex_indice", REFERENCIA_INDICE))
+        if not entradas:
+            return True, "sin_indice (n/a)"
+
+        caps: list[int] = []
+        prev: tuple | None = None
+        primera = True
+        fallos: list[str] = []
+        self.ultimo_nodo = None
+        for e in entradas:
+            num = _parse_numero_indice(e["texto"])
+            if num is None:
+                continue
+            tipo, valor = num
+            if tipo == "romano":
+                if caps and valor != caps[-1] + 1:
+                    fallos.append(f"salto_capitulo={valor}")
+                caps.append(valor)
+                prev = None
+                primera = True
+                continue
+            # decimal
+            if not caps:
+                fallos.append("subseccion_sin_capitulo")
+            elif valor[0] != caps[-1]:
+                fallos.append(f"capitulo_descolgado={e['texto'][:60]}")
+            elif primera:
+                if len(valor) >= 2 and valor[1] != 1:
+                    fallos.append(f"primera_subseccion_no_K1={e['texto'][:60]}")
+                primera = False
+                prev = valor
+            else:
+                if prev is not None and not (prev < valor):
+                    fallos.append(f"fuera_de_orden={e['texto'][:60]}")
+                prev = valor
+
+        if fallos:
+            if self.ultimo_nodo is None:
+                self.ultimo_nodo = entradas[0]["nodo"]
+            return False, "jerarquia_incorrecta; " + " | ".join(fallos[:6])
+        return True, "jerarquia_ok"

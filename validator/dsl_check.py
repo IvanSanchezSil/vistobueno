@@ -36,10 +36,12 @@ _SECCIONES = (
     "hipervinculo_texto",
     "paginacion",
     "nota_pie",
+    "toc_apunta",
+    "toc_numeracion",
 )
 
 # Campos interpretados como expresiones regulares por los analizadores.
-_CAMPOS_REGEX = ("patron", "filtro")
+_CAMPOS_REGEX = ("patron", "filtro", "regex_indice")
 
 
 class DSLValidationError(ValueError):
