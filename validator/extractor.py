@@ -94,6 +94,7 @@ class ExtractedDocx:
     document: etree._Element
     headers: list
     footers: list
+    footnotes: etree._Element | None
     _cuerpo: set
     # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
@@ -180,11 +181,17 @@ def extract(docx_path: str) -> ExtractedDocx:
             etree.fromstring(z.read(n))
             for n in sorted(x for x in names if x.startswith("word/footer") and x.endswith(".xml"))
         ]
+        footnotes = (
+            etree.fromstring(z.read("word/footnotes.xml"))
+            if "word/footnotes.xml" in names
+            else None
+        )
 
     return ExtractedDocx(
         document=document,
         headers=headers,
         footers=footers,
+        footnotes=footnotes,
         _cuerpo=_cuerpo_paras(document),
         _paginacion=_paginacion_para(document),
     )

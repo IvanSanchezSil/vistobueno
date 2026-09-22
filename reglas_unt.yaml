@@ -1160,6 +1160,22 @@ reglas:
     comparacion: all_eq
     esperado: Times New Roman
 
+# ─── F2 ítem 3: NOTAS AL PIE (2026-09-21) ──────────────────────
+# EVALUADO: el manual no regula la numeración de notas al pie; la regla
+# codifica la práctica estándar de Word (ids consecutivos 1..N). Un documento
+# SIN notas al pie pasa (n/a); el desvío se detecta solo cuando las hay y su
+# numeración tiene saltos/repetidos o apunta a ids inexistentes.
+- id: notas_al_pie_consistencia
+  tipo: nota_pie
+  descripcion: Las notas al pie se numeran de forma consecutiva (sin saltos ni repeticiones)
+  valor_esperado: IDs 1..N consecutivos y definidos
+  severidad: warning
+  ubicacion: Notas al pie (pies de página del cuerpo)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Práctica estándar Word: las notas al pie se numeran correlativamente (1, 2, 3...)."'
+  nota_pie:
+    operacion: numeracion_consistente
+
 # ─── F3: REGLAS DOCUMENTADAS COMO NO-AUTOMATIZABLES ─────────
 # - sistema_citas (APA): heurística autor-año débil, fuera de F3.
 # - proyecto_formato_general: metaregla cubierta por las reglas
@@ -1169,13 +1185,14 @@ _migracion:
   fuente: unt_format_rules_schema.yaml
   total_reglas: 32
   sin_mecanismo_omitidas: 12
-  total_reglas_con_f3: 44
+  total_reglas_con_f3: 45
   f3_reglas_agregadas_manualmente: 9
-  # 44 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
+  # 45 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
   # palabras_clave_minimo, referencias_minimo_*, anexos_minimos_*,
   # caratula_orcid, proyecto_caratula_texto) + indice_paginas_separadas
   # (paginación real, F2 ítem 1) + encabezado_membrete/encabezado_formato
-  # (F2 ítem 2: encabezados y pies). Re-ejecutar
+  # (F2 ítem 2: encabezados y pies) + notas_al_pie_consistencia (F2 ítem 3).
+  # Re-ejecutar
   # scripts/migrar_legacy_a_dsl.py regenera SOLO las 32 y descarta la F3.
   f3_no_automatizables: 3
   # sistema_citas, proyecto_formato_general, suficiencia_profesional_formato

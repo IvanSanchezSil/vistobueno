@@ -21,6 +21,7 @@ también debe cumplirse):
     lista_obligatoria           -> AnalizadorListaObligatoria (anexos)
     hipervinculo_texto          -> AnalizadorHipervinculo (ORCID)
     paginacion                  -> AnalizadorPaginacion (párrafo↔página física)
+    nota_pie                    -> AnalizadorNotaPie (numeración de notas al pie)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
@@ -40,6 +41,7 @@ from .analizadores import (
     AnalizadorImagen,
     AnalizadorLista,
     AnalizadorListaObligatoria,
+    AnalizadorNotaPie,
     AnalizadorPaginacion,
     AnalizadorRegex,
     AnalizadorXML,
@@ -65,6 +67,7 @@ SECCIONES_ANALIZADOR = (
     "lista_obligatoria",
     "hipervinculo_texto",
     "paginacion",
+    "nota_pie",
 )
 
 
@@ -397,6 +400,7 @@ _FABRICAS: dict[str, Callable[[dict], Analizador]] = {
     "lista_obligatoria": AnalizadorListaObligatoria,
     "hipervinculo_texto": AnalizadorHipervinculo,
     "paginacion": AnalizadorPaginacion,
+    "nota_pie": AnalizadorNotaPie,
 }
 
 

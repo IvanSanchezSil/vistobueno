@@ -35,6 +35,7 @@ _SECCIONES = (
     "lista_obligatoria",
     "hipervinculo_texto",
     "paginacion",
+    "nota_pie",
 )
 
 # Campos interpretados como expresiones regulares por los analizadores.

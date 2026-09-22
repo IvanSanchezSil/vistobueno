@@ -60,6 +60,7 @@ flowchart LR
         J["10_calidad_y_exportacion.md<br/>Tooling + export Markdown/PDF"]
         K["11_ubicacion_pagina.md<br/>Paginación real + location"]
         L["12_encabezados_pies.md<br/>Encabezados y pies"]
+        M["13_notas_al_pie.md<br/>Numeración de notas"]
     end
 
     subgraph FUTURO["F5 (implementada)"]
@@ -89,6 +90,7 @@ flowchart LR
 | **10** | Calidad + exportación | Tooling (ruff/mypy/coverage/CI), export MD/PDF | Todo el equipo |
 | **11** | Paginación + `location` | Mapa párrafo→página, `ultimo_nodo`, enriquecimiento | Todo el equipo |
 | **12** | Encabezados y pies | Multi-parte header/footer, membrete y formato (ítem 2) | Todo el equipo |
+| **13** | Notas al pie | `AnalizadorNotaPie`, numeración 1..N consecutiva (ítem 3) | Todo el equipo |
 
 ## 2.1 Fases de diseño F1–F6 (E)
 

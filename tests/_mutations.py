@@ -67,6 +67,7 @@ REGLAS = [
     "indice_paginas_separadas",
     "encabezado_membrete",
     "encabezado_formato",
+    "notas_al_pie_consistencia",
 ]
 
 # Reglas cuyo mecanismo es IDÉNTICO entre sí (mismo conteo de nodos con la
@@ -214,6 +215,7 @@ _MUTACIONES = {
     "indice_paginas_separadas": lambda c: c.update(indices_paginas_separadas=False),
     "encabezado_membrete": lambda c: c.update(header_logo=False),
     "encabezado_formato": lambda c: c.update(header_fuente="Arial"),
+    "notas_al_pie_consistencia": lambda c: c.update(notas_pie_ids=[1, 2, 4]),
 }
 
 

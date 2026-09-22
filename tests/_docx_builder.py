@@ -192,7 +192,7 @@ def _header_xml(cfg: dict) -> str:
 
 
 def configuracion_base() -> dict:
-    """Devuelve la configuración del DOCX que pasa 42/44 reglas."""
+    """Devuelve la configuración del DOCX que pasa 43/45 reglas."""
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
         "logo": {"logo": True},
@@ -251,6 +251,7 @@ def configuracion_base() -> dict:
         "indices_paginas_separadas": True,
         "header_logo": True,
         "header_fuente": "Times New Roman",
+        "notas_pie_ids": [],
     }
 
 
@@ -318,6 +319,9 @@ def _document_xml(cfg: dict) -> str:
     )
     paras.append(_cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg))
     paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
+    nota_pie = _notas_pie_para(cfg)
+    if nota_pie:
+        paras.append(nota_pie)
     paras.append(_sect_final(cfg))
 
     body = "".join(paras)
@@ -351,6 +355,28 @@ def _footer_ref() -> str:
     return '<w:footerReference w:type="default" r:id="rIdFooter"/>'
 
 
+def _notas_pie_para(cfg: dict) -> str:
+    """Párrafo con referencias a notas al pie (w:footnoteReference) si hay."""
+    notas = cfg.get("notas_pie_ids", [])
+    if not notas:
+        return ""
+    refs = "".join(f'<w:r><w:footnoteReference w:id="{i}"/></w:r>' for i in notas)
+    return f"<w:p>{refs}</w:p>"
+
+
+def _footnotes_xml(ids: list) -> str:
+    """Parte `word/footnotes.xml` con los separadores y las notas indicadas."""
+    separadores = '<w:footnote w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p></w:footnote><w:footnote w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p></w:footnote>'
+    notas = "".join(
+        f'<w:footnote w:id="{i}"><w:p><w:r><w:t>{i}</w:t></w:r></w:p></w:footnote>'
+        for i in ids
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:footnotes xmlns:w="{WNS}">{separadores}{notas}</w:footnotes>'
+    )
+
+
 def _sect_final(cfg: dict) -> str:
     m = cfg["margenes"]
     pgtype = f'<w:pgNumType w:fmt="{cfg["final_numtype"]}"/>' if cfg["final_numtype"] else ""
@@ -374,4 +400,7 @@ def compilar_docx(cfg: dict) -> str:
         z.writestr("word/document.xml", _document_xml(cfg))
         z.writestr("word/header1.xml", _header_xml(cfg))
         z.writestr("word/footer1.xml", _footer_xml(cfg["footer_jc"]))
+        notas = cfg.get("notas_pie_ids", [])
+        if notas:
+            z.writestr("word/footnotes.xml", _footnotes_xml(notas))
     return path

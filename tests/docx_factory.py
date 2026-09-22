@@ -12,7 +12,7 @@ propiedad puedan pedir:
 
 - `configuracion_base()`: el documento "bueno", que cumple TODAS las reglas
   mecánicas salvo las dos alternativas de estructura mutuamente excluyentes
-  (cualitativo y revisión de literatura). Resultado esperado: 42/44.
+  (cualitativo y revisión de literatura). Resultado esperado: 43/45.
 - `aplicar_mutacion(rule_id, config)`: aplica un desvío MÍNIMO (una sola
   propiedad) contra el documento bueno, de forma que solo la regla
   `rule_id` cambie su resultado.

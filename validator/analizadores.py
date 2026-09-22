@@ -394,3 +394,42 @@ class AnalizadorHipervinculo(Analizador):
         if maximo is not None and n > maximo:
             return False, f"hipervinculos={n} maximo={maximo}"
         return True, f"hipervinculos={n} minimo={minimo}"
+
+
+class AnalizadorNotaPie(Analizador):
+    """Valida la consistencia de la numeración de las notas al pie (ítem 3).
+
+    Sección DSL `nota_pie`, `operacion: numeracion_consistente`: los ids de
+    `w:footnoteReference` en el cuerpo deben ser consecutivos (1..N, sin
+    saltos, sin repetir) y, si la parte `word/footnotes.xml` existe, cada id
+    referenciado debe estar definido ahí. Un documento SIN notas al pie pasa
+    (n/a documentado), porque la ausencia no es un desvío.
+    """
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        operacion = self.config.get("operacion", "numeracion_consistente")
+        if operacion != "numeracion_consistente":
+            return False, f"operación '{operacion}' no soportada"
+
+        ids = [int(i) for i in extracted.xpath("document", "//w:footnoteReference/@w:id", "todos")]
+        if not ids:
+            return True, "sin_notas_al_pie (n/a)"
+
+        if len(ids) != len(set(ids)):
+            return False, f"notas_ids={sorted(ids)} duplicadas=True"
+
+        ord = sorted(ids)
+        consecutivas = ord == list(range(1, len(ord) + 1))
+        definidas = True
+        faltantes: list[int] = []
+        fn = extracted.footnotes
+        if fn is not None:
+            disponibles = {int(e.get(W + "id")) for e in fn.iter(W + "footnote") if e.get(W + "id")}
+            faltantes = [i for i in ord if i not in disponibles]
+            definidas = not faltantes
+
+        ok = consecutivas and definidas
+        detalle = f"notas_ids={ord} consecutivas={consecutivas}"
+        if faltantes:
+            detalle += f" sin_definir={faltantes}"
+        return ok, detalle
