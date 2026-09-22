@@ -7,44 +7,15 @@ Uso:
     pytest tests/test_api_contract.py -v
 """
 import io
-from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
-
-from validator.api import app
-
-# ---------------------------------------------------------------------------
-# Configuración de tests
-# ---------------------------------------------------------------------------
-
-CLIENTE = TestClient(app)
-
-RECURSOS_DIR = Path(__file__).resolve().parent.parent / "recursos"
-PLANTILLA = RECURSOS_DIR / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
-
-# Campos esperados en cada resultado de regla
-CAMPOS_RESULTADO = {
-    "rule_id",
-    "paso",
-    "severidad",
-    "mensaje",
-    "esperado",
-    "encontrado",
-    "ubicacion",
-    "fuente",
-    "cita",
-}
-
-CAMPOS_RESUMEN = {"total", "fallidos_error", "fallidos_warning"}
-
-CAMPOS_METADATOS = {
-    "archivo_nombre",
-    "archivo_tamano_bytes",
-    "reglas_evaluadas",
-    "version_esquema",
-}
-
+from conftest import (
+    CAMPOS_METADATOS,
+    CAMPOS_RESULTADO,
+    CAMPOS_RESUMEN,
+    CLIENTE,
+    PLANTILLA,
+)
 
 # ---------------------------------------------------------------------------
 # Tests: respuesta exitosa (200)
@@ -225,10 +196,11 @@ class TestErrores:
             files={"archivo": ("falso.docx", contenido,
                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
         )
-        # La API devuelve 500 porque el KeyError por document.xml faltante
-        # no se captura en el handler de errores (oportunidad de mejora futura)
-        assert respuesta.status_code in (422, 500)
+        # El KeyError por document.xml faltante ahora se captura
+        # y devuelve 422 con un mensaje descriptivo.
+        assert respuesta.status_code == 422
         assert "detail" in respuesta.json()
+        assert "Word válido" in respuesta.json()["detail"]
 
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
@@ -304,6 +276,18 @@ class TestErrores:
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
 
+    def test_zip_magic_bytes_invalidos(self):
+        """Archivo .docx con contenido basura que no es ZIP → 422."""
+        contenido = b"MZ" + b"\x00" * 200  # cabecera MZ (EXE) + relleno
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("falso.docx", contenido,
+                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        )
+        # No es un ZIP válido → BadZipFile → 422
+        assert respuesta.status_code == 422
+        assert "detail" in respuesta.json()
+
     def test_mensajes_error_son_descriptivos(self):
         """Todos los mensajes de error deben tener 'detail' con información útil."""
         # Sin archivo → FastAPI devuelve 422 con lista de errores
@@ -329,12 +313,12 @@ class TestErrores:
         assert isinstance(r3.json()["detail"], str)
         assert len(r3.json()["detail"]) > 0
 
-        # Archivo corrupto
+        # Archivo corrupto → 422 (BadZipFile capturado)
         r4 = CLIENTE.post(
             "/validar",
             files={"archivo": ("corrupto.docx", b"no es zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
         )
-        assert r4.status_code in (422, 500)
+        assert r4.status_code == 422
         assert isinstance(r4.json()["detail"], str)
         assert len(r4.json()["detail"]) > 0
 

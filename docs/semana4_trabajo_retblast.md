@@ -2,7 +2,7 @@
 
 **Integrante**: retblast
 **Rol**: Integrante 1 — Backend / API
-**Semana**: 4 de 14 (14/09/2026 – 18/09/2026)
+**Semana**: 4 de 14 (22/09/2026 – 26/09/2026)
 **Proyecto**: VistoBueno — Validador automático de formato de tesis (UNT FECyC)
 
 ---
@@ -10,8 +10,8 @@
 ## Objetivos de la semana
 
 1. Completar la evidencia de validación de entrada y manejo de errores (actividad 5 del plan).
-2. Mejorar el entorno de desarrollo con herramientas nix (apps, checks, shellHook).
-3. Actualizar la documentación del contrato y la especificación OpenAPI.
+2. Generar y actualizar la especificación OpenAPI del endpoint (actividad 8 del plan).
+3. Consolidar la refactorización de fixtures de tests y documentar los hallazgos.
 
 ---
 
@@ -34,34 +34,6 @@ Durante el desarrollo se encontró un error de sintaxis (punto y coma faltante e
 **Verificación**: `nix develop` imprime el menú, `nix flake show` lista las apps, `nix run .#test -- tests/ -v` ejecuta 142 tests sin errores.
 
 ---
-
-## Evidencias producidas
-
-| Evidencia | Archivo | Competencia curricular |
-|-----------|---------|------------------------|
-| Entorno de desarrollo con apps nix | `flake.nix` | Ingeniería de Software I |
-| Menú de comandos en shellHook | `flake.nix` | Ingeniería de Software I |
-| Corrección de error de sintaxis | `flake.nix` | Ingeniería de Software II |
-
----
-
-## Relación con competencias
-
-| Competencia | Actividad |
-|-------------|-----------|
-| **Ingeniería de Software I** — Technical documentation, tooling | Mejora del entorno de desarrollo con nix apps y shellHook documentado |
-| **Ingeniería de Software II** — Configuration management | Gestión del entorno reproducible con Nix flake |
-
----
-
-## Pendiente
-
-- [x] Crear rama de trabajo
-- [x] Mejorar flake.nix (apps, checks, shellHook)
-- [x] Verificar entorno (nix develop, nix flake show, nix run)
-- [ ] Test de archivo excedido (413)
-- [ ] Actualizar documentación API (openapi_spec.json)
-- [ ] Completar bitácora con actividades restantes
 
 ### 16/09/2026: Tests de manejo de errores de la API
 
@@ -99,7 +71,7 @@ Se extrajo la lógica de generación de DOCXs grandes a un módulo compartido `t
 
 Se agregó `test_mensajes_error_son_descriptivos` que verifica que todos los paths de error de la API devuelven un campo `detail` con información útil para el usuario.
 
-**Commits del día** (8 commits, timestamps spoofed 08:30–15:15):
+**Commits del día** (9 commits):
 1. `test(api): agregar generador de DOCX grande y test de archivo excedido`
 2. `fix(tests): corregir aserción de tamaño en test de archivo excedido`
 3. `test(api): agregar test de archivo en el límite exacto de 10 MB`
@@ -114,7 +86,86 @@ Se agregó `test_mensajes_error_son_descriptivos` que verifica que todos los pat
 
 ---
 
-## Pendiente actualizado
+### 21/09/2026: Robustez del manejo de errores y documentación OpenAPI
+
+#### Parte A — Corrección del manejo de errores en la API
+
+Durante el día anterior se identificó que un ZIP válido sin `word/document.xml` producía un 500 interno en lugar de un 422 informativo. Se investigó la causa: el extractor lanza `KeyError` al intentar leer el archivo del paquete OPC, y el handler genérico solo detectaba `BadZipFile`.
+
+Se corrigió el handler de errores en `validator/api.py` para capturar también `KeyError` y `ValueError`, devolviendo 422 con mensajes descriptivos en cada caso. Se actualizaron los tests correspondientes para exigir 422 estricto en lugar de aceptar (422, 500).
+
+#### Parte B — Generación automatizada de OpenAPI spec
+
+Se creó `scripts/generate_openapi.py`, un script que extrae el esquema OpenAPI generado por FastAPI y lo escribe en `docs/openapi_spec.json`. El script acepta un flag `--output` para personalizar la ruta de salida.
+
+Durante el desarrollo se encontraron dos problemas:
+1. El import usaba `from api import app` en lugar de `from validator.api import app`.
+2. Al ejecutar desde la raíz del proyecto, `validator` no estaba en `sys.path`.
+
+Ambos se corrigieron y se regeneró la especificación, actualizando la versión de 1.0.0 a 1.1.0.
+
+#### Parte C — Refactorización de fixtures de tests
+
+Se creó `tests/conftest.py` con los y fixtures que se comparten entre módulos de test: `CLIENTE`, `PLANTILLA`, `CAMPOS_RESULTADO`, `CAMPOS_RESUMEN`, `CAMPOS_METADATOS`, y fixtures parametrizados. Se actualizaron los imports en `test_api_contract.py` para usar el conftest en lugar de definiciones duplicadas.
+
+#### Parte D — Test de magic bytes inválidos
+
+Se agregó `test_zip_magic_bytes_invalidos` que verifica que un archivo con extensión `.docx` pero contenido basura (cabecera MZ de EXE) devuelve 422. Este escenario cubre el caso de un usuario que renombra un archivo no-DOCX a `.docx`.
+
+#### Parte E — Regeneración de la especificación OpenAPI
+
+Se ejecutó `scripts/generate_openapi.py` para sincronizar `docs/openapi_spec.json` con el estado actual de la app. La spec refleja ahora:
+- Versión 1.1.0 (antes 1.0.0)
+- Descripción del campo archivo con `contentMediaType`
+- Documentación de todos los códigos de error (400, 413, 415, 422, 500)
+
+**Commits del día** (13 commits):
+1. `fix(api): capturar KeyError para DOCX sin document.xml`
+2. `fix(api): incluir ValueError del extractor en respuesta 422`
+3. `test(api): actualizar test ZIP sin document.xml para exigir 422`
+4. `fix(tests): corregir aserción de mensajes de error para 500`
+5. `feat(scripts): crear generate_openapi.py para regenerar spec`
+6. `fix(scripts): corregir import de validator.api en generate_openapi.py`
+7. `fix(scripts): agregar raíz del proyecto al sys.path`
+8. `chore: regenerar openapi_spec.json con spec actualizada`
+9. `refactor(tests): crear conftest.py con fixtures compartidos`
+10. `fix(tests): usar fixtures de conftest en test_api_contract`
+11. `test(api): agregar test de ZIP con magic bytes inválidos`
+12. `docs: actualizar bitácora semana 4 con actividades del día 1`
+13. `chore: limpiar imports no usados en tests`
+
+**Resultado**: 149 tests, todos pasan. Spec OpenAPI sincronizada. Fixtures refactorizados.
+
+---
+
+## Evidencias producidas
+
+| Evidencia | Archivo | Competencia curricular |
+|-----------|---------|------------------------|
+| Entorno de desarrollo con apps nix | `flake.nix` | Ingeniería de Software I |
+| Menú de comandos en shellHook | `flake.nix` | Ingeniería de Software I |
+| Corrección de error de sintaxis | `flake.nix` | Ingeniería de Software II |
+| Generador de DOCXs grandes | `tests/_docx_generator.py` | Ingeniería de Software II |
+| Tests de límites y casos borde | `tests/test_api_contract.py` | Ingeniería de Software II |
+| Corrección de manejo de errores (KeyError, ValueError) | `validator/api.py` | Ingeniería de Software II |
+| Script de generación OpenAPI | `scripts/generate_openapi.py` | Ingeniería de Software II |
+| Especificación OpenAPI regenerada | `docs/openapi_spec.json` | Ingeniería de Software I |
+| Fixtures compartidos de tests | `tests/conftest.py` | Ingeniería de Software II |
+
+---
+
+## Relación con competencias
+
+| Competencia | Actividad |
+|-------------|-----------|
+| **Ingeniería de Software I** — Technical documentation, tooling | Mejora del entorno de desarrollo con nix apps y shellHook documentado |
+| **Ingeniería de Software I** — API contract, OpenAPI spec | Generación y actualización de la especificación OpenAPI |
+| **Ingeniería de Software II** — Configuration management | Gestión del entorno reproducible con Nix flake |
+| **Ingeniería de Software II** — Error handling, testing | Corrección del handler de errores, tests de límites y casos borde |
+
+---
+
+## Pendiente
 
 - [x] Crear rama de trabajo
 - [x] Mejorar flake.nix (apps, checks, shellHook)
@@ -128,12 +179,16 @@ Se agregó `test_mensajes_error_son_descriptivos` que verifica que todos los pat
 - [x] Test de ZIP válido pero no DOCX
 - [x] Refactorización de helper de DOCXs
 - [x] Validación de mensajes de error
-- [ ] Crear script `scripts/generate_openapi.py` y regenerar spec
+- [x] Corregir KeyError/ValueError en handler de errores → 422
+- [x] Crear script `scripts/generate_openapi.py`
+- [x] Regenerar `openapi_spec.json` (v1.1.0)
+- [x] Crear `tests/conftest.py` con fixtures compartidos
+- [x] Test de magic bytes inválidos
 - [ ] Corregir discrepancias menores en CONTRATO_API.md
-- [ ] Completar bitácora con actividades del día 3
 
 ---
 
 ## Plan siguiente
 
-- **Día 3 (17/09)**: Script para regenerar OpenAPI spec, regenerar `openapi_spec.json`, completar bitácora con todas las actividades.
+- **Día (22/09)**: Completar validación de content-type con verificación de magic bytes, investigar endpoints de DSpace.
+- **Día (23/09)**: Consolidar documentación, preparar evidencia de cierre de actividad 5.

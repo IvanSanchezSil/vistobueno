@@ -231,17 +231,44 @@ async def validar(
         raise
     except Exception as e:
         # Error al abrir/procesar el DOCX (ZIP corrupto, XML inválido, etc.)
+        nombre_tipo = type(e).__name__
         mensaje_error = str(e)
-        if "BadZipFile" in type(e).__name__ or "zip" in mensaje_error.lower():
+
+        # BadZipFile: archivo no es un ZIP válido
+        if nombre_tipo == "BadZipFile" or "zip" in mensaje_error.lower():
             raise HTTPException(
                 status_code=422,
                 detail=(
                     "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
                 ),
             ) from e
+
+        # KeyError: el ZIP es válido pero falta word/document.xml (u otra
+        # parte esencial del formato DOCX). El extractor lanza KeyError
+        # al intentar leer el archivo interno del paquete OPC.
+        if nombre_tipo == "KeyError":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "El archivo no contiene un documento Word válido: "
+                    f"archivo interno faltante ({e})."
+                ),
+            ) from e
+
+        # ValueError: el extractor no encontró una parte esperada del DOCX
+        # (lanzado por ExtractedDocx.xpath cuando una parte no está disponible).
+        if nombre_tipo == "ValueError":
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "El archivo no contiene un documento Word válido: "
+                    f"{e}."
+                ),
+            ) from e
+
         raise HTTPException(
             status_code=500,
-            detail=f"Error interno del validador: {type(e).__name__}: {mensaje_error}",
+            detail=f"Error interno del validador: {nombre_tipo}: {mensaje_error}",
         ) from e
     finally:
         if tmp_path and os.path.exists(tmp_path):
