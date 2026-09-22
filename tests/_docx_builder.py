@@ -74,6 +74,36 @@ _ANADIDAS_REVISION = [
     ("RESULTADOS", "CONCLUSIONES Y RECOMENDACIONES"),
 ]
 
+# Entradas del índice de contenidos (rito bajo "INDICE DE CONTENIDOS").
+# Formato `(nivel, texto)` con `nivel` para el estilo `TDC{nivel}` (no es un
+# encabezado: el analizador de TOC la reconoce como entrada). El texto copia
+# el estilo de las plantillas UNT: número + título + número de página.
+# - ítem 11 (indice_apunta_secciones): cada entrada apunta a un título real.
+# - ítem 12 (indice_numeracion_jerarquica): capítulos I..VI consecutivos y
+#   subsecciones K.x en orden preorder bajo su capítulo.
+TDC_ENTRADAS_BASE = [
+    (1, "PRESENTACIÓN iii"),
+    (1, "RESUMEN v"),
+    (1, "ABSTRACT vii"),
+    (1, "I. INTRODUCCIÓN 1"),
+    (2, "1.1. SITUACIÓN PROBLEMÁTICA 2"),
+    (2, "1.2. ENUNCIADO DEL PROBLEMA 4"),
+    (2, "1.3. JUSTIFICACIÓN O IMPORTANCIA 6"),
+    (2, "1.4. OBJETIVOS 9"),
+    (2, "1.5 VARIABLE(S) Y OPERACIONALIZACIÓN 11"),
+    (1, "II. MARCO TEÓRICO 13"),
+    (2, "2.1. ANTECEDENTES (ESTADO DEL ARTE) 14"),
+    (2, "2.2. BASES TEÓRICAS 17"),
+    (1, "III. METODOLOGÍA 20"),
+    (2, "3.1. POBLACIÓN Y MUESTRA 21"),
+    (2, "3.2. DISEÑO DE INVESTIGACIÓN 23"),
+    (2, "3.3. INSTRUMENTO(S) USADO(S) EN LA RECOLECCIÓN DE DATOS 25"),
+    (2, "3.4. MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS 27"),
+    (1, "IV. RESULTADOS 30"),
+    (1, "V. CONCLUSIONES 33"),
+    (1, "VI. ANEXOS 35"),
+]
+
 
 # ---------------------------------------------------------------------------
 # Helpers XML (portados de test_paridad_formatos / test_f3_mecanizacion).
@@ -140,6 +170,12 @@ def _heading(texto: str) -> str:
     return f'<w:p><w:pPr><w:pStyle w:val="Ttulo{nivel}"/></w:pPr>{_run(texto)}</w:p>'
 
 
+def _tdc_para(entrada: tuple) -> str:
+    """Párrafo del índice de contenidos (estilo TDC{nivel}, no es heading)."""
+    nivel, texto = entrada
+    return f'<w:p><w:pPr><w:pStyle w:val="TDC{nivel}"/></w:pPr>{_run(texto)}</w:p>'
+
+
 def _logo() -> str:
     return (
         "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
@@ -192,7 +228,7 @@ def _header_xml(cfg: dict) -> str:
 
 
 def configuracion_base() -> dict:
-    """Devuelve la configuración del DOCX que pasa 43/45 reglas."""
+    """Devuelve la configuración del DOCX que pasa 45/47 reglas."""
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
         "logo": {"logo": True},
@@ -252,6 +288,7 @@ def configuracion_base() -> dict:
         "header_logo": True,
         "header_fuente": "Times New Roman",
         "notas_pie_ids": [],
+        "tdc_entradas": list(TDC_ENTRADAS_BASE),
     }
 
 
@@ -296,6 +333,8 @@ def _document_xml(cfg: dict) -> str:
         if indices_separados and h in ("INDICE DE CONTENIDOS", "INDICE DE TABLAS", "INDICE DE FIGURAS"):
             paras.append(_page_break_para())
         paras.append(_heading(h))
+        if h == "INDICE DE CONTENIDOS":
+            paras.extend(_tdc_para(e) for e in cfg.get("tdc_entradas", []))
         if h == "RESUMEN":
             paras.append(
                 _body_para(" ".join(f"resumen{i}" for i in range(cfg["resumen_palabras"])))

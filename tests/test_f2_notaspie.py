@@ -185,7 +185,7 @@ def test_sin_part_footnotes_pasa_por_numeracion():
 
 
 # ---------------------------------------------------------------------------
-# End-to-end con la factory (mutación de las 45 reglas)
+# End-to-end con la factory (mutación de las 47 reglas)
 # ---------------------------------------------------------------------------
 
 

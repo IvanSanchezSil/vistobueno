@@ -334,6 +334,6 @@ class TestIntegracion:
         path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
         try:
             resultados = validate_docx(path, rules)
-            assert len(resultados) == 45
+            assert len(resultados) == 47
         finally:
             Path(path).unlink(missing_ok=True)

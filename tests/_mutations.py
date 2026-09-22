@@ -19,7 +19,7 @@ import yaml
 from _docx_builder import _ANADIDAS_REVISION, _HEADINGS_CUANT, _headings_insertadas
 
 # ---------------------------------------------------------------------------
-# Nombres de las reglas de reglas_unt.yaml (42).
+# Nombres de las reglas de reglas_unt.yaml (47).
 # ---------------------------------------------------------------------------
 
 REGLAS = [
@@ -68,6 +68,8 @@ REGLAS = [
     "encabezado_membrete",
     "encabezado_formato",
     "notas_al_pie_consistencia",
+    "indice_apunta_secciones",
+    "indice_numeracion_jerarquica",
 ]
 
 # Reglas cuyo mecanismo es IDÉNTICO entre sí (mismo conteo de nodos con la
@@ -97,7 +99,13 @@ REGLAS_ACOPLADAS = {
     # indice_subdivisiones renombra "INDICE DE CONTENIDOS" -> "ÍNDICE GENERAL",
     # y el xpath de indice_paginas_separadas busca "contenidos": al no encontrarlo
     # falla también paginas_distintas. Acople unidireccional.
+    # (Las reglas de TOC pasan a n/a con ese renombre, pero el `found` exitoso
+    # es "cumple" en ambos casos -> sin acople observable.)
     "indice_subdivisiones": {"indice_paginas_separadas"},
+    # estructura_tinv_cuantitativo renombra "SITUACIÓN PROBLEMÁTICA" ->
+    # "PROBLEMÁTICA Y CONTEXTO": la entrada "1.1. SITUACIÓN PROBLEMÁTICA" del
+    # índice deja de apuntar a una sección real (falla indice_apunta_secciones).
+    "estructura_tinv_cuantitativo": {"indice_apunta_secciones"},
 }
 
 # Exclusión documentada: el documento base (plan tipo cuantitativo) no puede
@@ -134,6 +142,21 @@ def _mut_margen(attr: str):
 
 def _renombrar_heading(cfg: dict, actual: str, nuevo: str) -> None:
     cfg["headings"] = [nuevo if h == actual else h for h in cfg["headings"]]
+
+
+def _renumerar_tdc(cfg: dict, actual: str, nuevo: str) -> None:
+    """Renumera una entrada del índice (nivel, texto) para el ítem 12."""
+    cfg["tdc_entradas"] = [(n, nuevo if t == actual else t) for n, t in cfg["tdc_entradas"]]
+
+
+def _insertar_tdc(cfg: dict, despues_de: str, entrada: tuple) -> None:
+    """Inserta una entrada del índice en orden, tras la que tenga `despues_de`."""
+    acum = []
+    for n, t in cfg["tdc_entradas"]:
+        acum.append((n, t))
+        if t == despues_de:
+            acum.append(entrada)
+    cfg["tdc_entradas"] = acum
 
 
 def _interleaved_cualitativo() -> list:
@@ -216,6 +239,16 @@ _MUTACIONES = {
     "encabezado_membrete": lambda c: c.update(header_logo=False),
     "encabezado_formato": lambda c: c.update(header_fuente="Arial"),
     "notas_al_pie_consistencia": lambda c: c.update(notas_pie_ids=[1, 2, 4]),
+    # ítem 11 (indice_apunta_secciones): agregar una entrada que NO apunta a
+    # ninguna sección real. El token significativo "DELIMITACIÓN" no está en
+    # ningún título del cuerpo. Se inserta en orden (1.6 tras 1.5) para no
+    # alterar la jerarquía del ítem 12.
+    "indice_apunta_secciones": lambda c: _insertar_tdc(
+        c, "1.5 VARIABLE(S) Y OPERACIONALIZACIÓN 11", (2, "1.6. DELIMITACIÓN DE LA INVESTIGACIÓN 40")
+    ),
+    # ítem 12 (indice_numeracion_jerarquica): renumera una subsección fuera de
+    # su capítulo (2.2 bajo el capítulo I) -> capitulo_descolgado.
+    "indice_numeracion_jerarquica": lambda c: _renumerar_tdc(c, "1.2. ENUNCIADO DEL PROBLEMA 4", "2.2. ENUNCIADO DEL PROBLEMA 4"),
 }
 
 
@@ -227,7 +260,7 @@ RUTA_REGLAS_YAML = Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
 
 
 def _validar_sincronizacion() -> None:
-    """Falla el import si `_MUTACIONES` no cubre exactamente las 42 reglas.
+    """Falla el import si `_MUTACIONES` no cubre exactamente las 47 reglas.
 
     Evita la desincronización silenciosa factory↔YAML: el error ocurre en la
     recolecta de tests (cuando se importa el factory), no cuando un test
