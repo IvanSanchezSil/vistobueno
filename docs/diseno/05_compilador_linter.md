@@ -13,7 +13,7 @@ en objetos ejecutables (`ReglaCompilada`) y, eventualmente, en un
 
 ```mermaid
 flowchart TD
-    YAML["reglas_unt.yaml<br/>(41 reglas)"] --> LINT["linter_o_alzar()<br/>(validación estática)"]
+    YAML["reglas_unt.yaml<br/>(45 reglas)"] --> LINT["linter_o_alzar()<br/>(validación estática)"]
     LINT -- "ok (sin errores)" --> LOOP["para cada regla"]
     LINT -- "DSLValidationError" --> F["error: regex inválida,<br/>ciclo ε, etc."]
     LOOP --> SECC["para cada sección en la regla"]
@@ -197,7 +197,7 @@ El ciclo de ε-transiciones es el más delicado: sin detección, un
 | C2 | `_FABRICAS` y `_SECCIONES` como tuplas/diccionarios del módulo | Configuración externa | La lista de analizadores es cerrada; un mapping estático es explícito, testable y auto-documentado |
 | C3 | `SECCIONES_ANALIZADOR` duplicada en `compilador` y `dsl_check` | Import cruzado o archivo compartido | El módulo `dsl_check` no puede importar a `compilador` (ciclo); la duplicación es pequeña (12 strings) y se mantiene sincronizada por tests (`test_linter_reglas_unt_pasan`) |
 | C4 | Regla sin analizadores → se omite silenciosamente | Error | Migración incremental: una regla sin mecanismo no produce error, solo se salta. El `engine._validate_legacy` ya manejaba esta semántica |
-| C5 | `ejecutar()` propaga excepciones como fallos individuales (no tumba el resto) | Excepción global | Un documento con XML inesperado en un nudo no puede anular las otras 40 reglas — hay que loguear el error y continuar |
+| C5 | `ejecutar()` propaga excepciones como fallos individuales (no tumba el resto) | Excepción global | Un documento con XML inesperado en un nudo no puede anular las otras 44 reglas — hay que loguear el error y continuar |
 | C6 | `found` = `"; "` de los fallos individuales de todos los analizadores | Primer fallo nada más | Un reporte completo acelera el diagnóstico del usuario (p. ej., una regla de portada puede fallar por negrita Y por tamaño: los dos motivos son útiles) |
 | C7 | El order de secciones del YAML se preserva en la compilación | Orden fijo alfabético | La semántica de `found` (string) depende del orden de los fallos; si se reordenaran, el reporte de paridad legacy↔DSL dejaría de funcionar |
 

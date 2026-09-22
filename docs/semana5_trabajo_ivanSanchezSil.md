@@ -70,5 +70,7 @@
 ## Plan de la semana siguiente
 
 1. Push de `semana5-motor-calidad-paginacion` y actualización del PR #28.
-2. Contar con el Backend para el ítem 16 (`formato` en `POST /validar`).
+2. Contar con el Backend para el ítem 16 (`formato` en `POST /validar`) y para
+   actualizar `docs/CONTRATO_API.md` (changelog v1.1.0 dice "41 reglas"; falta
+   entrada v1.2.0 con 45 — quedó anotado en `docs/PLAN_BACKLOG_FUTURO.md`).
 3. Ítems 11-12: redefinir criterio (variante débil de numeración o pase asegurado contra plantillas) y evaluar con `scripts/eval_contra_plantillas.py` (ítem 13 del backlog).

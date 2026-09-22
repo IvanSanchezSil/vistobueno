@@ -128,9 +128,9 @@ flowchart LR
 ## 3. Convenciones
 
 - **Fuente de verdad**: las configuraciones mostradas en los diagramas de
-  estados provienen de `reglas_unt.yaml` (42 reglas) y de los tests
-  `test_f2_automatas.py`; los nombres de módulos y clases reflejan el código
-  real en `validator/`.
+estados provienen de `reglas_unt.yaml` (45 reglas) y de los tests
+   `test_f2_automatas.py`; los nombres de módulos y clases reflejan el código
+   real en `validator/`.
 - **Fases del plan**: se referencian las fases F1–F6 de `docs/PLAN_DSL.md`
   (F1 migración, F2 tokenizer+PDA, F3 mecanización, F4 ingeniería, F5
   implementada, F6 tests de propiedad).
@@ -147,7 +147,7 @@ flowchart LR
 3. **05** explica cómo se compila y se valida contra un documento.
 4. **06** (migración), **07** (tests) y **08** (OCR) son procesos transversales.
 5. **09** es la única propuesta a futuro (F5): el resto documenta lo ya
-      implementado y verificado por la suite (167 tests).
+      implementado y verificado por la suite (188 tests).
 
 ---
 

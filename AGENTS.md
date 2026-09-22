@@ -37,7 +37,8 @@ Frontend (React)
 | **API** | `validator/api.py` | Endpoint FastAPI `POST /validar` |
 | **DTOs API** | `validator/api_models.py` | Modelos Pydantic de respuesta (campos en español) |
 | **CLI referencia** | `validator/cli.py` | Validador desde línea de comandos |
-| **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables |
+| **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
+| **Reglas DSL (producción)** | `reglas_unt.yaml` | 45 reglas verificables (F1–F6 + F2 ítems 1-3) |
 
 ---
 
@@ -270,9 +271,13 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 
 ## Reglas de validación
 
-- **44 reglas** definidas en `unt_format_rules_schema.yaml`.
-- **32 con mecanismo verificable** (ejecutables sobre XML del DOCX).
-- **12 sin mecanismo** (requieren análisis semántico, fuera del MVP).
+- **Reglas legacy** en `unt_format_rules_schema.yaml`: 44 definidas; **32 con
+  mecanismo verificable** (ejecutables sobre XML del DOCX); **12 sin mecanismo**
+  (requieren análisis semántico, fuera del MVP). Fuente de referencia histórica.
+- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **45 reglas verificables**,
+  que incluyen las 32 migradas, las 9 mecanizadas a mano (F3) y los ítems de la
+  Semana 5: `indice_paginas_separadas` (paginación real), `encabezado_membrete` y
+  `encabezado_formato` (encabezados/pies), y `notas_al_pie_consistencia`.
 - Las reglas cubren: papel, fuente, tamaños, interlineado, alineación, márgenes, numeración, sangría, estructura de secciones.
 
 ### Severidad
@@ -281,6 +286,8 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
+> Los conteos declarados aquí (45 reglas, doc bueno 43/45, suite 188 tests) se
+> mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
 
 ### Cómo agregar una regla nueva al YAML
 
@@ -289,9 +296,16 @@ Si necesitas agregar una regla de formato que no existe todavía:
 1. Leer el manual oficial (`recursos/MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx`) y encontrar la sección correspondiente.
 2. Definir el `id` en inglés (snake_case), ej. `margen_superior`.
 3. Especificar `tipo`, `descripcion`, `valor_esperado`, `severidad`, `fuente`, `ubicacion`, `cita`.
-4. Si es verificable mecánicamente, agregar `mecanismo_verificable` con sus `checks`.
-5. Cada check necesita: `tipo` (xml_atributo, xml_presencia, texto_regex, texto_en_lista, secuencia_titulos, imagen_presencia), `xpath`, `comparacion`, `esperado`.
-6. Probar con `python -m validator.cli prueba.docx unt_format_rules_schema.yaml` antes de hacer commit.
+4. Agregarla a **`reglas_unt.yaml`** (formato DSL): cada regla declara una o más
+   secciones de analizador (`atributo_xml`, `presencia_xml`, `patron_texto`,
+   `lista_texto`, `imagen`, `automata_secuencia`, `gramatica_estructura`,
+   `automata_pila`, `patron_cantidad`, `conteo_nodos`, `lista_obligatoria`,
+   `hipervinculo_texto`, `paginacion`, `nota_pie`). Si se usa una sección nueva:
+   registrar el analizador en `SECCIONES_ANALIZADOR` y `_FABRICAS`
+   (`validator/compilador.py`) y en `_SECCIONES` (`validator/dsl_check.py`).
+5. **Sincronizar `tests/_mutations.py`**: la regla debe tener una mutación (y el
+   `REGLAS_ACOPLADAS` si rompe más de una), o `test_propiedad` falla en la recolecta.
+6. Probar con `python -m validator.cli prueba.docx reglas_unt.yaml` antes de hacer commit.
 7. Documentar en el YAML si hay desvío entre el manual y las plantillas oficiales (usar nota con prefijo `EVALUADO:`).
 
 ---
@@ -341,7 +355,7 @@ vistobueno/
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
-├── reglas_unt.yaml                    # Reglas en formato DSL (41 reglas)
+├── reglas_unt.yaml                    # Reglas en formato DSL (45 reglas)
 ├── validator/
 │   ├── __init__.py                    # Docstring del paquete
 │   ├── engine.py                      # Motor: load_rules, validate_docx, build_report

@@ -71,6 +71,12 @@ Mejoras que no tocan reglas pero sí el ecosistema del motor.
 | 15 | **Calidad de ingeniería**: mypy, lint, coverage, pre-commit, CI (hoy no hay). | config nueva + GitHub Actions |
 | 16 | **Exportación de reporte** a Markdown/PDF además de JSON. | `engine.py` / módulo nuevo |
 
+> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 45 reglas**
+> (Semana 5, ítems 1-3 de la F2). Coordinar para:
+> 1. Exponer `formato` en `POST /validar` (exportación, ítem 16, `CONTRATO_API.md` v1.2.0).
+> 2. Actualizar `docs/CONTRATO_API.md` (changelog: hoy dice "41 reglas" en v1.1.0;
+>    agregar entrada v1.2.0 con 45 reglas). No se editó aquí por ser archivo del área backend.
+
 ---
 
 ## Orden sugerido (por dependencias, no por semana)

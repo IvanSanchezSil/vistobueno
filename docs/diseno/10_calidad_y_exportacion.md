@@ -55,7 +55,7 @@ flowchart LR
     end
     subgraph VERIF["Verificación"]
         V1["nix flake check<br/>pytest + ruff + mypy"]
-        V2["coverage 88%<br/>148 tests verdes"]
+        V2["coverage 88%<br/>188 tests verdes"]
     end
 
     P1 --> CODIGO
@@ -87,7 +87,7 @@ flowchart LR
     A["Código anterior:<br/>sin lint ni tipos"] --> B["ruff: 0 hallazgos"]
     A --> C["mypy: 0 errores<br/>(18 archivos)"]
     A --> D["coverage: 88%"]
-    A --> E["148 tests verdes"]
+    A --> E["188 tests verdes"]
     A --> F["nix flake check ✅"]
 ```
 

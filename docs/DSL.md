@@ -38,6 +38,8 @@ reglas:
     conteo_nodos: { ... }
     lista_obligatoria: { ... }
     hipervinculo_texto: { ... }
+    paginacion: { ... }        # F2 ítem 1 — párrafo ↔ página física
+    nota_pie: { ... }          # F2 ítem 3 — numeración de notas al pie
 ```
 
 El `engine` detecta el formato por la clave `reglas` (DSL) vs `rules`
@@ -301,6 +303,50 @@ hipervinculo_texto:
 Usado por la regla *caratula_orcid* (el código ORCID debe ser un
 hipervínculo de 16 dígitos, normalizado a minúsculas y entre paréntesis).
 
+### 12. `paginacion` → `AnalizadorPaginacion` (F2 ítem 1)
+
+Correlaciona los párrafos con su **página física** (mapa construido a
+partir de `w:lastRenderedPageBreak` y `w:br w:type="page"`) y compara las
+páginas de los nodos que matchean cada XPath:
+
+```yaml
+paginacion:
+  comparacion: paginas_distintas
+  xpaths:
+    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE CONTENIDOS')]]"
+    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE TABLAS')]]"
+    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE FIGURAS')]]  "
+```
+
+- `paginas_distintas`: los títulos deben quedar en páginas separadas
+  (`paginas_repetidas` si hay dos en la misma; `no_encontrado` si algún
+  XPath no coincide).
+- A efectos del *enriquecimiento de `ubicacion`*, el analizador expone el
+  último nodo analizado (`ultimo_nodo`); cuando una regla FALLA con página
+  conocida, el compilador anexa `; página N` a la ubicación.
+- Los párrafos de `header*`/`footer*` **no** están en el mapa de página
+  → nunca reciben el sufijo.
+
+Usado por la regla *indice_paginas_separadas* (warning, Manual párr. 193).
+
+### 13. `nota_pie` → `AnalizadorNotaPie` (F2 ítem 3)
+
+Valida la consistencia de la numeración de **notas al pie** (`1..N`
+consecutivos, sin duplicados y definidos en `word/footnotes.xml`):
+
+```yaml
+nota_pie:
+  operacion: numeracion_consistente
+```
+
+- Lee `//w:footnoteReference/@w:id` del cuerpo. Sin referencias → la regla
+  **pasa (n/a)**: la ausencia de notas no es un desvío.
+- Si la parte `footnotes.xml` existe, cada id referenciado debe estar
+  definido ahí (ids `-1` y `0` son los separadores reservados de Word).
+
+Usado por la regla *notas_al_pie_consistencia* (warning, estándar Word;
+el manual no la regula).
+
 ---
 
 ## Componentes de código
@@ -309,7 +355,7 @@ hipervínculo de 16 dígitos, normalizado a minúsculas y entre paréntesis).
 |---------|--------|-----------------|
 | `validator/automata.py` | `DFA`, `Transicion`, `GramaticaEstructura`, `PDA`, `TransicionPDA` | DFA, PDA y gramáticas puras, sin conocimiento del DOCX |
 | `validator/tokenizer.py` | `Token`, `tokenizar`, `seccion`, `solo`, `textos` | Análisis léxico: flujo tipado del `<w:body>` y cortes por sección |
-| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo` | Analizadores de hoja sobre `ExtractedDocx` |
+| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo`, `AnalizadorPaginacion`, `AnalizadorNotaPie` | Analizadores de hoja sobre `ExtractedDocx` |
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |

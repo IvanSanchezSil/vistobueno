@@ -63,7 +63,7 @@
       "message": "Tamaño de letra del título del trabajo en carátula",
       "expected": "14pt",
       "found": "@w:val=['26'] esperado=28",
-      "location": "Carátula, especificaciones (párr. 177)",
+      "location": "Carátula, especificaciones (párr. 177); página 1",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\""
     },
@@ -74,7 +74,7 @@
       "message": "Tamaño de letra de la línea \"Trabajo de Investigación para optar el grado de Bachiller en...\"",
       "expected": "13pt",
       "found": "@w:val=['24'] esperado=26",
-      "location": "Carátula, especificaciones (párr. 178)",
+      "location": "Carátula, especificaciones (párr. 178); página 1",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\""
     },
@@ -184,7 +184,7 @@
       "message": "La primera línea de cada párrafo debe tener sangría de 1.27 cm",
       "expected": "1.27 cm (½ pulgada)",
       "found": "@w:firstLine=['708', '708', '708'] esperado=720",
-      "location": "Sección \"Formato general\" (párr. 141)",
+      "location": "Sección \"Formato general\" (párr. 141); página 15",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo.\""
     },
@@ -272,7 +272,7 @@
       "message": "Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita",
       "expected": "MAYÚSCULAS, sin negrita",
       "found": "textos=1 incumplen=1",
-      "location": "Carátula, especificaciones (párr. 179)",
+      "location": "Carátula, especificaciones (párr. 179); página 1",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas.\""
     },
@@ -451,12 +451,56 @@
       "location": "Carátula del Proyecto (párr. 618, 641)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Proyecto de Investigación: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\""
+    },
+    {
+      "rule_id": "indice_paginas_separadas",
+      "passed": false,
+      "severity": "warning",
+      "message": "Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).",
+      "expected": "índice de contenidos + índice de tablas + índice de figuras en páginas distintas",
+      "found": "no_encontrado=//w:body/w:p[contains(translate(normalize-space(.), \"ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ\", \"abcdefghijklmnopqrstuvwxyzáéíóúñü\"), \"contenidos\")]",
+      "location": "Sección Índice (párr. 193, 1066, 2600, 3495)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).\" — Manual, párrafo 193."
+    },
+    {
+      "rule_id": "encabezado_membrete",
+      "passed": false,
+      "severity": "warning",
+      "message": "El encabezado repite el membrete institucional con el logotipo de la UNT",
+      "expected": "imagen (dibujo) en el encabezado",
+      "found": "error ejecutando analizador: ValueError: parte 'header' no disponible en este archivo",
+      "location": "Encabezado de página (estándar institucional UNT)",
+      "fuente": "Formato institucional UNT (plantillas oficiales)",
+      "cita": "\"Membrete institucional: logotipo de la UNT repetido en el encabezado de página.\""
+    },
+    {
+      "rule_id": "encabezado_formato",
+      "passed": false,
+      "severity": "warning",
+      "message": "El texto del encabezado usa la misma familia tipográfica que el cuerpo (Times New Roman)",
+      "expected": "Times New Roman",
+      "found": "error ejecutando analizador: ValueError: parte 'header' no disponible en este archivo",
+      "location": "Encabezado de página (estándar institucional UNT)",
+      "fuente": "Formato institucional UNT (plantillas oficiales)",
+      "cita": "\"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman).\""
+    },
+    {
+      "rule_id": "notas_al_pie_consistencia",
+      "passed": true,
+      "severity": "warning",
+      "message": "Las notas al pie se numeran de forma consecutiva (sin saltos ni repeticiones)",
+      "expected": "IDs 1..N consecutivos y definidos",
+      "found": "cumple",
+      "location": "Notas al pie (pies de página del cuerpo)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Práctica estándar Word: las notas al pie se numeran correlativamente (1, 2, 3...).\""
     }
   ],
   "resumen": {
-    "total": 41,
+    "total": 45,
     "fallidos_error": 5,
-    "fallidos_warning": 10
+    "fallidos_warning": 13
   },
   "como_preguntar_a_una_ia": [
     {
@@ -518,6 +562,18 @@
     {
       "rule_id": "proyecto_caratula_texto",
       "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: En la carátula del Proyecto, la línea de tipo dice \"Proyecto de Investigación\" (no \"Trabajo de Investigación para optar...\")\n- Valor esperado según el reglamento: Proyecto de Investigación\n- Lo que encontró el validador: sin nodos w:t que evaluar; @w:val=[] esperado=26\n- Cita del reglamento: \"Proyecto de Investigación: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+    },
+    {
+      "rule_id": "indice_paginas_separadas",
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).\n- Valor esperado según el reglamento: índice de contenidos + índice de tablas + índice de figuras en páginas distintas\n- Lo que encontró el validador: no_encontrado=//w:body/w:p[contains(translate(normalize-space(.), \"ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ\", \"abcdefghijklmnopqrstuvwxyzáéíóúñü\"), \"contenidos\")]\n- Cita del reglamento: \"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).\" — Manual, párrafo 193.\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+    },
+    {
+      "rule_id": "encabezado_membrete",
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El encabezado repite el membrete institucional con el logotipo de la UNT\n- Valor esperado según el reglamento: imagen (dibujo) en el encabezado\n- Lo que encontró el validador: error ejecutando analizador: ValueError: parte 'header' no disponible en este archivo\n- Cita del reglamento: \"Membrete institucional: logotipo de la UNT repetido en el encabezado de página.\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+    },
+    {
+      "rule_id": "encabezado_formato",
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El texto del encabezado usa la misma familia tipográfica que el cuerpo (Times New Roman)\n- Valor esperado según el reglamento: Times New Roman\n- Lo que encontró el validador: error ejecutando analizador: ValueError: parte 'header' no disponible en este archivo\n- Cita del reglamento: \"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     }
   ]
 }
