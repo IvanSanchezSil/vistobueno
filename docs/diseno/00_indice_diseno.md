@@ -7,7 +7,8 @@
 > se implementaron primero ("de frente"); este paquete documenta el diseño
 > **a posteriori**: qué se construyó, cómo se modeló y por qué se decidió así.
 > La F5 (doc 09) quedó **implementada** el 2026-09-15; el doc 10 (calidad y
-> exportación) se agregó el 2026-09-16 como parte de las tareas 15 y 16.
+> exportación) se agregó el 2026-09-16 como parte de las tareas 15 y 16; el
+> doc 14 (índice de contenidos, ítems 11-12 de la F2) el 2026-09-22.
 
 ## 1. Propósito
 
@@ -61,6 +62,7 @@ flowchart LR
         K["11_ubicacion_pagina.md<br/>Paginación real + location"]
         L["12_encabezados_pies.md<br/>Encabezados y pies"]
         M["13_notas_al_pie.md<br/>Numeración de notas"]
+        N["14_indice_toc.md<br/>Índice de contenidos (ítems 11-12)"]
     end
 
     subgraph FUTURO["F5 (implementada)"]
@@ -91,6 +93,7 @@ flowchart LR
 | **11** | Paginación + `location` | Mapa párrafo→página, `ultimo_nodo`, enriquecimiento | Todo el equipo |
 | **12** | Encabezados y pies | Multi-parte header/footer, membrete y formato (ítem 2) | Todo el equipo |
 | **13** | Notas al pie | `AnalizadorNotaPie`, numeración 1..N consecutiva (ítem 3) | Todo el equipo |
+| **14** | Índice de contenidos | `AnalizadorTocApunta`/`AnalizadorTocNumeracion` (ítems 11-12) | Todo el equipo |
 
 ## 2.1 Fases de diseño F1–F6 (E)
 
@@ -128,7 +131,7 @@ flowchart LR
 ## 3. Convenciones
 
 - **Fuente de verdad**: las configuraciones mostradas en los diagramas de
-estados provienen de `reglas_unt.yaml` (45 reglas) y de los tests
+  estados provienen de `reglas_unt.yaml` (47 reglas) y de los tests
    `test_f2_automatas.py`; los nombres de módulos y clases reflejan el código
    real en `validator/`.
 - **Fases del plan**: se referencian las fases F1–F6 de `docs/PLAN_DSL.md`
@@ -147,7 +150,7 @@ estados provienen de `reglas_unt.yaml` (45 reglas) y de los tests
 3. **05** explica cómo se compila y se valida contra un documento.
 4. **06** (migración), **07** (tests) y **08** (OCR) son procesos transversales.
 5. **09** es la única propuesta a futuro (F5): el resto documenta lo ya
-      implementado y verificado por la suite (188 tests).
+      implementado y verificado por la suite (197 tests).
 
 ---
 

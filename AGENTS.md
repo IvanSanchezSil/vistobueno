@@ -38,7 +38,7 @@ Frontend (React)
 | **DTOs API** | `validator/api_models.py` | Modelos Pydantic de respuesta (campos en español) |
 | **CLI referencia** | `validator/cli.py` | Validador desde línea de comandos |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
-| **Reglas DSL (producción)** | `reglas_unt.yaml` | 45 reglas verificables (F1–F6 + F2 ítems 1-3) |
+| **Reglas DSL (producción)** | `reglas_unt.yaml` | 47 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
 
 ---
 
@@ -274,10 +274,11 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - **Reglas legacy** en `unt_format_rules_schema.yaml`: 44 definidas; **32 con
   mecanismo verificable** (ejecutables sobre XML del DOCX); **12 sin mecanismo**
   (requieren análisis semántico, fuera del MVP). Fuente de referencia histórica.
-- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **45 reglas verificables**,
+- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **47 reglas verificables**,
   que incluyen las 32 migradas, las 9 mecanizadas a mano (F3) y los ítems de la
   Semana 5: `indice_paginas_separadas` (paginación real), `encabezado_membrete` y
-  `encabezado_formato` (encabezados/pies), y `notas_al_pie_consistencia`.
+  `encabezado_formato` (encabezados/pies), `notas_al_pie_consistencia`, e
+  `indice_apunta_secciones` / `indice_numeracion_jerarquica` (índice de contenidos).
 - Las reglas cubren: papel, fuente, tamaños, interlineado, alineación, márgenes, numeración, sangría, estructura de secciones.
 
 ### Severidad
@@ -286,7 +287,7 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (45 reglas, doc bueno 43/45, suite 188 tests) se
+> Los conteos declarados aquí (47 reglas, doc bueno 45/47, suite 197 tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
 
 ### Cómo agregar una regla nueva al YAML
@@ -355,7 +356,7 @@ vistobueno/
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
-├── reglas_unt.yaml                    # Reglas en formato DSL (45 reglas)
+├── reglas_unt.yaml                    # Reglas en formato DSL (47 reglas)
 ├── validator/
 │   ├── __init__.py                    # Docstring del paquete
 │   ├── engine.py                      # Motor: load_rules, validate_docx, build_report

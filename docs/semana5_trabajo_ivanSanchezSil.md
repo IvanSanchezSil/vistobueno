@@ -42,29 +42,57 @@
 - Conteos sincronizados: **45 reglas**, doc bueno **43/45**, 45 mutaciones, suite **187 tests**.
 - **Ítems 11-12 (TOC/numeración jerárquica)**: revisados a fondo → **diferidos**. La plantilla oficial usa "1.3. EL PROBLEMA" → "1.5 VARIABLE(S)…" (saltos) e índices con puntillado y números de página; las reglas aprobadas generarían falsos positivos contra la plantilla. Se documentó en `docs/PLAN_BACKLOG_FUTURO.md` con el criterio a definir.
 
+### 2026-09-22 (TOC — cierre del diferido, commits `(Bloque D)`)
+
+- **Ítem 11 — `indice_apunta_secciones`** (warning, `toc_apunta`):
+  - `AnalizadorTocApunta` + helpers (`_entradas_indice`, `_norm_indice`,
+    `_sigpalabra`, `_sin_acentos`, `_parse_numero_indice`). Cada entrada del
+    índice se normaliza y su token significativo debe ser subcadena de un
+    título real del cuerpo; "Anexo N" → "ANEXOS"; sin región → n/a.
+  - **Corrección clave**: `re` no iguala "Í" con "I" → la regex de la región
+    es ASCII (`^indice(\s+de\s+contenidos)?$`) y se normalizan acentos.
+  - **Corrección de diseño**: el manual NO prohíbe números de página en el
+    índice (el de TABLAS los exige, párr. 195). El criterio es de estructura,
+    no de falta de páginas → el diferido se basaba en un malentendido.
+- **Ítem 12 — `indice_numeracion_jerarquica`** (warning, `toc_numeracion`):
+  - `AnalizadorTocNumeracion`: capítulos romanos I..VI consecutivos; primera
+    subsección de cada capítulo `K.1`; preorder estricto por tuplas; **sin**
+    exigir contigüidad de hermanos (variante débil, nota `EVALUADO:`).
+  - Los saltos "1.3→1.5" que motivaron el diferido eran del factory de tests,
+    no de las plantillas; la regla débil los acepta.
+- Factory: `TDC_ENTRADAS_BASE` (índice válido de 20 entradas), helper
+  `_tdc_para`; mutaciones `_insertar_tdc` (11) y `_renumerar_tdc` (12).
+- `REGLAS_ACOPLADAS`: se verificó que renombrar "SITUACIÓN PROBLEMÁTICA"
+  (mutación `estructura_tinv_cuantitativo`) rompe `indice_apunta_secciones`;
+  el acople de `indice_subdivisiones` **no** se tocó porque en éxito el motor
+  reporta `found="cumple"` (el paso a n/a no es observable).
+- Conteos sincronizados: **47 reglas**, doc bueno **45/47**, 47 mutaciones,
+  suite **197 tests**.
+
 ## Evidencias producidas
 
 | Tipo | Archivo / referencia |
 |------|----------------------|
-| Diseño | `docs/diseno/11_ubicacion_pagina.md`, `12_encabezados_pies.md`, `13_notas_al_pie.md` |
-| Reglas | `reglas_unt.yaml` (44→45; encabezado_membrete, encabezado_formato, notas_al_pie_consistencia) |
-| Motor | `validator/analizadores.py` (ultimo_nodo, AnalizadorNotaPie), `compilador.py`, `dsl_check.py`, `extractor.py` |
-| Tests | `tests/test_f2_paginacion.py`, `tests/test_f2_encabezados.py`, `tests/test_f2_notaspie.py` |
+| Diseño | `docs/diseno/11_ubicacion_pagina.md`, `12_encabezados_pies.md`, `13_notas_al_pie.md`, `14_indice_toc.md` |
+| Reglas | `reglas_unt.yaml` (44→47; encabezado_membrete, encabezado_formato, notas_al_pie_consistencia, indice_apunta_secciones, indice_numeracion_jerarquica) |
+| Motor | `validator/analizadores.py` (ultimo_nodo, AnalizadorNotaPie, AnalizadorTocApunta, AnalizadorTocNumeracion), `compilador.py`, `dsl_check.py`, `extractor.py` |
+| Tests | `tests/test_f2_paginacion.py`, `tests/test_f2_encabezados.py`, `tests/test_f2_notaspie.py`, `tests/test_toc_indice.py` |
 | Factory | `tests/_docx_builder.py`, `tests/_xml_constants.py`, `tests/_mutations.py`, `tests/docx_factory.py` |
-| Backlog | `docs/PLAN_BACKLOG_FUTURO.md` (ítems 1-3 ✅; 11-12 ⏸️ diferidos) |
-| Commits | `28b2c57`, `1cacd14`, `e38969a` (rama `semana5-motor-calidad-paginacion`) |
-| Gates | `pytest` 187 passed; `ruff` y `mypy` limpios |
+| Backlog | `docs/PLAN_BACKLOG_FUTURO.md` (ítems 1-3 y 11-12 ✅) |
+| Commits | `28b2c57`, `1cacd14`, `e38969a`, `(Bloque D)` (rama `semana5-motor-calidad-paginacion`) |
+| Gates | `pytest` 197 passed; `ruff` y `mypy` limpios |
 
 ## Relación con competencias curriculares
 
 - **Estructura de Datos**: mapa párrafo→página, estructura de árboles XML multiparte, contador de notas.
 - **Ingeniería de Software II**: property tests (invariante: toda regla con mutación), factory determinista, documentación de decisiones.
-- **Redes de Computadoras I**: sin cambios de contrato HTTP; la API consume las 45 reglas (verificación con la suite de contrato del backend).
+- **Redes de Computadoras I**: sin cambios de contrato HTTP; la API consume las 47 reglas (verificación con la suite de contrato del backend).
 
 ## Dificultades y aprendizajes
 
 - El rango del manual es **manual normativo**, no descriptivo de Word: encabezados y notas no están regulados → reglas como `warning` con nota `EVALUADO:` y pase n/a cuando no aplican.
-- **Lección clave**: validar las reglas propuestas contra las plantillas OFICIALES ANTES de mecanizar evitó dos reglas con falsos positivos (ítems 11-12): la propia estructura "1.3/1.5" y el puntillado de los índices las hacían inviables tal como se habían diseñado.
+- **Lección clave**: validar las reglas propuestas contra las plantillas OFICIALES ANTES de mecanizar. El diferido de los ítems 11-12 se cerró al revisar con evidencia: los saltos "1.3/1.5" eran del factory de tests (no de las plantillas) y el puntillado con páginas del índice está permitido (de hecho el de TABLAS lo exige) — el diseño malinterpretó ambos.
+- **Diseño conociendo el compilador**: en éxito el motor reporta `found="cumple"` (descartando el detalle del analizador). Un cambio que solo altera el detalle en éxito o pasa a n/a NO es observable por los property tests → no debe acoplarse en `REGLAS_ACOPLADAS`.
 - Los cambios en la parte `footnotes.xml` deben manipularse con namespace (`{WNS}id`), no con prefijo "w:id".
 
 ## Plan de la semana siguiente
@@ -72,5 +100,7 @@
 1. Push de `semana5-motor-calidad-paginacion` y actualización del PR #28.
 2. Contar con el Backend para el ítem 16 (`formato` en `POST /validar`) y para
    actualizar `docs/CONTRATO_API.md` (changelog v1.1.0 dice "41 reglas"; falta
-   entrada v1.2.0 con 45 — quedó anotado en `docs/PLAN_BACKLOG_FUTURO.md`).
-3. Ítems 11-12: redefinir criterio (variante débil de numeración o pase asegurado contra plantillas) y evaluar con `scripts/eval_contra_plantillas.py` (ítem 13 del backlog).
+   entrada v1.2.0 con 47 — quedó anotado en `docs/PLAN_BACKLOG_FUTURO.md`).
+3. Evaluar las dos reglas de TOC con `scripts/eval_contra_plantillas.py`
+   (ítem 13 del backlog) contra las plantillas oficiales; ajustar la variante
+   débil si alguna plantilla las hace fallar.

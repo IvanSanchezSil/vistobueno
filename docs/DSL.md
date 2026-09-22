@@ -40,6 +40,8 @@ reglas:
     hipervinculo_texto: { ... }
     paginacion: { ... }        # F2 ítem 1 — párrafo ↔ página física
     nota_pie: { ... }          # F2 ítem 3 — numeración de notas al pie
+    toc_apunta: { ... }        # F2 ítem 11 — el índice apunta a secciones reales
+    toc_numeracion: { ... }    # F2 ítem 12 — jerarquía de numeración del índice
 ```
 
 El `engine` detecta el formato por la clave `reglas` (DSL) vs `rules`
@@ -347,6 +349,52 @@ nota_pie:
 Usado por la regla *notas_al_pie_consistencia* (warning, estándar Word;
 el manual no la regula).
 
+### 14. `toc_apunta` → `AnalizadorTocApunta` (F2 ítem 11)
+
+Verifica que cada entrada del **índice de contenidos** apunte a una sección
+real del documento:
+
+```yaml
+toc_apunta:
+  operacion: entradas_corresponden
+```
+
+- La región del índice es la que sigue a un título de encabezado que matchea
+  `regex_indice` (defecto `^indice(\s+de\s+contenidos)?$`, comparado **sin
+  acentos** e IGNORECASE), hasta el siguiente encabezado de cualquier nivel.
+- Cada entrada se normaliza (se quita el prefijo de numeración `I.`/`1.1.`,
+  el número de página final, paréntesis, puntuación y tildes) y se compara su
+  "palabra significativa" (primer token ≥ 4 caracteres) contra los títulos del
+  cuerpo normalizados. Así "1.1. EL PROBLEMA ..... 3" apunta a "EL PROBLEMA".
+- Caso anexos: la entrada "Anexo 1. …" matchea el título "ANEXOS" vía
+  subcadena (`ANEXO` ⊂ `ANEXOS`).
+- Sin región de índice → la regla **pasa (n/a)**: la ausencia de índice no es
+  un desvío (es cubierto por otras reglas de estructura).
+
+Usado por la regla *indice_apunta_secciones* (warning, Manual párr. 194).
+
+### 15. `toc_numeracion` → `AnalizadorTocNumeracion` (F2 ítem 12)
+
+Valida la **jerarquía de numeración** de las entradas del índice:
+
+```yaml
+toc_numeracion:
+  operacion: jerarquia_consistente
+```
+
+- Capítulos en romano (`I.`, `II.`, …) deben ser **consecutivos** (sin saltos).
+- Subsecciones decimales (`K.1`, `K.1.1`, …) deben pertenecer a su capítulo
+  (el primer componente = número del capítulo actual), la primera subsección
+  de cada capítulo debe ser `K.1`, y el conjunto debe estar en **orden
+  preorder estricto** (comparación de tuplas: `1.1 < 1.1.1 < 1.2 < 1.3`).
+- NO exige contigüidad de subsecciones hermanas (1.1 → 1.3 es aceptable) para
+  evitar falsos positivos cuando una sección "no aplica" y se omite
+  (decisión `EVALUADO`).
+- Entradas sin número (p. ej. "REFERENCIAS", "ANEXOS") se ignoran.
+- Sin región de índice → la regla **pasa (n/a)**.
+
+Usado por la regla *indice_numeracion_jerarquica* (warning, Manual párr. 194).
+
 ---
 
 ## Componentes de código
@@ -355,7 +403,7 @@ el manual no la regula).
 |---------|--------|-----------------|
 | `validator/automata.py` | `DFA`, `Transicion`, `GramaticaEstructura`, `PDA`, `TransicionPDA` | DFA, PDA y gramáticas puras, sin conocimiento del DOCX |
 | `validator/tokenizer.py` | `Token`, `tokenizar`, `seccion`, `solo`, `textos` | Análisis léxico: flujo tipado del `<w:body>` y cortes por sección |
-| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo`, `AnalizadorPaginacion`, `AnalizadorNotaPie` | Analizadores de hoja sobre `ExtractedDocx` |
+| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo`, `AnalizadorPaginacion`, `AnalizadorNotaPie`, `AnalizadorTocApunta`, `AnalizadorTocNumeracion` | Analizadores de hoja sobre `ExtractedDocx` |
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |

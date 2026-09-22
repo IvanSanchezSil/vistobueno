@@ -12,6 +12,9 @@
 > - **2 — Encabezados y pies** ✅ (2026-09-21, F2 ítem 2): extractor multi-parte y reglas `encabezado_membrete`/`encabezado_formato` (warning). Detalle: [`docs/diseno/12_encabezados_pies.md`](diseno/12_encabezados_pies.md).
 > - **3 — Notas al pie** ✅ (2026-09-21, F2 ítem 3): `notas_al_pie_consistencia` con `AnalizadorNotaPie` (numeración 1..N). Detalle: [`docs/diseno/13_notas_al_pie.md`](diseno/13_notas_al_pie.md).
 
+> - **11 — Índice apunta a secciones reales** ✅ (2026-09-22, F2 ítem 11): `indice_apunta_secciones` (warning) con `AnalizadorTocApunta` (sección DSL `toc_apunta`). Cada entrada del índice se normaliza y su token significativo debe aparecer en algún título del cuerpo; "Anexo N" matchea "ANEXOS"; sin región de índice → n/a. Detalle: [`docs/diseno/14_indice_toc.md`](diseno/14_indice_toc.md).
+> - **12 — Numeración jerárquica del índice** ✅ (2026-09-22, F2 ítem 12): `indice_numeracion_jerarquica` (warning) con `AnalizadorTocNumeracion` (sección DSL `toc_numeracion`). Capítulos romanos consecutivos; subsecciones `K.1`/`K.2` en preorder bajo su capítulo; sin exigir contigüidad de hermanos (decisión `EVALUADO` para no marcar las plantillas UNT). Detalle: [`docs/diseno/14_indice_toc.md`](diseno/14_indice_toc.md).
+
 ---
 
 ## Bloque A — Territorio no validado hoy (extractor/analizadores)
@@ -55,8 +58,8 @@ Expandir el lenguaje con tipos de analizador que hoy no existen.
 |---|---|---|
 | 9 | **Tablas** (`w:tbl`): encabezado, título "Tabla N", no cortar entre páginas. | analizador nuevo |
 | 10 | **Figuras con pie** (`w:drawing` + párrafo-pie). | analizador nuevo |
-| 11 | **TOC apunta** ⏸️ DIFERIDO (2026-09-22): el analizador validaba que el índice **apunte** sin números de página. **Falso positivo**: las plantillas UNT usan puntillado con números de página. Requiere redefinir el criterio antes de mecanizar. | analizador nuevo |
-| 12 | **Numeración jerárquica** ⏸️ DIFERIDO (2026-09-22) (`1 → 1.1 → 1.2 → 2`, sin saltos) — autómata contador, evidencia LFA directa. **Falso positivo**: la estructura oficial usa "1.3. EL PROBLEMA" → "1.5 VARIABLE(S)…" (sin "1.", sin "1.4"); la regla estricta marcaría a la propia plantilla. Requiere definir variante débil o evaluar contra plantillas (ítem 13) primero. | analizador nuevo |
+| 11 | **TOC apunta** ✅ (2026-09-22): `indice_apunta_secciones` (warning, sección DSL `toc_apunta`). Cada entrada del índice debe corresponder a un título real del cuerpo (token significativo normalizado como subcadena); "Anexo N" → "ANEXOS"; sin región de índice → n/a. Se corrigen las notas de diferido del `dfced63`: el manual NO prohíbe números de página en el índice de contenidos (el de TABLAS los exige, párr. 195); el criterio "apuntar" es de estructura, no de páginas. Detalle: [`docs/diseno/14_indice_toc.md`](diseno/14_indice_toc.md). | analizador nuevo |
+| 12 | **Numeración jerárquica** ✅ (2026-09-22): `indice_numeracion_jerarquica` (warning, sección DSL `toc_numeracion`). Capítulos romanos I..VI consecutivos; subsecciones `K.1`, `K.1.1`, `K.2` en orden preorder estricto bajo su capítulo; sin exigir contigüidad de hermanos (decision `EVALUADO`: "1.3. EL PROBLEMA" → "1.5 VARIABLE(S)…" es válido). Los saltos "1.3→1.5" que se tomaron como falso positivo en `dfced63` eran entradas del FACTORY de tests, no de las plantillas. Detalle: [`docs/diseno/14_indice_toc.md`](diseno/14_indice_toc.md). | analizador nuevo |
 
 ---
 
@@ -71,11 +74,11 @@ Mejoras que no tocan reglas pero sí el ecosistema del motor.
 | 15 | **Calidad de ingeniería**: mypy, lint, coverage, pre-commit, CI (hoy no hay). | config nueva + GitHub Actions |
 | 16 | **Exportación de reporte** a Markdown/PDF además de JSON. | `engine.py` / módulo nuevo |
 
-> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 45 reglas**
-> (Semana 5, ítems 1-3 de la F2). Coordinar para:
+> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 47 reglas**
+> (Semana 5, ítems 1-3 y 11-12 de la F2). Coordinar para:
 > 1. Exponer `formato` en `POST /validar` (exportación, ítem 16, `CONTRATO_API.md` v1.2.0).
 > 2. Actualizar `docs/CONTRATO_API.md` (changelog: hoy dice "41 reglas" en v1.1.0;
->    agregar entrada v1.2.0 con 45 reglas). No se editó aquí por ser archivo del área backend.
+>    agregar entrada v1.2.0 con 47 reglas). No se editó aquí por ser archivo del área backend.
 
 ---
 

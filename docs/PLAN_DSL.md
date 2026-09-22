@@ -107,7 +107,7 @@ correcciones de revisión 2026-09-09 (Paso 14): **140 tests**.
 **Implementación (decisión 1, Opción A)**: se embebió la traza dentro de
 `found` (`ruta=__inicio__ -> …`) cuando un autómata falla, **sin** tocar el
 contrato de la API (se mantiene v1.1). El enlace API→DSL quedó activo
-(`REGLAS_YAML_PATH` → `reglas_unt.yaml`, 45 reglas hoy). Detalle en
+(`REGLAS_YAML_PATH` → `reglas_unt.yaml`, 47 reglas hoy). Detalle en
 `docs/diseno/09_f5_enlace_api_propuesta.md`.
 
 ### F6 — Tests de propiedad (F) ✅ cerrada 2026-09-09
