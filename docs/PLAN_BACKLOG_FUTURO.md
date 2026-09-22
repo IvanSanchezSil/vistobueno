@@ -55,8 +55,8 @@ Expandir el lenguaje con tipos de analizador que hoy no existen.
 |---|---|---|
 | 9 | **Tablas** (`w:tbl`): encabezado, título "Tabla N", no cortar entre páginas. | analizador nuevo |
 | 10 | **Figuras con pie** (`w:drawing` + párrafo-pie). | analizador nuevo |
-| 11 | **TOC bien formado**: el `indice_subdivisiones` ya existe (`reglas_unt.yaml:889`); el nuevo analizador valida que el índice **apunte** a secciones reales del documento. | analizador nuevo |
-| 12 | **Numeración jerárquica** (`1 → 1.1 → 1.2 → 2`, sin saltos) — autómata contador, evidencia LFA directa. | analizador nuevo |
+| 11 | **TOC apunta** ⏸️ DIFERIDO (2026-09-22): el analizador validaba que el índice **apunte** sin números de página. **Falso positivo**: las plantillas UNT usan puntillado con números de página. Requiere redefinir el criterio antes de mecanizar. | analizador nuevo |
+| 12 | **Numeración jerárquica** ⏸️ DIFERIDO (2026-09-22) (`1 → 1.1 → 1.2 → 2`, sin saltos) — autómata contador, evidencia LFA directa. **Falso positivo**: la estructura oficial usa "1.3. EL PROBLEMA" → "1.5 VARIABLE(S)…" (sin "1.", sin "1.4"); la regla estricta marcaría a la propia plantilla. Requiere definir variante débil o evaluar contra plantillas (ítem 13) primero. | analizador nuevo |
 
 ---
 
