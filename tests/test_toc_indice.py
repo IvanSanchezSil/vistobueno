@@ -121,4 +121,3 @@ def test_amabas_fallan_con_documento_compuesto():
         _sin_archivo(path)
     assert not res["indice_apunta_secciones"].passed
     assert not res["indice_numeracion_jerarquica"].passed
-

@@ -1119,9 +1119,9 @@ reglas:
   paginacion:
     comparacion: paginas_distintas
     xpaths:
-      - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "contenidos")]'
-      - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
-      - '//w:body/w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
+      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "indice")]'
+      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
+      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
 
 # ─── F2 ítem 2: ENCABEZADOS Y PIES DE PÁGINA (2026-09-21) ──────
 # EVALUADO: el manual no define el membrete del encabezado (solo la posición
@@ -1140,6 +1140,7 @@ reglas:
   fuente: Formato institucional UNT (plantillas oficiales)
   cita: '"Membrete institucional: logotipo de la UNT repetido en el encabezado de página."'
   presencia_xml:
+    n_a_si_ausente: true
     parte: header
     contexto: todos
     xpath: '//w:drawing'
@@ -1153,6 +1154,7 @@ reglas:
   fuente: Formato institucional UNT (plantillas oficiales)
   cita: '"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman)."'
   atributo_xml:
+    n_a_si_ausente: true
     parte: header
     contexto: todos
     xpath: '//w:r/w:rPr/w:rFonts'

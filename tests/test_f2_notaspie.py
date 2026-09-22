@@ -64,8 +64,7 @@ def _escribir_docx(doc: str, ids: list | None) -> str:
         z.writestr("word/document.xml", doc)
         if ids is not None:
             separadores = (
-                '<w:footnote w:id="-1"><w:p/></w:footnote>'
-                '<w:footnote w:id="0"><w:p/></w:footnote>'
+                '<w:footnote w:id="-1"><w:p/></w:footnote><w:footnote w:id="0"><w:p/></w:footnote>'
             )
             notas = "".join(
                 f'<w:footnote w:id="{i}"><w:p><w:r><w:t>{i}</w:t></w:r></w:p></w:footnote>'

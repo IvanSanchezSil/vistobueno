@@ -133,17 +133,25 @@ def test_encabezados_base_pasan():
 
 
 def test_encabezado_membrete_sin_logo_falla():
-    r = _resultado_por(aplicar_mutacion("encabezado_membrete", configuracion_base()), "encabezado_membrete")
+    r = _resultado_por(
+        aplicar_mutacion("encabezado_membrete", configuracion_base()), "encabezado_membrete"
+    )
     assert not r.passed
     # El membrete falla, pero el formato del encabezado sigue intacto.
-    r2 = _resultado_por(aplicar_mutacion("encabezado_membrete", configuracion_base()), "encabezado_formato")
+    r2 = _resultado_por(
+        aplicar_mutacion("encabezado_membrete", configuracion_base()), "encabezado_formato"
+    )
     assert r2.passed
 
 
 def test_encabezado_formato_fuente_mala_falla():
-    r = _resultado_por(aplicar_mutacion("encabezado_formato", configuracion_base()), "encabezado_formato")
+    r = _resultado_por(
+        aplicar_mutacion("encabezado_formato", configuracion_base()), "encabezado_formato"
+    )
     assert not r.passed
-    r2 = _resultado_por(aplicar_mutacion("encabezado_formato", configuracion_base()), "encabezado_membrete")
+    r2 = _resultado_por(
+        aplicar_mutacion("encabezado_formato", configuracion_base()), "encabezado_membrete"
+    )
     assert r2.passed
 
 
@@ -151,6 +159,8 @@ def test_fallo_de_encabezado_no_altera_ubicacion():
     # Los párrafos de header/footer no están en el mapa de paginación, así que
     # el enriquecimiento con "página N" (ítem 1) no debe aplicarse aquí: la
     # ubicación queda exactamente como viene del YAML.
-    r = _resultado_por(aplicar_mutacion("encabezado_membrete", configuracion_base()), "encabezado_membrete")
+    r = _resultado_por(
+        aplicar_mutacion("encabezado_membrete", configuracion_base()), "encabezado_membrete"
+    )
     assert not r.passed
     assert r.location == "Encabezado de página (estándar institucional UNT)"

@@ -98,7 +98,10 @@ TDC_ENTRADAS_BASE = [
     (2, "3.1. POBLACIÓN Y MUESTRA 21"),
     (2, "3.2. DISEÑO DE INVESTIGACIÓN 23"),
     (2, "3.3. INSTRUMENTO(S) USADO(S) EN LA RECOLECCIÓN DE DATOS 25"),
-    (2, "3.4. MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS 27"),
+    (
+        2,
+        "3.4. MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS 27",
+    ),
     (1, "IV. RESULTADOS 30"),
     (1, "V. CONCLUSIONES 33"),
     (1, "VI. ANEXOS 35"),
@@ -330,7 +333,11 @@ def _document_xml(cfg: dict) -> str:
     # Preliminares (resumen con su contenido, luego referencias y anexos)
     indices_separados = cfg.get("indices_paginas_separadas", False)
     for h in cfg["headings"]:
-        if indices_separados and h in ("INDICE DE CONTENIDOS", "INDICE DE TABLAS", "INDICE DE FIGURAS"):
+        if indices_separados and h in (
+            "INDICE DE CONTENIDOS",
+            "INDICE DE TABLAS",
+            "INDICE DE FIGURAS",
+        ):
             paras.append(_page_break_para())
         paras.append(_heading(h))
         if h == "INDICE DE CONTENIDOS":
@@ -407,8 +414,7 @@ def _footnotes_xml(ids: list) -> str:
     """Parte `word/footnotes.xml` con los separadores y las notas indicadas."""
     separadores = '<w:footnote w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p></w:footnote><w:footnote w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:p></w:footnote>'
     notas = "".join(
-        f'<w:footnote w:id="{i}"><w:p><w:r><w:t>{i}</w:t></w:r></w:p></w:footnote>'
-        for i in ids
+        f'<w:footnote w:id="{i}"><w:p><w:r><w:t>{i}</w:t></w:r></w:p></w:footnote>' for i in ids
     )
     return (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

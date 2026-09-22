@@ -53,7 +53,7 @@ _MINUS = "abcdefghijklmnopqrstuvwxyzáéíóúñü"
 
 def _xpath_que_contiene(termino: str) -> str:
     return (
-        '//w:body//w:p[contains(translate(normalize-space(.), '
+        "//w:body//w:p[contains(translate(normalize-space(.), "
         f'"{_MAYUS}", "{_MINUS}"), "{termino}")]'
     )
 
@@ -175,16 +175,28 @@ def _validar_una(paras: list, xpaths: list):
 
 def test_paginas_distintas_pasa():
     an, extracted = _analizador_paginas(
-        [_p_break(), _para("INDICE DE CONTENIDOS"), _p_break(), _para("INDICE DE TABLAS"),
-         _p_break(), _para("INDICE DE FIGURAS")]
+        [
+            _p_break(),
+            _para("INDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("INDICE DE TABLAS"),
+            _p_break(),
+            _para("INDICE DE FIGURAS"),
+        ]
     )
     ok, detalle = an.analizar(extracted)
     assert ok
     assert "paginas_distintas" in detalle
     # End-to-end: la regla pasa (found queda en "cumple", por convención).
     r = _validar_una(
-        [_p_break(), _para("INDICE DE CONTENIDOS"), _p_break(), _para("INDICE DE TABLAS"),
-         _p_break(), _para("INDICE DE FIGURAS")],
+        [
+            _p_break(),
+            _para("INDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("INDICE DE TABLAS"),
+            _p_break(),
+            _para("INDICE DE FIGURAS"),
+        ],
         _XPATHS_INDICES,
     )
     assert r.passed
@@ -193,8 +205,13 @@ def test_paginas_distintas_pasa():
 def test_paginas_repetidas_falla():
     # Sin salto entre CONTENIDOS y TABLAS quedan en la misma página.
     r = _validar_una(
-        [_p_break(), _para("INDICE DE CONTENIDOS"), _para("INDICE DE TABLAS"),
-         _p_break(), _para("INDICE DE FIGURAS")],
+        [
+            _p_break(),
+            _para("INDICE DE CONTENIDOS"),
+            _para("INDICE DE TABLAS"),
+            _p_break(),
+            _para("INDICE DE FIGURAS"),
+        ],
         _XPATHS_INDICES,
     )
     assert not r.passed

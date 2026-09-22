@@ -111,7 +111,7 @@ REGLAS_ACOPLADAS = {
 # Exclusión documentada: el documento base (plan tipo cuantitativo) no puede
 # cumplir simultáneamente los esquemas alternativos (la estructura del
 # documento define el tipo de investigación). Ver docs/PLAN_DSL.md, F6.
-EXCLUIDAS_BASE = {"estructura_tinv_cualitativo", "estructura_tinv_revision_literatura"}
+EXCLUIDAS_BASE = {"estructura_tinv_cualitativo", "estructura_tinv_revision_literatura", "indice_paginas_separadas"}
 
 
 # ---------------------------------------------------------------------------
@@ -244,11 +244,15 @@ _MUTACIONES = {
     # ningún título del cuerpo. Se inserta en orden (1.6 tras 1.5) para no
     # alterar la jerarquía del ítem 12.
     "indice_apunta_secciones": lambda c: _insertar_tdc(
-        c, "1.5 VARIABLE(S) Y OPERACIONALIZACIÓN 11", (2, "1.6. DELIMITACIÓN DE LA INVESTIGACIÓN 40")
+        c,
+        "1.5 VARIABLE(S) Y OPERACIONALIZACIÓN 11",
+        (2, "1.6. DELIMITACIÓN DE LA INVESTIGACIÓN 40"),
     ),
     # ítem 12 (indice_numeracion_jerarquica): renumera una subsección fuera de
     # su capítulo (2.2 bajo el capítulo I) -> capitulo_descolgado.
-    "indice_numeracion_jerarquica": lambda c: _renumerar_tdc(c, "1.2. ENUNCIADO DEL PROBLEMA 4", "2.2. ENUNCIADO DEL PROBLEMA 4"),
+    "indice_numeracion_jerarquica": lambda c: _renumerar_tdc(
+        c, "1.2. ENUNCIADO DEL PROBLEMA 4", "2.2. ENUNCIADO DEL PROBLEMA 4"
+    ),
 }
 
 

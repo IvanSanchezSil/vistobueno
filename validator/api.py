@@ -260,10 +260,7 @@ async def validar(
         if nombre_tipo == "ValueError":
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    "El archivo no contiene un documento Word válido: "
-                    f"{e}."
-                ),
+                detail=(f"El archivo no contiene un documento Word válido: {e}."),
             ) from e
 
         raise HTTPException(

@@ -6,6 +6,7 @@ de respuesta y los campos correctos según el CONTRATO_API.md.
 Uso:
     pytest tests/test_api_contract.py -v
 """
+
 import io
 
 import pytest
@@ -33,7 +34,13 @@ class TestRespuestaExitosa:
         with open(PLANTILLA, "rb") as f:
             self.respuesta = CLIENTE.post(
                 "/validar",
-                files={"archivo": ("tesis.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "archivo": (
+                        "tesis.docx",
+                        f,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         self.datos = self.respuesta.json()
 
@@ -117,7 +124,13 @@ class TestQueryParams:
         with open(PLANTILLA, "rb") as f:
             respuesta = CLIENTE.post(
                 "/validar?incluir_prompts_ia=false",
-                files={"archivo": ("tesis.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "archivo": (
+                        "tesis.docx",
+                        f,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         assert respuesta.status_code == 200
         assert respuesta.json()["como_preguntar_a_una_ia"] == []
@@ -129,7 +142,13 @@ class TestQueryParams:
         with open(PLANTILLA, "rb") as f:
             respuesta = CLIENTE.post(
                 "/validar",
-                files={"archivo": ("tesis.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "archivo": (
+                        "tesis.docx",
+                        f,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         assert respuesta.status_code == 200
         # Si hay errores, debe haber prompts
@@ -164,7 +183,13 @@ class TestErrores:
         """Archivo vacío .docx → 422."""
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("vacio.docx", b"", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "vacio.docx",
+                    b"",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert respuesta.status_code == 422
         assert "vacío" in respuesta.json()["detail"]
@@ -174,7 +199,13 @@ class TestErrores:
         contenido_invalido = b"esto no es un zip"
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("corrupto.docx", contenido_invalido, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "corrupto.docx",
+                    contenido_invalido,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert respuesta.status_code == 422
         assert "detail" in respuesta.json()
@@ -187,14 +218,19 @@ class TestErrores:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("random/file.txt", "esto no es un documento Word")
-            zf.writestr("data/info.json", "{\"clave\": \"valor\"}")
+            zf.writestr("data/info.json", '{"clave": "valor"}')
         buf.seek(0)
         contenido = buf.read()
 
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("falso.docx", contenido,
-                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "falso.docx",
+                    contenido,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         # El KeyError por document.xml faltante ahora se captura
         # y devuelve 422 con un mensaje descriptivo.
@@ -211,8 +247,13 @@ class TestErrores:
 
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("grande.docx", contenido,
-                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "grande.docx",
+                    contenido,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert respuesta.status_code == 413
         assert "excede" in respuesta.json()["detail"].lower()
@@ -227,16 +268,28 @@ class TestErrores:
 
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("limite.docx", contenido,
-                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "limite.docx",
+                    contenido,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
+
     def test_archivo_sin_nombre(self):
         """UploadFile con nombre vacío → 400 o 422."""
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("", b"contenido", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "",
+                    b"contenido",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert respuesta.status_code in (400, 422)
 
@@ -258,7 +311,13 @@ class TestErrores:
         with open(PLANTILLA, "rb") as f:
             respuesta = CLIENTE.post(
                 "/validar",
-                files={"archivo": ("mi tesis (copia).docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "archivo": (
+                        "mi tesis (copia).docx",
+                        f,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
         assert respuesta.status_code == 200
         assert respuesta.json()["metadatos"]["archivo_nombre"] == "mi tesis (copia).docx"
@@ -281,8 +340,13 @@ class TestErrores:
         contenido = b"MZ" + b"\x00" * 200  # cabecera MZ (EXE) + relleno
         respuesta = CLIENTE.post(
             "/validar",
-            files={"archivo": ("falso.docx", contenido,
-                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "falso.docx",
+                    contenido,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         # No es un ZIP válido → BadZipFile → 422
         assert respuesta.status_code == 422
@@ -307,7 +371,13 @@ class TestErrores:
         # Archivo vacío
         r3 = CLIENTE.post(
             "/validar",
-            files={"archivo": ("vacio.docx", b"", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "vacio.docx",
+                    b"",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert r3.status_code == 422
         assert isinstance(r3.json()["detail"], str)
@@ -316,7 +386,13 @@ class TestErrores:
         # Archivo corrupto → 422 (BadZipFile capturado)
         r4 = CLIENTE.post(
             "/validar",
-            files={"archivo": ("corrupto.docx", b"no es zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={
+                "archivo": (
+                    "corrupto.docx",
+                    b"no es zip",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
         )
         assert r4.status_code == 422
         assert isinstance(r4.json()["detail"], str)
@@ -347,7 +423,13 @@ class TestParidadAPICLI:
         with open(PLANTILLA, "rb") as f:
             respuesta = CLIENTE.post(
                 "/validar",
-                files={"archivo": ("tesis.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                files={
+                    "archivo": (
+                        "tesis.docx",
+                        f,
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+                },
             )
 
         datos_api = respuesta.json()

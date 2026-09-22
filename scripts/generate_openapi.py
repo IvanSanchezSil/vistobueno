@@ -7,6 +7,7 @@ Uso:
     python scripts/generate_openapi.py
     python scripts/generate_openapi.py --output docs/openapi_spec.json
 """
+
 import argparse
 import json
 import sys
@@ -21,9 +22,7 @@ from validator.api import app  # noqa: E402 (orquestado tras el sys.path insert)
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generar especificación OpenAPI de VistoBueno"
-    )
+    parser = argparse.ArgumentParser(description="Generar especificación OpenAPI de VistoBueno")
     parser.add_argument(
         "--output",
         default="docs/openapi_spec.json",
