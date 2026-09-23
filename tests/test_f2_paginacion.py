@@ -2,7 +2,8 @@
 
 Cubre:
 - `_paginacion_para`: mapa párrafo -> página a partir de
-  `w:lastRenderedPageBreak` y `w:br w:type="page"`.
+  `w:lastRenderedPageBreak`, `w:br w:type="page"` y
+  `w:pPr/w:pageBreakBefore`.
 - `ExtractedDocx.pagina_de`: página de un párrafo (None si no es párrafo).
 - `AnalizadorPaginacion` (`paginacion` / `paginas_distintas`): pasa solo si
   los objetivos caen en páginas físicas distintas; falla con
@@ -74,6 +75,14 @@ def _p_break() -> str:
 def _p_br_page() -> str:
     """Párrafo con salto de página explícito (w:br w:type=\"page\")."""
     return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+
+
+def _p_break_before(texto: str) -> str:
+    """Párrafo que arranca en página nueva (w:pageBreakBefore en w:pPr)."""
+    return (
+        "<w:p><w:pPr><w:pageBreakBefore/></w:pPr>"
+        f'<w:r><w:t xml:space="preserve">{texto}</w:t></w:r></w:p>'
+    )
 
 
 def _make_docx(paras: list) -> str:
@@ -149,6 +158,18 @@ def test_pagina_de_no_para_es_none():
     assert ext.pagina_de(ext.document) is None
 
 
+def test_mapa_de_salto_con_page_break_before():
+    # w:pageBreakBefore (propiedad de w:pPr): el párrafo arranca en página
+    # nueva y mueve el conteo hacia adelante (nit de la revisión PR #28).
+    path = _make_docx([_para("A"), _p_break_before("SECCION"), _para("B")])
+    try:
+        ext = extract(path)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    paras = ext.document.xpath("//w:body//w:p", namespaces=NS)
+    assert [ext.pagina_de(p) for p in paras] == [1, 1, 2]
+
+
 # ---------------------------------------------------------------------------
 # AnalizadorPaginacion: paginas_distintas
 # ---------------------------------------------------------------------------
@@ -217,6 +238,32 @@ def test_paginas_repetidas_falla():
     )
     assert not r.passed
     assert "paginas_repetidas" in r.found
+
+
+def test_paginas_distintas_solo_con_page_break_before():
+    # Límites de sección del índice marcados SOLO con w:pageBreakBefore (sin
+    # saltos renderizados ni explícitos): no deben colapsar a
+    # paginas_repetidas (nit de la revisión PR #28).
+    an, extracted = _analizador_paginas(
+        [
+            _p_break_before("INDICE DE CONTENIDOS"),
+            _p_break_before("INDICE DE TABLAS"),
+            _p_break_before("INDICE DE FIGURAS"),
+        ]
+    )
+    ok, detalle = an.analizar(extracted)
+    assert ok
+    assert "paginas_distintas" in detalle
+    r = _validar_una(
+        [
+            _p_break_before("INDICE DE CONTENIDOS"),
+            _p_break_before("INDICE DE TABLAS"),
+            _p_break_before("INDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
+    assert r.passed
+    assert "repetidas" not in r.found
 
 
 def test_no_encontrado_es_no_aplica():

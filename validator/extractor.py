@@ -54,11 +54,12 @@ def _cuerpo_paras(doc) -> set:
 def _paginacion_para(document) -> dict[int, int]:
     """Calcula el mapa de paginación real (párrafo -> página física).
 
-    Word persiste en el XML dos marcadores fiables de saltos de página:
-    ``w:lastRenderedPageBreak`` (insertado al guardar un documento renderizado)
-    y ``w:br w:type="page"`` (salto explícito). Recorremos los párrafos en
-    orden de documento y correlacionamos cada uno con su número físico de
-    página sin necesidad de renderizar el documento.
+    Word persiste en el XML tres marcadores fiables de saltos de página:
+    ``w:lastRenderedPageBreak`` (insertado al guardar un documento renderizado),
+    ``w:br w:type="page"`` (salto explícito) y la propiedad de párrafo
+    ``w:pPr/w:pageBreakBefore`` (el párrafo arranca en página nueva).
+    Recorremos los párrafos en orden de documento y correlacionamos cada uno
+    con su número físico de página sin necesidad de renderizar el documento.
 
     La página 1 es la carátula (aunque el manual indique que no se enumera
     visualmente, se cuenta para el correlativo del resto del documento).
@@ -73,6 +74,7 @@ def _paginacion_para(document) -> dict[int, int]:
         tiene_salto = (
             p.find(f".//{W}lastRenderedPageBreak", namespaces=NS) is not None
             or p.find(f".//{W}br[@w:type='page']", namespaces=NS) is not None
+            or p.find(f"{W}pPr/{W}pageBreakBefore", namespaces=NS) is not None
         )
         paginacion[p] = pagina
         if tiene_salto:
