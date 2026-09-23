@@ -67,7 +67,36 @@
   el acople de `indice_subdivisiones` **no** se tocó porque en éxito el motor
   reporta `found="cumple"` (el paso a n/a no es observable).
 - Conteos sincronizados: **47 reglas**, doc bueno **45/47**, 47 mutaciones,
-  suite **197 tests**.
+  suite **204 tests**.
+
+### 2026-09-23 (cierre de la revisión técnica del PR #28)
+
+- **Bloqueante 1 — NS["r"] corrupto** (`validator/extractor.py:20`): la URI de
+  relaciones venía rota; corregida a `officeDocument/2006/relationships`
+  (commit `6e0775f`).
+- **Bloqueante 2 — `ruff format`**: formateado todo el árbol (38-39 archivos);
+  gate `ruff format --check` verde.
+- **Bloqueante 3 — falsos positivos de las categorías F2 contra `recursos/`**
+  (commit `ba4f560`):
+  - `AnalizadorXML` soporta `n_a_si_ausente` → `encabezado_membrete` y
+    `encabezado_formato` pasan **n/a** cuando la tesis no trae `header*.xml`
+    (antes: `ValueError: parte 'header' no disponible` expuesto al usuario).
+  - `AnalizadorPaginacion`: si alguna sección objetivo no es identificable
+    pasa como n/a — la regla **solo juzga paginación, no presencia de
+    secciones**. `indice_paginas_separadas` ya no da `no_encontrado`/`paginas_repetidas`
+    en las plantillas (su "Índice" vive dentro de `sdtContent` y el xpath no
+    lo localiza).
+  - Verificado: los **6 documentos de `recursos/`** pasan las 4 categorías
+    (`indice_paginas_separadas`, `encabezado_membrete`, `encabezado_formato`,
+    `notas_al_pie_consistencia`).
+  - `EXCLUIDAS_BASE` vuelve a 2 reglas (el doc base **sí** cumple
+    `indice_paginas_separadas`); el "doc bueno 45/47" se mantiene.
+- **Avísos** (commit `df7a832`): import lazzy de `weasyprint` dentro de
+  `reporte_a_pdf` (los flujos json/markdown ya no arrastran la dependencia) y
+  `tests/test_cli_integracion.py` que cubre `--formato json/markdown/pdf`,
+  `--salida`, el atajo `--json` y el filtro `--severity`.
+- `docs/CONTRATO_API.md` actualizado: "41 reglas" → "47 reglas" (v1.2.0).
+- Conteos sincronizados: **47 reglas**, doc bueno **45/47**, suite **204 tests**.
 
 ## Evidencias producidas
 
@@ -80,7 +109,7 @@
 | Factory | `tests/_docx_builder.py`, `tests/_xml_constants.py`, `tests/_mutations.py`, `tests/docx_factory.py` |
 | Backlog | `docs/PLAN_BACKLOG_FUTURO.md` (ítems 1-3 y 11-12 ✅) |
 | Commits | `28b2c57`, `1cacd14`, `e38969a`, `(Bloque D)` (rama `semana5-motor-calidad-paginacion`) |
-| Gates | `pytest` 197 passed; `ruff` y `mypy` limpios |
+| Gates | `pytest` 204 passed; `ruff` y `mypy` limpios |
 
 ## Relación con competencias curriculares
 
