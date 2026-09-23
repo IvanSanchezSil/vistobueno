@@ -6,7 +6,8 @@ Cubre:
 - `ExtractedDocx.pagina_de`: página de un párrafo (None si no es párrafo).
 - `AnalizadorPaginacion` (`paginacion` / `paginas_distintas`): pasa solo si
   los objetivos caen en páginas físicas distintas; falla con
-  `paginas_repetidas` o `no_encontrado` (xpath sin coincidencias).
+  `paginas_repetidas`. Si alguna sección objetivo no es identificable pasa
+  como n/a (la regla solo juzga paginación, no presencia).
 - Regla `indice_paginas_separadas` end-to-end contra `reglas_unt.yaml`
   (documento base separado / mutación agrupada / índice renombrado).
 - Linter y compilador DSL aceptan la sección `paginacion`.
@@ -218,14 +219,31 @@ def test_paginas_repetidas_falla():
     assert "paginas_repetidas" in r.found
 
 
-def test_no_encontrado_falla():
-    # Falta el índice de tablas: el xpath no tiene coincidencias.
+def test_no_encontrado_es_no_aplica():
+    # Falta el índice de tablas: la regla solo juzga paginación, no
+    # presencia de secciones, así que pasa como n/a (sin falso positivo).
     r = _validar_una(
         [_p_break(), _para("INDICE DE CONTENIDOS"), _para("INDICE DE FIGURAS")],
         _XPATHS_INDICES,
     )
-    assert not r.passed
-    assert "no_encontrado" in r.found
+    assert r.passed
+
+
+def test_sin_indices_no_aplica_pasa():
+    # Ninguna sección objetivo localizable (las plantillas usan un "Índice"
+    # genérico dentro de sdtContent que el xpath no matchea): la regla no
+    # produce falso positivo y pasa como n/a (ver revisión técnica PR #28).
+    an, extracted = _analizador_paginas(
+        [_p_break(), _para("ÍNDICE GENERAL"), _para("CUERPO DE LA TESIS")]
+    )
+    ok, detalle = an.analizar(extracted)
+    assert ok
+    assert "n/a" in detalle
+    r = _validar_una(
+        [_p_break(), _para("ÍNDICE GENERAL"), _para("CUERPO DE LA TESIS")],
+        _XPATHS_INDICES,
+    )
+    assert r.passed
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +276,7 @@ def test_indice_paginas_separadas_mutacion_falla():
 def test_indice_paginas_separadas_contenidos_renombrado_falla():
     r = _resultado_indice(aplicar_mutacion("indice_subdivisiones", configuracion_base()))
     assert not r.passed
-    assert "no_encontrado" in r.found
+    assert "paginas_repetidas" in r.found
 
 
 # ---------------------------------------------------------------------------

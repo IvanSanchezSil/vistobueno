@@ -80,7 +80,14 @@ class AnalizadorXML(Analizador):
         contexto = self.config.get("contexto", "todos")
         comp = self.config.get("comparacion", "exists")
 
-        nodes = self._nodos(extracted, parte, contexto)
+        try:
+            nodes = self._nodos(extracted, parte, contexto)
+        except ValueError:
+            # La parte no existe (p. ej. tesis sin header*.xml): si la regla
+            # declara `n_a_si_ausente`, el incumplimiento no aplica (n/a).
+            if self.config.get("n_a_si_ausente"):
+                return True, f"no aplica (parte '{parte}' ausente)"
+            raise
 
         # Presencia simple
         if comp in ("exists", "not_exists"):
@@ -343,6 +350,13 @@ class AnalizadorPaginacion(Analizador):
             - //w:body//w:p[contains(...)]
             - //w:body//w:p[contains(...)]
           comparacion: paginas_distintas
+
+    No necesita verificar la separación cuando no es aplicable: si NINGUNA
+    o alguna de las secciones objetivo no es identificable (p. ej. la
+    plantilla usa un "Índice" genérico dentro de sdtContent que el xpath no
+    localiza, o falta el índice de tablas), la regla pasa como n/a y no
+    produce un falso positivo: solo juzga la paginación de las secciones
+    que existen. La sección de "presencia" la cubren otras reglas.
     """
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
@@ -351,10 +365,12 @@ class AnalizadorPaginacion(Analizador):
             return False, "paginacion requiere xpaths (>=2)"
 
         ubicaciones = []
+        sin_coincidencia = []
         for xpath in xpaths:
             nodos = extracted.xpath("document", xpath, "todos")
             if not nodos:
-                return False, f"no_encontrado={xpath}"
+                sin_coincidencia.append(xpath)
+                continue
             para = nodos[0]
             self.ultimo_nodo = para
             pagina = extracted.pagina_de(para)
@@ -362,11 +378,17 @@ class AnalizadorPaginacion(Analizador):
                 return False, f"pagina_no_disponible={xpath}"
             ubicaciones.append((pagina, para))
 
+        # No todas las secciones objetivo son identificables (p. ej. la
+        # plantilla usa un "Índice" genérico dentro de sdtContent, o falta el
+        # índice de tablas): esta regla juzga solo la PAGINACIÓN, no la
+        # presencia de secciones, así que pasa como n/a y no genera un falso
+        # positivo (ver revisión técnica PR #28).
+        if sin_coincidencia:
+            return True, "indices_no_verificables (n/a)"
+
         paginas = [p for p, _ in ubicaciones]
         ok = len(set(paginas)) == len(paginas)
-        detalle = "; ".join(
-            f"{i + 1}: página {p}" for i, (p, _) in enumerate(ubicaciones)
-        )
+        detalle = "; ".join(f"{i + 1}: página {p}" for i, (p, _) in enumerate(ubicaciones))
         if ok:
             return True, f"paginas_distintas={paginas}"
         return False, f"paginas_repetidas={paginas}; {detalle}"
@@ -480,9 +502,7 @@ def _sigpalabra(s: str) -> str:
     return ""
 
 
-def _entradas_indice(
-    extracted: ExtractedDocx, regex_indice: str = REFERENCIA_INDICE
-) -> list[dict]:
+def _entradas_indice(extracted: ExtractedDocx, regex_indice: str = REFERENCIA_INDICE) -> list[dict]:
     """Entradas del índice de contenidos en orden de documento.
 
     Regiones: párrafos NO-título que siguen a un título que matchea
