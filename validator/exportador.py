@@ -21,7 +21,6 @@ import sys
 from pathlib import Path
 
 import markdown
-from weasyprint import HTML
 
 # ---------------------------------------------------------------------------
 # Markdown
@@ -107,7 +106,13 @@ pre, blockquote { background-color: #f8f8f8; padding: 8px; }
 
 
 def reporte_a_pdf(reporte: dict) -> bytes:
-    """Convierte el dict del reporte a PDF (como bytes)."""
+    """Convierte el dict del reporte a PDF (como bytes).
+
+    WeasyPrint se importa aquí (lazy) para que los flujos Markdown/JSON no
+    arrastren la dependencia pesada (ver revisión técnica PR #28).
+    """
+    from weasyprint import HTML
+
     markdown_txt = reporte_a_markdown(reporte)
     html_txt = markdown.markdown(markdown_txt, extensions=["tables", "fenced_code", "toc"])
     styled = f"<html><head><meta charset='utf-8'><style>{_CSS}</style></head><body>{html_txt}</body></html>"
