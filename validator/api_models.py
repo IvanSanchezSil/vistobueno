@@ -6,13 +6,13 @@ del modelo interno `RuleResult` (dataclass) para:
 2. Agregar campos que solo existen en la capa API (metadatos).
 3. Permitir versionar el contrato sin romper el motor de validación.
 """
-from enum import Enum
-from typing import List, Optional
+
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class SeveridadAPI(str, Enum):
+class SeveridadAPI(StrEnum):
     """Severidad de una regla de validación."""
 
     ERROR = "error"
@@ -32,7 +32,9 @@ class ResultadoReglaAPI(BaseModel):
     mensaje: str = Field(..., description="Descripción de la regla en lenguaje natural")
     esperado: str = Field(default="", description="Valor esperado según el reglamento")
     encontrado: str = Field(default="", description="Lo que encontró el validador")
-    ubicacion: Optional[str] = Field(default=None, description="Referencia al documento del reglamento")
+    ubicacion: str | None = Field(
+        default=None, description="Referencia al documento del reglamento"
+    )
     fuente: str = Field(default="", description="Archivo fuente del que se extrajo la regla")
     cita: str = Field(default="", description="Cita textual del reglamento")
 
@@ -46,9 +48,9 @@ class ResultadoReglaAPI(BaseModel):
                     "mensaje": "El tamaño del papel debe ser A4",
                     "esperado": "210 x 297 mm",
                     "encontrado": "cumple",
-                    "ubicacion": "Sección \"Formato general\" (párr. 124-125)",
+                    "ubicacion": 'Sección "Formato general" (párr. 124-125)',
                     "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-                    "cita": "\"Tamaño A4/papel (210x297 cm)\"",
+                    "cita": '"Tamaño A4/papel (210x297 cm)"',
                 }
             ]
         }
@@ -98,8 +100,8 @@ class ValidarResponse(BaseModel):
         ..., description='"verde" si todas las reglas error pasan, "rojo" si alguna falla'
     )
     resumen: ResumenValidacion = Field(..., description="Resumen cuantitativo")
-    resultados: List[ResultadoReglaAPI] = Field(..., description="Resultados por regla")
-    como_preguntar_a_una_ia: List[PromptIA] = Field(
+    resultados: list[ResultadoReglaAPI] = Field(..., description="Resultados por regla")
+    como_preguntar_a_una_ia: list[PromptIA] = Field(
         default_factory=list,
         description="Bloques de prompts IA para reglas fallidas",
     )
@@ -123,9 +125,9 @@ class ValidarResponse(BaseModel):
                             "mensaje": "El tamaño del papel debe ser A4",
                             "esperado": "210 x 297 mm",
                             "encontrado": "cumple",
-                            "ubicacion": "Sección \"Formato general\" (párr. 124-125)",
+                            "ubicacion": 'Sección "Formato general" (párr. 124-125)',
                             "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-                            "cita": "\"Tamaño A4/papel (210x297 cm)\"",
+                            "cita": '"Tamaño A4/papel (210x297 cm)"',
                         }
                     ],
                     "como_preguntar_a_una_ia": [],

@@ -38,6 +38,10 @@ reglas:
     conteo_nodos: { ... }
     lista_obligatoria: { ... }
     hipervinculo_texto: { ... }
+    paginacion: { ... }        # F2 ítem 1 — párrafo ↔ página física
+    nota_pie: { ... }          # F2 ítem 3 — numeración de notas al pie
+    toc_apunta: { ... }        # F2 ítem 11 — el índice apunta a secciones reales
+    toc_numeracion: { ... }    # F2 ítem 12 — jerarquía de numeración del índice
 ```
 
 El `engine` detecta el formato por la clave `reglas` (DSL) vs `rules`
@@ -301,6 +305,96 @@ hipervinculo_texto:
 Usado por la regla *caratula_orcid* (el código ORCID debe ser un
 hipervínculo de 16 dígitos, normalizado a minúsculas y entre paréntesis).
 
+### 12. `paginacion` → `AnalizadorPaginacion` (F2 ítem 1)
+
+Correlaciona los párrafos con su **página física** (mapa construido a
+partir de `w:lastRenderedPageBreak` y `w:br w:type="page"`) y compara las
+páginas de los nodos que matchean cada XPath:
+
+```yaml
+paginacion:
+  comparacion: paginas_distintas
+  xpaths:
+    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE CONTENIDOS')]]"
+    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE TABLAS')]]"
+    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE FIGURAS')]]  "
+```
+
+- `paginas_distintas`: los títulos deben quedar en páginas separadas
+  (`paginas_repetidas` si hay dos en la misma; `no_encontrado` si algún
+  XPath no coincide).
+- A efectos del *enriquecimiento de `ubicacion`*, el analizador expone el
+  último nodo analizado (`ultimo_nodo`); cuando una regla FALLA con página
+  conocida, el compilador anexa `; página N` a la ubicación.
+- Los párrafos de `header*`/`footer*` **no** están en el mapa de página
+  → nunca reciben el sufijo.
+
+Usado por la regla *indice_paginas_separadas* (warning, Manual párr. 193).
+
+### 13. `nota_pie` → `AnalizadorNotaPie` (F2 ítem 3)
+
+Valida la consistencia de la numeración de **notas al pie** (`1..N`
+consecutivos, sin duplicados y definidos en `word/footnotes.xml`):
+
+```yaml
+nota_pie:
+  operacion: numeracion_consistente
+```
+
+- Lee `//w:footnoteReference/@w:id` del cuerpo. Sin referencias → la regla
+  **pasa (n/a)**: la ausencia de notas no es un desvío.
+- Si la parte `footnotes.xml` existe, cada id referenciado debe estar
+  definido ahí (ids `-1` y `0` son los separadores reservados de Word).
+
+Usado por la regla *notas_al_pie_consistencia* (warning, estándar Word;
+el manual no la regula).
+
+### 14. `toc_apunta` → `AnalizadorTocApunta` (F2 ítem 11)
+
+Verifica que cada entrada del **índice de contenidos** apunte a una sección
+real del documento:
+
+```yaml
+toc_apunta:
+  operacion: entradas_corresponden
+```
+
+- La región del índice es la que sigue a un título de encabezado que matchea
+  `regex_indice` (defecto `^indice(\s+de\s+contenidos)?$`, comparado **sin
+  acentos** e IGNORECASE), hasta el siguiente encabezado de cualquier nivel.
+- Cada entrada se normaliza (se quita el prefijo de numeración `I.`/`1.1.`,
+  el número de página final, paréntesis, puntuación y tildes) y se compara su
+  "palabra significativa" (primer token ≥ 4 caracteres) contra los títulos del
+  cuerpo normalizados. Así "1.1. EL PROBLEMA ..... 3" apunta a "EL PROBLEMA".
+- Caso anexos: la entrada "Anexo 1. …" matchea el título "ANEXOS" vía
+  subcadena (`ANEXO` ⊂ `ANEXOS`).
+- Sin región de índice → la regla **pasa (n/a)**: la ausencia de índice no es
+  un desvío (es cubierto por otras reglas de estructura).
+
+Usado por la regla *indice_apunta_secciones* (warning, Manual párr. 194).
+
+### 15. `toc_numeracion` → `AnalizadorTocNumeracion` (F2 ítem 12)
+
+Valida la **jerarquía de numeración** de las entradas del índice:
+
+```yaml
+toc_numeracion:
+  operacion: jerarquia_consistente
+```
+
+- Capítulos en romano (`I.`, `II.`, …) deben ser **consecutivos** (sin saltos).
+- Subsecciones decimales (`K.1`, `K.1.1`, …) deben pertenecer a su capítulo
+  (el primer componente = número del capítulo actual), la primera subsección
+  de cada capítulo debe ser `K.1`, y el conjunto debe estar en **orden
+  preorder estricto** (comparación de tuplas: `1.1 < 1.1.1 < 1.2 < 1.3`).
+- NO exige contigüidad de subsecciones hermanas (1.1 → 1.3 es aceptable) para
+  evitar falsos positivos cuando una sección "no aplica" y se omite
+  (decisión `EVALUADO`).
+- Entradas sin número (p. ej. "REFERENCIAS", "ANEXOS") se ignoran.
+- Sin región de índice → la regla **pasa (n/a)**.
+
+Usado por la regla *indice_numeracion_jerarquica* (warning, Manual párr. 194).
+
 ---
 
 ## Componentes de código
@@ -309,7 +403,7 @@ hipervínculo de 16 dígitos, normalizado a minúsculas y entre paréntesis).
 |---------|--------|-----------------|
 | `validator/automata.py` | `DFA`, `Transicion`, `GramaticaEstructura`, `PDA`, `TransicionPDA` | DFA, PDA y gramáticas puras, sin conocimiento del DOCX |
 | `validator/tokenizer.py` | `Token`, `tokenizar`, `seccion`, `solo`, `textos` | Análisis léxico: flujo tipado del `<w:body>` y cortes por sección |
-| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo` | Analizadores de hoja sobre `ExtractedDocx` |
+| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo`, `AnalizadorPaginacion`, `AnalizadorNotaPie`, `AnalizadorTocApunta`, `AnalizadorTocNumeracion` | Analizadores de hoja sobre `ExtractedDocx` |
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |

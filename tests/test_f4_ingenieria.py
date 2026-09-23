@@ -12,6 +12,7 @@ Cubre:
 Uso:
     pytest tests/test_f4_ingenieria.py -v
 """
+
 import tempfile
 import zipfile
 from pathlib import Path
@@ -121,8 +122,7 @@ class TestLinter:
     def test_comparacion_sin_atributo(self):
         data = _reglas_de(
             "atributo_xml",
-            {"parte": "document", "xpath": "//w:pgSz", "comparacion": "eq",
-             "esperado": "11906"},
+            {"parte": "document", "xpath": "//w:pgSz", "comparacion": "eq", "esperado": "11906"},
         )
         assert any("requiere 'atributo'" in h for h in linter(data))
 
@@ -207,6 +207,7 @@ class TestCacheXPath:
                 "xpath": "//w:body/w:p",
             }
             from validator.analizadores import AnalizadorXML
+
             a1 = AnalizadorXML({**cfg, "comparacion": "exists"})
             a2 = AnalizadorXML({**cfg, "comparacion": "exists"})
             ok1, _ = a1.analizar(e)
@@ -333,6 +334,6 @@ class TestIntegracion:
         path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
         try:
             resultados = validate_docx(path, rules)
-            assert len(resultados) == 41
+            assert len(resultados) == 47
         finally:
             Path(path).unlink(missing_ok=True)

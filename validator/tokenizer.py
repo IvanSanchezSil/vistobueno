@@ -14,13 +14,14 @@ Centraliza la extracción que hoy está duplicada en AutomataSecuencia._headings
 y GramaticaEstructuraAnalizador: los autómatas/gramáticas consumen el flujo
 tokenizado (o su proyección de texto) en lugar de recorrer el XML directo.
 """
+
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Optional, Sequence
 
-from .extractor import ExtractedDocx, NS, W, text_of
+from .extractor import NS, ExtractedDocx, W, text_of
 
 # Tipos de token emitidos por el tokenizer.
 TITULO = "TITULO"
@@ -35,6 +36,7 @@ TIPOS_CONOCIDOS = (TITULO, PARRAFO, TABLA, IMAGEN, SALTO_SECCION)
 @dataclass(frozen=True)
 class Token:
     """Un token del documento: tipo, texto y nivel (solo TITULO)."""
+
     tipo: str
     texto: str = ""
     nivel: int = 0
@@ -60,7 +62,7 @@ def _blips_para(p) -> int:
     return len(p.xpath(".//a:blip", namespaces=NS))
 
 
-def tokenizar(extracted: ExtractedDocx) -> List[Token]:
+def tokenizar(extracted: ExtractedDocx) -> list[Token]:
     """Convierte el documento extraído en el flujo de tokens en orden.
 
     Recorre párrafos, tablas y saltos de sección en orden de documento
@@ -72,7 +74,7 @@ def tokenizar(extracted: ExtractedDocx) -> List[Token]:
     if body is None:
         return []
 
-    tokens: List[Token] = []
+    tokens: list[Token] = []
     for el in body.iter(W + "p", W + "tbl", W + "sectPr"):
         if el.tag == W + "sectPr":
             tokens.append(Token(SALTO_SECCION))
@@ -86,9 +88,10 @@ def tokenizar(extracted: ExtractedDocx) -> List[Token]:
         st = pPr.find(W + "pStyle") if pPr is not None else None
         val = st.get(W + "val") if st is not None else None
         texto = text_of(el).strip()
+        estilo = str(val) if val is not None else ""
 
-        if _es_heading(val):
-            tokens.append(Token(TITULO, texto, _nivel_heading(val)))
+        if _es_heading(estilo):
+            tokens.append(Token(TITULO, texto, _nivel_heading(estilo)))
         else:
             tokens.append(Token(PARRAFO, texto))
 
@@ -102,7 +105,7 @@ def tokenizar(extracted: ExtractedDocx) -> List[Token]:
     return tokens
 
 
-def solo(tokens: Sequence[Token], tipos) -> List[Token]:
+def solo(tokens: Sequence[Token], tipos) -> list[Token]:
     """Filtra el flujo conservando solo los tipos indicados."""
     permitidos = set(tipos)
     return [t for t in tokens if t.tipo in permitidos]
@@ -111,8 +114,8 @@ def solo(tokens: Sequence[Token], tipos) -> List[Token]:
 def seccion(
     tokens: Sequence[Token],
     inicio: str,
-    fin: Optional[str] = None,
-) -> List[Token]:
+    fin: str | None = None,
+) -> list[Token]:
     """Slice de una sección delimitada por títulos (F3).
 
     Parámetros
@@ -169,6 +172,6 @@ def seccion(
     return list(tokens[begin + 1 :])
 
 
-def textos(tokens: Sequence[Token]) -> List[str]:
+def textos(tokens: Sequence[Token]) -> list[str]:
     """Proyección de texto del flujo (lo que consumen DFA/PDA/gramática)."""
     return [t.texto for t in tokens]

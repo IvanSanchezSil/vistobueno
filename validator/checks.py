@@ -3,10 +3,10 @@
 Cada check se ejecuta contra un ExtractedDocx y devuelve (passed, detalle).
 Migrado y limpiado a partir del prototipo eval_checks2.py.
 """
-import re
-from typing import Tuple
 
-from .extractor import W, ExtractedDocx, NS, text_of
+import re
+
+from .extractor import NS, ExtractedDocx, W, text_of
 
 # Namespaces también usados para resolver prefijos en nombres de atributo
 # (ej. "@w:val" -> {namespace-w}val).
@@ -21,7 +21,7 @@ def _resolve_attr_key(atributo: str) -> str:
     return name
 
 
-def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> Tuple[bool, str]:
+def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, str]:
     tipo = check["tipo"]
 
     if tipo == "secuencia_titulos":
@@ -72,9 +72,11 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> Tuple[bool, 
         textos = [text_of(n).strip() for n in nodes if text_of(n).strip()]
         if not textos:
             return False, "sin nodos de texto que evaluar"
+
         def _norm(s: str) -> str:
             s = re.sub(r"\s+", " ", s).strip()
             return s.lower() if ignore_case else s
+
         valores = [_norm(t) for t in textos]
         permitidos = [_norm(x) for x in lista]
         incumplen = [v for v in valores if v not in permitidos]
@@ -88,7 +90,7 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> Tuple[bool, 
     return False, f"tipo de check '{tipo}' no soportado"
 
 
-def _check_secuencia(rule: dict, extracted: ExtractedDocx) -> Tuple[bool, str]:
+def _check_secuencia(rule: dict, extracted: ExtractedDocx) -> tuple[bool, str]:
     esperados = rule.get("valor_esperado", [])
     doc = extracted.document
 

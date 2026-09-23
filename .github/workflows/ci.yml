@@ -1,0 +1,29 @@
+name: VistoBueno CI
+
+on:
+  push:
+    branches: [master, semana*]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable Nix cache (Cachix)
+        uses: cachix/cachix-action@v15
+        with:
+          name: vistobueno
+
+      - name: Run tests, lint and typecheck (nix flake check)
+        run: nix flake check --print-build-logs
+
+      - name: Verify formatting (ruff format --check)
+        run: nix develop --command ruff format --check validator/ scripts/ tests/

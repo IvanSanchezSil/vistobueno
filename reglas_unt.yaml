@@ -1108,6 +1108,106 @@ reglas:
     comparacion: eq
     esperado: '26'
 
+- id: indice_paginas_separadas
+  tipo: paginacion
+  descripcion: "Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)."
+  valor_esperado: índice de contenidos + índice de tablas + índice de figuras en páginas distintas
+  severidad: warning
+  ubicacion: "Sección Índice (párr. 193, 1066, 2600, 3495)"
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)." — Manual, párrafo 193.'
+  paginacion:
+    comparacion: paginas_distintas
+    xpaths:
+      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "indice")]'
+      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
+      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
+
+# ─── F2 ítem 2: ENCABEZADOS Y PIES DE PÁGINA (2026-09-21) ──────
+# EVALUADO: el manual no define el membrete del encabezado (solo la posición
+# de la numeración, regla `numeracion_posicion`). Estas reglas codifican el
+# ESTÁNDAR INSTITUCIONAL UNT (logotipo repetido en el encabezado y misma
+# familia tipográfica que el cuerpo). Por eso entran como `warning`, sin
+# afectar el semáforo de las plantillas oficiales hasta validarlas contra el
+# benchmark (ítem 13). El extractor lee TODAS las partes `header*.xml`/
+# `footer*.xml` (encabezado/pie por sección).
+- id: encabezado_membrete
+  tipo: presencia_xml
+  descripcion: El encabezado repite el membrete institucional con el logotipo de la UNT
+  valor_esperado: imagen (dibujo) en el encabezado
+  severidad: warning
+  ubicacion: Encabezado de página (estándar institucional UNT)
+  fuente: Formato institucional UNT (plantillas oficiales)
+  cita: '"Membrete institucional: logotipo de la UNT repetido en el encabezado de página."'
+  presencia_xml:
+    n_a_si_ausente: true
+    parte: header
+    contexto: todos
+    xpath: '//w:drawing'
+    comparacion: exists
+- id: encabezado_formato
+  tipo: atributo_xml
+  descripcion: El texto del encabezado usa la misma familia tipográfica que el cuerpo (Times New Roman)
+  valor_esperado: Times New Roman
+  severidad: warning
+  ubicacion: Encabezado de página (estándar institucional UNT)
+  fuente: Formato institucional UNT (plantillas oficiales)
+  cita: '"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman)."'
+  atributo_xml:
+    n_a_si_ausente: true
+    parte: header
+    contexto: todos
+    xpath: '//w:r/w:rPr/w:rFonts'
+    atributo: '@w:ascii'
+    comparacion: all_eq
+    esperado: Times New Roman
+
+# ─── F2 ítem 3: NOTAS AL PIE (2026-09-21) ──────────────────────
+# EVALUADO: el manual no regula la numeración de notas al pie; la regla
+# codifica la práctica estándar de Word (ids consecutivos 1..N). Un documento
+# SIN notas al pie pasa (n/a); el desvío se detecta solo cuando las hay y su
+# numeración tiene saltos/repetidos o apunta a ids inexistentes.
+- id: notas_al_pie_consistencia
+  tipo: nota_pie
+  descripcion: Las notas al pie se numeran de forma consecutiva (sin saltos ni repeticiones)
+  valor_esperado: IDs 1..N consecutivos y definidos
+  severidad: warning
+  ubicacion: Notas al pie (pies de página del cuerpo)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Práctica estándar Word: las notas al pie se numeran correlativamente (1, 2, 3...)."'
+  nota_pie:
+    operacion: numeracion_consistente
+
+# ─── F2 ítems 11-12: ÍNDICE / TABLA DE CONTENIDOS (2026-09-22) ────
+# EVALUADO: el manual define el índice de contenidos como "Lista estructurada
+# de los segmentos que integran la investigación, según orden de presentación"
+# (párr. 194). NO prohíbe números de página en el índice (el índice de TABLAS
+# los exige, párr. 195); por eso ambas reglas validan estructura, no páginas.
+# Ítem 11 original: "que el índice apunte a secciones reales del documento".
+# Ítem 12 original: "que el índice respete la jerarquía de la numeración".
+# Severidad warning: el manual no explicita sanción por incumplimiento y el
+# alcance cubre SOLO la región del índice (no el resto del documento).
+- id: indice_apunta_secciones
+  tipo: toc_apunta
+  descripcion: Los títulos listados en el índice de contenidos corresponden a secciones reales del documento
+  valor_esperado: Cada entrada del índice tiene su título en el cuerpo
+  severidad: warning
+  ubicacion: 'Índice de contenidos (párr. 194: "Lista estructurada de los segmentos que integran la investigación")'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Índice de contenidos: Lista estructurada de los segmentos que integran la investigación, según orden de presentación."'
+  toc_apunta:
+    operacion: entradas_corresponden
+- id: indice_numeracion_jerarquica
+  tipo: toc_numeracion
+  descripcion: La numeración de los títulos del índice respeta la jerarquía (capítulos romanos consecutivos; subsecciones decimales en preorder bajo su capítulo)
+  valor_esperado: Capítulos I, II... consecutivos y subsecciones K.1, K.1.1... en orden
+  severidad: warning
+  ubicacion: 'Índice de contenidos (párr. 194: "Lista estructurada de los segmentos que integran la investigación")'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: '"Índice de contenidos: Lista estructurada de los segmentos que integran la investigación, según orden de presentación."'
+  toc_numeracion:
+    operacion: jerarquia_consistente
+
 # ─── F3: REGLAS DOCUMENTADAS COMO NO-AUTOMATIZABLES ─────────
 # - sistema_citas (APA): heurística autor-año débil, fuera de F3.
 # - proyecto_formato_general: metaregla cubierta por las reglas
@@ -1117,11 +1217,16 @@ _migracion:
   fuente: unt_format_rules_schema.yaml
   total_reglas: 32
   sin_mecanismo_omitidas: 12
-  total_reglas_con_f3: 41
+  total_reglas_con_f3: 47
   f3_reglas_agregadas_manualmente: 9
-  # 41 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
+  # 47 = 32 migradas + 9 mecanizadas a mano en la F3 (resumen_longitud,
   # palabras_clave_minimo, referencias_minimo_*, anexos_minimos_*,
-  # caratula_orcid, proyecto_caratula_texto). Re-ejecutar
+  # caratula_orcid, proyecto_caratula_texto) + indice_paginas_separadas
+  # (paginación real, F2 ítem 1) + encabezado_membrete/encabezado_formato
+  # (F2 ítem 2: encabezados y pies) + notas_al_pie_consistencia (F2 ítem 3)
+  # + indice_apunta_secciones/indice_numeracion_jerarquica (F2 ítems 11-12:
+  # índice apunta a secciones reales y jerarquía de numeración).
+  # Re-ejecutar
   # scripts/migrar_legacy_a_dsl.py regenera SOLO las 32 y descarta la F3.
   f3_no_automatizables: 3
   # sistema_citas, proyecto_formato_general, suficiencia_profesional_formato

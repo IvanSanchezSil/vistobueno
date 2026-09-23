@@ -28,12 +28,13 @@ la F1 y alimenta su test de paridad.
 Uso:
     python scripts/migrar_legacy_a_dsl.py [--salida reglas_unt.yaml]
 """
+
 from __future__ import annotations
 
 import argparse
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import yaml
 
@@ -68,14 +69,13 @@ def _normalizar_item(s: str) -> str:
 
 def _slug(s: str) -> str:
     s = s.lower()
-    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"),
-                 ("ú", "u"), ("ñ", "n")):
+    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")):
         s = s.replace(a, b)
     s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
     return s or "item"
 
 
-def _estados_secuencia(valor_esperado: List[str]) -> List[Dict[str, Any]]:
+def _estados_secuencia(valor_esperado: list[str]) -> list[dict[str, Any]]:
     """Genera los estados del DFA desde la lista de títulos del manual.
 
     Cada estado preserva el ítem original (`original`) para que el
@@ -83,12 +83,12 @@ def _estados_secuencia(valor_esperado: List[str]) -> List[Dict[str, Any]]:
     La carátula se nombres "caratula" para activar la detección por
     párrafo de portada del DSL.
     """
-    estados: List[Dict[str, Any]] = []
+    estados: list[dict[str, Any]] = []
     for item in valor_esperado:
         nombre = _slug(item)
         if nombre.startswith("caratul"):
             nombre = "caratula"
-        estado: Dict[str, Any] = {
+        estado: dict[str, Any] = {
             "nombre": nombre,
             "patron": _normalizar_item(item),
             "original": item,
@@ -173,7 +173,7 @@ _FABRICANTES = {
 
 def _migrar_rule(rule: dict) -> dict:
     checks = rule["mecanismo_verificable"]["checks"]
-    grupos: Dict[str, List[dict]] = {}
+    grupos: dict[str, list[dict]] = {}
     for check in checks:
         tipo = check["tipo"]
         if tipo == "secuencia_titulos":
@@ -185,7 +185,7 @@ def _migrar_rule(rule: dict) -> dict:
         seccion = CHECK_A_SECCION[tipo]
         grupos.setdefault(seccion, []).append(formulario)
 
-    dsl_rule: Dict[str, Any] = {
+    dsl_rule: dict[str, Any] = {
         "id": rule["id"],
         "tipo": PRIMER_TIPO.get(checks[0]["tipo"], "estructura"),
         "descripcion": rule.get("descripcion", ""),

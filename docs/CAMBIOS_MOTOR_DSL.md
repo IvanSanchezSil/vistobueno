@@ -604,7 +604,7 @@ y `found`. Suite completa: **37 tests**. `reglas_unt.yaml` se genera con
 
 ---
 
-## 6. Por qué Nix no necesitó cambios
+## 6. Por qué Nix no necesitó cambios (hasta semana 3)
 
 Los módulos nuevos importan **únicamente librería estándar de Python** y dos
 paquetes que el `flake.nix` **ya tenía**:
@@ -623,6 +623,11 @@ El entorno ya era reproducible con:
 nix develop
 pytest tests/ -v        # suite completa (API + DSL + contrato)
 ```
+
+> En la **semana 4** (Paso 16, tarea 15) `flake.nix` sí cambió: se agregaron
+> `ruff`, `mypy`, `pre-commit`, `pytest-cov`, `coverage`, `markdown` y
+> `weasyprint`, y el check `default` pasó a correr `pytest --cov` + `ruff
+> check` + `mypy`. Ver `docs/diseno/10_calidad_y_exportacion.md`.
 
 **Regla que se respetó**: nada de `pip install`; todo lo que haga el proyecto
 debe ir en `flake.nix`. Como no se introdujeron dependencias nuevas, el
@@ -923,6 +928,57 @@ mutación faltante.
 
 ---
 
+## 7. Semana 4 — F5 y entregables de la semana (2026-09-14 a 2026-09-16)
+
+> Los «Pasos» continúan la numeración narrativa de este documento (Pasos
+> 1–14 = Semana 3). **No** se corresponden con las tareas numeradas del
+> `PLAN_BACKLOG_FUTURO.md`: el Paso 15 es la **F5** (cierre de `PLAN_DSL.md`),
+> y el Paso 16 son las **tareas 15 y 16** del backlog.
+
+### Paso 15 — F5 (cierre de `PLAN_DSL.md`): API conectada al DSL + traza en el reporte (2026-09-15)
+
+La última fase del plan (`PLAN_DSL.md`) se implementó en la rama `semana4`
+(PR #22):
+
+- **`validator/api.py`**: `REGLAS_YAML_PATH` apunta a `reglas_unt.yaml`
+  (DSL, 41 reglas) en lugar del YAML legacy. La API ahora evalúa las 9 reglas
+  F3 antes ausentes.
+- **`validator/compilador.py`**: `_detalle_con_traza()` embebe la ruta de
+  estados del autómata en el `found` de la regla (decisión **Opción A** de
+  `docs/diseno/09_f5_enlace_api_propuesta.md`).
+- Se documentó el diseño a posteriori de todo el motor: `docs/diseno/00…09`
+  (10 docs, 38 diagramas Mermaid), y se alinearon las **fechas** con la
+  cronología real (`README.md`, `CONTRATO_API.md`, `FLUJO_API.md`,
+  `PLAN_DSL.md`, `NOTA_F5_Y_API_DSL.md`).
+- Se creó `docs/cronologia_trabajo.md` y se renombraron los PRs del
+  integrante (#3, #6, #11, #22) según su contenido real.
+
+**Verificación**: suite **142 tests passed**; contrato API intacto.
+
+### Paso 16 — Tareas 15 y 16 del backlog: calidad de ingeniería y exportación del reporte (2026-09-16)
+
+Tareas **15 y 16** del `PLAN_BACKLOG_FUTURO.md` (Fase 1):
+
+- **Configuración**: `pyproject.toml` (ruff, mypy, coverage), `flake.nix`
+  (deps: `ruff`, `mypy`, `pre-commit`, `pytest-cov`, `coverage`, `markdown`,
+  `weasyprint`; el check `default` corre pytest + ruff + mypy),
+  `.pre-commit-config.yaml`, `.github/workflows/ci.yml` (CI con Nix).
+- **Refactor inducido** (~30 archivos): 220+ hallazgos de ruff resueltos
+  (mayoría auto-fixables; 11 manuales: `StrEnum`, `raise…from`, nombres) y
+  9 errores de mypy (`_FABRICAS: dict[str, Callable[[dict], Analizador]]`,
+  `epsilon_ady` anotado, iteración de `pymupdf.Document`, etc.).
+- **`validator/exportador.py`** (nuevo): `reporte_a_markdown()` y
+  `reporte_a_pdf()` (Markdown → HTML → **WeasyPrint**).
+- **`validator/cli.py`**: `--formato {json,markdown,pdf}` + `--salida`;
+  `--json` se conserva como atajo.
+- **`tests/test_exportador.py`** (nuevo, 6 tests).
+
+**Verificación**: `nix flake check` verde; **148 tests passed**; coverage 88%.
+
+Detalle completo: `docs/diseno/10_calidad_y_exportacion.md`.
+
+---
+
 ## 8. Resumen técnico
 
 | Archivo | Estado | Descripción |
@@ -950,9 +1006,23 @@ mutación faltante.
 | `reglas_dsl_ejemplo.yaml` | **nuevo** | 13 reglas de ejemplo (12 familias de analizador) |
 | `docs/DSL.md` | **nuevo** | Referencia de la gramática del DSL (incluye tokenizer, automata_pila y F3) |
 | `docs/PLAN_DSL.md` | **nuevo** | Plan futuro (migración, tokenizer, PDA, mecanizar reglas, traza, tests de propiedad) con 4 decisiones pendientes |
+| `validator/api.py` | **modificado** | F5: `REGLAS_YAML_PATH` → `reglas_unt.yaml` (DSL, 41 reglas) |
+| `validator/compilador.py` | **modificado** | F5: `_detalle_con_traza()` (ruta de estados en `found`) |
+| `validator/exportador.py` | **nuevo** | Tarea 16: `reporte_a_markdown()`, `reporte_a_pdf()` (Markdown → HTML → WeasyPrint) |
+| `validator/cli.py` | **modificado** | `--formato {json,markdown,pdf}` + `--salida` (tarea 16) |
+| `tests/test_exportador.py` | **nuevo** | 6 tests del exportador (tarea 16) |
+| `pyproject.toml` | **modificado** | `[tool.ruff]`, `[tool.mypy]`, `pytest` con `--cov` (tarea 15) |
+| `flake.nix` | **modificado** | deps de calidad + exportación; check con ruff/mypy/coverage (tarea 15) |
+| `.pre-commit-config.yaml` | **nuevo** | hooks: ruff, ruff-format, mypy, EOF, whitespace (tarea 15) |
+| `.github/workflows/ci.yml` | **nuevo** | CI con Nix (`install-nix-action` + `cachix`) (tarea 15) |
+| `docs/diseno/00…10` | **nuevo** | Paquete de diseño a posteriori (10 docs + 38 Mermaid) + doc de calidad/exportación |
+| `docs/PLAN_BACKLOG_FUTURO.md` | **nuevo** | Backlog futuro (bloques A–E, 16 ítems) |
+| `docs/cronologia_trabajo.md` | **nuevo** | Cronología real semana 2–4 del integrante |
 
-**Sin cambios**: `models.py`, `checks.py`, `prompts.py`, `api.py`,
-`api_models.py`, `cli.py`, `flake.nix`, `unt_format_rules_schema.yaml`.
+**Sin cambios (hasta cierre de semana 3)**: `models.py`, `checks.py`,
+`prompts.py`, `api_models.py`, `unt_format_rules_schema.yaml`. En semana 4
+`models.py` y `api_models.py` pasaron a `StrEnum` y `api.py` a tipos nuevos
+dentro del refactor de tarea 15 (ver Paso 16).
 
 ---
 

@@ -10,7 +10,8 @@ Soporta dos formatos de reglas:
 
 Ambos formatos producen el mismo contrato: `List[RuleResult]`.
 """
-from typing import Iterable, List, Optional
+
+from collections.abc import Iterable
 
 import yaml
 
@@ -25,7 +26,7 @@ def load_rules(yaml_path: str) -> dict:
         return yaml.safe_load(f)
 
 
-def validate_docx(docx_path: str, rules_data: dict) -> List[RuleResult]:
+def validate_docx(docx_path: str, rules_data: dict) -> list[RuleResult]:
     """Ejecuta todas las reglas mecanizadas contra un DOCX.
 
     Si `rules_data` usa el formato DSL (`reglas`), delega en `CompilerDSL`.
@@ -45,9 +46,9 @@ def validate_docx(docx_path: str, rules_data: dict) -> List[RuleResult]:
     return _validate_legacy(rules_data, extracted)
 
 
-def _validate_legacy(rules_data: dict, extracted) -> List[RuleResult]:
+def _validate_legacy(rules_data: dict, extracted) -> list[RuleResult]:
     """Evalúa el YAML legacy (`rules` + `mecanismo_verificable`)."""
-    results: List[RuleResult] = []
+    results: list[RuleResult] = []
 
     for rule in rules_data.get("rules", []):
         mecanismo = rule.get("mecanismo_verificable")
@@ -83,8 +84,8 @@ def _validate_legacy(rules_data: dict, extracted) -> List[RuleResult]:
 
 
 def filter_by_severity(
-    results: Iterable[RuleResult], severities: Optional[List[str]] = None
-) -> List[RuleResult]:
+    results: Iterable[RuleResult], severities: list[str] | None = None
+) -> list[RuleResult]:
     """Filtra resultados por severidad. Si severities es None, no filtra."""
     if severities is None:
         return list(results)
@@ -92,9 +93,7 @@ def filter_by_severity(
     return [r for r in results if r.severity in wanted]
 
 
-def build_report(
-    results: List[RuleResult], severities: Optional[List[str]] = None
-) -> dict:
+def build_report(results: list[RuleResult], severities: list[str] | None = None) -> dict:
     """Arma el reporte final.
 
     El semáforo SIEMPRE se calcula sobre TODOS los resultados con
@@ -102,9 +101,7 @@ def build_report(
     detallado) — un filtro de visualización nunca debe poder ocultar un
     bloqueo real de la entrega.
     """
-    hay_error_bloqueante = any(
-        (not r.passed) and r.severity == Severity.ERROR for r in results
-    )
+    hay_error_bloqueante = any((not r.passed) and r.severity == Severity.ERROR for r in results)
     reporte_resultados = filter_by_severity(results, severities)
 
     return {

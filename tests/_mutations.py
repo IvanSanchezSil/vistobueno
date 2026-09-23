@@ -11,15 +11,15 @@ Si alguien agrega una regla al YAML sin mutación (o muere una mutación
 sin quitarse del YAML), el import falla con un error claro — fallo en
 recolecta de tests, no un test más que recordar actualizar.
 """
+
 import copy
 from pathlib import Path
 
 import yaml
-
 from _docx_builder import _ANADIDAS_REVISION, _HEADINGS_CUANT, _headings_insertadas
 
 # ---------------------------------------------------------------------------
-# Nombres de las reglas de reglas_unt.yaml (41).
+# Nombres de las reglas de reglas_unt.yaml (47).
 # ---------------------------------------------------------------------------
 
 REGLAS = [
@@ -64,6 +64,12 @@ REGLAS = [
     "anexos_minimos_cualitativo",
     "caratula_orcid",
     "proyecto_caratula_texto",
+    "indice_paginas_separadas",
+    "encabezado_membrete",
+    "encabezado_formato",
+    "notas_al_pie_consistencia",
+    "indice_apunta_secciones",
+    "indice_numeracion_jerarquica",
 ]
 
 # Reglas cuyo mecanismo es IDÉNTICO entre sí (mismo conteo de nodos con la
@@ -90,12 +96,26 @@ REGLAS_ACOPLADAS = {
     },
     "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
     "caratula_ciudad_pais_negrita": {"caratula_universidad_negrita_mayusculas"},
+    # indice_subdivisiones renombra "INDICE DE CONTENIDOS" -> "ÍNDICE GENERAL".
+    # Con el xpath tolerante ("indice") el primer match cae en "INDICE DE
+    # TABLAS": las páginas pasan de distintas a repetidas, así que
+    # indice_paginas_separadas detecta el desvío. Acople unidireccional.
+    # (Las reglas de TOC pasan a n/a con ese renombre, pero el `found` exitoso
+    # es "cumple" en ambos casos -> sin acople observable.)
+    "indice_subdivisiones": {"indice_paginas_separadas"},
+    # estructura_tinv_cuantitativo renombra "SITUACIÓN PROBLEMÁTICA" ->
+    # "PROBLEMÁTICA Y CONTEXTO": la entrada "1.1. SITUACIÓN PROBLEMÁTICA" del
+    # índice deja de apuntar a una sección real (falla indice_apunta_secciones).
+    "estructura_tinv_cuantitativo": {"indice_apunta_secciones"},
 }
 
 # Exclusión documentada: el documento base (plan tipo cuantitativo) no puede
 # cumplir simultáneamente los esquemas alternativos (la estructura del
 # documento define el tipo de investigación). Ver docs/PLAN_DSL.md, F6.
-EXCLUIDAS_BASE = {"estructura_tinv_cualitativo", "estructura_tinv_revision_literatura"}
+EXCLUIDAS_BASE = {
+    "estructura_tinv_cualitativo",
+    "estructura_tinv_revision_literatura",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +148,21 @@ def _renombrar_heading(cfg: dict, actual: str, nuevo: str) -> None:
     cfg["headings"] = [nuevo if h == actual else h for h in cfg["headings"]]
 
 
+def _renumerar_tdc(cfg: dict, actual: str, nuevo: str) -> None:
+    """Renumera una entrada del índice (nivel, texto) para el ítem 12."""
+    cfg["tdc_entradas"] = [(n, nuevo if t == actual else t) for n, t in cfg["tdc_entradas"]]
+
+
+def _insertar_tdc(cfg: dict, despues_de: str, entrada: tuple) -> None:
+    """Inserta una entrada del índice en orden, tras la que tenga `despues_de`."""
+    acum = []
+    for n, t in cfg["tdc_entradas"]:
+        acum.append((n, t))
+        if t == despues_de:
+            acum.append(entrada)
+    cfg["tdc_entradas"] = acum
+
+
 def _interleaved_cualitativo() -> list:
     """Plan cuantitativo + cabeceras del esquema cualitativo intercaladas."""
     res = []
@@ -139,8 +174,13 @@ def _interleaved_cualitativo() -> list:
             res.append("PARTICIPANTES")
         if h == "DISEÑO DE INVESTIGACIÓN":
             res.append("INSTRUMENTOS USADOS EN LA RECOLECCIÓN DE INFORMACIÓN")
-        if h == "MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS":
-            res.append("MÉTODOS, TÉCNICAS, PROCEDIMIENTOS Y ESTRATEGIAS USADAS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS")
+        if (
+            h
+            == "MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS"
+        ):
+            res.append(
+                "MÉTODOS, TÉCNICAS, PROCEDIMIENTOS Y ESTRATEGIAS USADAS EN EL ANÁLISIS E INTERPRETACIÓN DE DATOS"
+            )
             res.append("ANÁLISIS Y DISCUSIÓN DE RESULTADOS")
     return res
 
@@ -168,18 +208,28 @@ _MUTACIONES = {
     "numeracion_cuerpo_arabigo": lambda c: c.update(final_numtype="decimal"),
     "caratula_no_se_enumera": lambda c: c.update(titlepg=False),
     "caratula_universidad_negrita_mayusculas": lambda c: c["portada"]["univ"].update(negrita=False),
-    "caratula_facultad_negrita_mayusculas": lambda c: c["portada"]["facultad"].update(negrita=False),
+    "caratula_facultad_negrita_mayusculas": lambda c: c["portada"]["facultad"].update(
+        negrita=False
+    ),
     "caratula_titulo_negrita_mixta": lambda c: c["portada"]["titulo"].update(negrita=False),
-    "caratula_autores_mayusculas_sin_negrita": lambda c: c["portada"]["autores_nombre"].update(negrita=True),
+    "caratula_autores_mayusculas_sin_negrita": lambda c: c["portada"]["autores_nombre"].update(
+        negrita=True
+    ),
     "caratula_asesor_negrita": lambda c: c["portada"]["asesor"].update(negrita=False),
     "caratula_ciudad_pais_negrita": lambda c: c["portada"]["univ"].update(negrita=False),
-    "caratula_linea_investigacion": lambda c: c["portada"]["linea"].update(texto="Tecnologías disruptivas"),
-    "estructura_tinv_cuantitativo": lambda c: _renombrar_heading(c, "SITUACIÓN PROBLEMÁTICA", "PROBLEMÁTICA Y CONTEXTO"),
+    "caratula_linea_investigacion": lambda c: c["portada"]["linea"].update(
+        texto="Tecnologías disruptivas"
+    ),
+    "estructura_tinv_cuantitativo": lambda c: _renombrar_heading(
+        c, "SITUACIÓN PROBLEMÁTICA", "PROBLEMÁTICA Y CONTEXTO"
+    ),
     "estructura_tinv_cualitativo": lambda c: c.update(headings=_interleaved_cualitativo()),
     "estructura_tinv_revision_literatura": lambda c: c.update(
         headings=_headings_insertadas(_HEADINGS_CUANT, _ANADIDAS_REVISION)
     ),
-    "indice_subdivisiones": lambda c: _renombrar_heading(c, "INDICE DE CONTENIDOS", "ÍNDICE GENERAL"),
+    "indice_subdivisiones": lambda c: _renombrar_heading(
+        c, "INDICE DE CONTENIDOS", "ÍNDICE GENERAL"
+    ),
     "resumen_longitud": lambda c: c.update(resumen_palabras=60),
     "palabras_clave_minimo": lambda c: c.update(palabras_clave_n=2),
     "referencias_minimo_cuantitativo": lambda c: c.update(referencias_n=19),
@@ -189,6 +239,24 @@ _MUTACIONES = {
     "anexos_minimos_cualitativo": lambda c: c["anexos_items"].remove("Juicio de expertos"),
     "caratula_orcid": lambda c: c["portada"].pop("orcid"),
     "proyecto_caratula_texto": lambda c: c["portada"]["proyecto"].update(sz=24),
+    "indice_paginas_separadas": lambda c: c.update(indices_paginas_separadas=False),
+    "encabezado_membrete": lambda c: c.update(header_logo=False),
+    "encabezado_formato": lambda c: c.update(header_fuente="Arial"),
+    "notas_al_pie_consistencia": lambda c: c.update(notas_pie_ids=[1, 2, 4]),
+    # ítem 11 (indice_apunta_secciones): agregar una entrada que NO apunta a
+    # ninguna sección real. El token significativo "DELIMITACIÓN" no está en
+    # ningún título del cuerpo. Se inserta en orden (1.6 tras 1.5) para no
+    # alterar la jerarquía del ítem 12.
+    "indice_apunta_secciones": lambda c: _insertar_tdc(
+        c,
+        "1.5 VARIABLE(S) Y OPERACIONALIZACIÓN 11",
+        (2, "1.6. DELIMITACIÓN DE LA INVESTIGACIÓN 40"),
+    ),
+    # ítem 12 (indice_numeracion_jerarquica): renumera una subsección fuera de
+    # su capítulo (2.2 bajo el capítulo I) -> capitulo_descolgado.
+    "indice_numeracion_jerarquica": lambda c: _renumerar_tdc(
+        c, "1.2. ENUNCIADO DEL PROBLEMA 4", "2.2. ENUNCIADO DEL PROBLEMA 4"
+    ),
 }
 
 
@@ -200,7 +268,7 @@ RUTA_REGLAS_YAML = Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
 
 
 def _validar_sincronizacion() -> None:
-    """Falla el import si `_MUTACIONES` no cubre exactamente las 41 reglas.
+    """Falla el import si `_MUTACIONES` no cubre exactamente las 47 reglas.
 
     Evita la desincronización silenciosa factory↔YAML: el error ocurre en la
     recolecta de tests (cuando se importa el factory), no cuando un test

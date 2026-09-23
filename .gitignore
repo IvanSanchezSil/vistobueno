@@ -5,6 +5,10 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.coverage
+htmlcov/
+.mycache/
+.mypy_cache/
 
 # Nix
 result

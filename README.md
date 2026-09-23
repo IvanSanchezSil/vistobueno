@@ -96,9 +96,12 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 > - `unt_format_rules_schema.yaml` — formato **legacy** (checks con
 >   `mecanismo_verificable`). Es la fuente histórica (Semana 2); la API ya no lo
 >   carga.
-> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **41 reglas**:
+> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **47 reglas**:
 >   las 32 legacy migradas (F1) + 9 reglas antes no-deterministas mecanizadas
->   a mano en la F3 (tokenizer + analizadores de conteo/lista/hipervínculo).
+>   a mano en la F3 (tokenizer + analizadores de conteo/lista/hipervínculo)
+>   + `indice_paginas_separadas` (paginación real por `w:lastRenderedPageBreak`)
+>   + encabezados/pies, notas al pie (F2 ítems 1-3) + `indice_apunta_secciones`
+>   e `indice_numeracion_jerarquica` (F2 ítems 11-12, índice de contenidos).
 >   **Es el que carga la API** (`validator/api.py`, desde la **F5**, Semana 4).
 >   Para las 32 reglas compartidas, ambos motores dan resultados idénticos
 >   (paridad verificada con `scripts/evaluar_paridad_plantillas.py` contra
@@ -113,6 +116,7 @@ validator/
   engine.py           # Carga YAML, corre reglas, arma reporte
   prompts.py          # Generador de prompts "cómo preguntar a una IA"
   cli.py              # CLI de referencia
+  exportador.py       # Exporta el reporte a Markdown y PDF
   api.py              # FastAPI endpoint POST /validar
   api_models.py       # Pydantic DTOs (ValidarResponse, etc.)
   tokenizer.py        # Análisis léxico DSL (TITULO, PARRAFO, etc.)
@@ -129,6 +133,7 @@ tests/
   test_f4_ingenieria.py     # Tests F4: linter, cache, traza
   test_paridad_formatos.py  # Paridad legacy vs DSL
   test_propiedad.py         # Tests de propiedad (factory + mutaciones)
+  test_exportador.py        # Tests de exportación a Markdown/PDF
   docx_factory.py           # Factory determinista de DOCX
   _docx_builder.py          # Builder interno de DOCX
   _mutations.py             # Mutaciones sincronizadas con reglas_unt.yaml
@@ -140,7 +145,7 @@ scripts/
   migrar_legacy_a_dsl.py          # Migra YAML legacy → DSL
   ocr_pdfs.py                     # OCR de reglamentos escaneados
 
-reglas_unt.yaml            # Reglas en formato DSL (41 reglas)
+reglas_unt.yaml            # Reglas en formato DSL (47 reglas)
 reglas_dsl_ejemplo.yaml    # Ejemplo de reglas DSL
 ```
 
@@ -173,18 +178,32 @@ python -m validator.cli tesis.docx unt_format_rules_schema.yaml --severity error
 # reporte completo en JSON (incluye "como_preguntar_a_una_ia")
 python -m validator.cli tesis.docx unt_format_rules_schema.yaml --json
 
+# exportar el reporte a Markdown o PDF (para la bitácora/entrega)
+python -m validator.cli tesis.docx reglas_unt.yaml --formato markdown --salida reporte.md
+python -m validator.cli tesis.docx reglas_unt.yaml --formato pdf --salida reporte.pdf
+
+# exportar un reporte JSON preexistente
+python -m validator.exportador reporte.json reporte.md
+python -m validator.exportador reporte.json reporte.pdf
+
 # evaluar un lote de plantillas/tesis de prueba
 python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/plantillas/
 
-# verificación completa (tests + lint del flake)
+# calidad de ingeniería (lint, tipos y medición de cobertura)
+ruff check validator/ scripts/ tests/
+ruff format --check validator/ scripts/ tests/
+mypy validator/ scripts/
+pytest tests/ --cov=validator --cov-report=term-missing
+
+# verificación completa (tests + lint del flake + tipos + cobertura)
 nix flake check
 ```
 
-La suite (**140 tests**) incluye los **tests de propiedad** (F6): un factory
+La suite (**204 tests**) incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en
 `tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
 este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)
-genera un documento "bueno" (39/41) y 41 mutaciones de una sola propiedad
+genera un documento "bueno" (45/47) y 47 mutaciones de una sola propiedad
 (`tests/test_propiedad.py`), verificando que un desvío mínimo invalida solo
 su regla. Sobre eso, las **mejoras de ingeniería F4** agregaron: un **linter
 del DSL** (`validator/dsl_check.py`) que valida la configuración al cargar
@@ -201,7 +220,7 @@ ciclos épsilon), **cache de consultas XPath** por documento y la
 - **Config de reglas**: YAML (`pyyaml`).
 - **Hosting**: on-premise en infraestructura de la universidad. Sin dependencias de servicios externos en tiempo de ejecución (sin llamadas a APIs de LLM en producción, bajo la restricción actual).
 - **Frontend tooling**: Vite + React (`frontend/`).
-- **Entorno de desarrollo**: Nix flake (`flake.nix`) — Python 3.14 + dependencias del motor + toolchain de OCR (`ocrmypdf`, `tesseract` con español, `poppler_utils`). Incluye `nix run .#test` (pytest), `nix run .#serve` (uvicorn) y `nix flake check` para verificación completa.
+- **Entorno de desarrollo**: Nix flake (`flake.nix`) — Python 3.14 + dependencias del motor + toolchain de OCR (`ocrmypdf`, `tesseract` con español, `poppler_utils`) + tooling de calidad (ruff, mypy, pre-commit) y de exportación (markdown, WeasyPrint). Incluye `nix run .#test` (pytest), `nix run .#serve` (uvicorn) y `nix flake check` para verificación completa (tests + ruff + mypy + cobertura).
 
 ## Extensiones futuras (fuera de alcance por ahora)
 
@@ -212,4 +231,4 @@ ciclos épsilon), **cache de consultas XPath** por documento y la
 
 Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba y contra las 5 plantillas oficiales (25/32 mecanizadas PASS). Los dos RCU escaneados fueron leídos vía OCR (2026-09-02) y quedaron reflejados en el YAML: la lista de líneas de investigación del RCU-220 alimenta la regla `caratula_linea_investigacion` y el aporte del RCU-274 (Anexo 5) se registró como no determinista.
 
-**API FastAPI** implementada (`POST /validar`) con validación de entrada, manejo de errores, DTOs Pydantic y suite de tests de contrato (ver `docs/CONTRATO_API.md`). **Frontend React** inicializado con Vite (`frontend/`), con mockups de las pantallas de carga y reporte (`mockups/`). **Motor DSL** consolidado (F1–F6): 41 reglas mecanizadas, linter, cache XPath, traza de autómata y tests de propiedad con factory determinista de DOCX.
+**API FastAPI** implementada (`POST /validar`) con validación de entrada, manejo de errores, DTOs Pydantic y suite de tests de contrato (ver `docs/CONTRATO_API.md`). **Frontend React** inicializado con Vite (`frontend/`), con mockups de las pantallas de carga y reporte (`mockups/`). **Motor DSL** consolidado (F1–F6): 47 reglas mecanizadas (incluye paginación real `indice_paginas_separadas`, ubicación por página, encabezados/pies, notas al pie, e índice de contenidos con `indice_apunta_secciones`/`indice_numeracion_jerarquica`), linter, cache XPath, traza de autómata y tests de propiedad con factory determinista de DOCX. **Calidad de ingeniería** (ruff, mypy, coverage, pre-commit, CI con Nix) y **exportación del reporte a Markdown/PDF** implementadas (tareas 15 y 16 del `docs/PLAN_BACKLOG_FUTURO.md`).

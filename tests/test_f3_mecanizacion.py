@@ -7,11 +7,12 @@ Cubre los analizadores nuevos del DSL:
 - `hipervinculo_texto`: ORCID en carátula.
 - `proyecto_caratula_texto` (patron_texto + atributo_xml, 13pt).
 - Helper `seccion()` del tokenizer (acotar secciones por títulos).
-- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (41 reglas).
+- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (42 reglas).
 
 Uso:
     pytest tests/test_f3_mecanizacion.py -v
 """
+
 import tempfile
 import zipfile
 from pathlib import Path
@@ -21,7 +22,7 @@ import pytest
 from validator.engine import load_rules, validate_docx
 from validator.extractor import extract
 from validator.models import RuleResult
-from validator.tokenizer import PARRAFO, TITULO, seccion, tokenizar
+from validator.tokenizer import PARRAFO, seccion, tokenizar
 
 WNS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -43,10 +44,7 @@ RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 def _para(texto: str, estilo: str = "", sz=None) -> str:
     pPr = f'<w:pPr><w:pStyle w:val="{estilo}"/></w:pPr>' if estilo else ""
     rPr = f'<w:rPr><w:sz w:val="{sz}"/></w:rPr>' if sz else ""
-    return (
-        f"<w:p>{pPr}<w:r>{rPr}"
-        f'<w:t xml:space="preserve">{texto}</w:t></w:r></w:p>'
-    )
+    return f'<w:p>{pPr}<w:r>{rPr}<w:t xml:space="preserve">{texto}</w:t></w:r></w:p>'
 
 
 def _hyperlink(texto: str) -> str:
@@ -95,52 +93,62 @@ class TestSeccion:
             Path(path).unlink(missing_ok=True)
 
     def test_recorta_entre_titulos(self):
-        flujo = self._extracted([
-            _para("RESUMEN", "Ttulo1"),
-            _para("cuerpo del resumen"),
-            _para("ABSTRACT", "Ttulo1"),
-            _para("abstract body"),
-        ])
+        flujo = self._extracted(
+            [
+                _para("RESUMEN", "Ttulo1"),
+                _para("cuerpo del resumen"),
+                _para("ABSTRACT", "Ttulo1"),
+                _para("abstract body"),
+            ]
+        )
         corte = seccion(flujo, "resumen")
         assert [t.tipo for t in corte] == [PARRAFO]
         assert corte[0].texto == "cuerpo del resumen"
 
     def test_fin_regex_opcional(self):
-        flujo = self._extracted([
-            _para("REFERENCIAS", "Ttulo1"),
-            _para("Autor, A. (2020). Título."),
-            _para("ANEXOS", "Ttulo1"),
-            _para("anexo 1"),
-        ])
+        flujo = self._extracted(
+            [
+                _para("REFERENCIAS", "Ttulo1"),
+                _para("Autor, A. (2020). Título."),
+                _para("ANEXOS", "Ttulo1"),
+                _para("anexo 1"),
+            ]
+        )
         corte = seccion(flujo, "referencias", fin="anexos")
         assert [t.texto for t in corte] == ["Autor, A. (2020). Título."]
 
     def test_ultimo_titulo_toma_el_resto(self):
-        flujo = self._extracted([
-            _para("REFERENCIAS", "Ttulo1"),
-            _para("Una referencia."),
-            _para("Otra referencia."),
-        ])
+        flujo = self._extracted(
+            [
+                _para("REFERENCIAS", "Ttulo1"),
+                _para("Una referencia."),
+                _para("Otra referencia."),
+            ]
+        )
         corte = seccion(flujo, "referencias")
         paras = [t for t in corte if t.tipo == PARRAFO]
         assert len(paras) == 2
 
     def test_sin_match_devuelve_vacio(self):
-        flujo = self._extracted([
-            _para("INTRODUCCIÓN", "Ttulo1"),
-            _para("cuerpo"),
-        ])
+        flujo = self._extracted(
+            [
+                _para("INTRODUCCIÓN", "Ttulo1"),
+                _para("cuerpo"),
+            ]
+        )
         assert seccion(flujo, "resumen") == []
 
     def test_fin_anclado_no_corta_en_titulo_derivado(self):
         """`fin` con ^...$ no corta ante títulos que solo contienen la
         subcadena (p. ej. "ANEXOS Y RECURSOS") — el pitfall de no anclar."""
-        flujo = self._extracted([
-            _para("REFERENCIAS", "Ttulo1"),
-            _para("Autor, A. (2020). Título."),
-            _para("ANEXOS Y RECURSOS", "Ttulo1"),
-            _para("anexo 1"),
-        ])
+        flujo = self._extracted(
+            [
+                _para("REFERENCIAS", "Ttulo1"),
+                _para("Autor, A. (2020). Título."),
+                _para("ANEXOS Y RECURSOS", "Ttulo1"),
+                _para("anexo 1"),
+            ]
+        )
         corte = seccion(flujo, r"^referencias$", fin=r"^anexos$")
         textos = [t.texto for t in corte]
         assert "Autor, A. (2020). Título." in textos
@@ -149,10 +157,12 @@ class TestSeccion:
 
     def test_patron_vacio_lanza_valueerror(self):
         """`inicio`/`fin` vacíos o en blanco fallan temprano con ValueError."""
-        flujo = self._extracted([
-            _para("RESUMEN", "Ttulo1"),
-            _para("cuerpo"),
-        ])
+        flujo = self._extracted(
+            [
+                _para("RESUMEN", "Ttulo1"),
+                _para("cuerpo"),
+            ]
+        )
         with pytest.raises(ValueError):
             seccion(flujo, "resumen", fin="   ")
         with pytest.raises(ValueError):
@@ -183,11 +193,13 @@ class TestResumenLongitud:
     }
 
     def _res(self, n: int) -> str:
-        path = _make_docx([
-            _para("RESUMEN", "Ttulo1"),
-            _para(_nw(n)),
-            _para("ABSTRACT", "Ttulo1"),
-        ])
+        path = _make_docx(
+            [
+                _para("RESUMEN", "Ttulo1"),
+                _para(_nw(n)),
+                _para("ABSTRACT", "Ttulo1"),
+            ]
+        )
         try:
             return validate_docx(path, self.RULES)[0]
         finally:
@@ -224,11 +236,13 @@ class TestPalabrasClave:
     }
 
     def _res(self, etiquetas: str) -> Path:
-        path = _make_docx([
-            _para("RESUMEN", "Ttulo1"),
-            _para("Palabras clave: " + etiquetas),
-            _para("ABSTRACT", "Ttulo1"),
-        ])
+        path = _make_docx(
+            [
+                _para("RESUMEN", "Ttulo1"),
+                _para("Palabras clave: " + etiquetas),
+                _para("ABSTRACT", "Ttulo1"),
+            ]
+        )
         return path
 
     def test_cumple_con_tres(self):
@@ -304,21 +318,25 @@ class TestAnexosMinimos:
     }
 
     def test_cumple_con_todos(self):
-        path = _make_docx([
-            _para("ANEXOS", "Ttulo1"),
-            _para("Anexo 1. Matriz de consistencia"),
-            _para("Anexo 2. Consentimiento informado"),
-        ])
+        path = _make_docx(
+            [
+                _para("ANEXOS", "Ttulo1"),
+                _para("Anexo 1. Matriz de consistencia"),
+                _para("Anexo 2. Consentimiento informado"),
+            ]
+        )
         try:
             assert validate_docx(path, self.RULES)[0].passed is True
         finally:
             Path(path).unlink(missing_ok=True)
 
     def test_no_cumple_falta_uno(self):
-        path = _make_docx([
-            _para("ANEXOS", "Ttulo1"),
-            _para("Anexo 1. Matriz de consistencia"),
-        ])
+        path = _make_docx(
+            [
+                _para("ANEXOS", "Ttulo1"),
+                _para("Anexo 1. Matriz de consistencia"),
+            ]
+        )
         try:
             r = validate_docx(path, self.RULES)[0]
             assert r.passed is False
@@ -348,10 +366,12 @@ class TestOrcid:
     }
 
     def test_cumple_con_hyperlink(self):
-        path = _make_docx([
-            _para("AUTOR PRINCIPAL"),
-            _hyperlink("https://orcid.org/0000-0002-1825-0097"),
-        ])
+        path = _make_docx(
+            [
+                _para("AUTOR PRINCIPAL"),
+                _hyperlink("https://orcid.org/0000-0002-1825-0097"),
+            ]
+        )
         try:
             assert validate_docx(path, self.RULES)[0].passed is True
         finally:
@@ -378,8 +398,8 @@ class TestProyectoCaratulaTexto:
                     "parte": "document",
                     "contexto": "todos",
                     "xpath": "//w:body/w:p[contains(translate(normalize-space(.), "
-                             '"ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), '
-                             '"proyecto de investigación")]//w:t',
+                    '"ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), '
+                    '"proyecto de investigación")]//w:t',
                     "patron": "proyecto de investigación",
                     "coincidencia": "alguno",
                     "comparacion": "regex",
@@ -389,8 +409,8 @@ class TestProyectoCaratulaTexto:
                     "parte": "document",
                     "contexto": "todos",
                     "xpath": "//w:body/w:p[contains(translate(normalize-space(.), "
-                             '"ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), '
-                             '"proyecto de investigación")][1]/w:r[1]/w:rPr/w:sz',
+                    '"ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), '
+                    '"proyecto de investigación")][1]/w:r[1]/w:rPr/w:sz',
                     "atributo": "@w:val",
                     "comparacion": "eq",
                     "esperado": "26",
@@ -400,10 +420,12 @@ class TestProyectoCaratulaTexto:
     }
 
     def _doc(self, sz=None) -> Path:
-        return _make_docx([
-            _para("PROYECTO DE INVESTIGACIÓN", sz=sz),
-            _para("Para optar el título profesional"),
-        ])
+        return _make_docx(
+            [
+                _para("PROYECTO DE INVESTIGACIÓN", sz=sz),
+                _para("Para optar el título profesional"),
+            ]
+        )
 
     def test_cumple_con_13pt(self):
         path = self._doc(sz="26")
@@ -499,15 +521,15 @@ class TestImagenRefactor:
 
 
 class TestReglasUntCompletas:
-    """Smoke: las 41 reglas de reglas_unt.yaml validan sin excepción."""
+    """Smoke: las 47 reglas de reglas_unt.yaml validan sin excepción."""
 
-    def test_41_reglas_validan(self):
+    def test_47_reglas_validan(self):
         rules = load_rules("reglas_unt.yaml")
-        assert len(rules["reglas"]) == 41
+        assert len(rules["reglas"]) == 47
         path = _make_docx([_para("RESUMEN", "Ttulo1"), _para("cuerpo breve")])
         try:
             resultados = validate_docx(path, rules)
-            assert len(resultados) == 41
+            assert len(resultados) == 47
             assert all(isinstance(r, RuleResult) for r in resultados)
         finally:
             Path(path).unlink(missing_ok=True)

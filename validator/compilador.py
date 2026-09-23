@@ -20,15 +20,20 @@ también debe cumplirse):
     conteo_nodos                -> AnalizadorConteoNodos (min/máx)
     lista_obligatoria           -> AnalizadorListaObligatoria (anexos)
     hipervinculo_texto          -> AnalizadorHipervinculo (ORCID)
+    paginacion                  -> AnalizadorPaginacion (párrafo↔página física)
+    nota_pie                    -> AnalizadorNotaPie (numeración de notas al pie)
+    toc_apunta                  -> AnalizadorTocApunta (índice apunta a secciones reales)
+    toc_numeracion              -> AnalizadorTocNumeracion (jerarquía de numeración)
 
 La regla también conserva metadatos (descripcion, severidad, etc.) que
 se propagan al `RuleResult` resultante.
 """
+
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 from .analizadores import (
     Analizador,
@@ -38,14 +43,18 @@ from .analizadores import (
     AnalizadorImagen,
     AnalizadorLista,
     AnalizadorListaObligatoria,
+    AnalizadorNotaPie,
+    AnalizadorPaginacion,
     AnalizadorRegex,
+    AnalizadorTocApunta,
+    AnalizadorTocNumeracion,
     AnalizadorXML,
 )
-from .automata import DFA, GramaticaEstructura, PDA, Transicion, TransicionPDA
+from .automata import DFA, PDA, GramaticaEstructura, Transicion, TransicionPDA
 from .dsl_check import linter_o_alzar
-from .extractor import ExtractedDocx, NS, text_of
-from .tokenizer import TITULO, solo, textos, tokenizar
+from .extractor import NS, ExtractedDocx, text_of
 from .models import RuleResult, Severity
+from .tokenizer import TITULO, solo, tokenizar
 
 # Secciones del DSL que indican que una regla es verificable.
 SECCIONES_ANALIZADOR = (
@@ -61,6 +70,10 @@ SECCIONES_ANALIZADOR = (
     "conteo_nodos",
     "lista_obligatoria",
     "hipervinculo_texto",
+    "paginacion",
+    "nota_pie",
+    "toc_apunta",
+    "toc_numeracion",
 )
 
 
@@ -102,7 +115,7 @@ def _matchea_legacy(token: str, patron: re.Pattern, prefijos: bool) -> bool:
     return False
 
 
-def _normalizar_texto(s: str, normalizacion: List[str]) -> str:
+def _normalizar_texto(s: str, normalizacion: list[str]) -> str:
     """Normaliza el texto de un token igual que `AutomataSecuencia`."""
     if "mayusculas" in normalizacion:
         s = s.upper()
@@ -113,8 +126,8 @@ def _normalizar_texto(s: str, normalizacion: List[str]) -> str:
 
 
 def _flujo_texto(
-    extracted: ExtractedDocx, normalizacion: List[str], tipo_flujo: str, tipos
-) -> List[str]:
+    extracted: ExtractedDocx, normalizacion: list[str], tipo_flujo: str, tipos
+) -> list[str]:
     """Proyección de texto (normalizada) del flujo tokenizado.
 
     `tipo_flujo: titulos` (default) usa SOLO los títulos — reproduce la
@@ -124,8 +137,7 @@ def _flujo_texto(
     """
     tipos_flujo = tipos if tipo_flujo == "documento" else ["TITULO"]
     return [
-        _normalizar_texto(t.texto, normalizacion)
-        for t in solo(tokenizar(extracted), tipos_flujo)
+        _normalizar_texto(t.texto, normalizacion) for t in solo(tokenizar(extracted), tipos_flujo)
     ]
 
 
@@ -139,18 +151,18 @@ class AutomataSecuencia(Analizador):
 
     def __init__(self, config: dict):
         super().__init__(config)
-        self.nivel_titulo: List[int] = config.get("nivel_titulo", [1, 2, 3])
-        self.normalizacion: List[str] = config.get("normalizacion", [])
+        self.nivel_titulo: list[int] = config.get("nivel_titulo", [1, 2, 3])
+        self.normalizacion: list[str] = config.get("normalizacion", [])
         self.reconocimiento: str = config.get("reconocimiento", "greedy")
         self.tipo_flujo: str = config.get("tipo_flujo", "titulos")
-        self.tipos: List[str] = config.get("tipos", ["TITULO"])
+        self.tipos: list[str] = config.get("tipos", ["TITULO"])
         # Traza (F4): estados recorridos por el último análisis.
-        self.ultima_ruta: List[str] = []
+        self.ultima_ruta: list[str] = []
 
     def _build_dfa(self, estados_cfg: list) -> DFA:
-        estados: List[str] = []
-        transiciones: List[Transicion] = []
-        aceptacion: List[str] = []
+        estados: list[str] = []
+        transiciones: list[Transicion] = []
+        aceptacion: list[str] = []
 
         # Estado previo obligatorio — los opcionales se omiten por completo
         # (comportamiento del motor legacy: los "(OPCIONAL)" simplemente no
@@ -183,7 +195,7 @@ class AutomataSecuencia(Analizador):
             matche=_matchea_legacy,
         )
 
-    def _headings(self, extracted: ExtractedDocx) -> List[str]:
+    def _headings(self, extracted: ExtractedDocx) -> list[str]:
         """Títulos en orden de documento.
 
         Misma semántica que el legacy `checks._check_secuencia` (pStyle con
@@ -211,8 +223,8 @@ class AutomataSecuencia(Analizador):
         return False
 
     def _faltantes_legacy(
-        self, estados_cfg: list, headings: List[str], cover_ok: bool
-    ) -> List[str]:
+        self, estados_cfg: list, headings: list[str], cover_ok: bool
+    ) -> list[str]:
         """Lista de ítems del esquema que faltan, con la MISMA semántica que
         `checks._check_secuencia` del motor legacy.
 
@@ -222,16 +234,14 @@ class AutomataSecuencia(Analizador):
         reporte sea idéntico, al fallar se reproduce aquí el recorrido legacy.
         """
         cover_nombres = {"carátula", "caratula"}
-        faltantes: List[str] = []
+        faltantes: list[str] = []
         pos = 0
         for e in estados_cfg:
             if e.get("opcional"):
                 continue
             if e.get("nombre", "").lower() in cover_nombres and cover_ok:
                 continue
-            patron = re.compile(
-                re.sub(r"\s+", " ", e.get("patron", e["nombre"]).strip())
-            )
+            patron = re.compile(re.sub(r"\s+", " ", e.get("patron", e["nombre"]).strip()))
             found = None
             for k in range(pos, len(headings)):
                 if _matchea_legacy(headings[k], patron, True):
@@ -243,7 +253,7 @@ class AutomataSecuencia(Analizador):
                 pos = found + 1
         return faltantes
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         estados_cfg = self.config.get("estados", [])
         if not estados_cfg:
             return False, "sin estados definidos en automata_secuencia"
@@ -257,8 +267,7 @@ class AutomataSecuencia(Analizador):
             cover_ok = self._caratula_ok(extracted)
             if cover_ok:
                 estados_activos = [
-                    e for e in estados_cfg
-                    if not (e.get("nombre", "").lower() in cover_nombres)
+                    e for e in estados_cfg if e.get("nombre", "").lower() not in cover_nombres
                 ]
             else:
                 estados_activos = estados_cfg
@@ -284,7 +293,7 @@ class AutomataSecuencia(Analizador):
 class GramaticaEstructuraAnalizador(Analizador):
     """Envuelve `GramaticaEstructura` como un Analizador del DSL."""
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         cfg = self.config
         gramatica = GramaticaEstructura(
             reglas_sintacticas=cfg.get("reglas_sintacticas", []),
@@ -298,9 +307,15 @@ class GramaticaEstructuraAnalizador(Analizador):
             # texto de los tipos seleccionados y deja que `analizar` lo
             # normalice (mayúsculas) como hace hoy con los headings.
             normalizacion = cfg.get("normalizacion", [])
-            flujo = _flujo_texto(extracted, normalizacion, cfg["tipo_flujo"], cfg.get("tipos", ["TITULO"]))
+            flujo = _flujo_texto(
+                extracted, normalizacion, cfg["tipo_flujo"], cfg.get("tipos", ["TITULO"])
+            )
             aceptado, faltantes = gramatica.analizar(flujo)
-            detalle = f"tokens={len(flujo)} gramática_ok" if aceptado else f"tokens={len(flujo)} faltantes={faltantes[:6]}"
+            detalle = (
+                f"tokens={len(flujo)} gramática_ok"
+                if aceptado
+                else f"tokens={len(flujo)} faltantes={faltantes[:6]}"
+            )
             return aceptado, detalle
 
         headings = [t.texto for t in solo(tokenizar(extracted), [TITULO])]
@@ -328,11 +343,11 @@ class AutomataPila(Analizador):
     def __init__(self, config: dict):
         super().__init__(config)
         self.tipo_flujo: str = config.get("tipo_flujo", "titulos")
-        self.tipos: List[str] = config.get("tipos", ["TITULO"])
-        self.normalizacion: List[str] = config.get("normalizacion", [])
+        self.tipos: list[str] = config.get("tipos", ["TITULO"])
+        self.normalizacion: list[str] = config.get("normalizacion", [])
         self.reconocimiento: str = config.get("reconocimiento", "greedy")
         # Traza (F4): estados recorridos por el último análisis.
-        self.ultima_ruta: List[str] = []
+        self.ultima_ruta: list[str] = []
 
     def _build_pda(self) -> PDA:
         transiciones = [
@@ -356,7 +371,7 @@ class AutomataPila(Analizador):
     def _normalizar(self, s: str) -> str:
         return _normalizar_texto(s, self.normalizacion)
 
-    def analizar(self, extracted: ExtractedDocx) -> Tuple[bool, str]:
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         if not self.config.get("transiciones"):
             return False, "sin transiciones en automata_pila"
 
@@ -375,7 +390,9 @@ class AutomataPila(Analizador):
 # ---------------------------------------------------------------------------
 
 # Mapeo de sección del DSL -> fábrica de Analizador.
-_FABRICAS = {
+# Anotado como Callable para que mypy sepa que fabrica instancias concretas
+# (Analizador es abstracto y no se puede instanciar directamente).
+_FABRICAS: dict[str, Callable[[dict], Analizador]] = {
     "atributo_xml": AnalizadorXML,
     "presencia_xml": AnalizadorXML,
     "patron_texto": AnalizadorRegex,
@@ -388,6 +405,10 @@ _FABRICAS = {
     "conteo_nodos": AnalizadorConteoNodos,
     "lista_obligatoria": AnalizadorListaObligatoria,
     "hipervinculo_texto": AnalizadorHipervinculo,
+    "paginacion": AnalizadorPaginacion,
+    "nota_pie": AnalizadorNotaPie,
+    "toc_apunta": AnalizadorTocApunta,
+    "toc_numeracion": AnalizadorTocNumeracion,
 }
 
 
@@ -396,7 +417,7 @@ class ReglaCompilada:
     """Una regla DSL compilada: sus analizadores + metadatos."""
 
     rule: dict
-    analizadores: List[Analizador] = field(default_factory=list)
+    analizadores: list[Analizador] = field(default_factory=list)
 
     @staticmethod
     def _detalle_con_traza(detalle: str, analizador: Analizador) -> str:
@@ -413,7 +434,8 @@ class ReglaCompilada:
         return detalle
 
     def ejecutar(self, extracted: ExtractedDocx) -> RuleResult:
-        fallos: List[str] = []
+        fallos: list[str] = []
+        pagina: int | None = None
         for an in self.analizadores:
             try:
                 ok, detalle = an.analizar(extracted)
@@ -421,10 +443,19 @@ class ReglaCompilada:
                 ok, detalle = False, f"error ejecutando analizador: {type(e).__name__}: {e}"
             if not ok:
                 fallos.append(self._detalle_con_traza(detalle, an))
+                # Enriquecer la ubicación con la página física real (ítem 1):
+                # se usa el nodo objetivo del primer analizador que falló.
+                if pagina is None and getattr(an, "ultimo_nodo", None) is not None:
+                    pagina = extracted.pagina_de(an.ultimo_nodo)
 
         esperados = self.rule.get("valor_esperado", "")
         if isinstance(esperados, list):
             esperados = "; ".join(map(str, esperados))
+
+        ubicacion = self.rule.get("ubicacion") or ""
+        if fallos and pagina is not None and ubicacion:
+            ubicacion = f"{ubicacion}; página {pagina}"
+
         return RuleResult(
             rule_id=self.rule["id"],
             passed=not fallos,
@@ -432,7 +463,7 @@ class ReglaCompilada:
             message=self.rule.get("descripcion", self.rule["id"]),
             expected=str(esperados),
             found="; ".join(fallos) if fallos else "cumple",
-            location=self.rule.get("ubicacion"),
+            location=ubicacion or None,
             fuente=self.rule.get("fuente", ""),
             cita=self.rule.get("cita", ""),
         )
@@ -441,12 +472,12 @@ class ReglaCompilada:
 class CompilerDSL:
     """Compila el YAML DSL en un conjunto de `ReglaCompilada`."""
 
-    def compilar(self, rules_data: dict, linter: bool = True) -> List[ReglaCompilada]:
+    def compilar(self, rules_data: dict, linter: bool = True) -> list[ReglaCompilada]:
         if linter:
             # Error de configuración (regex, comparacion, autómatas) se
             # detecta AL CARGAR, no al validar contra un documento (F4).
             linter_o_alzar(rules_data)
-        reglas: List[ReglaCompilada] = []
+        reglas: list[ReglaCompilada] = []
         for rule in rules_data.get("reglas", []):
             analizadores = []
             # Se recorren las secciones en el orden en que aparecen en la
@@ -473,5 +504,5 @@ class CompilerDSL:
             reglas.append(ReglaCompilada(rule=rule, analizadores=analizadores))
         return reglas
 
-    def ejecutar(self, rules_data: dict, extracted: ExtractedDocx) -> List[RuleResult]:
+    def ejecutar(self, rules_data: dict, extracted: ExtractedDocx) -> list[RuleResult]:
         return [r.ejecutar(extracted) for r in self.compilar(rules_data)]

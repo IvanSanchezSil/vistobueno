@@ -6,11 +6,12 @@ validar estructuras jerárquicas completas (parseador descendente
 recursivo). Ambos se alimentan de las reglas definidas en el DSL YAML
 (secciones `automata_secuencia` y `gramatica_estructura`).
 """
+
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # DFA — Autómata finito determinista
@@ -25,6 +26,7 @@ class Transicion:
     del flujo de entrada, dispara la transición desde `desde` hacia `hacia`.
     Si `consumir` es True, la transición avanza el puntero de entrada.
     """
+
     desde: str
     hacia: str
     patron: str
@@ -42,13 +44,13 @@ class DFA:
 
     def __init__(
         self,
-        estados: List[str],
-        transiciones: List[Transicion],
+        estados: list[str],
+        transiciones: list[Transicion],
         inicial: str,
-        aceptacion: List[str],
+        aceptacion: list[str],
         prefijos_parciales: bool = True,
         reconocimiento_backtracking: bool = False,
-        matche: Optional[Callable[[str, "re.Pattern", bool], bool]] = None,
+        matche: Callable[[str, re.Pattern, bool], bool] | None = None,
     ):
         self.estados = estados
         self.transiciones = transiciones
@@ -65,16 +67,16 @@ class DFA:
         self._matche = matche or _matchea_token
 
         # normalizar patrones una sola vez
-        self._trans_comp: List[Tuple[str, str, re.Pattern, bool]] = []
+        self._trans_comp: list[tuple[str, str, re.Pattern, bool]] = []
         for t in transiciones:
             self._trans_comp.append(
                 (t.desde, t.hacia, re.compile(_normalizar_patron(t.patron)), t.consumir)
             )
 
         # Traza (F4): ruta de estados recorrida por el último `reconocer`.
-        self.ruta_estados: List[str] = []
+        self.ruta_estados: list[str] = []
 
-    def reconocer(self, tokens: List[str]) -> Tuple[bool, List[str]]:
+    def reconocer(self, tokens: list[str]) -> tuple[bool, list[str]]:
         """Reconoce una secuencia de tokens (búsqueda greedy dirigida).
 
         Equivalente a `reconocer_con_backtracking` pero sin retroceso:
@@ -91,7 +93,7 @@ class DFA:
 
         estado = self.inicial
         pos = 0
-        ruta: List[str] = [estado]
+        ruta: list[str] = [estado]
 
         while True:
             # Buscar una transición saliente del estado actual.
@@ -129,7 +131,7 @@ class DFA:
         pendiente = self._siguientes_aceptables(estado)
         return False, pendiente or ["secuencia incompleta"]
 
-    def reconocer_con_backtracking(self, tokens: List[str]) -> Tuple[bool, List[str]]:
+    def reconocer_con_backtracking(self, tokens: list[str]) -> tuple[bool, list[str]]:
         """Reconocimiento con retroceso (estilo NFA simulado).
 
         Explora todas las interpretaciones posibles de los tokens: en cada
@@ -140,7 +142,7 @@ class DFA:
         # cache de visitados (estado, pos) para acotar la búsqueda
         visitados = set()
 
-        def _dfs(estado: str, pos: int) -> Optional[List[str]]:
+        def _dfs(estado: str, pos: int) -> list[str] | None:
             """Devuelve la ruta de estados hasta un estado de aceptación
             (o None si no hay camino desde `(estado, pos)`)."""
             if estado in self.aceptacion:
@@ -172,12 +174,12 @@ class DFA:
         # Reportar cuántos estados quedaron sin cubrir.
         self.ruta_estados = []
         alcanzables = set()
-        for desde, hacia, patron, _ in self._trans_comp:
+        for desde, _hacia, patron, _ in self._trans_comp:
             if desde in self._reconocidos_en(tokens):
                 alcanzables.add(patron.pattern)
         return False, sorted(alcanzables) or ["secuencia incompleta"]
 
-    def _reconocidos_en(self, tokens: List[str]) -> set:
+    def _reconocidos_en(self, tokens: list[str]) -> set:
         """Estados que se pudieron alcanzar en algún camino (para reporte)."""
         alcanzados = {self.inicial}
 
@@ -200,9 +202,9 @@ class DFA:
         _dfs(self.inicial, 0)
         return alcanzados
 
-    def _siguientes_aceptables(self, estado: str) -> List[str]:
+    def _siguientes_aceptables(self, estado: str) -> list[str]:
         """Patrones alcanzables desde `estado` y que aún no reconocimos."""
-        alcanzables: List[str] = []
+        alcanzables: list[str] = []
         visitados: set = set()
         cola = [estado]
         while cola:
@@ -262,12 +264,13 @@ class GramaticaEstructura:
     El parser recorre los tokens del documento (headings normalizados) y
     comprueba que el flujo derive de `inicio` usando las producciones.
     """
-    reglas_sintacticas: List[str]
-    terminales: List[str]
-    no_terminales: List[str]
+
+    reglas_sintacticas: list[str]
+    terminales: list[str]
+    no_terminales: list[str]
     inicio: str
 
-    _producciones: Dict[str, List[List[str]]] = field(default_factory=dict, init=False)
+    _producciones: dict[str, list[list[str]]] = field(default_factory=dict, init=False)
 
     def __post_init__(self):
         # Parsear producciones "NT → A B C"
@@ -280,7 +283,7 @@ class GramaticaEstructura:
             alternativas = [alt.strip().split() for alt in der.split("|")]
             self._producciones[nt] = self._producciones.get(nt, []) + alternativas
 
-    def derivaciones(self, simbolo: str) -> List[List[str]]:
+    def derivaciones(self, simbolo: str) -> list[list[str]]:
         """Expande un símbolo en secuencias de terminales.
 
         Mantiene los no-terminales sin expandir en la primera pasada;
@@ -288,11 +291,11 @@ class GramaticaEstructura:
         """
         return self._producciones.get(simbolo, [[simbolo]] if simbolo in self.terminales else [])
 
-    def _termina_en(self, simbolo: str) -> List[List[str]]:
+    def _termina_en(self, simbolo: str) -> list[list[str]]:
         """Expansión transitiva hasta terminales (con prof. limitada)."""
         if simbolo in self.terminales:
             return [[simbolo]]
-        resultado: List[List[str]] = []
+        resultado: list[list[str]] = []
         for alt in self._producciones.get(simbolo, []):
             if all(s in self.terminales for s in alt):
                 resultado.append(alt)
@@ -301,18 +304,16 @@ class GramaticaEstructura:
             for i, s in enumerate(alt):
                 if s not in self.terminales:
                     for sub in self._termina_en(s):
-                        nueva = alt[:i] + sub + alt[i + 1:]
+                        nueva = alt[:i] + sub + alt[i + 1 :]
                         resultado.append(nueva)
                     break
         return resultado
 
-    def secuencias_esperadas(self) -> List[List[str]]:
+    def secuencias_esperadas(self) -> list[list[str]]:
         """Todas las secuencias de terminales que la gramática puede producir."""
         return self._termina_en(self.inicio)
 
-    def analizar(
-        self, tokens: List[str], normalizar: bool = True
-    ) -> Tuple[bool, List[str]]:
+    def analizar(self, tokens: list[str], normalizar: bool = True) -> tuple[bool, list[str]]:
         """Comprueba si `tokens` (headings) sigue la gramática.
 
         Devuelve (aceptado, faltantes). `faltantes` son los terminales de
@@ -325,7 +326,7 @@ class GramaticaEstructura:
             return False, ["gramática vacía o mal definida"]
 
         # Un tokens debe cubrir (en orden) una de las secuencias esperadas.
-        mejores_faltantes: Optional[List[str]] = None
+        mejores_faltantes: list[str] | None = None
         for seq in secuencias:
             faltantes = self._faltantes_en_secuencia(seq, norm_tokens)
             if not faltantes:
@@ -335,9 +336,9 @@ class GramaticaEstructura:
 
         return False, mejores_faltantes or ["estructura incompleta"]
 
-    def _faltantes_en_secuencia(self, seq: List[str], tokens: List[str]) -> List[str]:
+    def _faltantes_en_secuencia(self, seq: list[str], tokens: list[str]) -> list[str]:
         """Ítems de `seq` que no aparecen como tokens (en orden)."""
-        faltantes: List[str] = []
+        faltantes: list[str] = []
         pos = 0
         for item in seq:
             found = None
@@ -380,12 +381,13 @@ class TransicionPDA:
     desapila el símbolo (exige que el tope de la pila sea ese símbolo).
     Si `consumir` es False, es una transición épsilon (no avanza la entrada).
     """
+
     desde: str
     hacia: str
     patron: str
     consumir: bool = True
-    push: Optional[str] = None
-    pop: Optional[str] = None
+    push: str | None = None
+    pop: str | None = None
 
 
 class PDA:
@@ -404,11 +406,11 @@ class PDA:
 
     def __init__(
         self,
-        estados: List[str],
-        transiciones: List[TransicionPDA],
+        estados: list[str],
+        transiciones: list[TransicionPDA],
         inicial: str,
-        aceptacion: List[str],
-        matche: Optional[Callable[[str, "re.Pattern", bool], bool]] = None,
+        aceptacion: list[str],
+        matche: Callable[[str, re.Pattern, bool], bool] | None = None,
     ):
         self.estados = estados
         self.inicial = inicial
@@ -429,18 +431,18 @@ class PDA:
             )
 
         # Traza (F4): ruta de estados del último `reconocer`.
-        self.ruta_estados: List[str] = []
+        self.ruta_estados: list[str] = []
 
-    def reconocer(self, tokens: List[str]) -> Tuple[bool, List[str]]:
+    def reconocer(self, tokens: list[str]) -> tuple[bool, list[str]]:
         """Reconoce `tokens` con la pila. Devuelve (aceptado, faltantes)."""
         if not self._trans_comp:
             self.ruta_estados = [self.inicial]
             return False, ["autómata sin transiciones"]
 
-        pila: List[str] = []
+        pila: list[str] = []
         estado = self.inicial
         pos = 0
-        ruta: List[str] = [estado]
+        ruta: list[str] = [estado]
 
         while True:
             progreso = False
@@ -453,9 +455,7 @@ class PDA:
                     if pop is not None:
                         if not pila or pila[-1] != pop:
                             self.ruta_estados = ruta
-                            return False, [
-                                f"tope de pila inesperado: esperaba {pop}"
-                            ]
+                            return False, [f"tope de pila inesperado: esperaba {pop}"]
                         pila.pop()
                     if push is not None:
                         pila.append(push)
@@ -499,9 +499,9 @@ class PDA:
         pendiente = self._siguientes_aceptables(estado)
         return False, pendiente or ["secuencia incompleta"]
 
-    def _siguientes_aceptables(self, estado: str) -> List[str]:
+    def _siguientes_aceptables(self, estado: str) -> list[str]:
         """Patrones alcanzables desde `estado` (reporte de faltantes)."""
-        alcanzables: List[str] = []
+        alcanzables: list[str] = []
         visitados: set = set()
         cola = [estado]
         while cola:

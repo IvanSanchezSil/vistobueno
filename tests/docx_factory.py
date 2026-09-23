@@ -12,7 +12,7 @@ propiedad puedan pedir:
 
 - `configuracion_base()`: el documento "bueno", que cumple TODAS las reglas
   mecánicas salvo las dos alternativas de estructura mutuamente excluyentes
-  (cualitativo y revisión de literatura). Resultado esperado: 39/41.
+  (cualitativo y revisión de literatura). Resultado esperado: 45/47.
 - `aplicar_mutacion(rule_id, config)`: aplica un desvío MÍNIMO (una sola
   propiedad) contra el documento bueno, de forma que solo la regla
   `rule_id` cambie su resultado.
@@ -23,6 +23,7 @@ paquete), delegando en los módulos internos.
 Uso desde tests:
     from docx_factory import configuracion_base, aplicar_mutacion, compilar_docx
 """
+
 from _docx_builder import (
     ANEXOS_BASE,
     compilar_docx,
@@ -37,7 +38,6 @@ from _mutations import (
     TOTAL_REGLAS,
     aplicar_mutacion,
 )
-from _xml_constants import ANS, CONTENT_TYPES, PNS, RELS, RNS, WNS, WPN
 
 __all__ = [
     "ANEXOS_BASE",
@@ -51,6 +51,7 @@ __all__ = [
     "compilar_docx",
     "configuracion_base",
 ]
+
 
 def resultado_por_regla(resultados):
     return {r.rule_id: r for r in resultados}

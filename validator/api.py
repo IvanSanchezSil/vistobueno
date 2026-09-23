@@ -9,19 +9,19 @@ Uso:
     # o con uvicorn directamente:
     uvicorn validator.api:app --reload
 """
+
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse
 
 from .api_models import (
     MetadatosValidacion,
     PromptIA,
-    ResumenValidacion,
     ResultadoReglaAPI,
+    ResumenValidacion,
+    SeveridadAPI,
     ValidarResponse,
 )
 from .engine import build_report, load_rules, validate_docx
@@ -32,13 +32,12 @@ from .prompts import build_ai_help_section
 # Configuración
 # ---------------------------------------------------------------------------
 
-# F5: la API consume el motor DSL (reglas_unt.yaml, 41 reglas) en lugar del
+# F5: la API consume el motor DSL (reglas_unt.yaml, 47 reglas) en lugar del
 # YAML legacy (unt_format_rules_schema.yaml, 32 mecánicas). Esto activa las
 # 9 reglas F3 (resumen_longitud, referencias_minimo_*, anexos_minimos_*,
-# caratula_orcid, proyecto_caratula_texto) dentro de POST /validar.
-REGLAS_YAML_PATH = str(
-    Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
-)
+# caratula_orcid, proyecto_caratula_texto) y las de la F2 (paginación,
+# encabezados/pies) dentro de POST /validar.
+REGLAS_YAML_PATH = str(Path(__file__).resolve().parent.parent / "reglas_unt.yaml")
 
 TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 
@@ -50,7 +49,7 @@ TIPOS_ACEPTADOS = {
 EXTENSION_ACEPTADA = ".docx"
 
 # Cargar reglas una sola vez al iniciar el módulo
-_rules_data: Optional[dict] = None
+_rules_data: dict | None = None
 
 
 def _get_rules() -> dict:
@@ -71,7 +70,7 @@ def _rule_result_a_dto(r: RuleResult) -> ResultadoReglaAPI:
     return ResultadoReglaAPI(
         rule_id=r.rule_id,
         paso=r.passed,
-        severidad=r.severity.value,
+        severidad=SeveridadAPI(r.severity.value),
         mensaje=r.message,
         esperado=r.expected,
         encontrado=r.found,
@@ -171,19 +170,18 @@ async def validar(
         raise HTTPException(
             status_code=415,
             detail=(
-                f"Content-Type no soportado: '{content_type}'. "
-                f"Solo se aceptan archivos .docx."
+                f"Content-Type no soportado: '{content_type}'. Solo se aceptan archivos .docx."
             ),
         )
 
     # --- Leer contenido ---
     try:
         contenido = await archivo.read()
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=422,
             detail="No se pudo leer el archivo enviado.",
-        )
+        ) from e
 
     # --- Validación: tamaño ---
     tamano = len(contenido)
@@ -206,9 +204,7 @@ async def validar(
     # --- Guardar en archivo temporal y procesar ---
     tmp_path = None
     try:
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=EXTENSION_ACEPTADA
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=EXTENSION_ACEPTADA) as tmp:
             tmp.write(contenido)
             tmp_path = tmp.name
 
@@ -243,14 +239,13 @@ async def validar(
             raise HTTPException(
                 status_code=422,
                 detail=(
-                    "No se pudo procesar el archivo DOCX: "
-                    "archivo corrupto o no es un DOCX válido."
+                    "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
                 ),
-            )
+            ) from e
 
         # KeyError: el ZIP es válido pero falta word/document.xml (u otra
         # parte esencial del formato DOCX). El extractor lanza KeyError
-        # al intentar leer el archivo内核 del paquete OPC.
+        # al intentar leer el archivo interno del paquete OPC.
         if nombre_tipo == "KeyError":
             raise HTTPException(
                 status_code=422,
@@ -258,23 +253,20 @@ async def validar(
                     "El archivo no contiene un documento Word válido: "
                     f"archivo interno faltante ({e})."
                 ),
-            )
+            ) from e
 
         # ValueError: el extractor no encontró una parte esperada del DOCX
         # (lanzado por ExtractedDocx.xpath cuando una parte no está disponible).
         if nombre_tipo == "ValueError":
             raise HTTPException(
                 status_code=422,
-                detail=(
-                    "El archivo no contiene un documento Word válido: "
-                    f"{e}."
-                ),
-            )
+                detail=(f"El archivo no contiene un documento Word válido: {e}."),
+            ) from e
 
         raise HTTPException(
             status_code=500,
             detail=f"Error interno del validador: {nombre_tipo}: {mensaje_error}",
-        )
+        ) from e
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)

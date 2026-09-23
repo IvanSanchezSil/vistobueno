@@ -1,8 +1,9 @@
 """Fixtures compartidas para la suite de tests de VistoBueno.
 
-Proporciona el cliente de prueba,常量s de validación de contrato
+Proporciona el cliente de prueba,constantes de validación de contrato
 y la ruta a la plantilla de prueba.
 """
+
 from pathlib import Path
 
 import pytest
@@ -25,7 +26,7 @@ PLANTILLA = RECURSOS_DIR / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITAT
 
 
 # ---------------------------------------------------------------------------
-#常量s de validación de contrato (campos esperados en la respuesta API)
+# constantes de validación de contrato (campos esperados en la respuesta API)
 # ---------------------------------------------------------------------------
 
 # Campos que debe tener cada elemento en 'resultados'
@@ -56,6 +57,7 @@ CAMPOS_METADATOS = {
 # ---------------------------------------------------------------------------
 # Fixture para enviar la plantilla
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def plantilla_bytes():
