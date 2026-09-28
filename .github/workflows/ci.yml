@@ -11,6 +11,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Capa 3 anti-secretos: cubre el caso `git commit --no-verify`.
+      # Corre antes del entorno Nix (python3 del runner) para fallar rápido.
+      - name: Escaneo de secretos SMTP
+        run: python3 scripts/verificar_secretos.py --all
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
