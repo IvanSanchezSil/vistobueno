@@ -3,7 +3,7 @@
 //Campos alineados al contrato de la API (api_models.py: ResultadoReglaAPI).
 export const MOCK_REPORT = {
   semaforo: 'rojo',
-  resumen: { total: 31, fallidos_error: 3, fallidos_warning: 2 },
+  resumen: { total: 47, fallidos_error: 3, fallidos_warning: 2 },
   // Campo aditivo preparado para cuando se cablee el envío real de notificación.
   // No rompe el parsing actual ni el modo demo.
   notificacion: { enviado: true },

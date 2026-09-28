@@ -42,8 +42,8 @@
               ▼                         ▼
     ┌─────────────────┐      ┌─────────────────┐
     │  Archivo válido │      │ Archivo inválido│
-    │  (DOCX/PDF,     │      │ (formato o      │
-    │   ≤ 25 MB)      │      │  tamaño         │
+    │  (DOCX,     │      │ (formato o      │
+    │   ≤ 10 MB)      │      │  tamaño         │
     └────────┬────────┘      │  incorrecto)    │
               │               └────────┬────────┘
               │                        │
@@ -197,18 +197,17 @@
 | **Vacío** | Sin archivo seleccionado | Dropzone con instrucciones |
 | **Archivo seleccionado** | Archivo válido elegido | Panel de info + botón Validar |
 | **Cargando** | Enviando a la API | Botón deshabilitado "Validando..." |
-| **Error de tipo** | Archivo no es DOCX/PDF | Mensaje de error rojo |
-| **Error de tamaño** | Archivo > 25 MB | Mensaje de error rojo |
-| **Error de API** | Backend no disponible | Datos mock cargados silenciosamente |
+| **Error de tipo** | Archivo no es DOCX | Mensaje de error rojo |
+| **Error de tamaño** | Archivo > 10 MB | Mensaje de error rojo |
+| **Error de API** | Backend no disponible | Datos mock cargados (avisado en Report) |
 
 ### 3.2 Pantalla de Reporte (Report)
 
 | Estado | Descripción | Elemento visible |
 |--------|-------------|------------------|
-| **Semáforo rojo** | Hay errores bloqueantes | Círculo rojo + "Revisa antes de entregar" |
-| **Semáforo verde** | Todo cumple | Círculo verde + "¡Puedes entregar!" |
+| **Semáforo rojo** | Hay errores bloqueantes | Círculo rojo + "Requiere correcciones antes de entregar" |
+| **Semáforo verde** | Todo cumple | Círculo verde + "Documento listo para entregar" |
 | **Filtro activo** | Solo errores o solo warnings | Chips resaltados |
-| **Búsqueda activa** | Texto en campo de búsqueda | Resultados filtrados |
 | **Categoría expandida** | Sección abierta | Lista de reglas visible |
 | **Categoría colapsada** | Sección cerrada | Solo encabezado con contadores |
 | **Prompt copiado** | Copia exitosa al portapapeles | Botón cambia a "¡Copiado!" por 1.5s |
@@ -224,12 +223,12 @@
 │                                                              │
 │  ┌─────────────────┐    ┌─────────────────────────────────┐  │
 │  │ Error de formato│───►│ "Formato no soportado. Debes    │  │
-│  │ (no DOCX/PDF)  │    │  subir un archivo DOCX o PDF."  │  │
+│  │ (no DOCX)  │    │  subir un archivo DOCX."  │  │
 │  └─────────────────┘    └─────────────────────────────────┘  │
 │                                                              │
 │  ┌─────────────────┐    ┌─────────────────────────────────┐  │
 │  │ Error de tamaño │───►│ "El archivo excede el límite    │  │
-│  │ (> 25 MB)       │    │  de 25 MB."                     │  │
+│  │ (> 10 MB)       │    │  de 10 MB."                     │  │
 │  └─────────────────┘    └─────────────────────────────────┘  │
 │                                                              │
 │  ┌─────────────────┐    ┌─────────────────────────────────┐  │

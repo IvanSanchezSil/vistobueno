@@ -88,6 +88,12 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | RF-24 | El operador debe poder volver a la pantalla de carga desde el reporte | Alta |
 | RF-25 | La aplicación debe ser una sola página (SPA) con vista intercalada | Media |
 
+> **Nota de renumeración (S7):** respecto a la versión original se **eliminaron intencionalmente** dos requisitos que ninguna vez se implementaron y que quedan fuera del alcance del MVP:
+> - RF-13 antiguo — *porcentaje de cumplimiento* (no existe en la app; el resumen usa KPIs de reglas/errores/advertencias).
+> - RF-16 antiguo — *búsqueda de reglas por nombre/mensaje* (no existe en la app; sí existen los filtros por severidad).
+>
+> Los ID restantes se renumeraron de forma correlativa (RF-01…RF-25).
+
 ---
 
 ## 5. Requisitos no funcionales

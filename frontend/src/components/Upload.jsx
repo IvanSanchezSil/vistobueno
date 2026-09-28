@@ -101,6 +101,13 @@ function Upload({ onValidated, apiUrl }) {
 
   const validate = async () => {
     if (!file || loading) return
+    // Correo opcional, pero si se escribió con formato inválido NO se valida:
+    // el correo viaja en esta misma solicitud, así que omitirlo en silencio
+    // enviaría el reporte sin notificar al estudiante.
+    if (correo && correoError) {
+      setError('El correo del estudiante tiene un formato inválido. Corrija o deje el campo vacío para validar sin notificación.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -238,7 +245,12 @@ function Upload({ onValidated, apiUrl }) {
                 >
                   ✕
                 </button>
-                <button className="btn-validar" onClick={validate} disabled={loading}>
+                <button
+                  className="btn-validar"
+                  onClick={validate}
+                  disabled={loading || !!(correo && correoError)}
+                  title={correo && correoError ? 'Corrija el correo del estudiante o déjelo vacío' : undefined}
+                >
                   {loading ? (
                     <><span className="spinner" aria-hidden="true"></span> Validando…</>
                   ) : (

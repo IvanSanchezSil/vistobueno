@@ -94,6 +94,20 @@
       text-align: center;
     }
 
+    /* Correo del estudiante (opcional) */
+    .campo-correo { margin-top: 1.2rem; }
+    .campo-correo label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .3rem; }
+    .campo-correo .opcional { font-weight: 400; color: var(--gris-texto); font-size: .8rem; }
+    .campo-correo input {
+      width: 100%; box-sizing: border-box;
+      padding: .6rem .75rem;
+      border: 1px solid var(--gris-borde);
+      border-radius: 8px;
+      font-size: .95rem;
+    }
+    .campo-correo input:focus { outline: 2px solid var(--verde); outline-offset: 1px; border-color: var(--verde); }
+    .campo-ayuda { margin-top: .35rem; font-size: .78rem; color: var(--gris-texto); }
+
     /* Archivo seleccionado */
     .archivo { display: none; margin-top: 1.2rem; border: 1px solid var(--gris-borde); border-radius: 8px; padding: .9rem 1rem; }
     .archivo .fila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
@@ -153,7 +167,14 @@
         <div class="txt-principal">Arrastre el archivo aquí</div>
         <div class="txt-sec">o selecciónelo desde la computadora</div>
         <button class="btn-select" type="button" id="btnSelect">Seleccionar archivo</button>
-        <div class="nota-formatos">Formatos permitidos: .docx, .pdf · Tamaño máximo: 25 MB</div>
+        <div class="nota-formatos">Formato permitido: .docx · Tamaño máximo: 10 MB</div>
+      </div>
+
+      <!-- Correo del estudiante (opcional) -->
+      <div class="campo-correo">
+        <label for="correo">Correo del estudiante <span class="opcional">(opcional)</span></label>
+        <input type="email" id="correo" placeholder="estudiante@correo.unt.edu.pe" />
+        <div class="campo-ayuda">El correo se usará únicamente para enviar el reporte de validación al estudiante.</div>
       </div>
 
       <!-- Archivo seleccionado -->
@@ -206,7 +227,7 @@
         mostrarArchivo('tesis_estudiante.docx', '1.2 MB');
         dropzone.style.display = 'none'; // en el diseño final la zona se reemplaza por la tarjeta
       } else {
-        mostrarArchivo('tesis_estud.pdf', '38 MB');
+        mostrarArchivo('tesis_grande.docx', '12 MB');
         aviso.classList.add('visible');
       }
     }

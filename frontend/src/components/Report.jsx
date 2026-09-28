@@ -117,7 +117,7 @@ function Report({ data, onBack }) {
                 ? 'Se detectaron errores de formato que bloquean la entrega conforme a las directivas UNT.'
                 : 'El documento cumple con las directivas de formato de la UNT.'}
             </div>
-            {data?.notificacion && (
+            {data?.notificacion && typeof data.notificacion.enviado === 'boolean' && (
               <div className={`badge-notif ${data.notificacion.enviado ? 'ok' : 'fail'}`} role="status">
                 {data.notificacion.enviado
                   ? '📧 El reporte fue enviado al correo del estudiante.'
@@ -254,7 +254,7 @@ function Report({ data, onBack }) {
       <div className="card">
         <h2 className="ia-titulo">🤖 Cómo preguntar a una IA</h2>
         <p className="ia-desc">
-          Copiar y pegar estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema.
+          Copie y pegue estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema.
         </p>
         <div className="ia-cards">
           {prompts.length === 0 ? (
