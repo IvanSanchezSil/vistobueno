@@ -272,8 +272,12 @@ class TestSinCambioDeComportamiento:
     """Regla de oro del paso: con el YAML real no debe cambiar nada."""
 
     @staticmethod
-    def _validar_plantilla():
-        return "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
+    def _ruta_plantilla():
+        return (
+            Path(__file__).resolve().parents[1]
+            / "recursos"
+            / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
+        )
 
     def test_ninguna_regla_real_es_no_aplicable(self):
         reglas = load_rules(str(RUTA_REGLAS))
@@ -293,8 +297,15 @@ class TestSinCambioDeComportamiento:
 
     def test_plantilla_oficial_mismo_reporte_que_antes(self):
         """Guarda de que el número de reglas y el semáforo no se movieron:
-        este paso no arregla el defecto, solo prepara la maquinaria."""
-        base = Path(__file__).resolve().parents[1] / "recursos" / self._validar_plantilla()
+        este paso no arregla el defecto, solo prepara la maquinaria.
+
+        `recursos/` está en `.gitignore`, así que en el build de Nix la
+        plantilla no existe y el test se omite (igual que los demás tests
+        que dependen de las plantillas).
+        """
+        base = self._ruta_plantilla()
+        if not base.exists():
+            pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
         assert len(res) == 47
         assert build_report(res)["semaforo"] == "rojo"
