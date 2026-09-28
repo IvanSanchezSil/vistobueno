@@ -3,7 +3,10 @@
 //Campos alineados al contrato de la API (api_models.py: ResultadoReglaAPI).
 export const MOCK_REPORT = {
   semaforo: 'rojo',
-  resumen: { total: 31, fallidos_error: 3, fallidos_warning: 2 },
+  resumen: { total: 47, fallidos_error: 3, fallidos_warning: 2 },
+  // Campo aditivo preparado para cuando se cablee el envío real de notificación.
+  // No rompe el parsing actual ni el modo demo.
+  notificacion: { enviado: true },
   resultados: [
     { rule_id: 'papel_tamano', paso: true, severidad: 'error', mensaje: 'El tamaño del papel debe ser A4', esperado: '210 x 297 mm', encontrado: 'cumple' },
     { rule_id: 'fuente_principal', paso: true, severidad: 'error', mensaje: 'La fuente del cuerpo debe ser Times New Roman', esperado: 'Times New Roman', encontrado: 'cumple' },
