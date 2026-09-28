@@ -144,7 +144,8 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
             filas_html.append(
                 "<tr>"
                 f"<td><strong>{_esc(r.severidad.value)}</strong></td>"
-                f"<td>{_esc(r.mensaje)}</td>"
+                f"<td>{_esc(r.mensaje)}<br>"
+                f'<small style="color:#888;">[{_esc(r.rule_id)}]</small></td>'
                 f"<td>{_esc(r.esperado)}</td>"
                 f"<td>{_esc(r.encontrado)}</td>"
                 f"<td>{referencia}</td>"
