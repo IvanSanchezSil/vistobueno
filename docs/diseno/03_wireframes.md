@@ -20,24 +20,24 @@
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                                                                     │   │
-│  │  Sube tu tesis                                                      │   │
+│  │  Validar documento de tesis                                        │   │
 │  │                                                                     │   │
-│  │  Adjunta tu documento en formato DOCX o PDF y recibe un reporte    │   │
+│  │  Adjunte el documento en formato DOCX y obtenga un reporte         │   │
 │  │  automático de cumplimiento con las directivas de formato de la UNT.│   │
 │  │                                                                     │   │
 │  │  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐  │   │
 │  │                                                                 │  │   │
 │  │  │                         📄                                   │  │   │
 │  │                                                                 │  │   │
-│  │  │            Arrastra tu archivo aquí                          │  │   │
+│  │  │            Arrastre el archivo aquí                          │  │   │
 │  │                                                                 │  │   │
-│  │  │            o selecciónalo desde tu computadora               │  │   │
+│  │  │            o selecciónelo desde la computadora               │  │   │
 │  │                                                                 │  │   │
 │  │  │               ┌─────────────────────┐                        │  │   │
 │  │                  │ Seleccionar archivo │                        │     │
 │  │  │               └─────────────────────┘                        │  │   │
 │  │                                                                 │  │   │
-│  │  │         Formatos permitidos: .docx, .pdf · Máx: 25 MB       │  │   │
+│  │  │         Formato permitido: .docx · Tamaño máximo: 10 MB       │  │   │
 │  │                                                                 │  │   │
 │  │  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  │   │
 │  │                                                                     │   │
@@ -63,9 +63,9 @@
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                                                                     │   │
-│  │  Sube tu tesis                                                      │   │
+│  │  Validar documento de tesis                                        │   │
 │  │                                                                     │   │
-│  │  Adjunta tu documento en formato DOCX o PDF y recibe un reporte    │   │
+│  │  Adjunte el documento en formato DOCX y obtenga un reporte         │   │
 │  │  automático de cumplimiento con las directivas de formato de la UNT.│   │
 │  │                                                                     │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
@@ -101,19 +101,19 @@
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                                                                     │   │
-│  │  Sube tu tesis                                                      │   │
+│  │  Validar documento de tesis                                        │   │
 │  │                                                                     │   │
 │  │  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐  │   │
 │  │                         📄                                       │  │   │
-│  │            Arrastra tu archivo aquí                              │  │   │
+│  │            Arrastre el archivo aquí                              │  │   │
 │  │               ┌─────────────────────┐                            │  │   │
 │  │               │ Seleccionar archivo │                            │     │
 │  │               └─────────────────────┘                            │  │   │
 │  │  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  │   │
 │  │                                                                     │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
-│  │  │  ✕ No pudimos procesar tu archivo.                          │   │   │
-│  │  │     Formato no soportado. Debes subir un archivo DOCX o PDF.│   │   │
+│  │  │  ✕ No se pudo procesar el archivo.                          │   │   │
+│  │  │     Formato no soportado. Debe subirse un archivo DOCX.│   │   │
 │  │  └─────────────────────────────────────────────────────────────┘   │   │
 │  │                                                                     │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
@@ -139,7 +139,7 @@
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                                                                     │   │
 │  │  ┌─────┐                                                            │   │
-│  │  │  ✕  │  Revisa antes de entregar                                 │   │
+│  │  │  ✕  │  Requiere correcciones antes de entregar                                 │   │
 │  │  └─────┘  Se detectaron errores de formato que bloquean la entrega  │   │
 │  │                                                                     │   │
 │  │  Cumplimiento                                            76%       │   │
@@ -249,7 +249,7 @@
 │  │                                                                     │   │
 │  │  🤖 Cómo preguntar a una IA                                        │   │
 │  │                                                                     │   │
-│  │  Copia y pega estos prompts en cualquier IA (ChatGPT, Claude,      │   │
+│  │  Copie y pegue estos prompts en cualquier IA (ChatGPT, Claude,      │   │
 │  │  etc.) para corregir cada problema.                                │   │
 │  │                                                                     │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
@@ -299,21 +299,27 @@
 │ FECyC · UNT       │
 ├───────────────────┤
 │                   │
-│  Sube tu tesis    │
+│  Validar documento│
+│  de tesis         │
 │                   │
 │  ┌ ─ ─ ─ ─ ─ ┐  │
 │    📄            │
-│  │ Arrastra    │  │
-│    tu archivo    │
-│  │ aquí        │  │
+│  │ Arrastre   │  │
+│    el archivo   │
+│  │ aquí       │  │
 │                   │
 │  ┌───────────┐   │
 │  │ Seleccionar│   │
 │  └───────────┘   │
 │                   │
-│  .docx,.pdf      │
-│  Máx: 25 MB      │
+│  .docx           │
+│  Máx: 10 MB      │
 │  └ ─ ─ ─ ─ ─ ┘  │
+│                   │
+│  Correo (opc.)   │
+│  ┌───────────┐   │
+│  │estudiante@│   │
+│  └───────────┘   │
 │                   │
 └───────────────────┘
 ```
@@ -395,20 +401,20 @@ Requisitos:
 - Header verde con logo circular "VB", título "VistoBueno", subtítulo "FECyC · Universidad Nacional de Trujillo"
 - Botón de modo oscuro (🌙) y botón "← Validar otro" (oculto inicialmente)
 - Tarjeta blanca redondeada con:
-  - Título "Sube tu tesis"
+  - Título "Validar documento de tesis"
   - Texto explicativo sobre formato DOCX/PDF
   - Dropzone con borde punteado verde:
     - Icono de documento 📄
-    - Texto "Arrastra tu archivo aquí"
-    - Texto "o selecciónalo desde tu computadora"
+    - Texto "Arrastre el archivo aquí"
+    - Texto "o selecciónelo desde la computadora"
     - Botón verde "Seleccionar archivo"
-    - Nota: "Formatos permitidos: .docx, .pdf · Máx: 25 MB"
+    - Nota: "Formato permitido: .docx · Tamaño máximo: 10 MB"
   - Panel de info del archivo (después de selección):
     - Badge con extensión (DOCX)
     - Nombre del archivo
     - Tamaño en MB
     - Botón verde "Validar ✦"
-  - Mensaje de error (rojo): "No pudimos procesar tu archivo"
+  - Mensaje de error (rojo): "No se pudo procesar el archivo"
 - Footer: "Sistema VistoBueno — Practicante · Biblioteca FECyC · UNT"
 
 Estilo: mobile-first, responsive, minimalista, colores verde (#2e7d32) y gris.
@@ -424,7 +430,7 @@ Requisitos:
 - Header verde con logo "VB", título, botón modo oscuro, botón "← Validar otro"
 - Sección 1 - Semáforo y resumen:
   - Círculo grande verde (✓) o rojo (✕)
-  - Título: "¡Puedes entregar!" o "Revisa antes de entregar"
+  - Título: "Documento listo para entregar!" o "Requiere correcciones antes de entregar"
   - Barra de progreso de cumplimiento (ej: 76%)
   - 3 KPIs: Reglas evaluadas, Errores, Advertencias
 - Sección 2 - Controles:

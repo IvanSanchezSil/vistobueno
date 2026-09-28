@@ -110,13 +110,20 @@ function Report({ data, onBack }) {
           <div className={`luz ${semaforo}`}>{semaforo === 'rojo' ? '✕' : '✓'}</div>
           <div>
             <div className="titulo">
-              {semaforo === 'rojo' ? 'Revisa antes de entregar' : '¡Puedes entregar!'}
+              {semaforo === 'rojo' ? 'Requiere correcciones antes de entregar' : 'Documento listo para entregar'}
             </div>
             <div className="desc">
               {semaforo === 'rojo'
                 ? 'Se detectaron errores de formato que bloquean la entrega conforme a las directivas UNT.'
-                : 'Tu documento cumple con las directivas de formato de la UNT.'}
+                : 'El documento cumple con las directivas de formato de la UNT.'}
             </div>
+            {data?.notificacion && (
+              <div className={`badge-notif ${data.notificacion.enviado ? 'ok' : 'fail'}`} role="status">
+                {data.notificacion.enviado
+                  ? '📧 El reporte fue enviado al correo del estudiante.'
+                  : '⚠ No se pudo enviar el correo al estudiante.'}
+              </div>
+            )}
           </div>
         </div>
 
@@ -161,7 +168,7 @@ function Report({ data, onBack }) {
         {vista === 'simple' && (
           <div className="vista-simple">
             <p className="vista-simple__intro">
-              <strong>Resumen de pendientes:</strong> corrige estos puntos para obtener el visto bueno.
+              <strong>Resumen de pendientes:</strong> corregir los siguientes puntos para obtener el visto bueno.
             </p>
             <div className="pendientes">
               {fallidos.length === 0 ? (
@@ -247,7 +254,7 @@ function Report({ data, onBack }) {
       <div className="card">
         <h2 className="ia-titulo">🤖 Cómo preguntar a una IA</h2>
         <p className="ia-desc">
-          Copia y pega estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema.
+          Copiar y pegar estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema.
         </p>
         <div className="ia-cards">
           {prompts.length === 0 ? (
