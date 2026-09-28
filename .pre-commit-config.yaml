@@ -27,3 +27,14 @@ repos:
       - id: trailing-whitespace
       - id: check-added-large-files
         args: ["--maxkb=2000"]
+
+  # Barrera contra filtración de credenciales SMTP (Actividad 6).
+  # scripts/verificar_secretos.py es la fuente de verdad; la CI lo ejecuta
+  # con --all para cubrir el caso `git commit --no-verify`.
+  - repo: local
+    hooks:
+      - id: verificar-secretos-smtp
+        name: bloquear VISTOBUENO_SMTP_PASSWORD con valor real
+        entry: python3 scripts/verificar_secretos.py
+        language: system
+        pass_filenames: true
