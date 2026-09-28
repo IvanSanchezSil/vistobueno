@@ -13,6 +13,11 @@ htmlcov/
 # Nix
 result
 
+# Secretos y entorno local (ver scripts/verificar_secretos.py)
+.env
+.env.*
+*.eml
+
 # IDE
 .vscode/
 .idea/
