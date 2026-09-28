@@ -418,6 +418,61 @@ class ReglaCompilada:
 
     rule: dict
     analizadores: list[Analizador] = field(default_factory=list)
+    # Clave que la regla publica en el contexto del documento (fase 1).
+    # `None` si la regla no participa de la detección.
+    expone: str | None = None
+    # Mapa `clave -> valor` que debe cumplirse para que la regla aplique
+    # (fase 2). `None` si la regla es incondicional.
+    aplicar_si: dict | None = None
+
+    def aplica_en(self, contexto: dict) -> bool:
+        """¿Se cumple la condición `aplicar_si` con el contexto dado?
+
+        Una regla incondicional siempre aplica. Las condiciones son
+        conjuntas: todas las claves deben coincidir. Una clave ausente del
+        contexto hace que la regla NO aplique (se trata como "sin valor
+        conocido", no como "vale cualquier cosa").
+        """
+        if self.aplicar_si is None:
+            return True
+        return all(contexto.get(clave) == valor for clave, valor in self.aplicar_si.items())
+
+    def valor_para_contexto(self) -> str:
+        """Valor que la regla publica en el contexto tras ejecutarse.
+
+        Se toma del primer analizador que haya producido un valor legible por
+        máquina (`Analizador.valor`). No se usa `resultado.found`: ese texto
+        está escrito para que lo lea una persona, no para comparar. Si ningún
+        analizador produce valor, la clave se publica vacía.
+        """
+        for analizador in self.analizadores:
+            valor = getattr(analizador, "valor", None)
+            if valor is not None:
+                return str(valor)
+        return ""
+
+    def no_aplicable(self) -> RuleResult:
+        """Resultado de una regla que no le toca a este documento.
+
+        `passed=True` a propósito: una regla no aplicable no ha fallado, y
+        no debe poder bloquear la entrega. `aplicable=False` es lo que la
+        marca como omitida del reporte.
+        """
+        esperados = self.rule.get("valor_esperado", "")
+        if isinstance(esperados, list):
+            esperados = "; ".join(map(str, esperados))
+        return RuleResult(
+            rule_id=self.rule["id"],
+            passed=True,
+            severity=Severity(self.rule.get("severidad", "error")),
+            message=self.rule.get("descripcion", self.rule["id"]),
+            expected=str(esperados),
+            found="no aplica a este documento",
+            aplicable=False,
+            location=self.rule.get("ubicacion") or None,
+            fuente=self.rule.get("fuente", ""),
+            cita=self.rule.get("cita", ""),
+        )
 
     @staticmethod
     def _detalle_con_traza(detalle: str, analizador: Analizador) -> str:
@@ -501,8 +556,43 @@ class CompilerDSL:
             if not analizadores:
                 # Regla declarada pero sin analizadores: no mecanizada.
                 continue
-            reglas.append(ReglaCompilada(rule=rule, analizadores=analizadores))
+            reglas.append(
+                ReglaCompilada(
+                    rule=rule,
+                    analizadores=analizadores,
+                    expone=rule.get("expone"),
+                    aplicar_si=rule.get("aplicar_si"),
+                )
+            )
         return reglas
 
     def ejecutar(self, rules_data: dict, extracted: ExtractedDocx) -> list[RuleResult]:
-        return [r.ejecutar(extracted) for r in self.compilar(rules_data)]
+        """Evalúa las reglas en dos fases y devuelve los resultados.
+
+        **Fase 1** — reglas sin `aplicar_si`. Se ejecutan todas y las que
+        declaran `expone` publican su valor en el contexto del documento.
+
+        **Fase 2** — reglas con `aplicar_si`. Aplican solo si su condición se
+        cumple contra el contexto; si no, se marcan como no aplicables.
+
+        El orden de salida es el del YAML, no el de las fases: se preasignan
+        los huecos y se rellenan por fase, de modo que el reporte no cambia
+        de orden respecto de la evaluación de una sola pasada.
+        """
+        reglas = self.compilar(rules_data)
+        contexto: dict[str, str] = {}
+        resultados: list[RuleResult | None] = [None] * len(reglas)
+
+        for i, r in enumerate(reglas):
+            if r.aplicar_si is None:
+                res = r.ejecutar(extracted)
+                resultados[i] = res
+                if r.expone:
+                    contexto[r.expone] = r.valor_para_contexto()
+
+        for i, r in enumerate(reglas):
+            if r.aplicar_si is None:
+                continue
+            resultados[i] = r.ejecutar(extracted) if r.aplica_en(contexto) else r.no_aplicable()
+
+        return [r for r in resultados if r is not None]
