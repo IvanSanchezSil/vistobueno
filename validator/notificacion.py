@@ -122,8 +122,15 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
     nombre = respuesta.metadatos.archivo_nombre
     resumen = respuesta.resumen
 
-    # --- Encabezado y resumen comunes ---
-    intro = (
+    # --- Encabezado y resumen ---
+    # El texto plano NO se escapa (no hay riesgo de inyección fuera de HTML
+    # y las entidades (<...) degradarían la lectura); el HTML sí.
+    intro_texto = (
+        f"Estimado(a) estudiante: se realizó la verificación de formato de su "
+        f"documento «{nombre}» contra las directivas institucionales de la "
+        f"UNT. A continuación encontrará el detalle de las observaciones detectadas."
+    )
+    intro_html = (
         f"Estimado(a) estudiante: se realizó la verificación de formato de su "
         f"documento «{_esc(nombre)}» contra las directivas institucionales de la "
         f"UNT. A continuación encontrará el detalle de las observaciones detectadas."
@@ -155,7 +162,7 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
 <html lang="es">
 <body>
     <h1>Observaciones de formato</h1>
-    <p>{intro}</p>
+    <p>{intro_html}</p>
     <p>{_esc(resumen_texto)}</p>
     <table border="1" cellpadding="6" cellspacing="0">
         <thead>
@@ -184,13 +191,13 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
 </html>"""
 
         # --- Versión texto plano ---
-        lineas_texto = [intro, "", resumen_texto, "", "OBSERVACIONES:"]
+        lineas_texto = [intro_texto, "", resumen_texto, "", "OBSERVACIONES:"]
         for i, r in enumerate(fallidas, start=1):
             lineas_texto.append(
-                f"{i}. [{r.severidad.value}] {_esc(r.mensaje)}\n"
-                f"   Esperado: {_esc(r.esperado)}\n"
-                f"   Encontrado: {_esc(r.encontrado)}\n"
-                f"   Referencia: {_esc(r.ubicacion) if r.ubicacion else '—'}"
+                f"{i}. [{r.severidad.value}] {r.mensaje}\n"
+                f"   Esperado: {r.esperado}\n"
+                f"   Encontrado: {r.encontrado}\n"
+                f"   Referencia: {r.ubicacion if r.ubicacion else '—'}"
             )
         lineas_texto += [
             "",
@@ -204,7 +211,7 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
 <html lang="es">
 <body>
     <h1>Verificación de formato</h1>
-    <p>{intro}</p>
+    <p>{intro_html}</p>
     <p>{_esc(resumen_texto)}</p>
     <p>No se detectaron observaciones de formato en su documento.</p>
     <hr>
@@ -217,7 +224,7 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
 </html>"""
         cuerpo_texto = "\n".join(
             [
-                intro,
+                intro_texto,
                 "",
                 resumen_texto,
                 "",
