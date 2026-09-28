@@ -10,7 +10,10 @@ Detecta:
 - estados inalcanzables en autómatas (`automata_pila`) y estados
   duplicados / esquema vacío en `automata_secuencia`;
 - ciclos épsilon (transiciones que no consumen y forman un ciclo): riesgo
-  de bucle infinito en el reconocedor greedy de DFA/PDA.
+  de bucle infinito en el reconocedor greedy de DFA/PDA;
+- contexto entre reglas: `aplicar_si` mal formado o apuntando a una clave
+  que nadie expone, `expone` duplicado, y `expone` + `aplicar_si` en la
+  misma regla.
 
 El compilador invoca `linter_o_alzar` al principio de `compilar()`.
 """
@@ -173,10 +176,70 @@ def _lint_automata_pila(config: dict, hallazgos: list[str], rule_id: str) -> Non
         )
 
 
+def _lint_contexto(rules: list[dict], hallazgos: list[str]) -> None:
+    """Valida `expone` / `aplicar_si` de forma transversal.
+
+    Necesita ver todas las reglas a la vez, porque una condición puede
+    apuntar a una clave que expone otra regla cualquiera del archivo. Se
+    recorre en dos pasadas: primero se recogen las claves expuestas y después
+    se resuelven las condiciones, para que el orden en el YAML sea irrelevante
+    (la evaluación también es en dos fases).
+    """
+    expuestas: dict[str, str] = {}  # clave -> rule_id que la expone
+    for rule in rules:
+        rule_id = rule.get("id", "<sin id>")
+        # Se comprueba la PRESENCIA de la clave, no su valor: `aplicar_si:`
+        # a secas se parsea como None y sería una condición inactiva
+        # silenciosa. Es un error de configuración, no un "sin condición".
+        expone = rule.get("expone")
+
+        if "expone" in rule:
+            if not isinstance(expone, str) or not expone.strip():
+                hallazgos.append(f"[{rule_id}] expone: debe ser un texto no vacío")
+            elif expone in expuestas:
+                hallazgos.append(
+                    f"[{rule_id}] expone: la clave '{expone}' ya la expone "
+                    f"[{expuestas[expone]}] (el contexto sería ambiguo)"
+                )
+            else:
+                expuestas[expone] = rule_id
+            if not any(s in rule for s in _SECCIONES):
+                hallazgos.append(
+                    f"[{rule_id}] expone: no declara ninguna sección de analizador, "
+                    "así que nunca se ejecuta y nunca publica su clave"
+                )
+            if "aplicar_si" in rule:
+                hallazgos.append(
+                    f"[{rule_id}] expone y aplicar_si en la misma regla: "
+                    "una regla no puede condicionarse a un valor que ella misma produce"
+                )
+
+    # Segunda pasada: las condiciones se validan contra el conjunto COMPLETO de
+    # claves expuestas. La evaluación es en dos fases, así que una regla
+    # condicionada puede declararse antes que la regla que produce su clave.
+    for rule in rules:
+        rule_id = rule.get("id", "<sin id>")
+        if "aplicar_si" not in rule:
+            continue
+        aplicar_si = rule.get("aplicar_si")
+        if not isinstance(aplicar_si, dict) or not aplicar_si:
+            hallazgos.append(f"[{rule_id}] aplicar_si: debe ser un mapa clave -> valor no vacío")
+            continue
+        for clave in aplicar_si:
+            if not isinstance(clave, str) or not clave.strip():
+                hallazgos.append(f"[{rule_id}] aplicar_si: clave vacía o no textual")
+            elif clave not in expuestas:
+                hallazgos.append(
+                    f"[{rule_id}] aplicar_si: '{clave}' no la expone ninguna regla; "
+                    f"claves expuestas: {sorted(expuestas) or 'ninguna'}"
+                )
+
+
 def linter(rules_data: dict) -> list[str]:
     """Devuelve la lista de hallazgos (vacía si el DSL está sano)."""
     hallazgos: list[str] = []
-    for rule in rules_data.get("reglas", []):
+    rules = rules_data.get("reglas", [])
+    for rule in rules:
         rule_id = rule.get("id", "<sin id>")
         for seccion in _SECCIONES:
             cfg = rule.get(seccion)
@@ -193,6 +256,7 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_automata_secuencia(c, hallazgos, rule_id)
                 elif seccion == "automata_pila":
                     _lint_automata_pila(c, hallazgos, rule_id)
+    _lint_contexto(rules, hallazgos)
     return hallazgos
 
 

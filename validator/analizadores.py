@@ -56,6 +56,11 @@ class Analizador(ABC):
         # Nodo objetivo (párrafo/subnodo) que determinó la última ejecución.
         # Permite que el motor enriquezca `location` con "página N" (ítem 1).
         self.ultimo_nodo = None
+        # Valor legible por maquina de la ultima ejecucion, cuando el
+        # analizador produce uno. `analizar()` devuelve texto pensado para
+        # personas, asi que no sirve para decidir condiciones `aplicar_si`.
+        # Los analizadores de deteccion lo rellenan; los demas lo dejan None.
+        self.valor = None
 
     @abstractmethod
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]: ...
@@ -103,6 +108,7 @@ class AnalizadorXML(Analizador):
         key = _resolve_attr_key(atributo)
         vals = [n.get(key) for n in nodes]
         vals = [v for v in vals if v is not None]
+        self.valor = vals[0] if vals else None
 
         if comp == "eq":
             ok = bool(vals) and vals[0] == esperado
