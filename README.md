@@ -141,6 +141,7 @@ tests/
 
 scripts/
   eval_contra_plantillas.py       # Evaluación batch contra plantillas
+  generate_openapi.py             # Genera la especificación OpenAPI (docs/openapi_spec.json)
   evaluar_paridad_plantillas.py   # Paridad legacy vs DSL (recursos/)
   migrar_legacy_a_dsl.py          # Migra YAML legacy → DSL
   ocr_pdfs.py                     # OCR de reglamentos escaneados
@@ -189,6 +190,9 @@ python -m validator.exportador reporte.json reporte.pdf
 # evaluar un lote de plantillas/tesis de prueba
 python scripts/eval_contra_plantillas.py unt_format_rules_schema.yaml ruta/a/plantillas/
 
+# regenerar la especificación OpenAPI (docs/openapi_spec.json)
+python scripts/generate_openapi.py
+
 # calidad de ingeniería (lint, tipos y medición de cobertura)
 ruff check validator/ scripts/ tests/
 ruff format --check validator/ scripts/ tests/
@@ -199,7 +203,7 @@ pytest tests/ --cov=validator --cov-report=term-missing
 nix flake check
 ```
 
-La suite (**206 tests**) incluye los **tests de propiedad** (F6): un factory
+La suite (**213 tests**) incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en
 `tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
 este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)
@@ -221,6 +225,18 @@ ciclos épsilon), **cache de consultas XPath** por documento y la
 - **Hosting**: on-premise en infraestructura de la universidad. Sin dependencias de servicios externos en tiempo de ejecución (sin llamadas a APIs de LLM en producción, bajo la restricción actual).
 - **Frontend tooling**: Vite + React (`frontend/`).
 - **Entorno de desarrollo**: Nix flake (`flake.nix`) — Python 3.14 + dependencias del motor + toolchain de OCR (`ocrmypdf`, `tesseract` con español, `poppler_utils`) + tooling de calidad (ruff, mypy, pre-commit) y de exportación (markdown, WeasyPrint). Incluye `nix run .#test` (pytest), `nix run .#serve` (uvicorn) y `nix flake check` para verificación completa (tests + ruff + mypy + cobertura).
+
+### Despliegue del frontend (`VITE_API_URL` y proxy)
+
+El frontend llama a `POST /validar` con `API_BASE_URL = import.meta.env.VITE_API_URL || ''` (`frontend/src/App.jsx`).
+
+| Entorno | Cómo llega al backend |
+|---------|----------------------|
+| **`npm run dev`** (desarrollo) | Proxy de Vite en `vite.config.js` enruta `/validar` → `http://localhost:8000`. El default `VITE_API_URL=''` (mismo origen) funciona sin configurar nada. |
+| **`npm run preview` / build estático** | **No existe el proxy de Vite.** Hay que: (1) definir `VITE_API_URL` en tiempo de build hacia el origen de la API, o (2) servir el build detrás de un **reverse proxy** (nginx, Caddy, etc.) que enroute `/validar` al backend FastAPI. |
+| **Build con API en otro origen** | `VITE_API_URL=https://api.tudominio.com npm run build` (o variable en CI). Ver `frontend/.env.example`. |
+
+Mientras `VITE_API_URL` quede vacío en un despliegue **sin** proxy/reverse proxy, las llamadas a `/validar` fallarán con error de red y el UI entrará en modo demo (reporte mock avisado). Errores HTTP del backend **con** cuerpo JSON (`detail`) se muestran al usuario y **no** se sustituyen por mocks.
 
 ## Extensiones futuras (fuera de alcance por ahora)
 

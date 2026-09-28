@@ -1,7 +1,7 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.1.0 (Semana 3)  
-**Fecha**: 2026-09-09  
+**Versión**: 1.2.0 (Semana 4)  
+**Fecha**: 2026-09-23  
 **Estado**: Implementado
 
 ---
@@ -19,6 +19,7 @@ Recibe un archivo DOCX de tesis y devuelve un reporte de validación estructurad
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `archivo` | `file` | Sí | Archivo `.docx` a validar |
+| `correo` | `string` (form) | No | Correo electrónico del estudiante. Si se envía, debe tener formato válido (`usuario@dominio`); se usará para notificar resultados cuando el envío esté habilitado (Actividad 6). Cadena vacía se trata como ausente. |
 | `incluir_prompts_ia` | `bool` (query) | No (default: `true`) | Incluir la sección "Cómo preguntar a una IA" en la respuesta |
 
 ### Content-Type
@@ -32,6 +33,13 @@ multipart/form-data
 | Extensión | MIME Type |
 |-----------|-----------|
 | `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
+| `.docx` | `application/octet-stream` (algunos navegadores envían este MIME type) |
+
+### Validación de cabecera (magic bytes)
+
+El archivo debe comenzar con la firma ZIP local `PK\x03\x04` (todo DOCX es un
+paquete OPC comprimido). Archivos renombrados a `.docx` sin cabecera ZIP se
+rechazan con `422` antes de intentar abrirlos.
 
 ### Tamaño máximo
 
@@ -49,7 +57,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 {
   "semaforo": "verde",
   "resumen": {
-    "total": 31,
+    "total": 47,
     "fallidos_error": 0,
     "fallidos_warning": 0
   },
@@ -75,7 +83,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
   "metadatos": {
     "archivo_nombre": "tesis.docx",
     "archivo_tamano_bytes": 123456,
-    "reglas_evaluadas": 31,
+    "reglas_evaluadas": 47,
     "version_esquema": "2026-09-01"
   }
 }
@@ -124,6 +132,16 @@ FastAPI valida automáticamente que el campo `archivo` esté presente. Si no se 
 }
 ```
 
+### 400 Bad Request — Sin nombre de archivo
+
+Si el campo `archivo` está presente pero el nombre está vacío:
+
+```json
+{
+  "detail": "Campo 'archivo' requerido. Envíe un archivo .docx en el campo 'archivo' del formulario multipart."
+}
+```
+
 ### 415 Unsupported Media Type — Tipo incorrecto
 
 El endpoint valida primero la extensión del archivo y luego el Content-Type. Dependiendo de cuál falle, devuelve un mensaje diferente:
@@ -146,9 +164,13 @@ El endpoint valida primero la extensión del archivo y luego el Content-Type. De
 
 ### 413 Request Entity Too Large — Archivo muy grande
 
+Para evitar cargar uploads arbitrariamente grandes en memoria, el servidor
+lee a lo sumo 10 MB + 1 byte del body. Por eso el mensaje **no** reporta el
+tamaño exacto recibido:
+
 ```json
 {
-  "detail": "El archivo excede el tamaño máximo permitido (10 MB). Tamaño recibido: 15.2 MB."
+  "detail": "El archivo excede el tamaño máximo permitido (10 MB)."
 }
 ```
 
@@ -157,6 +179,47 @@ El endpoint valida primero la extensión del archivo y luego el Content-Type. De
 ```json
 {
   "detail": "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+}
+```
+
+### 422 Unprocessable Entity — Cabecera ZIP inválida (magic bytes)
+
+El archivo no comienza con la firma `PK\x03\x04` (no es un ZIP/DOCX):
+
+```json
+{
+  "detail": "El archivo no es un ZIP/DOCX válido: cabecera incorrecta (se esperaba la firma 'PK')."
+}
+```
+
+### 422 Unprocessable Entity — ZIP válido pero sin `word/document.xml`
+
+El archivo es un ZIP pero no contiene la parte esencial `word/document.xml`
+(el extractor lanza `KeyError`):
+
+```json
+{
+  "detail": "El archivo no contiene un documento Word válido: archivo interno faltante ('word/document.xml')."
+}
+```
+
+### 422 Unprocessable Entity — Estructura DOCX inválida
+
+El extractor no encontró una parte esperada del DOCX (lanza `ValueError`):
+
+```json
+{
+  "detail": "El archivo no contiene un documento Word válido: <detalle del extractor>."
+}
+```
+
+### 422 Unprocessable Entity — Correo electrónico inválido
+
+Si el campo `correo` se envía pero no tiene formato válido:
+
+```json
+{
+  "detail": "Correo electrónico inválido: 'no-es-un-correo'. Formato esperado: usuario@dominio."
 }
 ```
 
@@ -190,6 +253,16 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
 
 ---
 
+## Ejemplo con correo del estudiante
+
+```bash
+curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
+  -F "archivo=@mi_tesis.docx" \
+  -F "correo=estudiante@unitru.edu.pe"
+```
+
+---
+
 ## Ejemplo de solicitud sin prompts IA
 
 ```bash
@@ -204,9 +277,10 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=false" \
 | Código | Significado |
 |--------|-------------|
 | `200` | Validación exitosa |
+| `400` | Campo `archivo` presente pero sin nombre |
 | `413` | Archivo excede 10 MB |
 | `415` | Tipo de archivo no soportado (no es `.docx`) |
-| `422` | Solicitud mal formada (sin campo `archivo`) / Archivo corrupto o no procesable |
+| `422` | Solicitud mal formada (sin campo `archivo`) / Cabecera ZIP inválida / Archivo vacío / DOCX corrupto o sin estructura válida / Correo inválido |
 | `500` | Error interno del servidor |
 
 ---
@@ -236,7 +310,28 @@ El motor interno (`validator.engine`) devuelve `RuleResult` (dataclass) y `build
 
 ## Changelog
 
-### v1.1.0 (2026-09-15 — Semana 4, nota F5)
+### v1.2.0 (2026-09-23 — Semana 4, cierre Actividad 5)
+
+- **Nuevo campo opcional `correo`** (form field): formato validado con
+  `email-validator`; inválido → `422` con mensaje en español. Vacío o
+  ausente se trata como `None` (retrocompatible).
+- **Validación de magic bytes**: el archivo debe comenzar con la firma ZIP
+  `PK\x03\x04`; si no, `422` antes de procesarlo.
+- **Documentación de errores 400 / 422** que faltaban: nombre de archivo
+  vacío, cabecera ZIP inválida, ZIP sin `word/document.xml` (`KeyError`),
+  estructura DOCX inválida (`ValueError`), correo inválido.
+- **Tabla de códigos de estado** actualizada: agregado `400` y desglose de
+  los distintos `422`.
+- **Tipos MIME aceptados**: documentado `application/octet-stream` además
+  del MIME oficial de OOXML.
+- Ejemplo `curl` con campo `correo`.
+- Lectura del upload limitada a 10 MB + 1 byte: el `413` ya no reporta
+  "Tamaño recibido" (cambio solo del texto del mensaje).
+- Ejemplos de respuesta sincronizados a 47 reglas (antes decían 31).
+- Versión del endpoint: `1.1.0` → `1.2.0` (cambio aditivo, sin romper
+  clientes existentes).
+
+### v1.1.1 (2026-09-15 — Semana 4, nota F5)
 
 - Sin cambios de campos en el contrato (las llamadas son idénticas).
 - Fuente de reglas: la API carga `reglas_unt.yaml` (DSL, 47 reglas) desde la
