@@ -306,7 +306,9 @@ def _lint_deteccion_tipo(
                 f"[{rule_id}] deteccion_tipo: firma '{tipo}' necesita 'evidencia' no vacía"
             )
         elif not all(isinstance(e, str) and e.strip() for e in evidencia):
-            hallazgos.append(f"[{rule_id}] deteccion_tipo: firma '{tipo}' tiene 'evidencia' no textual")
+            hallazgos.append(
+                f"[{rule_id}] deteccion_tipo: firma '{tipo}' tiene 'evidencia' no textual"
+            )
 
         minimo = firma.get("minimo", 1)
         if not isinstance(minimo, int) or minimo < 1:

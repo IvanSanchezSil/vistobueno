@@ -784,7 +784,9 @@ class DeteccionTipo(Analizador):
 
         if declaracion:
             self.evidencia = [etiqueta]
-            return self._resolver(NIVEL_DECLARADO, declaracion, f"declarado={declaracion} ('{etiqueta}')")
+            return self._resolver(
+                NIVEL_DECLARADO, declaracion, f"declarado={declaracion} ('{etiqueta}')"
+            )
 
         if inferido:
             self.evidencia = evidencia
