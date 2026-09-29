@@ -441,8 +441,6 @@ estructuras de cualitativo y de revisión, que no aplican a un plan cuantitativo
 - **Solo los 3 TINV tienen reglas de estructura.** Una TSP, un informe o un
   proyecto no reciben ninguna validación estructural: salen vacíos por ese
   lado. Las 5 reglas nuevas van en el archivo aparte (paso 8).
-- **La contradicción se reporta con errores de estructura**, no con un error
-  propio de la detección. El paso 6 lo resuelve.
 
 ## Sobre el tipo desconocido y la contradicción (decisión 6)
 
