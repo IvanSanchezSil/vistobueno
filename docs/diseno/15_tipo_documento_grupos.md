@@ -397,6 +397,43 @@ Efectos colaterales que conviene tener presentes:
   su desacuerdo en esas reglas es precisamente el defecto corregido. El YAML
   legacy sigue siendo la referencia histórica sin tocar (AGENTS.md).
 
+## Cotejo de etiquetas del Anexo 10: gana la más larga
+
+Las etiquetas se comparan por subcadena, y unas contienen a otras:
+
+```
+INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO
+└── contiene ──> PROYECTO DE INVESTIGACIÓN CUANTITATIVO
+```
+
+En un Anexo 10 marcado como informe, las dos casan en el mismo párrafo. Con
+"gana el primero que encuentre", el tipo dependía de **dónde estuviera escrita
+cada clave en el YAML**: reordenar el archivo cambiaba la clasificación sin
+aviso, y el YAML es texto que se reordena. Se comprobó que la lógica anterior
+daba `informe_cuantitativo` con un orden y `proyecto_cuantitativo` con el
+inverso.
+
+Ahora gana la **etiqueta más larga**, y a igual longitud desempata el nombre
+del tipo, de modo que el resultado no depende del orden. El texto del Anexo 10
+basta para decidir. El test `test_el_resultado_no_depende_del_orden_del_diccionario`
+fija esa independencia, y `test_una_etiqueta_suelta_no_gana_por_orden` falla si
+alguien añade una etiqueta anidada sin querer, que es la forma de rearmar el
+fallo.
+
+## Riesgos conocidos que NO se corrigen aquí
+
+- **Las firmas se comparan sobre todos los párrafos del cuerpo, no solo sobre
+  títulos.** `LÍNEA DE INVESTIGACIÓN` es evidencia de `proyecto_cuantitativo`
+  y aparece en la carátula de toda tesis UNT. Hoy no dispara porque esa firma
+  exige 2 de 3, pero es frágil: bastaría que una tesis tuviera además "plan de
+  investigación" y "recursos y materiales" para clasificarse como proyecto.
+  Endurecerlo exige distinguir títulos de prosa, que es un cambio de analizador.
+- **Solo los 3 TINV tienen reglas de estructura.** Una TSP, un informe o un
+  proyecto no reciben ninguna validación estructural: salen vacíos por ese
+  lado. Las 5 reglas nuevas van en el archivo aparte (paso 8).
+- **La contradicción se reporta con errores de estructura**, no con un error
+  propio de la detección. El paso 6 lo resuelve.
+
 ## Sobre el tipo desconocido y la contradicción
 
 Una detección `sin_determinar` o `contradictorio` no debeSER un silencio. Las 3

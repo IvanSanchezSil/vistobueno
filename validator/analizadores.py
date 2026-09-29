@@ -800,10 +800,19 @@ class DeteccionTipo(Analizador):
 
     # -- nivel 1: declaración del Anexo 10 --------------------------------
     def _tipo_declarado(self, parrafos) -> tuple[str | None, str]:
-        """Primer tipo cuya casilla aparece marcada junto a su etiqueta.
+        """Tipo cuya casilla aparece marcada junto a su etiqueta.
 
         La casilla y la etiqueta deben estar en el MISMO párrafo: si estuvieran
         separadas, no habría forma de saber a cuál corresponde cada casilla.
+
+        Si en un mismo párrafo casan varias etiquetas, gana la MÁS LARGA. El
+        cotejo es por subcadena y unas etiquetas contienen a otras: "INFORME
+        DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO" contiene "PROYECTO DE
+        INVESTIGACIÓN CUANTITATIVO", así que las dos casan en el mismo
+        párrafo. Con el orden del diccionario el resultado dependía de dónde
+        estuviera escrita cada clave en el YAML, que es una fuente de fallo
+        silencioso. Con la más larga gana, el texto del Anexo 10 basta para
+        decidir y reordenar el YAML no cambia nada.
         """
         etiquetas = self.config.get("declaracion", {}).get("etiquetas", {})
         if not etiquetas:
@@ -813,10 +822,18 @@ class DeteccionTipo(Analizador):
             if not hay_casilla or not marcada:
                 continue
             texto = _norm_deteccion(text_of(p))
+            candidatos: list[tuple[int, str, str]] = []
             for tipo, alias in etiquetas.items():
                 for etiqueta in [tipo, *alias]:
-                    if _norm_deteccion(etiqueta) and _norm_deteccion(etiqueta) in texto:
-                        return tipo, etiqueta
+                    clave = _norm_deteccion(etiqueta)
+                    if clave and clave in texto:
+                        candidatos.append((len(clave), tipo, etiqueta))
+            if candidatos:
+                # Más larga primero. El nombre del tipo solo desempata, para
+                # que un empate no dependa del orden del diccionario.
+                candidatos.sort(key=lambda c: (-c[0], c[1]))
+                _, tipo, etiqueta = candidatos[0]
+                return tipo, etiqueta
         return None, ""
 
     # -- nivel 2: firmas estructurales ------------------------------------
