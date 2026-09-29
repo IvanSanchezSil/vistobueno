@@ -129,11 +129,24 @@ del diseño hubo que corregirla (ver la nota en
 
 **Verificación**
 
-- Documento bueno: **47/47, cero fallos**.
+- Documento bueno: **48 evaluadas, 0 fallos, 2 no aplicables, semáforo verde**.
 - Las 5 plantillas oficiales: de 5 errores bloqueantes a **3**.
-- Suite verde.
+- Suite verde (306 tests).
 
-**Hecho cuando**: el defecto original está corregido y medido.
+**Estado**: hecho. Requiere tres cosas que el paso no preveía, todas
+documentadas en `docs/diseno/15_tipo_documento_grupos.md`:
+
+1. `aplicar_si`Admite un valor **lista** ("cualquiera de estos"). Las 3
+   estructuras aceptan su tipo + `sin_determinar` + `contradictorio`, para que
+   un tipo no clasificado se valide contra todos los esquemas en vez de dejar
+   la estructura sin revisar en silencio.
+2. Corrección de tres firmas que se robaban documentos ajenos. En concreto una
+   tesis cualitativa se detectaba como `informe_cualitativo` y se quedaba sin
+   validación estructural. Se derivó la evidencia de las estructuras que el
+   repo ya codifica, y se comprobó la matriz de 8 firmas x 3 estructuras.
+3. Los tests de paridad con el YAML legacy renuncian a 2 reglas: el motor
+   legacy evalúa siempre las 44 y no tiene el concepto de aplicabilidad, así
+   que su desacuerdo en esas reglas ES el defecto que se corrige.
 
 ---
 

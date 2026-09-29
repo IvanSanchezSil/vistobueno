@@ -368,30 +368,44 @@ lintea. Cuando la biblioteca facilite plantillas, se integran a la suite.
 
 ## Impacto en los tests
 
-Estado tras el **paso 3** (regla discriminadora añadida al YAML). La tabla
-original proyectaba el estado final; aquí se registra el real, y lo que falta
-para alcanzarlo.
+Estado tras el **paso 4** (las 3 estructuras condicionadas al tipo). La
+tabla original proyectaba el estado final; aquí se registra el real y medido.
 
-| Test | Antes del paso 3 | Después del paso 3 | Estado final previsto |
-|---|---|---|---|
-| `test_doc_bueno_pasa_46` | 45/47, 2 fallos | **46/48, 2 fallos** | 48/48, 0 fallos (paso 4) |
-| `ESTRUCTURA` | 3 ids | 3 ids | 3 ids (las 5 nuevas en el archivo aparte) |
-| Plantillas oficiales | 5 errores bloqueantes | 5 errores bloqueantes | 3 errores bloqueantes (paso 4) |
-| Suite | 278 tests | **295 tests** | crece en el paso 5 |
+| Medición | Antes (semana 5) | Después del paso 4 |
+|---|---|---|
+| Documento bueno | 45/47, 2 fallos, **rojo** | 48 evaluadas, **0 fallos**, 2 no aplicables, **verde** |
+| Las 5 plantillas oficiales | 5 errores bloqueantes | **3 errores bloqueantes** |
+| `ESTRUCTURA` | 3 ids, todos evaluados | 3 ids, solo 1 aplica a un documento cuantitativo |
+| Suite | 213 tests | **306 tests** |
 
-Los 2 fallos restantes son las estructuras alternativas mutuoexcluyentes
-(`estructura_tinv_cualitativo` y `estructura_tinv_revision_literatura`): se
-retiran del reporte en el paso 4, cuando la detección gobierne la aplicabilidad.
+Los 2 errores que se van (`estructura_tinv_cualitativo` y
+`estructura_tinv_revision_literatura` sobre una tesis cuantitativa) eran los
+imposibles de corregir: no había forma de pasarlos. Ahora ni siquiera se miran
+(`aplicable=False`), que es lo que corresponde a un esquema de otro tipo.
 
-Efectos colaterales del paso 3 que conviene tener presentes:
+Efectos colaterales que conviene tener presentes:
 
 - `ReglaCompilada.ejecutar` ya no fuerza `found="cumple"` en las reglas que
   declaran `expone`: pasan a mostrar lo detectado. Las 47 reglas anteriores
   siguen diciendo `cumple` (verificado sobre el factory y sobre una plantilla
   oficial, comparando `passed` y `found` contra el commit previo).
-- Las mutaciones de las dos estructuras alternativas ahora también mueven
-  `deteccion_tipo_documento`, porque cambian qué firma casa con el documento.
-  Se declaró ese acople en `REGLAS_ACOPLADAS`. El sentido inverso no ocurre.
+- Las mutaciones de estructura se acoplan con la detección en ambos sentidos,
+  porque cambiar la estructura cambia el tipo y un tipo contradictorio activa
+  las tres estructuras. Declarado en `REGLAS_ACOPLADAS`.
+- Los tests de paridad con el motor legacy renuncian a 2 reglas. El legacy
+  evalúa siempre sus 44 reglas y no tiene el concepto de aplicabilidad, así que
+  su desacuerdo en esas reglas es precisamente el defecto corregido. El YAML
+  legacy sigue siendo la referencia histórica sin tocar (AGENTS.md).
+
+## Sobre el tipo desconocido y la contradicción
+
+Una detección `sin_determinar` o `contradictorio` no debeSER un silencio. Las 3
+estructuras aceptan su propio tipo **más** esos dos estados, así que un
+documento que no se pudo clasificar se valida contra todos los esquemas. El
+costo es que un documento con el Anexo 10 mal declarado sale en rojo con 2
+errores de estructura: es el precio de no dejar la estructura sin revisar. La
+propia regla de detección sigue siendo `warning` y no bloquea; los errores los
+aportan las estructuras, que sí son `error`.
 
 ## No-alcance
 

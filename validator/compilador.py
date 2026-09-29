@@ -431,6 +431,19 @@ def _expone_de(rule: dict) -> str | None:
     return expone if isinstance(expone, str) else None
 
 
+def _coincide(valor_contexto: object, valor_esperado: object) -> bool:
+    """Compara un valor del contexto contra lo que pide una condición.
+
+    Escalar: igualdad exacta. Lista: "cualquiera de estos" (se compara el
+    contexto contra cada elemento, sin exigir que la lista esté ordenada ni
+    que no tenga repetidos). Una lista vacía no casa con nada: se trata como
+    una condición que nunca se cumple, no como una que siempre se cumple.
+    """
+    if isinstance(valor_esperado, list):
+        return any(valor_contexto == candidato for candidato in valor_esperado)
+    return valor_contexto == valor_esperado
+
+
 @dataclass
 class ReglaCompilada:
     """Una regla DSL compilada: sus analizadores + metadatos."""
@@ -451,10 +464,17 @@ class ReglaCompilada:
         conjuntas: todas las claves deben coincidir. Una clave ausente del
         contexto hace que la regla NO aplique (se trata como "sin valor
         conocido", no como "vale cualquier cosa").
+
+        Un valor escalar exige igualdad exacta. Un valor lista significa
+        "cualquiera de estos": así una regla puede admitir varios tipos y,
+        sobre todo, declarar explícitamente qué hace con un tipo que no se
+        pudo determinar en vez de quedar en silencio.
         """
         if self.aplicar_si is None:
             return True
-        return all(contexto.get(clave) == valor for clave, valor in self.aplicar_si.items())
+        return all(
+            _coincide(contexto.get(clave), valor) for clave, valor in self.aplicar_si.items()
+        )
 
     def valor_para_contexto(self) -> str:
         """Valor que la regla publica en el contexto tras ejecutarse.

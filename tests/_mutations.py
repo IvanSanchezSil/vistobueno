@@ -3,7 +3,7 @@
 Cada regla de `reglas_unt.yaml` tiene aquí UNA mutación: un desvío MÍNIMO
 sobre la configuración base que la hace fallar (solo a ella, o a su par
 acoplado). También centraliza la metadata de cobertura de reglas
-(`REGLAS`, `REGLAS_ACOPLADAS`, `EXCLUIDAS_BASE`).
+(`REGLAS`, `REGLAS_ACOPLADAS`, `NO_APLICABLES_BASE`).
 
 Sincronización obligatoria: al importar este módulo se verifica que
 `_MUTACIONES` tenga exactamente las mismas reglas que `reglas_unt.yaml`.
@@ -114,14 +114,32 @@ REGLAS_ACOPLADAS = {
     # útil la detección: el documento pasa a leerse como cualitativo o como
     # revisión. El sentido inverso NO ocurre (mutar la detección no cambia las
     # estructuras: solo se añade un anexo), por eso el mapa es unidireccional.
-    "estructura_tinv_cualitativo": {"deteccion_tipo_documento"},
-    "estructura_tinv_revision_literatura": {"deteccion_tipo_documento"},
+    "estructura_tinv_cualitativo": {
+        "deteccion_tipo_documento",
+        "estructura_tinv_cuantitativo",
+    },
+    "estructura_tinv_revision_literatura": {
+        "deteccion_tipo_documento",
+        "estructura_tinv_cuantitativo",
+    },
+    # Al revés que las de arriba: una detección contradictoria (el Anexo 10
+    # declara un tipo que la estructura desmiente) deja de ser "una de las
+    # tres" y activa las TRES estructuras, porque un tipo que no se pudo
+    # clasificar se valida contra todos los esquemas. Por eso la mutación de
+    # la detección también mueve las dos estructuras alternativas: pasan de
+    # no aplicables a aplicables.
+    "deteccion_tipo_documento": {
+        "estructura_tinv_cualitativo",
+        "estructura_tinv_revision_literatura",
+    },
 }
 
-# Exclusión documentada: el documento base (plan tipo cuantitativo) no puede
-# cumplir simultáneamente los esquemas alternativos (la estructura del
-# documento define el tipo de investigación). Ver docs/PLAN_DSL.md, F6.
-EXCLUIDAS_BASE = {
+# El documento base es un plan tipo CUANTITATIVO, así que los esquemas de
+# los otros dos tipos de TINV no le aplican. Desde el paso 4 no "fallan":
+# la detección de tipo los marca como no aplicables (`aplicable=False`), que
+# es la diferencia entre un error corregible y un error que no le toca al
+# documento. Antes de ese paso fallaban y ponían el semáforo en rojo.
+NO_APLICABLES_BASE = {
     "estructura_tinv_cualitativo",
     "estructura_tinv_revision_literatura",
 }
@@ -308,6 +326,9 @@ _validar_sincronizacion()
 
 
 # Conveniencia: exposición del resultado esperado del documento base.
-DESVIOS_BASE = len(EXCLUIDAS_BASE)
+# Desde el paso 4 el documento base pasa las 48 reglas: no hay desvíos, solo
+# 2 esquemas que no le aplican.
+DESVIOS_BASE = 0
 TOTAL_REGLAS = len(REGLAS)
 REGLAS_OK_BASE = TOTAL_REGLAS - DESVIOS_BASE
+NO_APLICABLES_TOTAL = len(NO_APLICABLES_BASE)

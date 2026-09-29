@@ -234,6 +234,31 @@ def _lint_contexto(rules: list[dict], hallazgos: list[str]) -> None:
                     f"[{rule_id}] aplicar_si: '{clave}' no la expone ninguna regla; "
                     f"claves expuestas: {sorted(expuestas) or 'ninguna'}"
                 )
+        for clave, valor in aplicar_si.items():
+            _lintar_valor_aplicar_si(valor, clave, hallazgos, rule_id)
+
+
+def _lintar_valor_aplicar_si(valor: object, clave: str, hallazgos: list[str], rule_id: str) -> None:
+    """Valida el valor de una condición: escalar o lista de aceptados.
+
+    Un escalar puede ser cualquier tipo (en la práctica siempre son cadenas
+    de ids de tipo documental). Una lista debe ser no vacía y de escalares:
+    una lista vacía no casaría con nada y dejaría la regla muerta, que es
+    justo el silencio que se quiere evitar.
+    """
+    if isinstance(valor, list):
+        if not valor:
+            hallazgos.append(
+                f"[{rule_id}] aplicar_si: '{clave}' tiene una lista vacía, "
+                "así que la regla nunca aplicaría"
+            )
+        elif not all(isinstance(v, (str, int, float, bool)) for v in valor):
+            hallazgos.append(f"[{rule_id}] aplicar_si: '{clave}' solo admite escalares en la lista")
+    elif valor is None:
+        hallazgos.append(
+            f"[{rule_id}] aplicar_si: '{clave}' no declara valor, "
+            "así que la condición quedaría inactiva"
+        )
 
 
 def _expone_bruto(rule: dict) -> tuple[bool, object]:
