@@ -507,14 +507,37 @@ class ReglaCompilada:
             return f"{detalle} ruta={' -> '.join(ruta)}"
         return detalle
 
+    def _detalle_expositor(self, detalles: list[tuple[Analizador, str]]) -> str:
+        """Texto a mostrar en `found` cuando la regla PASA y declara `expone`.
+
+        Una regla que `expone` es informativa por definición: en vez del
+        genérico "cumple", el reporte debe decir qué se encontró (el tipo de
+        documento detectado, por ejemplo). Se usa el detalle del mismo
+        analizador cuyo `valor` se publica en el contexto, para que el
+        `found` y el valor consumido por `aplicar_si` no puedan divergir.
+
+        Devuelve "" si la regla no expone nada, de modo que el llamador siga
+        usando "cumple": el `valor` de un analizador común (p. ej. el valor
+        real que lee `AnalizadorXML`) no debe alterar el `found` de las reglas
+        que no publican nada en el contexto.
+        """
+        if not self.expone:
+            return ""
+        for an, detalle in detalles:
+            if getattr(an, "valor", None) is not None:
+                return detalle or str(an.valor)
+        return ""
+
     def ejecutar(self, extracted: ExtractedDocx) -> RuleResult:
         fallos: list[str] = []
         pagina: int | None = None
+        detalles: list[tuple[Analizador, str]] = []
         for an in self.analizadores:
             try:
                 ok, detalle = an.analizar(extracted)
             except Exception as e:  # noqa:BLE001
                 ok, detalle = False, f"error ejecutando analizador: {type(e).__name__}: {e}"
+            detalles.append((an, detalle))
             if not ok:
                 fallos.append(self._detalle_con_traza(detalle, an))
                 # Enriquecer la ubicación con la página física real (ítem 1):
@@ -536,7 +559,7 @@ class ReglaCompilada:
             severity=Severity(self.rule.get("severidad", "error")),
             message=self.rule.get("descripcion", self.rule["id"]),
             expected=str(esperados),
-            found="; ".join(fallos) if fallos else "cumple",
+            found="; ".join(fallos) if fallos else (self._detalle_expositor(detalles) or "cumple"),
             location=ubicacion or None,
             fuente=self.rule.get("fuente", ""),
             cita=self.rule.get("cita", ""),
