@@ -129,9 +129,9 @@ del diseño hubo que corregirla (ver la nota en
 
 **Verificación**
 
-- Documento bueno: **48 evaluadas, 0 fallos, 2 no aplicables, semáforo verde**.
+- Documento bueno: **46 evaluadas, 0 fallos, 2 no aplicables, semáforo verde**.
 - Las 5 plantillas oficiales: de 5 errores bloqueantes a **3**.
-- Suite verde (306 tests).
+- Suite verde (315 tests).
 
 **Estado**: hecho. Requiere tres cosas que el paso no preveía, todas
 documentadas en `docs/diseno/15_tipo_documento_grupos.md`:
@@ -165,11 +165,14 @@ documentadas en `docs/diseno/15_tipo_documento_grupos.md`:
 
 **Verificación**
 
-- Documento bueno: `total_evaluadas: 43`, `reglas_no_aplicables: 4`,
-  `fallidos_error: 0`.
+- Documento bueno: `total_evaluadas: 46`, `reglas_no_aplicables: 2`,
+  `fallidos_error: 0`, semáforo verde.
 - Suite verde.
 
-**Hecho cuando**: el resumen refleja lo evaluado y lo omitido.
+**Estado**: hecho. La proyección original decía 43 evaluadas y 4 omitidas;
+los números reales son 46 y 2, porque al final solo los 3 esquemas TINV se
+condicionaron al tipo (el paso 4 dejó las 5 estructuras nuevas para el 8), y el
+documento bueno es un plan cuantitativo.
 
 ---
 

@@ -373,10 +373,10 @@ tabla original proyectaba el estado final; aquí se registra el real y medido.
 
 | Medición | Antes (semana 5) | Después del paso 4 |
 |---|---|---|
-| Documento bueno | 45/47, 2 fallos, **rojo** | 48 evaluadas, **0 fallos**, 2 no aplicables, **verde** |
+| Documento bueno | 45/47, 2 fallos, **rojo** | 46 evaluadas, **0 fallos**, 2 no aplicables, **verde** |
 | Las 5 plantillas oficiales | 5 errores bloqueantes | **3 errores bloqueantes** |
 | `ESTRUCTURA` | 3 ids, todos evaluados | 3 ids, solo 1 aplica a un documento cuantitativo |
-| Suite | 213 tests | **306 tests** |
+| Suite | 213 tests | **315 tests** |
 
 Los 2 errores que se van (`estructura_tinv_cualitativo` y
 `estructura_tinv_revision_literatura` sobre una tesis cuantitativa) eran los
@@ -419,6 +419,16 @@ basta para decidir. El test `test_el_resultado_no_depende_del_orden_del_dicciona
 fija esa independencia, y `test_una_etiqueta_suelta_no_gana_por_orden` falla si
 alguien añade una etiqueta anidada sin querer, que es la forma de rearmar el
 fallo.
+
+## Conteo del reporte: lo evaluado y lo omitido
+
+`build_report` publica `total_evaluadas` y `reglas_no_aplicables` en el resumen y
+**excluye las no aplicables de `resultados`**. Sin esto, un total fijo haría creer
+que las reglas omitidas se cumplieron cuando en realidad no se miraron. El semáforo
+se sigue calculando sobre todos los errores, así que omitir no cambia el veredicto.
+
+En el documento bueno (plan cuantitativo) eso da 46 evaluadas y 2 omitidas: las
+estructuras de cualitativo y de revisión, que no aplican a un plan cuantitativo.
 
 ## Riesgos conocidos que NO se corrigen aquí
 

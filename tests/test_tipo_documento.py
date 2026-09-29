@@ -307,6 +307,75 @@ class TestDosFases:
             Path(path).unlink(missing_ok=True)
         assert build_report(res)["semaforo"] == "verde"
 
+    def test_el_resumen_cuenta_evaluadas_y_omitidas(self):
+        """El resumen tiene que distinguir lo que se miró de lo que no.
+
+        Una regla no aplicable no se evaluó: listarla como cumplida haría
+        creer al estudiante que pasó. Se cuenta aparte."""
+        datos = _datos(
+            _detector(),
+            _regla_simple("se_evalua"),
+            _regla_simple("no_se_evalua", aplicar_si={"tipo": "OTRO"}),
+        )
+        path = _make_docx(headings=["RESULTADOS"])
+        try:
+            res = validate_docx(path, datos)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        resumen = build_report(res)["resumen"]
+        assert resumen["total"] == 3
+        assert resumen["total_evaluadas"] == 2
+        assert resumen["reglas_no_aplicables"] == 1
+
+    def test_una_regla_no_aplicable_no_aparece_en_resultados(self):
+        datos = _datos(
+            _detector(),
+            _regla_simple("se_evalua"),
+            _regla_simple("no_se_evalua", aplicar_si={"tipo": "OTRO"}),
+        )
+        path = _make_docx(headings=["RESULTADOS"])
+        try:
+            res = validate_docx(path, datos)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        ids = [r["rule_id"] for r in build_report(res)["resultados"]]
+        assert "no_se_evalua" not in ids
+        assert "se_evalua" in ids
+
+    def test_el_filtro_de_severidad_no_oculta_los_conteos(self):
+        """Filtrar la vista no puede cambiar lo que se evaluó: los conteos
+        describen el documento, no lo que se pidió mostrar."""
+        datos = _datos(
+            _detector(),
+            _regla_simple("se_evalua"),
+            _regla_simple("no_se_evalua", aplicar_si={"tipo": "OTRO"}),
+        )
+        path = _make_docx(headings=["RESULTADOS"])
+        try:
+            res = validate_docx(path, datos)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        resumen = build_report(res, ["warning"])["resumen"]
+        assert resumen["total_evaluadas"] == 2
+        assert resumen["reglas_no_aplicables"] == 1
+
+    def test_el_documento_bueno_cuenta_46_de_48(self):
+        """Guarda sobre el YAML real: el documento bueno es un plan
+        cuantitativo, así que las 2 estructuras que no aplican son las de
+        cualitativo y revisión."""
+        from docx_factory import compilar_docx, configuracion_base  # noqa: E402
+
+        path = compilar_docx(configuracion_base())
+        try:
+            res = validate_docx(path, load_rules("reglas_unt.yaml"))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        rep = build_report(res)
+        assert rep["resumen"]["total_evaluadas"] == 46
+        assert rep["resumen"]["reglas_no_aplicables"] == 2
+        assert len(rep["resultados"]) == 46
+        assert rep["semaforo"] == "verde"
+
     def test_orden_del_yaml_se_conserva(self):
         """Las fases no deben reordenar el reporte: el orden de salida es el
         del YAML, no el de ejecución. Aquí las reglas condicionadas están
