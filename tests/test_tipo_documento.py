@@ -647,6 +647,91 @@ class TestDeteccionNivelInferido:
         assert ok is False
 
 
+class TestEtiquetaMasLargaGana:
+    """El cotejo de etiquetas es por subcadena y unas contienen a otras.
+
+    "INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO" contiene "PROYECTO DE
+    INVESTIGACIÓN CUANTITATIVO", así que en un Anexo 10 marcado como informe
+    las dos etiquetas casan. Gana la más larga, de modo que reordenar el
+    diccionario del YAML no cambia el tipo detectado.
+    """
+
+    def _detectar(self, texto, etiquetas):
+        # Solo el párrafo del Anexo 10: ninguna firma estructural alcanza su
+        # mínimo, así que no hay inferencia y no se confounding con
+        # contradicción. Lo que se prueba aquí es la lectura del nivel 1.
+        return _detectar([_con_casilla(texto)], {"anexo": "Anexo 10", "etiquetas": etiquetas})
+
+    def test_el_informe_gana_a_la_etiqueta_que_contiene(self):
+        _, _, valor, evidencia, _ = self._detectar(
+            "INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO", ETIQUETAS
+        )
+        assert valor == "informe_cuantitativo"
+        assert evidencia == ["INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO"]
+
+    def test_el_resultado_no_depende_del_orden_del_diccionario(self):
+        """Regresión del fallo silencioso: antes ganaba la clave que estuviera
+        antes en el YAML, y el YAML es texto que se reordona sin avisar."""
+        texto = "INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO"
+        for nombre, etiquetas in (
+            ("informe antes", dict(ETIQUETAS)),
+            ("proyecto antes", {k: v for k, v in reversed(list(ETIQUETAS.items()))}),
+        ):
+            _, _, valor, _, _ = self._detectar(texto, etiquetas)
+            assert valor == "informe_cuantitativo", nombre
+
+    def test_sin_la_palabra_informe_se_lee_como_proyecto(self):
+        """La etiqueta corta sigue sirviendo cuando es la única que casa."""
+        _, _, valor, evidencia, _ = self._detectar(
+            "PROYECTO DE INVESTIGACIÓN CUANTITATIVO", ETIQUETAS
+        )
+        assert valor == "proyecto_cuantitativo"
+        assert evidencia == ["PROYECTO DE INVESTIGACIÓN CUANTITATIVO"]
+
+    def test_el_orden_invertido_no_altera_los_demas_tipos(self):
+        _, _, valor, _, _ = self._detectar(
+            "INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO", ETIQUETAS
+        )
+        assert valor == "informe_cualitativo"
+        _, _, valor, _, _ = self._detectar(
+            "INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO",
+            {k: v for k, v in reversed(list(ETIQUETAS.items()))},
+        )
+        assert valor == "informe_cualitativo"
+
+    def test_una_etiqueta_suelta_no_gana_por_orden(self):
+        """Ninguna etiqueta del Anexo 10 es subcadena de otra de un tipo
+        distinto salvo el par informe/proyecto. Este test falla si alguien
+        añade una etiqueta anidada sin querer, que es la forma de rearmar el
+        fallo que se acaba de corregir."""
+        import unicodedata
+
+        def norm(t):
+            t = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().upper()
+            return " ".join(t.split())
+
+        anidadas = []
+        for tipo, alias in ETIQUETAS.items():
+            for a in alias:
+                for otro_tipo, otro_alias in ETIQUETAS.items():
+                    if otro_tipo == tipo:
+                        continue
+                    for b in otro_alias:
+                        if norm(a) != norm(b) and norm(a) in norm(b):
+                            anidadas.append((tipo, a, otro_tipo, b))
+        # Solo se admite el par informe/proyecto, que es intencionado.
+        assert {tuple(sorted((a, d))) for _, a, _, d in anidadas} == {
+            (
+                "INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO",
+                "PROYECTO DE INVESTIGACIÓN CUALITATIVO",
+            ),
+            (
+                "INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO",
+                "PROYECTO DE INVESTIGACIÓN CUANTITATIVO",
+            ),
+        }
+
+
 class TestDeteccionNivelDeclarado:
     """Nivel 1: casilla marcada del Anexo 10."""
 
