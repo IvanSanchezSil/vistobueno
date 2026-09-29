@@ -291,7 +291,7 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 306 tests) se
+> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 315 tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
 
 ### Cómo agregar una regla nueva al YAML
