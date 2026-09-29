@@ -11,7 +11,7 @@ La suite de tests debe poder demostrar dos propiedades del motor DSL de
 manera **determinista y reproducible** (sin depender de archivos DOCX reales
 externos, imposibles de versionar por binariedad/licencia):
 
-1. **El documento "bueno" pasa** las 46/48 reglas mecánicas.
+1. **El documento "bueno" pasa** las 48 reglas mecánicas (2 no aplican).
 2. **Cada desvío MÍNIMO** (`mutación`) afecta únicamente a la regla que
    pretendía romper (o a su par acoplado).
 

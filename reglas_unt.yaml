@@ -50,9 +50,14 @@ reglas:
     - tipo: tsp
       evidencia: ['SECUENCIA DIDÁCTICA', 'SUSTENTO PSICOPEDAGÓGICO', 'SUSTENTO TEÓRICO CIENTÍFICO']
       minimo: 2
+    # `minimo: 3` (las tres): 'PARTICIPANTES' e 'INSTRUMENTOS USADOS EN LA
+    # RECOLECCIÓN' también son secciones del TINV cualitativo, así que con
+    # `minimo: 2` una tesis cualitativa se detectaba como informe y se
+    # quedaba SIN validación estructural. Lo que separa al informe es
+    # 'SITUACIÓN PROBLEMATIZADA', que el TINV no trae.
     - tipo: informe_cualitativo
       evidencia: ['SITUACIÓN PROBLEMATIZADA', 'PARTICIPANTES', 'INSTRUMENTOS USADOS EN LA RECOLECCIÓN']
-      minimo: 2
+      minimo: 3
     - tipo: informe_cuantitativo
       evidencia: ['SITUACIÓN PROBLEMATIZADA', 'DISEÑO DE CONTRASTACIÓN', 'OPERACIONALIZACIÓN DE LAS VARIABLES']
       minimo: 2
@@ -70,12 +75,21 @@ reglas:
     - tipo: tinv_revision_literatura
       evidencia: ['METODOLOGÍA DE REVISIÓN', 'DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA', 'ESTADO DEL ARTE']
       minimo: 2
+    # Evidencia derivada de `estructura_tinv_cualitativo`: las secciones que
+    # ese esquema tiene y el cuantitativo NO. Con 'DEFINICIÓN DE TÉRMINOS' /
+    # 'CATEGORIZACIÓN' la firma solo alcanzaba 1 de 2 en su propio esquema.
     - tipo: tinv_cualitativo
-      evidencia: ['DEFINICIÓN DE TÉRMINOS', 'CATEGORIZACIÓN']
-      minimo: 1
+      evidencia:
+      - 'MATRIZ DE CATEGORIZACIÓN'
+      - 'ESTRATEGIAS USADAS EN EL ANÁLISIS'
+      - 'ANÁLISIS Y DISCUSIÓN DE RESULTADOS'
+      minimo: 2
+    # `minimo: 2`: 'INSTRUMENTO' también casa con "Instrumentos usados en la
+    # recolección" del esquema cualitativo. Con 1 una tesis cualitativa
+    # alcanzaría esta firma. Las plantillas oficiales dan 2 de 3.
     - tipo: tinv_cuantitativo
       evidencia: ['VARIABLE', 'POBLACIÓN Y MUESTRA', 'INSTRUMENTO']
-      minimo: 1
+      minimo: 2
     minimo_global: 1
 - id: papel_tamano
   tipo: atributo_xml
@@ -639,6 +653,13 @@ reglas:
     ignore_case: true
 - id: estructura_tinv_cuantitativo
   tipo: secuencia
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo. Si la deteccion no pudo
+  # determinarlo (sin_determinar) o se contradice con la estructura
+  # (contradictorio), el documento se valida contra TODOS los esquemas: es
+  # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
+  aplicar_si:
+    tipo_documento: [tinv_cuantitativo, sin_determinar, contradictorio]
   descripcion: 'Estructura obligatoria del Trabajo de Investigación (Cuantitativo). El orden debe ser
     exacto.
 
@@ -766,6 +787,13 @@ reglas:
       original: ANEXOS
 - id: estructura_tinv_cualitativo
   tipo: secuencia
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo. Si la deteccion no pudo
+  # determinarlo (sin_determinar) o se contradice con la estructura
+  # (contradictorio), el documento se valida contra TODOS los esquemas: es
+  # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
+  aplicar_si:
+    tipo_documento: [tinv_cualitativo, sin_determinar, contradictorio]
   descripcion: 'Estructura obligatoria del Trabajo de Investigación (Cualitativo). Diferencia clave: incluye
     "Categorías, matriz de categorización y unidad de análisis" y termina con "ANÁLISIS Y DISCUSIÓN DE
     RESULTADOS" en vez de solo "RESULTADOS".
@@ -876,6 +904,13 @@ reglas:
       original: ANEXOS
 - id: estructura_tinv_revision_literatura
   tipo: secuencia
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo. Si la deteccion no pudo
+  # determinarlo (sin_determinar) o se contradice con la estructura
+  # (contradictorio), el documento se valida contra TODOS los esquemas: es
+  # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
+  aplicar_si:
+    tipo_documento: [tinv_revision_literatura, sin_determinar, contradictorio]
   descripcion: 'Estructura obligatoria del Trabajo de Investigación basado en Revisión de la Literatura.
 
     '

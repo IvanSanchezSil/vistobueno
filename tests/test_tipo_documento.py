@@ -34,6 +34,13 @@ from test_dsl import WNS, _make_docx, _para  # noqa: E402
 
 RUTA_REGLAS = Path(__file__).resolve().parents[1] / "reglas_unt.yaml"
 
+# Las 3 reglas de estructura, que son las unicas condicionadas al tipo.
+ESTRUCTURA = {
+    "estructura_tinv_cuantitativo",
+    "estructura_tinv_cualitativo",
+    "estructura_tinv_revision_literatura",
+}
+
 
 def _regla_simple(rule_id, severidad="error", **extra):
     """Regla mínima con un solo analizador, la base para las pruebas de
@@ -78,6 +85,71 @@ def _ids(resultados):
 # ---------------------------------------------------------------------------
 # Linter: validacion de `expone` y `aplicar_si`
 # ---------------------------------------------------------------------------
+
+
+class TestAplicarSiConLista:
+    """Un valor lista en `aplicar_si` significa "cualquiera de estos".
+
+    Es lo que permite que una regla diga qué hace con un tipo que no se pudo
+    determinar, en vez de quedar en silencio. Para las estructuras TINV:
+    "tipo desconocido -> validar contra todos los esquemas".
+    """
+
+    @staticmethod
+    def _regla_estructura(condicion):
+        return _regla_simple("estructura", aplicar_si=condicion)
+
+    @staticmethod
+    def _datos(condicion):
+        return _datos(_detector(), _regla_simple("estructura", aplicar_si=condicion))
+
+    def test_lista_valida_no_reporta_hallazgos(self):
+        assert linter(self._datos({"tipo": ["cuantitativo", "sin_determinar"]})) == []
+
+    def test_lista_vacia_se_rechaza(self):
+        """Una lista vacía no casaría con nada: dejaría la regla muerta."""
+        assert linter(self._datos({"tipo": []}))
+
+    def test_lista_con_no_escalares_se_rechaza(self):
+        assert linter(self._datos({"tipo": [{"tipo": "cuantitativo"}]}))
+
+    def test_valor_none_se_rechaza(self):
+        assert linter(self._datos({"tipo": None}))
+
+    @staticmethod
+    def _compilada(condicion):
+        return next(
+            r
+            for r in CompilerDSL().compilar(TestAplicarSiConLista._datos(condicion))
+            if r.rule["id"] == "estructura"
+        )
+
+    def test_escalar_sigue_siendo_exigencia_exacta(self):
+        regla = self._compilada({"tipo": "cuantitativo"})
+        assert regla.aplica_en({"tipo": "cuantitativo"}) is True
+        assert regla.aplica_en({"tipo": "cualitativo"}) is False
+        assert regla.aplica_en({"tipo": "sin_determinar"}) is False
+
+    def test_la_lista_casa_con_cualquiera_de_sus_valores(self):
+        regla = self._compilada({"tipo": ["cuantitativo", "sin_determinar", "contradictorio"]})
+        for valor in ("cuantitativo", "sin_determinar", "contradictorio"):
+            assert regla.aplica_en({"tipo": valor}) is True, valor
+        assert regla.aplica_en({"tipo": "cualitativo"}) is False
+
+    def test_clave_ausente_no_hace_aplicar_la_regla(self):
+        regla = self._compilada({"tipo": ["cuantitativo", "sin_determinar"]})
+        assert regla.aplica_en({}) is False
+        assert regla.aplica_en({"otro": "cuantitativo"}) is False
+
+    def test_las_tres_estructuras_reciben_el_tipo_desconocido(self):
+        """Invariante del paso 4: ninguna estructura se queda sin revisar."""
+        reglas = load_rules(str(RUTA_REGLAS))["reglas"]
+        for r in reglas:
+            if r["id"] in ESTRUCTURA:
+                valores = r["aplicar_si"]["tipo_documento"]
+                assert "sin_determinar" in valores, r["id"]
+                assert "contradictorio" in valores, r["id"]
+                assert len(valores) == 3, r["id"]
 
 
 class TestLinterContexto:
@@ -271,7 +343,14 @@ class TestDosFases:
 
 
 class TestSinCambioDeComportamiento:
-    """Con el YAML real, la regla nueva solo informa: no filtra ni altera el semáforo."""
+    """Con el YAML real, la regla nueva informa y las 3 estructuras se
+    condicionan a ella sin romper nada más.
+
+    Lo que este bloque fijaba en el paso 3 (48 reglas, todas aplicables) lo
+    invalida el paso 4 a propósito: ahora 2 reglas son no aplicables en un
+    documento cuantitativo. Lo que se conserva es la garantía de que el
+    semáforo solo lo mueven las reglas que de verdad aplican.
+    """
 
     @staticmethod
     def _ruta_plantilla():
@@ -281,12 +360,19 @@ class TestSinCambioDeComportamiento:
             / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
         )
 
-    def test_ninguna_regla_real_es_no_aplicable(self):
-        reglas = load_rules(str(RUTA_REGLAS))
-        assert not any(r.get("aplicar_si") for r in reglas["reglas"])
-        assert not any(r.get("expone") for r in reglas["reglas"])
+    def test_solo_las_tres_estructuras_se_condicionan(self):
+        reglas = load_rules(str(RUTA_REGLAS))["reglas"]
+        condicionadas = {r["id"] for r in reglas if r.get("aplicar_si")}
+        assert condicionadas == ESTRUCTURA
 
-    def test_doc_bueno_todas_aplicables(self):
+    def test_ninguna_regla_condicionada_tambien_expone(self):
+        """Condicionarse a un valor que uno mismo produce no tiene sentido."""
+        reglas = load_rules(str(RUTA_REGLAS))["reglas"]
+        for r in reglas:
+            if r.get("aplicar_si"):
+                assert "expone" not in r and not any(s in r for s in ("deteccion_tipo",)), r["id"]
+
+    def test_doc_bueno_solo_omite_los_esquemas_de_otros_tipos(self):
         from docx_factory import compilar_docx, configuracion_base
 
         path = compilar_docx(configuracion_base())
@@ -295,23 +381,28 @@ class TestSinCambioDeComportamiento:
         finally:
             Path(path).unlink(missing_ok=True)
         assert len(res) == 48
-        assert all(r.aplicable for r in res)
+        assert {r.rule_id for r in res if not r.aplicable} == {
+            "estructura_tinv_cualitativo",
+            "estructura_tinv_revision_literatura",
+        }
 
-    def test_plantilla_oficial_mismo_reporte_que_antes(self):
-        """Guarda de que el semáforo no se movió al añadir la regla
-        discriminadora: es `warning`, así que no puede poner en rojo.
+    def test_plantilla_oficial_no_reporta_esquemas_imposibles(self):
+        """Los 2 errores que no se podían corregir desaparecieron: la
+        plantilla es cuantitativa, así que los esquemas cualitativo y de
+        revisión no le aplican. Quedan 3 errores reales.
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
-        plantilla no existe y el test se omite (igual que los demás tests
-        que dependen de las plantillas).
+        plantilla no existe y el test se omite.
         """
         base = self._ruta_plantilla()
         if not base.exists():
             pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
         assert len(res) == 48
+        fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
+        assert not fallidos & ESTRUCTURA
+        assert len(fallidos) == 3
         assert build_report(res)["semaforo"] == "rojo"
-        assert all(r.aplicable for r in res)
 
 
 # ---------------------------------------------------------------------------
@@ -955,28 +1046,44 @@ class TestInformeMuestraElTipo:
         assert "inferido=tinv_cuantitativo" in r.found
 
     def test_las_demas_reglas_siguen_diciendo_cumple(self):
-        """El cambio es exclusivo de las reglas que `expone`."""
+        """El cambio de `found` es exclusivo de las reglas que `expone`."""
         res, _ = _validar_factory()
         for r in res:
             if r.rule_id == "deteccion_tipo_documento":
                 continue
-            if r.passed:
+            if r.passed and r.aplicable:
                 assert r.found == "cumple", r.rule_id
 
-    def test_semaforo_no_cambia_por_ser_warning(self):
-        """Con la regla añadida el semáforo es el mismo que sin ella."""
+    def test_lo_omitido_se_dice_explicitamente(self):
+        """Una regla no aplicable no dice 'cumple': dice por qué se omitió."""
+        res, _ = _validar_factory()
+        for r in res:
+            if not r.aplicable:
+                assert r.found == "no aplica a este documento"
+
+    def test_el_semaforo_no_depende_de_la_deteccion(self):
+        """Quitar la regla discriminadora (y con ella el filtrado) deja el
+        semáforo en rojo, pero solo por los 2 esquemas imposibles. Con ella el
+        documento sale verde: eso es exactamente el defecto que se corrige."""
         reglas = load_rules(str(RUTA_REGLAS))
         from docx_factory import compilar_docx, configuracion_base
 
+        # Se quita el `aplicar_si` de las 3 estructuras (no la regla que
+        # expone la clave: sin ella el linter rechazaría el archivo, que es
+        # lo correcto) para reconstruir el estado previo al paso 4.
+        sin_filtrar = {
+            **reglas,
+            "reglas": [{k: v for k, v in r.items() if k != "aplicar_si"} for r in reglas["reglas"]],
+        }
         path = compilar_docx(configuracion_base())
         try:
             completo = build_report(validate_docx(path, reglas))
-            sin_deteccion = build_report(
-                validate_docx(path, {**reglas, "reglas": reglas["reglas"][1:]})
-            )
+            previo = build_report(validate_docx(path, sin_filtrar))
         finally:
             Path(path).unlink(missing_ok=True)
-        assert completo["semaforo"] == sin_deteccion["semaforo"] == "rojo"
+        assert completo["semaforo"] == "verde"
+        assert previo["semaforo"] == "rojo"
+        assert previo["resumen"]["fallidos_error"] == 2
 
 
 class TestMutacionDeLaDeteccion:
@@ -997,18 +1104,40 @@ class TestMutacionDeLaDeteccion:
         assert "contradictorio" in r.found
         assert "proyecto_cualitativo" in r.found
 
-    def test_no_rompe_ninguna_otra_regla(self):
-        """La mutación añade un anexo, no toca títulos: no hay acoplamiento."""
+    def test_solo_mueve_las_dos_estructuras_alternativas(self):
+        """La mutación añade un anexo y no toca ningún título, así que el
+        único efecto secundario es el esperado: al quedar contradictoria la
+        detección, un tipo sin clasificar activa las TRES estructuras, y las
+        dos alternativas pasan de no aplicables a aplicables."""
         limpio, _ = _validar_factory()
         sucio, _ = self._validar_mutado()
-        antes = {r.rule_id: (r.passed, r.found) for r in limpio}
-        despues = {r.rule_id: (r.passed, r.found) for r in sucio}
-        for rid, valor in antes.items():
-            if rid == "deteccion_tipo_documento":
-                continue
-            assert despues[rid] == valor, rid
+        antes = {r.rule_id: (r.passed, r.found, r.aplicable) for r in limpio}
+        despues = {r.rule_id: (r.passed, r.found, r.aplicable) for r in sucio}
+        movidas = {rid for rid in antes if antes[rid] != despues[rid]}
+        assert movidas == {
+            "deteccion_tipo_documento",
+            "estructura_tinv_cualitativo",
+            "estructura_tinv_revision_literatura",
+        }
+        for rid in movidas - {"deteccion_tipo_documento"}:
+            assert antes[rid][2] is False and despues[rid][2] is True, rid
 
-    def test_el_semaforo_tampoco_cambia_al_fallar(self):
-        _, sucio = self._validar_mutado()
-        _, limpio = _validar_factory()
-        assert sucio["semaforo"] == limpio["semaforo"] == "rojo"
+    def test_una_deteccion_contradictoria_se_valida_contra_las_tres(self):
+        """Un tipo que no se pudo clasificar se valida contra todos los
+        esquemas, y el documento que declara un tipo que la estructura
+        desmiente sale en rojo: el estudiante ve que su Anexo 10 no coincide
+        con la tesis. Es el costo conscious de no dejar un hueco silencioso.
+
+        La propia regla de detección sigue siendo `warning` y no bloquea: los
+        2 errores los aportan las estructuras, no ella.
+        """
+        sucio, _ = self._validar_mutado()
+        deteccion = next(r for r in sucio if r.rule_id == "deteccion_tipo_documento")
+        assert deteccion.severity.value == "warning"
+        assert deteccion.passed is False
+
+        fallidos = {r.rule_id for r in sucio if not r.passed and r.severity.value == "error"}
+        assert fallidos == {
+            "estructura_tinv_cualitativo",
+            "estructura_tinv_revision_literatura",
+        }
