@@ -271,7 +271,7 @@ class TestDosFases:
 
 
 class TestSinCambioDeComportamiento:
-    """Regla de oro del paso: con el YAML real no debe cambiar nada."""
+    """Con el YAML real, la regla nueva solo informa: no filtra ni altera el semáforo."""
 
     @staticmethod
     def _ruta_plantilla():
@@ -294,12 +294,12 @@ class TestSinCambioDeComportamiento:
             res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
         finally:
             Path(path).unlink(missing_ok=True)
-        assert len(res) == 47
+        assert len(res) == 48
         assert all(r.aplicable for r in res)
 
     def test_plantilla_oficial_mismo_reporte_que_antes(self):
-        """Guarda de que el número de reglas y el semáforo no se movieron:
-        este paso no arregla el defecto, solo prepara la maquinaria.
+        """Guarda de que el semáforo no se movió al añadir la regla
+        discriminadora: es `warning`, así que no puede poner en rojo.
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
         plantilla no existe y el test se omite (igual que los demás tests
@@ -309,7 +309,7 @@ class TestSinCambioDeComportamiento:
         if not base.exists():
             pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
-        assert len(res) == 47
+        assert len(res) == 48
         assert build_report(res)["semaforo"] == "rojo"
         assert all(r.aplicable for r in res)
 
@@ -806,15 +806,13 @@ class TestDeteccionDesdeElMotor:
         assert len(res) == 1
         assert res[0].passed is True
 
-    def test_el_detalle_ainda_no_llega_al_reporte(self):
-        """Hueco conocido, no olvidado.
+    def test_el_detalle_llega_al_reporte(self):
+        """El hueco que este test fijaba quedó cerrado en el paso 3.
 
-        `ReglaCompilada.ejecutar` fija `found="cumple"` cuando la regla pasa
-        (validator/compilador.py:539), así que el tipo y su evidencia NO
-        aparecen todavia en el reporte. La decisión 4 del diseño exige
-        mostrarlos ("Tipo detectado: X. Motivo: ..."); eso se resuelve al
-        mostrar la detección (paso 3) y al construir el resumen (paso 5).
-        Este test fija el estado actual para que el cambio sea visible.
+        `ReglaCompilada.ejecutar` ya no fuerza `found="cumple"` en las reglas
+        que declaran `expone`: ahora muestran el tipo y su evidencia
+        (decisión 4 del diseño). El resumen agrupado ("Tipo detectado: X.
+        Motivo: ...") se construye en el paso 5.
         """
         cfg = _cfg_deteccion()
         datos = {"namespaces": {"w": WNS}, "reglas": [self._regla(cfg)]}
@@ -823,9 +821,9 @@ class TestDeteccionDesdeElMotor:
             res = validate_docx(path, datos)
         finally:
             Path(path).unlink(missing_ok=True)
-        assert res[0].found == "cumple"
-        # El tipo sí está disponible para las reglas que lo consulten.
-        assert "tinv_cuantitativo" not in res[0].found
+        assert res[0].found != "cumple"
+        assert "tinv_cuantitativo" in res[0].found
+        assert "POBLACIÓN Y MUESTRA" in res[0].found
 
     def test_una_condicion_consume_el_tipo_publicado(self):
         cfg = _cfg_deteccion()
@@ -856,3 +854,161 @@ class TestDeteccionDesdeElMotor:
         por_id = {r.rule_id: r for r in res}
         assert por_id["deteccion_tipo_documento"].passed is True
         assert por_id["estructura_cualitativa"].aplicable is False
+
+
+# ---------------------------------------------------------------------------
+# Paso 3: la regla discriminadora en reglas_unt.yaml
+# ---------------------------------------------------------------------------
+
+TIPOS_ESPERADOS = {
+    "tsp",
+    "informe_cuantitativo",
+    "informe_cualitativo",
+    "proyecto_cuantitativo",
+    "proyecto_cualitativo",
+    "tinv_revision_literatura",
+    "tinv_cualitativo",
+    "tinv_cuantitativo",
+}
+
+
+def _regla_deteccion():
+    reglas = load_rules(str(RUTA_REGLAS))
+    return next(r for r in reglas["reglas"] if r["id"] == "deteccion_tipo_documento")
+
+
+def _validar_factory():
+    """Valida el documento bueno del factory y devuelve (resultados, reporte)."""
+    from docx_factory import compilar_docx, configuracion_base
+
+    path = compilar_docx(configuracion_base())
+    try:
+        res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+    finally:
+        Path(path).unlink(missing_ok=True)
+    return res, build_report(res)
+
+
+class TestReglaDeteccionEnElYaml:
+    def test_es_la_primera_regla_del_yaml(self):
+        """Debe ir primera: evalúa en fase 1 y alimenta el contexto."""
+        reglas = load_rules(str(RUTA_REGLAS))
+        assert reglas["reglas"][0]["id"] == "deteccion_tipo_documento"
+
+    def test_total_de_reglas(self):
+        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 48
+
+    def test_severidad_warning(self):
+        assert _regla_deteccion()["severidad"] == "warning"
+
+    def test_expone_tipo_documento(self):
+        assert _regla_deteccion()["deteccion_tipo"]["expone"] == "tipo_documento"
+
+    def test_ocho_tipos_detectables(self):
+        firmas = _regla_deteccion()["deteccion_tipo"]["firmas"]
+        assert {f["tipo"] for f in firmas} == TIPOS_ESPERADOS
+        assert len(firmas) == len(TIPOS_ESPERADOS)
+
+    def test_minimo_global_uno(self):
+        assert _regla_deteccion()["deteccion_tipo"]["minimo_global"] == 1
+
+    def test_todas_las_firmas_declaran_etiquetas_de_declaracion(self):
+        cfg = _regla_deteccion()["deteccion_tipo"]
+        assert set(cfg["declaracion"]["etiquetas"]) == TIPOS_ESPERADOS
+
+    def test_toda_firma_tiene_minimo_positivo(self):
+        for f in _regla_deteccion()["deteccion_tipo"]["firmas"]:
+            assert f["minimo"] >= 1
+
+
+class TestDeteccionEnDocumentosReales:
+    def test_doc_bueno_se_detecta_como_cuantitativo(self):
+        res, _ = _validar_factory()
+        r = next(x for x in res if x.rule_id == "deteccion_tipo_documento")
+        assert r.passed is True
+        assert "tinv_cuantitativo" in r.found
+
+    def test_plantilla_oficial_se_detecta_como_cuantitativo(self):
+        """`recursos/` está en `.gitignore`: se omite si no está disponible."""
+        base = TestSinCambioDeComportamiento._ruta_plantilla()
+        if not base.exists():
+            pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
+        res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
+        r = next(x for x in res if x.rule_id == "deteccion_tipo_documento")
+        assert r.passed is True
+        assert "tinv_cuantitativo" in r.found
+
+    def test_una_tesis_con_revision_no_se_toma_como_revision(self):
+        """`ESTADO DEL ARTE` está en el marco teórico de cualquier tesis: por
+        eso la firma de revisión exige además METODOLOGÍA DE REVISIÓN."""
+        res, _ = _validar_factory()
+        r = next(x for x in res if x.rule_id == "deteccion_tipo_documento")
+        assert "tinv_revision_literatura" not in r.found
+
+
+class TestInformeMuestraElTipo:
+    def test_found_no_es_el_generico_cumple(self):
+        """Regla `expone` = informativa: el reporte dice qué encontró."""
+        res, _ = _validar_factory()
+        r = next(x for x in res if x.rule_id == "deteccion_tipo_documento")
+        assert r.found != "cumple"
+        assert "inferido=tinv_cuantitativo" in r.found
+
+    def test_las_demas_reglas_siguen_diciendo_cumple(self):
+        """El cambio es exclusivo de las reglas que `expone`."""
+        res, _ = _validar_factory()
+        for r in res:
+            if r.rule_id == "deteccion_tipo_documento":
+                continue
+            if r.passed:
+                assert r.found == "cumple", r.rule_id
+
+    def test_semaforo_no_cambia_por_ser_warning(self):
+        """Con la regla añadida el semáforo es el mismo que sin ella."""
+        reglas = load_rules(str(RUTA_REGLAS))
+        from docx_factory import compilar_docx, configuracion_base
+
+        path = compilar_docx(configuracion_base())
+        try:
+            completo = build_report(validate_docx(path, reglas))
+            sin_deteccion = build_report(
+                validate_docx(path, {**reglas, "reglas": reglas["reglas"][1:]})
+            )
+        finally:
+            Path(path).unlink(missing_ok=True)
+        assert completo["semaforo"] == sin_deteccion["semaforo"] == "rojo"
+
+
+class TestMutacionDeLaDeteccion:
+    def _validar_mutado(self):
+        from docx_factory import aplicar_mutacion, compilar_docx, configuracion_base
+
+        path = compilar_docx(aplicar_mutacion("deteccion_tipo_documento", configuracion_base()))
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        return res, build_report(res)
+
+    def test_declaracion_contraria_se_reporta_como_contradiccion(self):
+        res, _ = self._validar_mutado()
+        r = next(x for x in res if x.rule_id == "deteccion_tipo_documento")
+        assert r.passed is False
+        assert "contradictorio" in r.found
+        assert "proyecto_cualitativo" in r.found
+
+    def test_no_rompe_ninguna_otra_regla(self):
+        """La mutación añade un anexo, no toca títulos: no hay acoplamiento."""
+        limpio, _ = _validar_factory()
+        sucio, _ = self._validar_mutado()
+        antes = {r.rule_id: (r.passed, r.found) for r in limpio}
+        despues = {r.rule_id: (r.passed, r.found) for r in sucio}
+        for rid, valor in antes.items():
+            if rid == "deteccion_tipo_documento":
+                continue
+            assert despues[rid] == valor, rid
+
+    def test_el_semaforo_tampoco_cambia_al_fallar(self):
+        _, sucio = self._validar_mutado()
+        _, limpio = _validar_factory()
+        assert sucio["semaforo"] == limpio["semaforo"] == "rojo"

@@ -2,7 +2,7 @@
 
 **Estado**: aprobado, pendiente de ejecución
 **Fecha**: 2026-09-28
-**Rama prevista**: `semana6-tipo-documento` (se crea al ejecutar el Paso 1)
+**Rama**: `semana6` (continúa el trabajo ya iniciado en esa rama; el PR es el #36)
 **Diseño asociado**: `docs/diseno/15_tipo_documento_grupos.md`
 
 Cada paso es independiente y se pide de uno en uno.
@@ -100,11 +100,16 @@ evidencia y nivel.
 
 **Verificación**
 
-- 214 tests en verde (un caso paramétrico más).
-- El reporte muestra "Tipo de documento detectado".
+- 295 tests en verde.
+- El reporte muestra el tipo en `found`
+  (`inferido=tinv_cuantitativo ("VARIABLE", "POBLACIÓN Y MUESTRA", ...)`).
 - **El semáforo no cambia**: es `warning`, no bloquea.
+- Las 47 reglas previas conservan su `found` intacto.
 
-**Hecho cuando**: el reporte informa el tipo y nada más se altera.
+**Estado**: hecho. Requiere tocar además `validator/compilador.py`, que
+fijaba `found="cumple"` también en las reglas `expone`; y la firma de revisión
+del diseño hubo que corregirla (ver la nota en
+`docs/diseno/15_tipo_documento_grupos.md`).
 
 ---
 

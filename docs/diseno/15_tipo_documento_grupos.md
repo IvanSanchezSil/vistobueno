@@ -161,7 +161,7 @@ específicas, por lo que se evalúan **antes** y ganan.
    ```
 
 5. **Los conteos del reporte son dinámicos.** En una tesis cuantitativa se
-   evalúan 43 de 47 reglas. Un total fijo haría creer al estudiante que 4 reglas
+   evalúan 43 de 48 reglas. Un total fijo haría creer al estudiante que 5 reglas
    se cumplieron cuando en realidad no se miraron. Consecuencia: `resumen` cambia
    de semántica y requiere regenerar `openapi_spec.json` (el CI verifica el
    drift).
@@ -217,9 +217,13 @@ Regla discriminadora (fase 1, publica el contexto):
         evidencia: ['SELECCIÓN DE PARTICIPANTES', 'ESCENARIO',
                      'UNIDAD DE ANÁLISIS']
         minimo: 2
+      # Firma derivada de `estructura_tinv_revision_literatura`. Ver la nota
+      # de corrección tras el bloque.
       - tipo: tinv_revision_literatura
-        evidencia: ['ESTADO DEL ARTE', 'TÉCNICAS DE PROCESAMIENTO DE DATOS']
-        minimo: 1
+        evidencia: ['METODOLOGÍA DE REVISIÓN',
+                     'DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA',
+                     'ESTADO DEL ARTE']
+        minimo: 2
       - tipo: tinv_cualitativo
         evidencia: ['DEFINICIÓN DE TÉRMINOS', 'CATEGORIZACIÓN']
         minimo: 1
@@ -228,6 +232,28 @@ Regla discriminadora (fase 1, publica el contexto):
         minimo: 1
     minimo_global: 1
 ```
+
+**Corrección aplicada al implementar (paso 3).** El diseño original daba a
+`tinv_revision_literatura` la evidencia `ESTADO DEL ARTE` con `minimo: 1`. Eso
+está mal: `ESTADO DEL ARTE` es una sección del marco teórico de *toda* tesis,
+también de una cuantitativa. Al ejecutarlo, el documento bueno del factory
+—que es un plan cuantitativo— se detectaba como revisión, porque la firma de
+revisión estaba antes que la cuantitativa y alcanzaba su mínimo con un único
+match. El tipo detectado era incorrecto y el `found` del reporte lo decía.
+
+La firma correcta se toma de la estructura que el propio repo ya codifica en
+`estructura_tinv_revision_literatura`: las dos secciones que *solo* tiene una
+revisión son `METODOLOGÍA DE REVISIÓN` y `DESARROLLO O ANÁLISIS CRÍTICO DE LA
+LITERATURA`. Con `ESTADO DEL ARTE` como tercera evidencia y `minimo: 2`, una
+revisión casa (tiene metodología de revisión + una de las otras dos) y una
+tesis empírica no (solo tiene el estado del arte). Verificado: el documento
+bueno y las 5 plantillas oficiales devuelven `tinv_cuantitativo`.
+
+La lección de fondo es que `minimo: 1` solo es seguro con evidencia que no
+pueda coincidir en otro tipo. Las firmas de `tinv_cualitativo` conservan
+`minimo: 1` porque `DEFINICIÓN DE TÉRMINOS` / `CATEGORIZACIÓN` sí son
+exclusivas del enfoque cualitativo y no aparecen en ninguna de las 5
+plantillas reales (comprobado).
 
 Reglas de estructura (fase 2, condicionales):
 
@@ -340,14 +366,32 @@ Por eso las 5 estructuras de la Fase B se **implementan pero no se prueban contr
 documentos reales**. Lo que sí se verifica es que la configuración carga y
 lintea. Cuando la biblioteca facilite plantillas, se integran a la suite.
 
-## Impacto esperado en los tests
+## Impacto en los tests
 
-| Test | Antes | Después |
-|---|---|---|
-| `test_doc_bueno_pasa_45` | 45/47, 2 fallos | 47/47, 0 fallos |
-| `ESTRUCTURA` | 3 ids | 3 ids (las 5 nuevas en el archivo aparte) |
-| Plantillas oficiales | 5 errores bloqueantes | 3 errores bloqueantes |
-| Suite | 213 tests | 215 tests (2 nuevos: detección indeterminada y contradictoria) |
+Estado tras el **paso 3** (regla discriminadora añadida al YAML). La tabla
+original proyectaba el estado final; aquí se registra el real, y lo que falta
+para alcanzarlo.
+
+| Test | Antes del paso 3 | Después del paso 3 | Estado final previsto |
+|---|---|---|---|
+| `test_doc_bueno_pasa_46` | 45/47, 2 fallos | **46/48, 2 fallos** | 48/48, 0 fallos (paso 4) |
+| `ESTRUCTURA` | 3 ids | 3 ids | 3 ids (las 5 nuevas en el archivo aparte) |
+| Plantillas oficiales | 5 errores bloqueantes | 5 errores bloqueantes | 3 errores bloqueantes (paso 4) |
+| Suite | 278 tests | **295 tests** | crece en el paso 5 |
+
+Los 2 fallos restantes son las estructuras alternativas mutuoexcluyentes
+(`estructura_tinv_cualitativo` y `estructura_tinv_revision_literatura`): se
+retiran del reporte en el paso 4, cuando la detección gobierne la aplicabilidad.
+
+Efectos colaterales del paso 3 que conviene tener presentes:
+
+- `ReglaCompilada.ejecutar` ya no fuerza `found="cumple"` en las reglas que
+  declaran `expone`: pasan a mostrar lo detectado. Las 47 reglas anteriores
+  siguen diciendo `cumple` (verificado sobre el factory y sobre una plantilla
+  oficial, comparando `passed` y `found` contra el commit previo).
+- Las mutaciones de las dos estructuras alternativas ahora también mueven
+  `deteccion_tipo_documento`, porque cambian qué firma casa con el documento.
+  Se declaró ese acople en `REGLAS_ACOPLADAS`. El sentido inverso no ocurre.
 
 ## No-alcance
 
