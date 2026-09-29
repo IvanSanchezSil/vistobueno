@@ -529,7 +529,10 @@ class TestReglasUntCompletas:
         path = _make_docx([_para("RESUMEN", "Ttulo1"), _para("cuerpo breve")])
         try:
             resultados = validate_docx(path, rules)
-            assert len(resultados) == 48
+            # 48 del YAML + 1 centinela: este docx mínimo no se puede
+            # clasificar (ni Anexo 10 ni firmas), y el paso 6 agrega el error
+            # `tipo_documento_no_determinado` como 49º resultado.
+            assert len(resultados) == 49
             assert all(isinstance(r, RuleResult) for r in resultados)
         finally:
             Path(path).unlink(missing_ok=True)

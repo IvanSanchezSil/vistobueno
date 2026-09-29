@@ -123,14 +123,16 @@ REGLAS_ACOPLADAS = {
         "estructura_tinv_cuantitativo",
     },
     # Al revés que las de arriba: una detección contradictoria (el Anexo 10
-    # declara un tipo que la estructura desmiente) deja de ser "una de las
-    # tres" y activa las TRES estructuras, porque un tipo que no se pudo
-    # clasificar se valida contra todos los esquemas. Por eso la mutación de
-    # la detección también mueve las dos estructuras alternativas: pasan de
-    # no aplicables a aplicables.
+    # declara un tipo que la estructura desmiente) hace que el tipo real ya no
+    # sea "una de las tres", así que la estructura que antes aplicaba
+    # (cuantitativo) deja de aplicar. Las dos alternativas ya eran no
+    # aplicables y siguen siéndolo. El paso 6 turns el caso contradictorio en
+    # un error centinela propio en vez de validar contra las tres.
+    # NOTA: el centinela `tipo_documento_contradictorio` aparece en el
+    # documento mutado pero no se cuenta aquí porque no es una de las 48
+    # reglas (lo deriva la detección).
     "deteccion_tipo_documento": {
-        "estructura_tinv_cualitativo",
-        "estructura_tinv_revision_literatura",
+        "estructura_tinv_cuantitativo",
     },
 }
 

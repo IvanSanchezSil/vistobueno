@@ -659,7 +659,7 @@ reglas:
   # (contradictorio), el documento se valida contra TODOS los esquemas: es
   # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
   aplicar_si:
-    tipo_documento: [tinv_cuantitativo, sin_determinar, contradictorio]
+    tipo_documento: tinv_cuantitativo
   descripcion: 'Estructura obligatoria del Trabajo de Investigación (Cuantitativo). El orden debe ser
     exacto.
 
@@ -793,7 +793,7 @@ reglas:
   # (contradictorio), el documento se valida contra TODOS los esquemas: es
   # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
   aplicar_si:
-    tipo_documento: [tinv_cualitativo, sin_determinar, contradictorio]
+    tipo_documento: tinv_cualitativo
   descripcion: 'Estructura obligatoria del Trabajo de Investigación (Cualitativo). Diferencia clave: incluye
     "Categorías, matriz de categorización y unidad de análisis" y termina con "ANÁLISIS Y DISCUSIÓN DE
     RESULTADOS" en vez de solo "RESULTADOS".
@@ -910,7 +910,7 @@ reglas:
   # (contradictorio), el documento se valida contra TODOS los esquemas: es
   # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
   aplicar_si:
-    tipo_documento: [tinv_revision_literatura, sin_determinar, contradictorio]
+    tipo_documento: tinv_revision_literatura
   descripcion: 'Estructura obligatoria del Trabajo de Investigación basado en Revisión de la Literatura.
 
     '

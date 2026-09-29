@@ -141,15 +141,24 @@ class TestAplicarSiConLista:
         assert regla.aplica_en({}) is False
         assert regla.aplica_en({"otro": "cuantitativo"}) is False
 
-    def test_las_tres_estructuras_reciben_el_tipo_desconocido(self):
-        """Invariante del paso 4: ninguna estructura se queda sin revisar."""
+    def test_cada_estructura_solo_recibe_su_propio_tipo(self):
+        """Invariante del paso 6: una estructura se valida solo cuando se sabe
+        que el documento es de su tipo.
+
+        Antes (paso 4) los tipos desconocidos activaban las tres estructuras, y
+        el estudiante veía dos errores de secciones que no podía corregir sin
+        adivinar el tipo. Ahora los estados sin determinar / contradictorio son
+        un error centinela propio, y las estructuras quedan fuera."""
         reglas = load_rules(str(RUTA_REGLAS))["reglas"]
         for r in reglas:
             if r["id"] in ESTRUCTURA:
-                valores = r["aplicar_si"]["tipo_documento"]
-                assert "sin_determinar" in valores, r["id"]
-                assert "contradictorio" in valores, r["id"]
-                assert len(valores) == 3, r["id"]
+                valor = r["aplicar_si"]["tipo_documento"]
+                assert isinstance(valor, str), r["id"]
+                assert valor in {
+                    "tinv_cuantitativo",
+                    "tinv_cualitativo",
+                    "tinv_revision_literatura",
+                }, r["id"]
 
 
 class TestLinterContexto:
@@ -1258,11 +1267,12 @@ class TestMutacionDeLaDeteccion:
         assert "contradictorio" in r.found
         assert "proyecto_cualitativo" in r.found
 
-    def test_solo_mueve_las_dos_estructuras_alternativas(self):
-        """La mutación añade un anexo y no toca ningún título, así que el
-        único efecto secundario es el esperado: al quedar contradictoria la
-        detección, un tipo sin clasificar activa las TRES estructuras, y las
-        dos alternativas pasan de no aplicables a aplicables."""
+    def test_solo_mueve_la_deteccion_y_la_estructura_que_deja_de_aplicar(self):
+        """La mutación añade un anexo y no toca ningún título, así que lo
+        único que cambia es la clasificación: al quedar contradictoria la
+        detección, la estructura que antes aplicaba (cuantitativo) deja de
+        aplicar porque el tipo ya no es ninguno de los tres. Las dos
+        alternativas ya eran no aplicables y siguen siéndolo."""
         limpio, _ = _validar_factory()
         sucio, _ = self._validar_mutado()
         antes = {r.rule_id: (r.passed, r.found, r.aplicable) for r in limpio}
@@ -1270,28 +1280,138 @@ class TestMutacionDeLaDeteccion:
         movidas = {rid for rid in antes if antes[rid] != despues[rid]}
         assert movidas == {
             "deteccion_tipo_documento",
-            "estructura_tinv_cualitativo",
-            "estructura_tinv_revision_literatura",
+            "estructura_tinv_cuantitativo",
         }
-        for rid in movidas - {"deteccion_tipo_documento"}:
-            assert antes[rid][2] is False and despues[rid][2] is True, rid
+        # La que dejó de aplicar pasó de aplicable a no aplicable.
+        assert antes["estructura_tinv_cuantitativo"][2] is True
+        assert despues["estructura_tinv_cuantitativo"][2] is False
 
-    def test_una_deteccion_contradictoria_se_valida_contra_las_tres(self):
-        """Un tipo que no se pudo clasificar se valida contra todos los
-        esquemas, y el documento que declara un tipo que la estructura
-        desmiente sale en rojo: el estudiante ve que su Anexo 10 no coincide
-        con la tesis. Es el costo conscious de no dejar un hueco silencioso.
+    def test_una_deteccion_contradictoria_da_un_solo_error_claro(self):
+        """Un documento que declara un tipo que la estructura desmiente sale en
+        rojo, pero con UN error que dice qué hacer, no con dos errores de
+        secciones que el estudiante no puede corregir sin adivinar el tipo.
 
-        La propia regla de detección sigue siendo `warning` y no bloquea: los
-        2 errores los aportan las estructuras, no ella.
+        La detección sigue siendo `warning` (informa, no bloquea) y las
+        estructuras no aplican: el único error es el centinela.
         """
         sucio, _ = self._validar_mutado()
         deteccion = next(r for r in sucio if r.rule_id == "deteccion_tipo_documento")
         assert deteccion.severity.value == "warning"
         assert deteccion.passed is False
 
+        # Ninguna estructura se evalúa: no sabemos el tipo, así que no se
+        # puede exigir la estructura de ninguno.
+        for rid in ESTRUCTURA:
+            r = next(x for x in sucio if x.rule_id == rid)
+            assert r.aplicable is False, rid
+
         fallidos = {r.rule_id for r in sucio if not r.passed and r.severity.value == "error"}
-        assert fallidos == {
-            "estructura_tinv_cualitativo",
-            "estructura_tinv_revision_literatura",
-        }
+        assert fallidos == {"tipo_documento_contradictorio"}
+
+    def test_el_centinela_contradictorio_explica_el_conflicto(self):
+        """El error no dice solo "algo no cuadra": incluye la evidencia (qué
+        declaró el Anexo 10 y qué se dedujo de la estructura) y dice qué
+        corregir."""
+        sucio, _ = self._validar_mutado()
+        centinela = next(r for r in sucio if r.rule_id == "tipo_documento_contradictorio")
+        assert centinela.severity.value == "error"
+        assert centinela.passed is False
+        assert centinela.aplicable is True
+        # La evidencia viene del detalle real de la detección.
+        assert "declarado=" in centinela.found
+        assert "inferido=" in centinela.found
+        # Y el mensaje dice qué hacer.
+        assert "Anexo 10" in centinela.message
+
+
+# ---------------------------------------------------------------------------
+# Paso 6: los dos casos límite, sin huecos de seguridad
+# ---------------------------------------------------------------------------
+
+
+class TestCasosLimite:
+    """Ningún documento mal estructurado puede salir en verde.
+
+    Hay dos formas de no poder clasificar un documento, y las dos tienen que
+    terminar en un error que el estudiante pueda entender y corregir: el tipo
+    no se pudo determinar, o la declaración choca con la estructura.
+    """
+
+    def test_doc_sin_marcadores_da_un_solo_error(self):
+        """Un documento sin Anexo 10 y sin firmas: sale 1 error claro, no 8
+        errores de estructura inventados."""
+        path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+        # Este doc mínimo también incumple formato (fuente, tamaños), así que
+        # lo que se comprueba es que NO aparecen errores de estructura: el
+        # único error de TIPO es el centinela, no las 3 estructuras.
+        errores_tipo = [
+            r
+            for r in res
+            if not r.passed
+            and r.severity.value == "error"
+            and (r.rule_id in ESTRUCTURA or "tipo_documento" in r.rule_id)
+        ]
+        assert [r.rule_id for r in errores_tipo] == ["tipo_documento_no_determinado"]
+
+    def test_el_centinela_no_determinado_es_aplicable_y_explica(self):
+        path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        c = next(r for r in res if r.rule_id == "tipo_documento_no_determinado")
+        assert c.passed is False
+        assert c.aplicable is True
+        assert "no se pudo determinar" in c.message.lower()
+        # El `found` trae el detalle real de por qué no se clasificó.
+        assert "sin_determinado" in c.found
+
+    def test_doc_contradictorio_da_un_solo_error(self):
+        """Anexo 10 que declara algo que la estructura desmiente: 1 error."""
+        sucio, rep = TestMutacionDeLaDeteccion()._validar_mutado()
+        fallidos_error = {r.rule_id for r in sucio if not r.passed and r.severity.value == "error"}
+        assert fallidos_error == {"tipo_documento_contradictorio"}
+        # Y el semáforo está en rojo.
+        assert rep["semaforo"] == "rojo"
+
+    def test_ningun_caso_limite_sale_en_verde(self):
+        """El invariante del paso: sin determinar o contradictorio, rojo."""
+        path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
+        try:
+            rep = build_report(validate_docx(path, load_rules(str(RUTA_REGLAS))))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        assert rep["semaforo"] == "rojo"
+
+    def test_un_tipo_valido_no_genera_centinela(self):
+        """El documento bueno NO lleva centinela: los estados terminales solo
+        aparecen cuando de verdad no se pudo clasificar."""
+        from docx_factory import compilar_docx, configuracion_base  # noqa: E402
+
+        path = compilar_docx(configuracion_base())
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        ids = {r.rule_id for r in res}
+        assert "tipo_documento_no_determinado" not in ids
+        assert "tipo_documento_contradictorio" not in ids
+        assert build_report(res)["semaforo"] == "verde"
+
+    def test_el_centinela_aparece_tras_la_deteccion(self):
+        """Va justo después de la detección, que es donde el estudiante
+        empieza a leer."""
+        path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        ids = [r.rule_id for r in res]
+        assert (
+            ids.index("tipo_documento_no_determinado") == ids.index("deteccion_tipo_documento") + 1
+        )

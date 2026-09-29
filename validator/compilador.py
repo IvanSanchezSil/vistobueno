@@ -36,6 +36,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .analizadores import (
+    TIPO_CONTRADICTORIO,
+    TIPO_SIN_DETERMINAR,
     Analizador,
     AnalizadorCantidadPatron,
     AnalizadorConteoNodos,
@@ -586,6 +588,87 @@ class ReglaCompilada:
         )
 
 
+# Los dos estados en que la detección NO pudo clasificar el documento. Son
+# estados terminales: no son un tipo más, son la ausencia de uno. Cada uno
+# lleva un error propio, accionable, en vez de validar el documento contra
+# todos los esquemas posibles (decisión 6 del diseño,
+# docs/diseno/15_tipo_documento_grupos.md).
+#
+#   - Con el paso 4, `sin_determinar` y `contradictorio` activaban las TRES
+#     estructuras y el estudiante veía 2 errores de estructura que no podía
+#     corregir sin adivinar el tipo. El problema real —"no sabemos qué tipo
+#     es esto"— se escondía detrás de simétricos errores de secciones.
+#   - Aquí las estructuras solo aplican a su tipo exacto, así que en estos dos
+#     casos no se evalúa ninguna: sale 1 error que dice qué hacer.
+#
+# El `found` se completa con el detalle real de la detección (qué firmas se
+# buscaron y no casaron, o qué declaración choca con qué firma), para que el
+# estudiante vea la evidencia, no solo el veredicto.
+_SENTINELAS = {
+    TIPO_SIN_DETERMINAR: {
+        "rule_id": "tipo_documento_no_determinado",
+        "message": (
+            "No se pudo determinar el tipo de documento, así que no se validó "
+            "la estructura del capítulo de metodología. Causa probable: el "
+            "Anexo 10 no tiene ninguna casilla marcada y el documento no "
+            "trae secciones que identifiquen su esquema."
+        ),
+        "expected": "un tipo de documento de entre los 8 esquemas de la UNT",
+    },
+    TIPO_CONTRADICTORIO: {
+        "rule_id": "tipo_documento_contradictorio",
+        "message": (
+            "El tipo de documento no es coherente: la declaración del Anexo 10 "
+            "no coincide con el que se deduce de la estructura del documento. "
+            "Corrige la casilla del Anexo 10 o corrige el capítulo de "
+            "metodología, para que ambos digan lo mismo. Hasta entonces no se "
+            "puede validar la estructura de ningún esquema."
+        ),
+        "expected": "declaración del Anexo 10 y estructura del documento del mismo tipo",
+    },
+}
+
+
+def _con_sentinel(resultados: list[RuleResult | None], contexto: dict) -> list[RuleResult]:
+    """Agrega el error centinela si el tipo quedó sin determinar o contradictorio.
+
+    Va justo después de la regla de detección, que es donde el estudiante
+    empieza a leer. El resto de reglas se conserva en el orden del YAML: este
+    resultado no es una regla del YAML, es la traducción a error de un estado
+    de la detección.
+    """
+    spec = _SENTINELAS.get(contexto.get("tipo_documento", ""))
+    if spec is None:
+        return [r for r in resultados if r is not None]
+
+    # El detalle de la detección es la evidencia: sin él el estudiante sabe
+    # que no se clasificó, pero no por qué.
+    detalle = ""
+    for r in resultados:
+        if r is not None and r.rule_id == "deteccion_tipo_documento":
+            detalle = r.found
+            break
+    sentinela = RuleResult(
+        rule_id=spec["rule_id"],
+        passed=False,
+        severity=Severity.ERROR,
+        message=spec["message"],
+        expected=spec["expected"],
+        found=detalle or "sin detalle",
+        # El estudiante no puede "corregir esto" sin el reglamento, así que
+        # se le da la referencia que permite rastrear el origen.
+        location="Capítulo II — esquemas formales por tipo de título (párr. 75-90)",
+        fuente="MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+        cita="Cada título profesional exige un esquema formal distinto",
+    )
+    salida: list[RuleResult | None] = list(resultados)
+    for i, r in enumerate(resultados):
+        if r is not None and r.rule_id == "deteccion_tipo_documento":
+            salida.insert(i + 1, sentinela)
+            break
+    return [r for r in salida if r is not None]
+
+
 class CompilerDSL:
     """Compila el YAML DSL en un conjunto de `ReglaCompilada`."""
 
@@ -657,4 +740,4 @@ class CompilerDSL:
                 continue
             resultados[i] = r.ejecutar(extracted) if r.aplica_en(contexto) else r.no_aplicable()
 
-        return [r for r in resultados if r is not None]
+        return _con_sentinel(resultados, contexto)

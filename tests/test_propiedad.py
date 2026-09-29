@@ -79,10 +79,19 @@ def _sin_archivo(path: str):
     Path(path).unlink(missing_ok=True)
 
 
+# El paso 6 agrega un error centinela (`tipo_documento_no_determinado` /
+# `tipo_documento_contradictorio`) cuando la detección no puede clasificar el
+# documento. No es una de las 48 reglas: lo deriva la detección, así que no
+# tiene mutación propia ni cuenta para `REGLAS`. En un documento mutado puede
+# aparecer (y en el base no), por lo que se excluye de la comparación punto a
+# punto para no contarlo como "movida".
+CENTINELAS = {"tipo_documento_no_determinado", "tipo_documento_contradictorio"}
+
+
 def _compare(path_a: str, path_b: str, esperado: set, rule_id: str):
     """Verifica que la única diferencia entre dos documentos es `esperado`."""
-    a = _estado(path_a)
-    b = _estado(path_b)
+    a = {rid: v for rid, v in _estado(path_a).items() if rid not in CENTINELAS}
+    b = {rid: v for rid, v in _estado(path_b).items() if rid not in CENTINELAS}
     assert set(a) == set(b) == set(REGLAS)
     diffs = {rid for rid in a if a[rid] != b[rid]}
     assert diffs == esperado, (
