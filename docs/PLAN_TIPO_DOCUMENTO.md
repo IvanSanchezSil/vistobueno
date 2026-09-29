@@ -125,7 +125,7 @@ evidencia y nivel.
 **Verificación**
 
 - Documento bueno: **47/47, cero fallos**.
-- Las 4 plantillas oficiales: de 5 errores bloqueantes a **3**.
+- Las 5 plantillas oficiales: de 5 errores bloqueantes a **3**.
 - Suite verde.
 
 **Hecho cuando**: el defecto original está corregido y medido.

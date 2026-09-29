@@ -15,7 +15,7 @@ estructura falla las estructuras de los otros tipos.
 
 ## Evidencia
 
-Las 4 plantillas oficiales del repositorio, evaluadas con `reglas_unt.yaml`:
+Las 5 plantillas oficiales del repositorio, evaluadas con `reglas_unt.yaml`:
 
 | Documento | `estructura_tinv_cuantitativo` | semáforo |
 |---|---|---|
@@ -104,7 +104,7 @@ auditable contra el manual, y sin un concepto nuevo en el DSL.
 
 El Anexo 10 es un formulario con casillas donde el autor **declara** su tipo. Si
 el documento incluye esa declaración firmada, el tipo no se infiere: se lee. Las
-4 plantillas del repositorio no incluyen el Anexo 10 (sus anexos son del 1 al 7),
+5 plantillas del repositorio no incluyen el Anexo 10 (sus anexos son del 1 al 7),
 así que para ellas se usa el nivel 2.
 
 Si los niveles 1 y 2 coinciden se usa el declarado. Si **contradicen** →
@@ -185,6 +185,17 @@ Regla discriminadora (fase 1, publica el contexto):
     expone: tipo_documento          # clave publicada en el contexto
     declaracion:
       anexo: 'Anexo 10 — Declaración jurada (párr. 1825-1835)'
+      # Etiquetas del Anexo 10 por tipo, con el vocabulario del FORMULARIO
+      # (no el del manual). El id canónico también se acepta como etiqueta.
+      etiquetas:
+        tsp: ['TRABAJO DE SERVICIO', 'SERVICIO SOCIAL']
+        informe_cuantitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO']
+        informe_cualitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO']
+        proyecto_cuantitativo: ['PROYECTO DE INVESTIGACIÓN CUANTITATIVO']
+        proyecto_cualitativo: ['PROYECTO DE INVESTIGACIÓN CUALITATIVO']
+        tinv_revision_literatura: ['TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN']
+        tinv_cualitativo: ['TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA']
+        tinv_cuantitativo: ['TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA']
     firmas:                          # en orden de especificidad (decisión 2)
       - tipo: tsp
         evidencia: ['SECUENCIA DIDÁCTICA', 'SUSTENTO PSICOPEDAGÓGICO',
@@ -232,6 +243,33 @@ La mecánica es genérica: cualquier regla puede `expone: <clave>` y cualquier o
 `aplicar_si: {<clave>: <valor>}`. No está cableada a tipos de tesis, así que más
 adelante admite `aplicar_si: {programa: educacion_inicial}` sin cambios en el
 motor.
+
+### Detalles que fijó la implementación
+
+Cuatro cosas que el diseño dejaba abiertas y que el analizador
+`DeteccionTipo` (`validator/analizadores.py`) resolvió:
+
+1. **`expone` se puede declarar en dos sitios.** A nivel de regla, o dentro de
+   la sección del analizador que produce el valor —que es como lo escribe este
+   YAML, porque la clave describe a `deteccion_tipo` y no a la regla entera. Si
+   aparecen ambas, manda la sección. El linter entiende las dos formas.
+
+2. **El valor publicado no es `RuleResult.found`.** Ese texto está escrito para
+   que lo lea una persona, así que no sirve para comparar. El valor legible por
+   máquina viaja en `Analizador.valor`, que es lo que lee `ReglaCompilada` para
+   llenar el contexto. `DeteccionTipo` deja además `nivel` y `evidencia` para que
+   el reporte explique la elección sin parsear texto.
+
+3. **Casilla del Anexo 10: misma línea, marcada.** Una casilla cuenta como
+   declaración si está **en el mismo párrafo** que la etiqueta del tipo (Word
+   escribe la casilla y la etiqueta en un solo párrafo) y aparece marcada. Se
+   aceptan tanto el texto (`☒`, `[X]`) como el símbolo Wingdings (`w:sym`
+   `F0FE`); la casilla vacía (`☐`, `F0A8`) **no** declara. Separar la casilla de
+   la etiqueta sería ambiguo, así que no se intenta.
+
+4. **`minimo_global` es un suelo de validación.** Es el mínimo que el linter
+   exige a cada `firmas[].minimo`; no participa en la detección. Sirve para
+   que no se declaren umbrales incoherentes entre tipos.
 
 ## Arquitectura: evaluación en dos fases
 
@@ -289,8 +327,8 @@ forma de "implementar sin probar" dentro de `reglas_unt.yaml`.
 
 ## Validación de las 5 estructuras nuevas
 
-Las 4 plantillas del repositorio cubren **un solo tipo** (las 4 son
-`tinv_cuantitativo` y las 4 pasan esa misma regla). No existe plantilla para los
+Las 5 plantillas del repositorio cubren **un solo tipo** (las 5 son
+`tinv_cuantitativo` y las 5 pasan esa misma regla). No existe plantilla para los
 otros 7 tipos y la biblioteca no las tiene:
 
 | Tipo | Plantilla real |

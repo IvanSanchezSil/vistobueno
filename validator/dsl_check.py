@@ -41,6 +41,7 @@ _SECCIONES = (
     "nota_pie",
     "toc_apunta",
     "toc_numeracion",
+    "deteccion_tipo",
 )
 
 # Campos interpretados como expresiones regulares por los analizadores.
@@ -188,12 +189,12 @@ def _lint_contexto(rules: list[dict], hallazgos: list[str]) -> None:
     expuestas: dict[str, str] = {}  # clave -> rule_id que la expone
     for rule in rules:
         rule_id = rule.get("id", "<sin id>")
-        # Se comprueba la PRESENCIA de la clave, no su valor: `aplicar_si:`
+        # Se comprueba la PRESENCIA de la clave, no su valor: `expone:`
         # a secas se parsea como None y sería una condición inactiva
         # silenciosa. Es un error de configuración, no un "sin condición".
-        expone = rule.get("expone")
+        declarada, expone = _expone_bruto(rule)
 
-        if "expone" in rule:
+        if declarada:
             if not isinstance(expone, str) or not expone.strip():
                 hallazgos.append(f"[{rule_id}] expone: debe ser un texto no vacío")
             elif expone in expuestas:
@@ -235,6 +236,119 @@ def _lint_contexto(rules: list[dict], hallazgos: list[str]) -> None:
                 )
 
 
+def _expone_bruto(rule: dict) -> tuple[bool, object]:
+    """`(declarada, valor)` de la clave que la regla publica.
+
+    La clave puede declararse a nivel de regla o dentro de la sección del
+    analizador que produce el valor (`deteccion_tipo` lo hace así). Si
+    apareciera en ambos sitios, manda la sección.
+    """
+    for seccion in _SECCIONES:
+        cfg = rule.get(seccion)
+        if isinstance(cfg, dict) and "expone" in cfg:
+            return True, cfg.get("expone")
+    if "expone" in rule:
+        return True, rule.get("expone")
+    return False, None
+
+
+def _expone_de(rule: dict) -> str | None:
+    """Clave válida que publica la regla, o None si no declara o no es válida."""
+    declarada, valor = _expone_bruto(rule)
+    if declarada and isinstance(valor, str) and valor.strip():
+        return valor
+    return None
+
+
+def _lint_deteccion_tipo(
+    config: dict, hallazgos: list[str], rule_id: str, rule: dict | None = None
+) -> None:
+    """Valida la sección `deteccion_tipo`.
+
+    Además de lo específico de la sección, comprueba que la regla publique una
+    clave: una detección que no expone nada no sirve de nada, y es un error
+    silencioso fácil de cometer.
+    """
+    if _expone_de(rule if rule is not None else config) is None:
+        hallazgos.append(
+            f"[{rule_id}] deteccion_tipo: falta 'expone' (la clave que publica "
+            "el tipo detectado, para que las reglas de estructura la consulten)"
+        )
+
+    minimo_global = config.get("minimo_global", 1)
+    if not isinstance(minimo_global, int) or minimo_global < 1:
+        hallazgos.append(f"[{rule_id}] deteccion_tipo: 'minimo_global' debe ser un entero >= 1")
+
+    firmas = config.get("firmas")
+    if not isinstance(firmas, list) or not firmas:
+        hallazgos.append(f"[{rule_id}] deteccion_tipo: 'firmas' debe ser una lista no vacía")
+        return
+
+    vistos: set[str] = set()
+    for firma in firmas:
+        if not isinstance(firma, dict):
+            hallazgos.append(f"[{rule_id}] deteccion_tipo: firma inválida {firma!r}")
+            continue
+        tipo = firma.get("tipo")
+        if not isinstance(tipo, str) or not tipo.strip():
+            hallazgos.append(f"[{rule_id}] deteccion_tipo: firma sin 'tipo'")
+        elif tipo in vistos:
+            hallazgos.append(
+                f"[{rule_id}] deteccion_tipo: tipo '{tipo}' repetido en 'firmas' "
+                "(el orden de especificidad dejaría de estar definido)"
+            )
+        else:
+            vistos.add(tipo)
+
+        evidencia = firma.get("evidencia")
+        if not isinstance(evidencia, list) or not evidencia:
+            hallazgos.append(
+                f"[{rule_id}] deteccion_tipo: firma '{tipo}' necesita 'evidencia' no vacía"
+            )
+        elif not all(isinstance(e, str) and e.strip() for e in evidencia):
+            hallazgos.append(f"[{rule_id}] deteccion_tipo: firma '{tipo}' tiene 'evidencia' no textual")
+
+        minimo = firma.get("minimo", 1)
+        if not isinstance(minimo, int) or minimo < 1:
+            hallazgos.append(f"[{rule_id}] deteccion_tipo: firma '{tipo}' necesita 'minimo' >= 1")
+        elif isinstance(minimo_global, int) and minimo < minimo_global:
+            hallazgos.append(
+                f"[{rule_id}] deteccion_tipo: firma '{tipo}' tiene 'minimo' {minimo} "
+                f"por debajo de 'minimo_global' {minimo_global}"
+            )
+        if isinstance(evidencia, list) and isinstance(minimo, int) and minimo > len(evidencia):
+            hallazgos.append(
+                f"[{rule_id}] deteccion_tipo: firma '{tipo}' exige {minimo} firmas pero "
+                f"declara {len(evidencia)}: nunca puede cumplirse"
+            )
+
+    declaracion = config.get("declaracion")
+    if declaracion is not None:
+        if not isinstance(declaracion, dict):
+            hallazgos.append(f"[{rule_id}] deteccion_tipo: 'declaracion' debe ser un mapa")
+        else:
+            etiquetas = declaracion.get("etiquetas")
+            if not isinstance(etiquetas, dict) or not etiquetas:
+                hallazgos.append(
+                    f"[{rule_id}] deteccion_tipo: 'declaracion.etiquetas' debe mapear cada tipo "
+                    "a sus etiquetas del Anexo 10 (sin ellas el nivel 1 nunca dispara)"
+                )
+            else:
+                for tipo, alias in etiquetas.items():
+                    if tipo not in vistos:
+                        hallazgos.append(
+                            f"[{rule_id}] deteccion_tipo: 'declaracion.etiquetas' declara el tipo "
+                            f"'{tipo}', que no aparece en 'firmas'"
+                        )
+                    if not isinstance(alias, list) or not all(
+                        isinstance(a, str) and a.strip() for a in alias
+                    ):
+                        hallazgos.append(
+                            f"[{rule_id}] deteccion_tipo: 'declaracion.etiquetas[{tipo}]' "
+                            "debe ser una lista de textos no vacíos"
+                        )
+
+
 def linter(rules_data: dict) -> list[str]:
     """Devuelve la lista de hallazgos (vacía si el DSL está sano)."""
     hallazgos: list[str] = []
@@ -256,6 +370,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_automata_secuencia(c, hallazgos, rule_id)
                 elif seccion == "automata_pila":
                     _lint_automata_pila(c, hallazgos, rule_id)
+                elif seccion == "deteccion_tipo":
+                    _lint_deteccion_tipo(c, hallazgos, rule_id, rule)
     _lint_contexto(rules, hallazgos)
     return hallazgos
 
