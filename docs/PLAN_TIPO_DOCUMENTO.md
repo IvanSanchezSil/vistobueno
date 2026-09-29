@@ -213,6 +213,14 @@ desconocido; los estados terminales son errores propios. Las 8 estructuras
 
 ### Paso 7 — Contrato de API (coordinar con Integrante 1)
 
+> **Estado: entregado como documento, no implementado.**
+> `api_models.py` es área del Integrante 1 y cambiar `resumen` altera el
+> contrato publicado, así que este paso no se ejecuta aquí: se entrega
+> `docs/HANDOVER_API_TIPO_DOCUMENTO.md`, que especifica el cambio exacto con
+> números medidos sobre el motor actual, la decisión de contrato que le toca
+> tomar al Integrante 1 y los pasos de regeneración del spec. La implementación
+> queda pendiente de que el Integrante 1 la asuma.
+
 **Objetivo**: exponer lo nuevo sin romper el contrato publicado.
 
 **Archivos**: `validator/api_models.py`, `docs/openapi_spec.json`,
