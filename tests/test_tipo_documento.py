@@ -353,17 +353,29 @@ from validator.extractor import extract  # noqa: E402
 FIRMAS = [
     {
         "tipo": "tsp",
-        "evidencia": ["SECUENCIA DIDÁCTICA", "SUSTENTO PSICOPEDAGÓGICO", "SUSTENTO TEÓRICO CIENTÍFICO"],
+        "evidencia": [
+            "SECUENCIA DIDÁCTICA",
+            "SUSTENTO PSICOPEDAGÓGICO",
+            "SUSTENTO TEÓRICO CIENTÍFICO",
+        ],
         "minimo": 2,
     },
     {
         "tipo": "informe_cualitativo",
-        "evidencia": ["SITUACIÓN PROBLEMATIZADA", "PARTICIPANTES", "INSTRUMENTOS USADOS EN LA RECOLECCIÓN"],
+        "evidencia": [
+            "SITUACIÓN PROBLEMATIZADA",
+            "PARTICIPANTES",
+            "INSTRUMENTOS USADOS EN LA RECOLECCIÓN",
+        ],
         "minimo": 2,
     },
     {
         "tipo": "informe_cuantitativo",
-        "evidencia": ["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN", "OPERACIONALIZACIÓN DE LAS VARIABLES"],
+        "evidencia": [
+            "SITUACIÓN PROBLEMATIZADA",
+            "DISEÑO DE CONTRASTACIÓN",
+            "OPERACIONALIZACIÓN DE LAS VARIABLES",
+        ],
         "minimo": 2,
     },
     {
@@ -376,9 +388,21 @@ FIRMAS = [
         "evidencia": ["SELECCIÓN DE PARTICIPANTES", "ESCENARIO", "UNIDAD DE ANÁLISIS"],
         "minimo": 2,
     },
-    {"tipo": "tinv_revision_literatura", "evidencia": ["ESTADO DEL ARTE", "TÉCNICAS DE PROCESAMIENTO DE DATOS"], "minimo": 1},
-    {"tipo": "tinv_cualitativo", "evidencia": ["DEFINICIÓN DE TÉRMINOS", "CATEGORIZACIÓN"], "minimo": 1},
-    {"tipo": "tinv_cuantitativo", "evidencia": ["VARIABLE", "POBLACIÓN Y MUESTRA", "INSTRUMENTO"], "minimo": 1},
+    {
+        "tipo": "tinv_revision_literatura",
+        "evidencia": ["ESTADO DEL ARTE", "TÉCNICAS DE PROCESAMIENTO DE DATOS"],
+        "minimo": 1,
+    },
+    {
+        "tipo": "tinv_cualitativo",
+        "evidencia": ["DEFINICIÓN DE TÉRMINOS", "CATEGORIZACIÓN"],
+        "minimo": 1,
+    },
+    {
+        "tipo": "tinv_cuantitativo",
+        "evidencia": ["VARIABLE", "POBLACIÓN Y MUESTRA", "INSTRUMENTO"],
+        "minimo": 1,
+    },
 ]
 
 # Etiquetas del Anexo 10, con el vocabulario del formulario (no el del manual).
@@ -395,7 +419,11 @@ ETIQUETAS = {
 
 
 def _cfg_deteccion(declaracion=None, firmas=None):
-    cfg = {"expone": "tipo_documento", "firmas": FIRMAS if firmas is None else firmas, "minimo_global": 1}
+    cfg = {
+        "expone": "tipo_documento",
+        "firmas": FIRMAS if firmas is None else firmas,
+        "minimo_global": 1,
+    }
     if declaracion is not None:
         cfg["declaracion"] = declaracion
     return cfg
@@ -447,8 +475,10 @@ def _con_sym(char, texto=""):
 
 
 def _con_casilla(texto, marcada=True):
-    return f'<w:p><w:r><w:t xml:space="preserve">☒ {texto}</w:t></w:r></w:p>' if marcada else (
-        f'<w:p><w:r><w:t xml:space="preserve">☐ {texto}</w:t></w:r></w:p>'
+    return (
+        f'<w:p><w:r><w:t xml:space="preserve">☒ {texto}</w:t></w:r></w:p>'
+        if marcada
+        else (f'<w:p><w:r><w:t xml:space="preserve">☐ {texto}</w:t></w:r></w:p>')
     )
 
 
@@ -553,7 +583,9 @@ class TestDeteccionNivelDeclarado:
             ),
             _t("POBLACIÓN Y MUESTRA"),
         ]
-        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        _, _nivel, valor, _ev, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
         assert valor == "tinv_cuantitativo", detalle
         assert "declarado=" in detalle
 
@@ -566,7 +598,9 @@ class TestDeteccionNivelDeclarado:
             ),
             _t("POBLACIÓN Y MUESTRA"),
         ]
-        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        _, _nivel, valor, _ev, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
         assert valor == "tinv_cuantitativo"
         assert "inferido=" in detalle
 
@@ -578,7 +612,9 @@ class TestDeteccionNivelDeclarado:
             _t("PLAN DE INVESTIGACIÓN"),
             _t("RECURSOS Y MATERIALES"),
         ]
-        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        _, _nivel, valor, _ev, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
         assert valor == "proyecto_cuantitativo"
         assert "inferido=" in detalle, "debió caer al nivel 2, no declarar"
 
@@ -595,7 +631,9 @@ class TestDeteccionNivelDeclarado:
             _t("PLAN DE INVESTIGACIÓN"),
             _t("RECURSOS Y MATERIALES"),
         ]
-        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        _, _nivel, valor, _ev, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
         assert valor == "proyecto_cuantitativo"
         assert "declarado=" in detalle and "contradictorio" not in detalle
 
@@ -627,7 +665,9 @@ class TestDeteccionNivelDeclarado:
             _t("SECUENCIA DIDÁCTICA"),
             _t("SUSTENTO PSICOPEDAGÓGICO"),
         ]
-        _, _nivel, valor, _ev, _ = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        _, _nivel, valor, _ev, _ = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
         assert valor == "tsp"
 
 
@@ -640,9 +680,7 @@ class TestLinterDeteccionTipo:
                     "id": "deteccion_tipo_documento",
                     "severidad": "warning",
                     "descripcion": "detecta el tipo",
-                    "deteccion_tipo": _cfg_deteccion(
-                        {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
-                    ),
+                    "deteccion_tipo": _cfg_deteccion({"anexo": "Anexo 10", "etiquetas": ETIQUETAS}),
                 }
             ],
         }
@@ -656,9 +694,7 @@ class TestLinterDeteccionTipo:
 
     def test_expone_a_nivel_de_regla_tambien_sirve(self):
         datos = {
-            "reglas": [
-                {"id": "d", "expone": "tipo_documento", "deteccion_tipo": _cfg_deteccion()}
-            ]
+            "reglas": [{"id": "d", "expone": "tipo_documento", "deteccion_tipo": _cfg_deteccion()}]
         }
         assert linter(datos) == []
 
@@ -668,7 +704,10 @@ class TestLinterDeteccionTipo:
 
     def test_evidencia_vacia(self):
         cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": [], "minimo": 1}])
-        assert any("necesita 'evidencia' no vacía" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "necesita 'evidencia' no vacía" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_tipo_repetido(self):
         cfg = _cfg_deteccion(
@@ -677,31 +716,49 @@ class TestLinterDeteccionTipo:
                 {"tipo": "t", "evidencia": ["B"], "minimo": 1},
             ]
         )
-        assert any("repetido en 'firmas'" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "repetido en 'firmas'" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_minimo_menor_que_uno(self):
         cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": ["A"], "minimo": 0}])
-        assert any("necesita 'minimo' >= 1" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "necesita 'minimo' >= 1" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_minimo_por_debajo_de_minimo_global(self):
         cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": ["A", "B"], "minimo": 1}])
         cfg["minimo_global"] = 2
-        assert any("por debajo de 'minimo_global'" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "por debajo de 'minimo_global'" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_minimo_inevitable(self):
         """Exigir más firmas de las declaradas la dejaría siempre inactiva."""
         cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": ["A"], "minimo": 2}])
-        assert any("nunca puede cumplirse" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "nunca puede cumplirse" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_declaracion_sin_etiquetas(self):
         cfg = _cfg_deteccion()
         cfg["declaracion"] = {"anexo": "Anexo 10"}
-        assert any("'declaracion.etiquetas' debe mapear" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "'declaracion.etiquetas' debe mapear" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_etiqueta_de_tipo_desconocido(self):
         cfg = _cfg_deteccion()
         cfg["declaracion"] = {"anexo": "Anexo 10", "etiquetas": {"inventado": ["X"]}}
-        assert any("no aparece en 'firmas'" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+        assert any(
+            "no aparece en 'firmas'" in h
+            for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]})
+        )
 
     def test_expone_anidado_alimenta_el_contexto(self):
         """Una condición puede apuntar a la clave que publica la sección
@@ -710,10 +767,17 @@ class TestLinterDeteccionTipo:
         datos = {
             "reglas": [
                 {"id": "d", "deteccion_tipo": cfg},
-                {"id": "e", "aplicar_si": {"tipo_documento": "tinv_cuantitativo"}, "atributo_xml": {
-                    "parte": "document", "xpath": "//w:sectPr[1]/w:pgSz",
-                    "atributo": "@w:w", "comparacion": "eq", "esperado": "11906",
-                }},
+                {
+                    "id": "e",
+                    "aplicar_si": {"tipo_documento": "tinv_cuantitativo"},
+                    "atributo_xml": {
+                        "parte": "document",
+                        "xpath": "//w:sectPr[1]/w:pgSz",
+                        "atributo": "@w:w",
+                        "comparacion": "eq",
+                        "esperado": "11906",
+                    },
+                },
             ]
         }
         assert linter(datos) == []
@@ -775,8 +839,11 @@ class TestDeteccionDesdeElMotor:
                     "descripcion": "solo si es cualitativo",
                     "aplicar_si": {"tipo_documento": "tinv_cualitativo"},
                     "atributo_xml": {
-                        "parte": "document", "xpath": "//w:sectPr[1]/w:pgSz",
-                        "atributo": "@w:w", "comparacion": "eq", "esperado": "999",
+                        "parte": "document",
+                        "xpath": "//w:sectPr[1]/w:pgSz",
+                        "atributo": "@w:w",
+                        "comparacion": "eq",
+                        "esperado": "999",
                     },
                 },
             ],
