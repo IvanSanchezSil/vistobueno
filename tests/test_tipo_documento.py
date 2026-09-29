@@ -14,6 +14,8 @@ Uso:
 """
 
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -24,7 +26,7 @@ from validator.dsl_check import DSLValidationError, linter
 from validator.engine import build_report, load_rules, validate_docx
 
 sys.path.insert(0, str(Path(__file__).parent))
-from test_dsl import WNS, _make_docx  # noqa: E402
+from test_dsl import WNS, _make_docx, _para  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -330,3 +332,460 @@ class TestYamlPendienteOpcional:
         datos = yaml.safe_load(self.RUTA.read_text(encoding="utf-8"))
         assert linter(datos) == []
         assert datos["reglas"], "el archivo debe declarar al menos una regla"
+
+
+# ---------------------------------------------------------------------------
+# Paso 2: DeteccionTipo
+# ---------------------------------------------------------------------------
+
+from validator.analizadores import (  # noqa: E402
+    NIVEL_DECLARADO,
+    NIVEL_INFERIDO,
+    NIVEL_NO_DETERMINADO,
+    TIPO_CONTRADICTORIO,
+    TIPO_SIN_DETERMINAR,
+    DeteccionTipo,
+)
+from validator.extractor import extract  # noqa: E402
+
+# Firmas tal como las fija docs/diseno/15_tipo_documento_grupos.md, en el
+# orden de especificidad de la decisión 2 (el informe gana al proyecto).
+FIRMAS = [
+    {
+        "tipo": "tsp",
+        "evidencia": ["SECUENCIA DIDÁCTICA", "SUSTENTO PSICOPEDAGÓGICO", "SUSTENTO TEÓRICO CIENTÍFICO"],
+        "minimo": 2,
+    },
+    {
+        "tipo": "informe_cualitativo",
+        "evidencia": ["SITUACIÓN PROBLEMATIZADA", "PARTICIPANTES", "INSTRUMENTOS USADOS EN LA RECOLECCIÓN"],
+        "minimo": 2,
+    },
+    {
+        "tipo": "informe_cuantitativo",
+        "evidencia": ["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN", "OPERACIONALIZACIÓN DE LAS VARIABLES"],
+        "minimo": 2,
+    },
+    {
+        "tipo": "proyecto_cuantitativo",
+        "evidencia": ["PLAN DE INVESTIGACIÓN", "RECURSOS Y MATERIALES", "LÍNEA DE INVESTIGACIÓN"],
+        "minimo": 2,
+    },
+    {
+        "tipo": "proyecto_cualitativo",
+        "evidencia": ["SELECCIÓN DE PARTICIPANTES", "ESCENARIO", "UNIDAD DE ANÁLISIS"],
+        "minimo": 2,
+    },
+    {"tipo": "tinv_revision_literatura", "evidencia": ["ESTADO DEL ARTE", "TÉCNICAS DE PROCESAMIENTO DE DATOS"], "minimo": 1},
+    {"tipo": "tinv_cualitativo", "evidencia": ["DEFINICIÓN DE TÉRMINOS", "CATEGORIZACIÓN"], "minimo": 1},
+    {"tipo": "tinv_cuantitativo", "evidencia": ["VARIABLE", "POBLACIÓN Y MUESTRA", "INSTRUMENTO"], "minimo": 1},
+]
+
+# Etiquetas del Anexo 10, con el vocabulario del formulario (no el del manual).
+ETIQUETAS = {
+    "tsp": ["TRABAJO DE SERVICIO", "SERVICIO SOCIAL"],
+    "informe_cualitativo": ["INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO"],
+    "informe_cuantitativo": ["INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO"],
+    "proyecto_cuantitativo": ["PROYECTO DE INVESTIGACIÓN CUANTITATIVO"],
+    "proyecto_cualitativo": ["PROYECTO DE INVESTIGACIÓN CUALITATIVO"],
+    "tinv_revision_literatura": ["TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN"],
+    "tinv_cualitativo": ["TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA"],
+    "tinv_cuantitativo": ["TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA"],
+}
+
+
+def _cfg_deteccion(declaracion=None, firmas=None):
+    cfg = {"expone": "tipo_documento", "firmas": FIRMAS if firmas is None else firmas, "minimo_global": 1}
+    if declaracion is not None:
+        cfg["declaracion"] = declaracion
+    return cfg
+
+
+def _docx_de_parrafos(parrafos_xml: list[str]) -> str:
+    """DOCX mínimo a partir de XML de párrafos crudo (para poder meter
+    `w:sym`, que un builder de texto plano no sabe escribir)."""
+    from test_dsl import CONTENT_TYPES, RELS
+
+    body = "".join(parrafos_xml)
+    doc = (
+        f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{WNS}"><w:body>{body}'
+        f'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>'
+        f"</w:body></w:document>"
+    )
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+        path = f.name
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", CONTENT_TYPES)
+        z.writestr("_rels/.rels", RELS)
+        z.writestr("word/document.xml", doc)
+    return path
+
+
+def _detectar(parrafos_xml, declaracion=None, firmas=None):
+    """Ejecuta el analizador y devuelve (ok, nivel, valor, evidencia, detalle)."""
+    path = _docx_de_parrafos(parrafos_xml)
+    try:
+        analizador = DeteccionTipo(_cfg_deteccion(declaracion, firmas))
+        ok, detalle = analizador.analizar(extract(path))
+        return ok, analizador.nivel, analizador.valor, analizador.evidencia, detalle
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
+def _t(texto, estilo="Ttulo1"):
+    return _para(texto, estilo)
+
+
+def _con_sym(char, texto=""):
+    """Casilla Wingdings. Word la escribe como un `w:sym` en el MISMO párrafo
+    que su etiqueta, que es como se lee un formulario."""
+    return (
+        f'<w:p><w:r><w:sym w:font="Wingdings" w:char="{char}"/></w:r>'
+        f'<w:r><w:t xml:space="preserve"> {texto}</w:t></w:r></w:p>'
+    )
+
+
+def _con_casilla(texto, marcada=True):
+    return f'<w:p><w:r><w:t xml:space="preserve">☒ {texto}</w:t></w:r></w:p>' if marcada else (
+        f'<w:p><w:r><w:t xml:space="preserve">☐ {texto}</w:t></w:r></w:p>'
+    )
+
+
+class TestDeteccionNivelInferido:
+    """Nivel 2: firmas estructurales. Un conjunto mínimo por tipo."""
+
+    @pytest.mark.parametrize(
+        ("tipo_esperado", "titulos"),
+        [
+            ("tsp", ["SECUENCIA DIDÁCTICA", "SUSTENTO PSICOPEDAGÓGICO"]),
+            ("informe_cualitativo", ["SITUACIÓN PROBLEMATIZADA", "PARTICIPANTES"]),
+            ("informe_cuantitativo", ["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN"]),
+            ("proyecto_cuantitativo", ["PLAN DE INVESTIGACIÓN", "RECURSOS Y MATERIALES"]),
+            ("proyecto_cualitativo", ["SELECCIÓN DE PARTICIPANTES", "UNIDAD DE ANÁLISIS"]),
+            ("tinv_revision_literatura", ["ESTADO DEL ARTE"]),
+            ("tinv_cualitativo", ["DEFINICIÓN DE TÉRMINOS"]),
+            ("tinv_cuantitativo", ["POBLACIÓN Y MUESTRA"]),
+        ],
+    )
+    def test_detecta_los_ocho_tipos(self, tipo_esperado, titulos):
+        ok, nivel, valor, evidencia, detalle = _detectar([_t(t) for t in titulos])
+        assert valor == tipo_esperado, detalle
+        assert ok is True
+        assert nivel == NIVEL_INFERIDO
+        assert evidencia, "el nivel inferido debe decir qué firmas encontró"
+        assert f"inferido={tipo_esperado}" in detalle
+
+    def test_todos_los_tipos_del_diseno_son_detectables(self):
+        """Los 8 identificadores canónicos del diseño tienen firma."""
+        assert {f["tipo"] for f in FIRMAS} == set(ETIQUETAS)
+
+    def test_informe_gana_al_proyecto(self):
+        """Decisión 2: el informe es la versión revisada del proyecto, así que
+        sus firmas son más específicas y se evalúan antes."""
+        titulos = ["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN", "PLAN DE INVESTIGACIÓN"]
+        _, _nivel, valor, _ev, _ = _detectar([_t(t) for t in titulos])
+        assert valor == "informe_cuantitativo"
+
+    def test_tsp_gana_a_informe(self):
+        titulos = ["SECUENCIA DIDÁCTICA", "SUSTENTO PSICOPEDAGÓGICO", "SITUACIÓN PROBLEMATIZADA"]
+        _, _nivel, valor, _ev, _ = _detectar([_t(t) for t in titulos])
+        assert valor == "tsp"
+
+    def test_normaliza_acentos_y_sangria(self):
+        """Los títulos reales vienen con tildes, numeración y sangría: la
+        comparación no debe depender de eso."""
+        _, _nivel, valor, _ev, _ = _detectar(
+            [_t("   2.1  Definición de Términos   ", "Ttulo2")], None
+        )
+        assert valor == "tinv_cualitativo"
+
+    def test_firma_por_subcadena(self):
+        """'VARIABLE' debe casar con 'VARIABLE(S) Y OPERACIONALIZACIÓN'."""
+        _, _nivel, valor, _ev, _ = _detectar([_t("VARIABLE(S) Y OPERACIONALIZACIÓN")])
+        assert valor == "tinv_cuantitativo"
+
+    def test_minimo_no_alcanzado_no_dispara(self):
+        """Una sola firma de un tipo que exige 2 no basta."""
+        ok, _nivel, valor, _ev, detalle = _detectar([_t("PLAN DE INVESTIGACIÓN")])
+        assert valor == TIPO_SIN_DETERMINAR
+        assert ok is False
+        assert "sin_determinado" in detalle
+
+    def test_titulo_desconocido_queda_sin_determinar(self):
+        ok, nivel, valor, evidencia, detalle = _detectar([_t("RESUMEN"), _t("INTRODUCCIÓN")])
+        assert valor == TIPO_SIN_DETERMINAR
+        assert nivel == NIVEL_NO_DETERMINADO
+        assert evidencia == []
+        assert ok is False
+        assert "sin_determinado" in detalle
+
+    def test_documento_vacio_queda_sin_determinar(self):
+        ok, _nivel, valor, _ev, _ = _detectar([])
+        assert valor == TIPO_SIN_DETERMINAR
+        assert ok is False
+
+
+class TestDeteccionNivelDeclarado:
+    """Nivel 1: casilla marcada del Anexo 10."""
+
+    def test_casilla_marcada_por_texto(self):
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _t("PLAN DE INVESTIGACIÓN"),
+            _t("RECURSOS Y MATERIALES"),
+        ]
+        ok, nivel, valor, evidencia, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
+        assert valor == "proyecto_cuantitativo"
+        assert nivel == NIVEL_DECLARADO
+        assert evidencia == ["PROYECTO DE INVESTIGACIÓN CUANTITATIVO"]
+        assert "declarado=proyecto_cuantitativo" in detalle
+        assert ok is True
+
+    def test_casilla_marcada_wingdings(self):
+        """Word dibuja las casillas como símbolo Wingdings, no como texto."""
+        parrafos = [
+            _con_sym(
+                "F0FE",
+                "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA",
+            ),
+            _t("POBLACIÓN Y MUESTRA"),
+        ]
+        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        assert valor == "tinv_cuantitativo", detalle
+        assert "declarado=" in detalle
+
+    def test_casilla_vacia_wingdings_no_declara(self):
+        """F0A8 es la casilla VACÍA: no puede leerse como declaración."""
+        parrafos = [
+            _con_sym(
+                "F0A8",
+                "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA",
+            ),
+            _t("POBLACIÓN Y MUESTRA"),
+        ]
+        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        assert valor == "tinv_cuantitativo"
+        assert "inferido=" in detalle
+
+    def test_casilla_sin_marcar_no_declara(self):
+        """El error más fácil de cometer al leer: una casilla vacía junto a una
+        etiqueta NO es una declaración."""
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO", marcada=False),
+            _t("PLAN DE INVESTIGACIÓN"),
+            _t("RECURSOS Y MATERIALES"),
+        ]
+        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        assert valor == "proyecto_cuantitativo"
+        assert "inferido=" in detalle, "debió caer al nivel 2, no declarar"
+
+    def test_sin_declaracion_configurada_no_hay_nivel_1(self):
+        _, _nivel, valor, _ev, detalle = _detectar(
+            [_con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"), _t("POBLACIÓN Y MUESTRA")]
+        )
+        assert valor == "tinv_cuantitativo"
+        assert "inferido=" in detalle
+
+    def test_declarado_e_inferido_que_coinciden(self):
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _t("PLAN DE INVESTIGACIÓN"),
+            _t("RECURSOS Y MATERIALES"),
+        ]
+        _, _nivel, valor, _ev, detalle = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        assert valor == "proyecto_cuantitativo"
+        assert "declarado=" in detalle and "contradictorio" not in detalle
+
+    def test_contradiccion_se_publica(self):
+        """El autor declara un tipo pero el documento tiene la estructura de
+        otro: se dice, no se elige en silencio."""
+        parrafos = [
+            _con_casilla("TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA"),
+            _t("PLAN DE INVESTIGACIÓN"),
+            _t("RECURSOS Y MATERIALES"),
+        ]
+        ok, nivel, valor, evidencia, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
+        assert valor == TIPO_CONTRADICTORIO
+        assert nivel == NIVEL_NO_DETERMINADO
+        assert evidencia == [
+            "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA",
+            "PLAN DE INVESTIGACIÓN",
+            "RECURSOS Y MATERIALES",
+        ], "la contradicción debe reportar las dos evidencias"
+        assert ok is False
+        assert "declarado=tinv_cualitativo" in detalle
+        assert "inferido=proyecto_cuantitativo" in detalle
+
+    def test_etiqueta_variante_del_anexo(self):
+        parrafos = [
+            _con_casilla("TRABAJO DE SERVICIO"),
+            _t("SECUENCIA DIDÁCTICA"),
+            _t("SUSTENTO PSICOPEDAGÓGICO"),
+        ]
+        _, _nivel, valor, _ev, _ = _detectar(parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS})
+        assert valor == "tsp"
+
+
+class TestLinterDeteccionTipo:
+    def test_config_valida_no_reporta_hallazgos(self):
+        datos = {
+            "namespaces": {"w": WNS},
+            "reglas": [
+                {
+                    "id": "deteccion_tipo_documento",
+                    "severidad": "warning",
+                    "descripcion": "detecta el tipo",
+                    "deteccion_tipo": _cfg_deteccion(
+                        {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+                    ),
+                }
+            ],
+        }
+        assert linter(datos) == []
+
+    def test_falta_expone(self):
+        cfg = _cfg_deteccion()
+        del cfg["expone"]
+        datos = {"reglas": [{"id": "d", "deteccion_tipo": cfg}]}
+        assert any("falta 'expone'" in h for h in linter(datos))
+
+    def test_expone_a_nivel_de_regla_tambien_sirve(self):
+        datos = {
+            "reglas": [
+                {"id": "d", "expone": "tipo_documento", "deteccion_tipo": _cfg_deteccion()}
+            ]
+        }
+        assert linter(datos) == []
+
+    def test_firmas_vacia(self):
+        datos = {"reglas": [{"id": "d", "deteccion_tipo": {"expone": "x", "firmas": []}}]}
+        assert any("'firmas' debe ser una lista no vacía" in h for h in linter(datos))
+
+    def test_evidencia_vacia(self):
+        cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": [], "minimo": 1}])
+        assert any("necesita 'evidencia' no vacía" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_tipo_repetido(self):
+        cfg = _cfg_deteccion(
+            firmas=[
+                {"tipo": "t", "evidencia": ["A"], "minimo": 1},
+                {"tipo": "t", "evidencia": ["B"], "minimo": 1},
+            ]
+        )
+        assert any("repetido en 'firmas'" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_minimo_menor_que_uno(self):
+        cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": ["A"], "minimo": 0}])
+        assert any("necesita 'minimo' >= 1" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_minimo_por_debajo_de_minimo_global(self):
+        cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": ["A", "B"], "minimo": 1}])
+        cfg["minimo_global"] = 2
+        assert any("por debajo de 'minimo_global'" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_minimo_inevitable(self):
+        """Exigir más firmas de las declaradas la dejaría siempre inactiva."""
+        cfg = _cfg_deteccion(firmas=[{"tipo": "t", "evidencia": ["A"], "minimo": 2}])
+        assert any("nunca puede cumplirse" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_declaracion_sin_etiquetas(self):
+        cfg = _cfg_deteccion()
+        cfg["declaracion"] = {"anexo": "Anexo 10"}
+        assert any("'declaracion.etiquetas' debe mapear" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_etiqueta_de_tipo_desconocido(self):
+        cfg = _cfg_deteccion()
+        cfg["declaracion"] = {"anexo": "Anexo 10", "etiquetas": {"inventado": ["X"]}}
+        assert any("no aparece en 'firmas'" in h for h in linter({"reglas": [{"id": "d", "deteccion_tipo": cfg}]}))
+
+    def test_expone_anidado_alimenta_el_contexto(self):
+        """Una condición puede apuntar a la clave que publica la sección
+        `deteccion_tipo`, no solo a la de nivel de regla."""
+        cfg = _cfg_deteccion()
+        datos = {
+            "reglas": [
+                {"id": "d", "deteccion_tipo": cfg},
+                {"id": "e", "aplicar_si": {"tipo_documento": "tinv_cuantitativo"}, "atributo_xml": {
+                    "parte": "document", "xpath": "//w:sectPr[1]/w:pgSz",
+                    "atributo": "@w:w", "comparacion": "eq", "esperado": "11906",
+                }},
+            ]
+        }
+        assert linter(datos) == []
+
+
+class TestDeteccionDesdeElMotor:
+    """La detección se invoca como cualquier otra regla del DSL."""
+
+    def _regla(self, cfg):
+        return {
+            "id": "deteccion_tipo_documento",
+            "tipo": "deteccion",
+            "severidad": "warning",
+            "descripcion": "Detecta el tipo de documento",
+            "deteccion_tipo": cfg,
+        }
+
+    def test_publica_el_tipo_en_el_contexto(self):
+        cfg = _cfg_deteccion()
+        datos = {"namespaces": {"w": WNS}, "reglas": [self._regla(cfg)]}
+        path = _docx_de_parrafos([_t("POBLACIÓN Y MUESTRA"), _t("INSTRUMENTO")])
+        try:
+            res = validate_docx(path, datos)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        assert len(res) == 1
+        assert res[0].passed is True
+
+    def test_el_detalle_ainda_no_llega_al_reporte(self):
+        """Hueco conocido, no olvidado.
+
+        `ReglaCompilada.ejecutar` fija `found="cumple"` cuando la regla pasa
+        (validator/compilador.py:539), así que el tipo y su evidencia NO
+        aparecen todavia en el reporte. La decisión 4 del diseño exige
+        mostrarlos ("Tipo detectado: X. Motivo: ..."); eso se resuelve al
+        mostrar la detección (paso 3) y al construir el resumen (paso 5).
+        Este test fija el estado actual para que el cambio sea visible.
+        """
+        cfg = _cfg_deteccion()
+        datos = {"namespaces": {"w": WNS}, "reglas": [self._regla(cfg)]}
+        path = _docx_de_parrafos([_t("POBLACIÓN Y MUESTRA"), _t("INSTRUMENTO")])
+        try:
+            res = validate_docx(path, datos)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        assert res[0].found == "cumple"
+        # El tipo sí está disponible para las reglas que lo consulten.
+        assert "tinv_cuantitativo" not in res[0].found
+
+    def test_una_condicion_consume_el_tipo_publicado(self):
+        cfg = _cfg_deteccion()
+        datos = {
+            "namespaces": {"w": WNS},
+            "reglas": [
+                self._regla(cfg),
+                {
+                    "id": "estructura_cualitativa",
+                    "severidad": "error",
+                    "descripcion": "solo si es cualitativo",
+                    "aplicar_si": {"tipo_documento": "tinv_cualitativo"},
+                    "atributo_xml": {
+                        "parte": "document", "xpath": "//w:sectPr[1]/w:pgSz",
+                        "atributo": "@w:w", "comparacion": "eq", "esperado": "999",
+                    },
+                },
+            ],
+        }
+        path = _docx_de_parrafos([_t("POBLACIÓN Y MUESTRA")])
+        try:
+            res = validate_docx(path, datos)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        por_id = {r.rule_id: r for r in res}
+        assert por_id["deteccion_tipo_documento"].passed is True
+        assert por_id["estructura_cualitativa"].aplicable is False

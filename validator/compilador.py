@@ -49,6 +49,7 @@ from .analizadores import (
     AnalizadorTocApunta,
     AnalizadorTocNumeracion,
     AnalizadorXML,
+    DeteccionTipo,
 )
 from .automata import DFA, PDA, GramaticaEstructura, Transicion, TransicionPDA
 from .dsl_check import linter_o_alzar
@@ -74,6 +75,7 @@ SECCIONES_ANALIZADOR = (
     "nota_pie",
     "toc_apunta",
     "toc_numeracion",
+    "deteccion_tipo",
 )
 
 
@@ -409,7 +411,24 @@ _FABRICAS: dict[str, Callable[[dict], Analizador]] = {
     "nota_pie": AnalizadorNotaPie,
     "toc_apunta": AnalizadorTocApunta,
     "toc_numeracion": AnalizadorTocNumeracion,
+    "deteccion_tipo": DeteccionTipo,
 }
+
+
+def _expone_de(rule: dict) -> str | None:
+    """Clave que una regla publica en el contexto.
+
+    Se puede declarar en dos sitios equivalentes: a nivel de la regla, o
+    dentro de la sección del analizador que produce el valor (`deteccion_tipo`
+    lo hace así, porque la clave describe a ese analizador y no a la regla
+    entera). La sección tiene prioridad si aparecen ambas.
+    """
+    for seccion in SECCIONES_ANALIZADOR:
+        cfg = rule.get(seccion)
+        if isinstance(cfg, dict) and isinstance(cfg.get("expone"), str):
+            return cfg["expone"]
+    expone = rule.get("expone")
+    return expone if isinstance(expone, str) else None
 
 
 @dataclass
@@ -560,7 +579,7 @@ class CompilerDSL:
                 ReglaCompilada(
                     rule=rule,
                     analizadores=analizadores,
-                    expone=rule.get("expone"),
+                    expone=_expone_de(rule),
                     aplicar_si=rule.get("aplicar_si"),
                 )
             )
