@@ -376,7 +376,7 @@ tabla original proyectaba el estado final; aquí se registra el real y medido.
 | Documento bueno | 45/47, 2 fallos, **rojo** | 46 evaluadas, **0 fallos**, 2 no aplicables, **verde** |
 | Las 5 plantillas oficiales | 5 errores bloqueantes | **3 errores bloqueantes** |
 | `ESTRUCTURA` | 3 ids, todos evaluados | 3 ids, solo 1 aplica a un documento cuantitativo |
-| Suite | 213 tests | **315 tests** |
+| Suite | 213 tests | **322 tests** |
 
 Los 2 errores que se van (`estructura_tinv_cualitativo` y
 `estructura_tinv_revision_literatura` sobre una tesis cuantitativa) eran los
@@ -444,15 +444,34 @@ estructuras de cualitativo y de revisión, que no aplican a un plan cuantitativo
 - **La contradicción se reporta con errores de estructura**, no con un error
   propio de la detección. El paso 6 lo resuelve.
 
-## Sobre el tipo desconocido y la contradicción
+## Sobre el tipo desconocido y la contradicción (decisión 6)
 
-Una detección `sin_determinar` o `contradictorio` no debeSER un silencio. Las 3
-estructuras aceptan su propio tipo **más** esos dos estados, así que un
-documento que no se pudo clasificar se valida contra todos los esquemas. El
-costo es que un documento con el Anexo 10 mal declarado sale en rojo con 2
-errores de estructura: es el precio de no dejar la estructura sin revisar. La
-propia regla de detección sigue siendo `warning` y no bloquea; los errores los
-aportan las estructuras, que sí son `error`.
+Una detección `sin_determinar` o `contradictorio` no puede ser un silencio, pero
+tampoco puede disfrazarse de "te faltan 3 secciones".
+
+Cada estructura acepta **solo su tipo exacto**. Cuando el tipo no se puede
+clasificar, **ninguna** estructura se evalúa, y en su lugar el motor sintetiza un
+error centinela:
+
+| Estado de la detección | Error |
+|---|---|
+| `sin_determinar` | `tipo_documento_no_determinado` |
+| `contradictorio` | `tipo_documento_contradictorio` |
+
+Los dos son `error`, se insertan justo después de `deteccion_tipo_documento` (que
+sigue siendo `warning` e informativa), y su `found` arrastra el detalle real de
+la detección: qué firmas se buscaron y no casaron, o qué declaración choca con
+qué firma. El mensaje dice qué corregir, no solo qué falló.
+
+Esto **revierte** parte de la decisión del paso 4, que hacía que los estados
+desconocidos activaran las tres estructuras "para no dejar la estructura sin
+revisar". El problema es que el estudiante con el Anexo 10 mal marcado veía dos
+errores de secciones —imposibles de corregir sin adivinar el tipo— en vez de un
+error que le dijera "tu declaración y tu tesis no coinciden". Con el centinela
+el estudiante ve 1 error accionable en vez de N errores engañosos.
+
+Las 5 estructuras que llegan en el paso 8 deben seguir este mismo patrón, o
+volverían a introducir el hueco.
 
 ## No-alcance
 

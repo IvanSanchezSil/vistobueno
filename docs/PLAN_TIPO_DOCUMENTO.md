@@ -131,7 +131,7 @@ del diseño hubo que corregirla (ver la nota en
 
 - Documento bueno: **46 evaluadas, 0 fallos, 2 no aplicables, semáforo verde**.
 - Las 5 plantillas oficiales: de 5 errores bloqueantes a **3**.
-- Suite verde (315 tests).
+- Suite verde (322 tests).
 
 **Estado**: hecho. Requiere tres cosas que el paso no preveía, todas
 documentadas en `docs/diseno/15_tipo_documento_grupos.md`:
@@ -196,6 +196,18 @@ documento bueno es un plan cuantitativo.
 
 **Hecho cuando**: ningún camino permite que un documento mal estructurado salga
 en verde.
+
+**Estado**: hecho. Los dos centinelas se sintetizan en `compilador.ejecutar()`
+cuando la detección queda en `sin_determinar` o `contradictorio`; se insertan
+justo después de `deteccion_tipo_documento`. Para que existiera el hueco limpio
+hubo que cambiar los 3 `aplicar_si` de las estructuras a su tipo EXACTO: con
+los estados malos dentro (decisión del paso 4) el estudiante seguía viendo 2
+errores de secciones en vez de 1 error que dice qué hacer. Es decir, el paso 6
+**revierte** esa parte del paso 4, a propósito.
+
+Consecuencia: las estructuras ya no son la red de seguridad para un tipo
+desconocido; los estados terminales son errores propios. Las 8 estructuras
+(paso 8) deben seguir el mismo patrón que estas 3.
 
 ---
 
