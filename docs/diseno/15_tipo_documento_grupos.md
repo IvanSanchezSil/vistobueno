@@ -71,9 +71,21 @@ con estructura definida y ningún hueco pendiente** en el manual.
 
 ## Solapamiento entre estructuras
 
-Comparación de las secciones de los 8 esquemas del manual (secciones autoritativas,
-párr. 276-329, 381-421, 537-567, 805-866, 941-999, 1160-1213, 1264-1311, 1463-1499),
-por coeficiente de Jaccard:
+Comparación de las secciones de los 8 esquemas del manual, por coeficiente de
+Jaccard.
+
+> ⚠️ **Esta tabla está calculada sobre rangos erroneos**, así que sus
+> porcentajes no son fiables. Los rangos que se habían usado (276-329, 381-421,
+> 537-567, 805-866, 941-999, 1160-1213, 1264-1311, 1463-1499) apuntan a
+> párrafos de formato y metodología, no a los esquemas: solo el primero
+> coincidía. Los esquemas reales de los 3 TINV están en 297-381, 619-671 y
+> 1002-1096, y los de los 5 tipos restantes van en el paso 8 del plan.
+>
+> No se recalcula aquí a propósito: se rehace en el paso 8, con los rangos
+> corregidos y el esquema de cada tipo ya a la vista. La decisión de diseño
+> que esta tabla sostiene —que las 3 estructuras TINV son mutuamente
+> excluyentes— se sostiene además por las firmas distintas de cada tipo, que
+> sí son autoritativas.
 
 | Par | Solapamiento |
 |---|---|
@@ -441,6 +453,17 @@ estructuras de cualitativo y de revisión, que no aplican a un plan cuantitativo
 - **Solo los 3 TINV tienen reglas de estructura.** Una TSP, un informe o un
   proyecto no reciben ninguna validación estructural: salen vacíos por ese
   lado. Las 5 reglas nuevas van en el archivo aparte (paso 8).
+- **El Anexo 10 del manual contradice al resto del manual en el vocabulario.**
+  El Anexo 10 (párr. 5012-5022) llama a las tesis "TRABAJO DE INVESTIGACIÓN
+  CUANTITATIVO" y "TRABAJO DE INVESTIGACIÓN DE REVISIÓN DE LA LITERATURA",
+  mientras que `declaracion.etiquetas` en `reglas_unt.yaml` busca "TESIS PARA
+  OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA" y "TESIS PARA
+  OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN". Ninguna de esas dos
+  cadenas del YAML aparece en el manual. Además el Anexo 10 escribe el TSP
+  como "TRABAJO DE **SUFIENCIA** PROFESIONAL" (párr. 5022, sin la C), cuando
+  el cuerpo del manual usa la forma correcta 24 veces. Verificar contra el
+  formulario que la facultad aplica de verdad antes de ajustar el resto de
+  las etiquetas.
 
 ## Sobre el tipo desconocido y la contradicción (decisión 6)
 

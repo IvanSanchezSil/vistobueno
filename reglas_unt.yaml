@@ -35,7 +35,11 @@ reglas:
     declaracion:
       anexo: 'Anexo 10 — Declaración jurada (párr. 1825-1835)'
       etiquetas:
-        tsp: ['TRABAJO DE SERVICIO', 'SERVICIO SOCIAL']
+        # EVALUADO: el manual llama a este tipo "Trabajo de Suficiencia
+        # Profesional" (párr. 89, 3430), que es el termino con el que se
+        # declara. Las dos etiquetas siguientes no aparecen en ninguna parte
+        # del manual; se conservan porque la facultad las usa en la practica.
+        tsp: ['TRABAJO DE SUFICIENCIA PROFESIONAL', 'TRABAJO DE SERVICIO', 'SERVICIO SOCIAL']
         informe_cuantitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO']
         informe_cualitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO']
         proyecto_cuantitativo: ['PROYECTO DE INVESTIGACIÓN CUANTITATIVO']

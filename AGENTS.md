@@ -115,6 +115,7 @@ Cada integrante lleva una **bitácora semanal** en `docs/semana{N}_trabajo_{user
 |------|------------|---------|
 | Bitácora semanal | `docs/semana{N}_trabajo_{username}.md` | `docs/semana2_trabajo_retblast.md` |
 | Contrato de API | `docs/CONTRATO_API.md` | — |
+| Handover de API | `docs/HANDOVER_{AREA}_{TEMA}.md` | `docs/HANDOVER_API_TIPO_DOCUMENTO.md` |
 | Tests | `tests/test_{area}_{descripcion}.py` | `tests/test_api_contract.py` |
 | Modelos Pydantic | `validator/api_models.py` | — |
 | Scripts | `scripts/{descripcion}.py` | `scripts/eval_contra_plantillas.py` |
@@ -393,6 +394,7 @@ vistobueno/
 │   └── _xml_constants.py              # Constantes XML para el builder
 ├── docs/
 │   ├── CONTRATO_API.md                # Especificación del endpoint
+│   ├── HANDOVER_API_TIPO_DOCUMENTO.md # Cambios de API pendientes (Semana 6)
 │   ├── openapi_spec.json              # Especificación OpenAPI
 │   ├── DSL.md                         # Referencia del DSL declarativo
 │   ├── PLAN_DSL.md                    # Plan de fases DSL (F1-F6)

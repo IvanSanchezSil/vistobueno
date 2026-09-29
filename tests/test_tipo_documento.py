@@ -576,7 +576,7 @@ FIRMAS = [
 
 # Etiquetas del Anexo 10, con el vocabulario del formulario (no el del manual).
 ETIQUETAS = {
-    "tsp": ["TRABAJO DE SERVICIO", "SERVICIO SOCIAL"],
+    "tsp": ["TRABAJO DE SUFICIENCIA PROFESIONAL", "TRABAJO DE SERVICIO", "SERVICIO SOCIAL"],
     "informe_cualitativo": ["INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO"],
     "informe_cuantitativo": ["INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO"],
     "proyecto_cuantitativo": ["PROYECTO DE INVESTIGACIÓN CUANTITATIVO"],
@@ -923,6 +923,44 @@ class TestDeteccionNivelDeclarado:
             parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
         )
         assert valor == "tsp"
+
+    def test_el_tsp_se_declara_con_el_termino_del_manual(self):
+        """El manual llama a este tipo "Trabajo de Suficiencia Profesional"
+        (párr. 89 y 3430). Con ese termino en la casilla del Anexo 10 el tipo
+        se reconoce POR DECLARACION.
+
+        Sin esta correccion el tipo no se pierde siempre: el detector lo
+        recupera por inferencia (nivel 2) cuando el cuerpo trae 2 de las 3
+        firmas. Lo que se rompe es la declaracion, y con ella el caso en que
+        la estructura no aporta evidencia suficiente: ahi el documento caia
+        en sin_determinar y recibia el error centinela.
+        """
+        parrafos = [
+            _con_casilla("TRABAJO DE SUFICIENCIA PROFESIONAL"),
+            _t("SECUENCIA DIDÁCTICA"),
+            _t("SUSTENTO PSICOPEDAGÓGICO"),
+        ]
+        ok, nivel, valor, _ev, detalle = _detectar(
+            parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        )
+        assert valor == "tsp"
+        assert nivel == NIVEL_DECLARADO
+        assert ok is True
+        assert "sin_determinar" not in detalle
+
+    def test_el_tsp_sigue_aceptando_las_etiquetas_previas(self):
+        """La correccion del nombre es aditiva: no debe romper lo que ya
+        funcionaba, porque la facultad usa ambas formas en la practica."""
+        for etiqueta in ("TRABAJO DE SERVICIO", "SERVICIO SOCIAL"):
+            parrafos = [
+                _con_casilla(etiqueta),
+                _t("SECUENCIA DIDÁCTICA"),
+                _t("SUSTENTO PSICOPEDAGÓGICO"),
+            ]
+            _, _nivel, valor, _ev, _ = _detectar(
+                parrafos, {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+            )
+            assert valor == "tsp", etiqueta
 
 
 class TestLinterDeteccionTipo:
@@ -1357,6 +1395,37 @@ class TestCasosLimite:
             and (r.rule_id in ESTRUCTURA or "tipo_documento" in r.rule_id)
         ]
         assert [r.rule_id for r in errores_tipo] == ["tipo_documento_no_determinado"]
+
+    def test_tsp_declarado_sin_evidencia_estructural_no_es_sin_determinar(self):
+        """Integración con el YAML de producción: un TSP que el autor declara
+        con el término del manual debe reconocerse por declaración aunque su
+        estructura todavía no aporte 2 de las 3 firmas.
+
+        Este es el caso que la corrección arregla. Sin ella el documento caía
+        en `sin_determinado` y salía con el error centinela
+        `tipo_documento_no_determinado`, que le pedía al estudiante adivinar
+        su propio tipo en vez de decirle que le faltan secciones.
+        """
+        path = _make_docx(
+            headings=["INTRODUCCION", "MARCO TEORICO", "CONCLUSIONES"],
+            cover="☒ TRABAJO DE SUFICIENCIA PROFESIONAL",
+        )
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+        deteccion = next(r for r in res if r.rule_id == "deteccion_tipo_documento")
+        assert "declarado=tsp" in deteccion.found
+
+        centinelas = [
+            r.rule_id
+            for r in res
+            if r.rule_id in {"tipo_documento_no_determinado", "tipo_documento_contradictorio"}
+        ]
+        assert centinelas == [], (
+            f"un tipo declarado no puede salir como no determinado: aparecieron {centinelas}"
+        )
 
     def test_el_centinela_no_determinado_es_aplicable_y_explica(self):
         path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])

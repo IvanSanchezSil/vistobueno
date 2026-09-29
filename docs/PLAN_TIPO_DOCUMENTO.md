@@ -253,11 +253,22 @@ pueda probar contra documentos reales.
 
 **Qué hacer**
 
-1. Extraer los 5 esquemas del manual: proyecto cuantitativo (párr. 805-866),
-   proyecto cualitativo (941-999), informe cuantitativo (1160-1213), informe
-   cualitativo (1264-1311), TSP (1463-1499).
+1. Extraer los 5 esquemas del manual. **Rangos corregidos**: los del plan
+   original (805-866, 941-999, 1160-1213, 1264-1311, 1463-1499) no apuntan a
+   los esquemas, sino a párrafos de formato y de metodología. Los reales se
+  (localizaron por su encabezado `ESQUEMA ...`, y cada uno termina justo antes
+   del `LISTA DE COTEJO` de su tipo:
+
+   | Tipo | Encabezado | Párr. |
+   |---|---|---|
+   | proyecto_cuantitativo | `ESQUEMA DEL PROYECTO DE INVESTIGACIÓN CUANTITATIVO` | 1585-1788 |
+   | proyecto_cualitativo | `ESQUEMA DEL PROYECTO DE INVESTIGACIÓN CUALITATIVO` | 2097-2297 |
+   | informe_cuantitativo | `ESQUEMA DEL INFORME DE INVESTIGACIÓN CUANTITATIVA` | 2668-2721 |
+   | informe_cualitativo | `ESQUEMA DEL INFORME DEL PROYECTO DE INVESTIGACIÓN CUALITATIVO` | 3073-3120 |
+   | tsp | `ESQUEMA DEL TRABAJO DE SUFIENCIA PROFESIONAL` | 3628-… |
 2. Escribir las 5 reglas con `aplicar_si` + `automata_secuencia`, usando
-   `opcional: true` donde el manual lo indique.
+   `opcional: true` donde el manual lo indique. Cada `aplicar_si` acepta **solo
+   su tipo exacto**, igual que las 3 del paso 6.
 3. Documentar los alias: `informe_cuantitativo` acepta "Tesis de investigación
    cuantitativa" y `informe_cualitativo` la variante cualitativa.
 4. Registrar en el archivo que el manual exige 3.3/3.3 Aspectos generales para
