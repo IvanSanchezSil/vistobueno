@@ -1,7 +1,7 @@
 # Flujo del endpoint POST /validar
 
-**Versión**: 1.1  
-**Fecha**: 2026-09-23
+**Versión**: 1.2  
+**Fecha**: 2026-09-30
 
 ---
 
@@ -36,12 +36,25 @@ flowchart TD
     Q -->|false| S[prompts = []]
     R --> T[Construir ValidarResponse<br/>mapear RuleResult → DTO]
     S --> T
-    T --> U[200 OK<br/>ValidarResponse JSON]
+    T --> N2{Notificación:<br/>¿notificar + correo<br/>+ semáforo rojo?}
+    N2 -->|No aplica| N3[estado: sin_correo /<br/>no_solicitado / sin_observaciones]
+    N2 -->|Sí, pero SMTP deshabilitado| N4[estado: deshabilitado]
+    N2 -->|Sí y habilitado| N5[enviar_notificacion<br/>best-effort]
+    N5 -->|Aceptado| N6[estado: enviado]
+    N5 -->|Fallo SMTP| N7[estado: fallo<br/>detalle: motivo técnico]
+    N3 --> U[200 OK<br/>ValidarResponse JSON]
+    N4 --> U
+    N6 --> U
+    N7 --> U
     L --> V[finally: unlink temp file]
     O --> V
     P --> V
     U --> V
 ```
+
+> **Nota**: la notificación nunca cambia el código HTTP — todos los estados
+> de envío (incluido `fallo`) responden `200 OK`. Ver
+> `docs/CONTRATO_API.md` § "Notificación de observaciones por correo".
 
 ---
 
@@ -95,6 +108,9 @@ flowchart LR
 | Magic bytes | 422 | Cabecera no es `PK\x03\x04` (no es ZIP) |
 | DOCX corrupto | 422 | BadZipFile, KeyError (sin document.xml), ValueError, XML inválido |
 | Error interno | 500 | Cualquier otra excepción |
+
+> La notificación (`notificar`/`correo`) **no** genera códigos de error: es
+> best-effort y todos sus desenlaces (incluido `fallo`) responden `200`.
 
 ---
 
