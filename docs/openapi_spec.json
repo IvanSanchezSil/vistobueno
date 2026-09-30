@@ -85,7 +85,13 @@
               }
             ],
             "title": "Correo",
-            "description": "Correo electrónico del estudiante (opcional). Se usará para notificar resultados cuando el envío esté habilitado."
+            "description": "Correo electrónico del estudiante (opcional). Destinatario de las observaciones cuando se solicita el envío (campo `notificar`)."
+          },
+          "notificar": {
+            "type": "boolean",
+            "title": "Notificar",
+            "description": "Solicitar el envío del correo de observaciones al estudiante (opt-in del operador). Solo aplica con semáforo rojo y un `correo` válido.",
+            "default": false
           }
         },
         "type": "object",
@@ -100,11 +106,12 @@
           "enviado",
           "fallo",
           "sin_correo",
+          "no_solicitado",
           "sin_observaciones",
           "deshabilitado"
         ],
         "title": "EstadoNotificacionAPI",
-        "description": "Estado del envío del correo de observaciones al estudiante.\n\nLa herramienta es de uso interno (personal del repositorio): el estado\ndescribe qué pasó con el envío para que el operador pueda informar al\nestudiante o reintentar manualmente."
+        "description": "Estado del envío del correo de observaciones al estudiante.\n\nLa herramienta es de uso interno (personal del repositorio): el estado\ndescribe qué pasó con el envío para que el operador pueda informar al\nestudiante o reintentar manualmente. El envío es opt-in por solicitud\n(campo `notificar`): el operador decide cuándo el reporte está listo\npara llegarle al estudiante."
       },
       "MetadatosValidacion": {
         "properties": {
@@ -312,7 +319,7 @@
           },
           "notificacion": {
             "$ref": "#/components/schemas/NotificacionAPI",
-            "description": "Estado del envío del correo de observaciones al estudiante. Solo se intenta el envío cuando hay observaciones bloqueantes (semáforo \"rojo\"), se envió un campo `correo` válido y la notificación está habilitada en el servidor."
+            "description": "Estado del envío del correo de observaciones al estudiante. El envío es opt-in (campo de formulario `notificar`): solo se intenta cuando el operador lo solicita, hay observaciones bloqueantes (semáforo \"rojo\"), se envió un campo `correo` válido y la notificación está habilitada en el servidor."
           },
           "resumen": {
             "$ref": "#/components/schemas/ResumenValidacion",
