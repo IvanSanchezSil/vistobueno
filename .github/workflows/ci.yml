@@ -35,3 +35,18 @@ jobs:
 
       - name: Verify OpenAPI spec is in sync
         run: nix develop --command python3 scripts/generate_openapi.py --check
+
+  # Build del frontend con el Node LTS del flake (fuente de verdad de
+  # dependencias). Job separado para correr en paralelo con `check`.
+  frontend:
+    name: Build frontend (vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build frontend (npm ci + vite build)
+        run: nix develop --command sh -c "cd frontend && npm ci && npm run build"

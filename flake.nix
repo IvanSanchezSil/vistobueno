@@ -50,6 +50,9 @@
             pkgs.ocrmypdf
             tesseractSpa
             pkgs.poppler-utils
+            # Node LTS: toolchain del frontend (npm ci && npm run build).
+            # La versión queda fijada por flake.lock.
+            pkgs.nodejs
           ];
 
           shellHook = ''
@@ -64,6 +67,7 @@
             echo "  nix flake check                                # tests + verificación"
             echo "  ruff check validator/ scripts/ tests/          # lint Python"
             echo "  mypy validator/ scripts/                       # tipos Python"
+            echo "  cd frontend && npm ci && npm run build         # build del frontend"
             echo "  python3 scripts/generate_openapi.py            # regenerar OpenAPI spec"
             echo "  python3 scripts/eval_contra_plantillas.py recursos/  # evaluar batch"
             echo ""
