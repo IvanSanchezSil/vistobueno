@@ -162,6 +162,15 @@ footer {
 }
 .badge-notif.ok { background: #e8f5e9; color: #2e7d32; }
 .badge-notif.fail { background: #ffebee; color: #c62828; }
+.badge-notif.warn { background: #fff8e1; color: #b26a00; }
+.badge-notif.info { background: #e3f2fd; color: #1565c0; }
+.badge-notif-detalle {
+  display: block;
+  margin-top: .25rem;
+  font-weight: 400;
+  font-size: .7rem;
+  word-break: break-word;
+}
 
 /* --- Resumen --- */
 .resumen { display: flex; gap: .6rem; margin-top: .8rem; flex-wrap: wrap; }
@@ -314,6 +323,39 @@ footer {
   font-size: .75rem;
   color: var(--rojo);
   font-weight: 600;
+}
+/* Opt-in de notificación: casilla junto al campo de correo.
+   Se deshabilita sin correo válido (sin correo no hay notificación posible). */
+.campo-correo label.check-notificar {
+  display: flex;
+  align-items: flex-start;
+  gap: .45rem;
+  margin-top: .55rem;
+  margin-bottom: 0;
+  font-weight: 500;
+  font-size: .8rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.campo-correo label.check-notificar input[type="checkbox"] {
+  width: auto;
+  margin: .1rem 0 0;
+  padding: 0;
+  border: none;
+  accent-color: var(--verde);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.campo-correo label.check-notificar.disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.campo-correo label.check-notificar.disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+.campo-correo label.check-notificar input:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
 }
 .archivo { margin-top: .8rem; border: 1px solid var(--gris-oscuro); border-radius: 8px; padding: .7rem; }
 .archivo .fila { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
@@ -535,6 +577,14 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
 .dark .badge-notif.fail, [data-theme="dark"] .badge-notif.fail {
   background: #4a1515;
   color: #ff8a80;
+}
+.dark .badge-notif.warn, [data-theme="dark"] .badge-notif.warn {
+  background: #3a2a10;
+  color: #ffcc80;
+}
+.dark .badge-notif.info, [data-theme="dark"] .badge-notif.info {
+  background: #0d2b45;
+  color: #90caf9;
 }
 .dark .resultado, [data-theme="dark"] .resultado {
   border-color: var(--gris-oscuro);

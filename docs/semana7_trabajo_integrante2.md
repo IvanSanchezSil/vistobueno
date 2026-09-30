@@ -88,6 +88,42 @@ El producto ahora se orienta al **personal de la sede (Repositorio FECyC)**, no 
 
 > **Nota**: §3 confirma que el contrato API no cambia esta semana (correo sigue siendo opcional; sin él el endpoint se comporta igual). §4 indica envío real ~S6/S7 con credenciales SMTP institucionales.
 
+### Tercera tanda — `Arreglos.txt` v3 (notificación por correo: opt-in + estados)
+
+Se describió el contenido del **PR #37** (`semana5-notificacion-correo`, backend), que extiende la respuesta de `POST /validar` a **v1.3.0 (aditivo)** y agrega el envío opt-in de observaciones. Frontend preparado en consecuencia:
+
+#### §1 — Respuesta `notificacion: { estado, detalle }` (C15)
+
+El campo deja de ser `{ enviado: boolean }` y pasa a un objeto con 6 estados (contrato `NotificacionAPI` / `EstadoNotificacionAPI`):
+
+| `estado` | Qué muestra el badge |
+|----------|----------------------|
+| `enviado` | 🟢 "Enviamos las observaciones al correo del estudiante." |
+| `fallo` | 🔴 "No se pudieron enviar..." + **detalle técnico** (`SMTPAuthenticationError: 535 ...`) para reintentar o enviar manualmente |
+| `sin_correo` | 🟠 Pide el correo del estudiante en el formulario de carga |
+| `no_solicitado` | 🔵 Ofrece la casilla de envío (opt-in) en el formulario |
+| `sin_observaciones` / `deshabilitado` | Sin badge (nada relevante) |
+
+- `Report.jsx`: nueva función `badgeNotificacion(notif)` con el mapa anterior; solo se renderiza si `estado` es string (retrocompatible: backend anterior sin el campo → sin badge, sin romper).
+- `mocks.js`: `notificacion: { estado: 'enviado', detalle: null }`.
+- CSS: `.badge-notif.warn` (ámbar), `.badge-notif.info` (azul), `.badge-notif-detalle` (detalle técnico en bloque secundario) + variantes dark mode.
+
+#### §2 — Casilla opt-in `notificar` (C16)
+
+- Nuevo checkbox en `Upload.jsx` **junto al campo de correo**: *"Enviar observaciones por correo al estudiante"*.
+- **Habilitada solo con correo válido** (sin correo no hay notificación posible): si el operador borra o invalida el correo, la casilla se desmarca y deshabilita.
+- En `validate()`: `if (notificar && correo && esCorreoValido(correo)) form.append('notificar', 'true')` — el backend interpreta la ausencia como `false` (default).
+- Envío efectivo solo si se cumplen **todas**: `notificar=true`, correo válido, semáforo rojo y SMTP habilitado en el servidor → así el estudiante no recibe correo por validaciones intermedias.
+- CSS `.check-notificar` (incl. estados `disabled`, `focus-visible`, dark mode); `mockups/carga.html` sincronizado (casilla + lógica mínima que la habilita con correo válido).
+- Docs actualizados: `01_requisitos_interfaz.md` (RF-26 nuevo; RF-12 y RF-20 ajustados), `03_wireframes.md` (bloque correo + casilla en escritorio ×3 y móvil), `README.md` (flujo y estado actual).
+
+#### Verificación
+
+- Backend del PR #37 en `:8001`: con correo → `{"estado":"deshabilitado","detalle":null}` (SMTP apagado); sin correo → `{"estado":"sin_correo"}`.
+- Backend `master` en `:8000`: acepta el campo extra `notificar` sin romperse (HTTP 200, sin `notificacion` → la UI no muestra badge).
+- Proxy Vite `:5173` → `:8000`: 200 (docx), 415 (.txt), 422 (correo inválido) — todos con `detail` español.
+- `npm run build` OK; `pytest` 192 passed / 21 skipped.
+
 ---
 
 ## Evidencias

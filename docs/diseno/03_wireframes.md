@@ -41,6 +41,14 @@
 │  │                                                                 │  │   │
 │  │  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  │   │
 │  │                                                                     │   │
+│  │  Correo del estudiante (opcional)                                  │   │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │   │
+│  │  │ estudiante@correo.unt.edu.pe                                 │  │   │
+│  │  └──────────────────────────────────────────────────────────────┘  │   │
+│  │  ☐ Enviar observaciones por correo al estudiante                   │   │
+│  │  (habilitada solo con correo válido; el envío se intenta           │   │
+│  │  solo con errores bloqueantes y notificaciones activas)            │   │
+│  │                                                                    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -68,6 +76,14 @@
 │  │  Adjunte el documento en formato DOCX y obtenga un reporte         │   │
 │  │  automático de cumplimiento con las directivas de formato de la UNT.│   │
 │  │                                                                     │   │
+│  │  Correo del estudiante (opcional)                                  │   │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │   │
+│  │  │ estudiante@correo.unt.edu.pe                                 │  │   │
+│  │  └──────────────────────────────────────────────────────────────┘  │   │
+│  │  ☐ Enviar observaciones por correo al estudiante                   │   │
+│  │  (habilitada solo con correo válido; el envío se intenta           │   │
+│  │  solo con errores bloqueantes y notificaciones activas)            │   │
+│  │                                                                    │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
 │  │  │                                                             │   │   │
 │  │  │  ┌──────┐                                                   │   │   │
@@ -111,6 +127,14 @@
 │  │               └─────────────────────┘                            │  │   │
 │  │  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘  │   │
 │  │                                                                     │   │
+│  │  Correo del estudiante (opcional)                                  │   │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │   │
+│  │  │ estudiante@correo.unt.edu.pe                                 │  │   │
+│  │  └──────────────────────────────────────────────────────────────┘  │   │
+│  │  ☐ Enviar observaciones por correo al estudiante                   │   │
+│  │  (habilitada solo con correo válido; el envío se intenta           │   │
+│  │  solo con errores bloqueantes y notificaciones activas)            │   │
+│  │                                                                    │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
 │  │  │  ✕ No se pudo procesar el archivo.                          │   │   │
 │  │  │     Formato no soportado. Debe subirse un archivo DOCX.│   │   │
@@ -320,6 +344,8 @@
 │  ┌───────────┐   │
 │  │estudiante@│   │
 │  └───────────┘   │
+│  ☐ Enviar correo │
+│    al estudiante │
 │                   │
 └───────────────────┘
 ```
