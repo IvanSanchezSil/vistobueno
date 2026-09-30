@@ -19,6 +19,21 @@ class SeveridadAPI(StrEnum):
     WARNING = "warning"
 
 
+class EstadoNotificacionAPI(StrEnum):
+    """Estado del envío del correo de observaciones al estudiante.
+
+    La herramienta es de uso interno (personal del repositorio): el estado
+    describe qué pasó con el envío para que el operador pueda informar al
+    estudiante o reintentar manualmente.
+    """
+
+    ENVIADO = "enviado"
+    FALLO = "fallo"
+    SIN_CORREO = "sin_correo"
+    SIN_OBSERVACIONES = "sin_observaciones"
+    DESHABILITADO = "deshabilitado"
+
+
 class ResultadoReglaAPI(BaseModel):
     """Resultado de una regla individual en la respuesta de la API.
 
@@ -89,6 +104,22 @@ class MetadatosValidacion(BaseModel):
     version_esquema: str = Field(..., description="Versión del esquema YAML de reglas")
 
 
+class NotificacionAPI(BaseModel):
+    """Estado de la notificación por correo de observaciones.
+
+    Exposición para el personal del repositorio: con `estado` "enviado" la
+    interfaz puede informar "enviamos las observaciones al correo del
+    estudiante"; con "fallo", el `detalle` explica el motivo técnico para
+    reintentar o enviar manualmente.
+    """
+
+    estado: EstadoNotificacionAPI = Field(..., description="Veredicto del envío")
+    detalle: str | None = Field(
+        default=None,
+        description="Motivo técnico cuando el envío falló; None en el resto de casos",
+    )
+
+
 class ValidarResponse(BaseModel):
     """Respuesta completa del endpoint POST /validar.
 
@@ -98,6 +129,15 @@ class ValidarResponse(BaseModel):
 
     semaforo: str = Field(
         ..., description='"verde" si todas las reglas error pasan, "rojo" si alguna falla'
+    )
+    notificacion: NotificacionAPI = Field(
+        default_factory=lambda: NotificacionAPI(estado=EstadoNotificacionAPI.SIN_CORREO),
+        description=(
+            "Estado del envío del correo de observaciones al estudiante. "
+            "Solo se intenta el envío cuando hay observaciones bloqueantes "
+            '(semáforo "rojo"), se envió un campo `correo` válido y la '
+            "notificación está habilitada en el servidor."
+        ),
     )
     resumen: ResumenValidacion = Field(..., description="Resumen cuantitativo")
     resultados: list[ResultadoReglaAPI] = Field(..., description="Resultados por regla")
@@ -112,6 +152,7 @@ class ValidarResponse(BaseModel):
             "examples": [
                 {
                     "semaforo": "verde",
+                    "notificacion": {"estado": "sin_correo", "detalle": None},
                     "resumen": {
                         "total": 47,
                         "fallidos_error": 0,

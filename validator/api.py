@@ -19,7 +19,9 @@ from email_validator import EmailNotValidError, validate_email
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 
 from .api_models import (
+    EstadoNotificacionAPI,
     MetadatosValidacion,
+    NotificacionAPI,
     PromptIA,
     ResultadoReglaAPI,
     ResumenValidacion,
@@ -28,6 +30,7 @@ from .api_models import (
 )
 from .engine import build_report, load_rules, validate_docx
 from .models import RuleResult
+from .notificacion import ConfigSMTP, enviar_notificacion
 from .prompts import build_ai_help_section
 
 # ---------------------------------------------------------------------------
@@ -115,9 +118,9 @@ def _validar_correo(correo: str | None) -> str | None:
     - Si se envía, debe tener formato de correo válido; si no, lanza 422
       con mensaje descriptivo en español.
 
-    El endpoint descarta el valor retornado por ahora: la normalización
-    queda como cimientos para la Actividad 6 (notificación por correo),
-    que usará el correo normalizado como destinatario.
+    El valor normalizado retornado es el destinatario de la notificación de
+    observaciones (Actividad 6): se envía un correo cuando el semáforo es
+    "rojo", la notificación está habilitada y el servidor SMTP acepta el envío.
     """
     if correo is None:
         return None
@@ -145,7 +148,7 @@ def _validar_correo(correo: str | None) -> str | None:
 app = FastAPI(
     title="VistoBueno API",
     description="API de validación automática de formato de tesis — UNT FECyC",
-    version="1.2.0",
+    version="1.3.0",
 )
 
 
@@ -208,7 +211,7 @@ async def validar(
         )
 
     # --- Validación: correo electrónico (opcional) ---
-    _validar_correo(correo)
+    correo_normalizado = _validar_correo(correo)
 
     # --- Leer contenido (con tope) ---
     # Leer a lo sumo TAMANO_MAXIMO_BYTES + 1: evita cargar en memoria
@@ -266,7 +269,7 @@ async def validar(
             fallidos = [r for r in resultados_motor if not r.passed]
             prompts_data = build_ai_help_section(fallidos)
 
-        return _construir_respuesta(
+        respuesta = _construir_respuesta(
             resultados_motor=resultados_motor,
             reporte=reporte,
             prompts_data=prompts_data,
@@ -274,6 +277,35 @@ async def validar(
             archivo_tamano=tamano,
             rules_data=rules_data,
         )
+
+        # --- Notificación de observaciones (Actividad 6, best-effort) ---
+        # El estado se expone al personal del repositorio (herramienta de
+        # uso interno): "enviado" permite informar "enviamos las observaciones
+        # al correo del estudiante"; "fallo" incluye el motivo técnico.
+        # Solo se intenta el envío con observaciones bloqueantes (semáforo
+        # "rojo") y un `correo` válido. enviar_notificacion() NUNCA lanza:
+        # un fallo de SMTP no debe romper la respuesta HTTP de /validar.
+        estado = EstadoNotificacionAPI.SIN_CORREO
+        detalle: str | None = None
+        if correo_normalizado:
+            if respuesta.semaforo != "rojo":
+                estado = EstadoNotificacionAPI.SIN_OBSERVACIONES
+            else:
+                config_smtp = ConfigSMTP.desde_entorno()
+                if not config_smtp.enabled:
+                    estado = EstadoNotificacionAPI.DESHABILITADO
+                else:
+                    resultado_envio = enviar_notificacion(
+                        respuesta, correo_normalizado, config=config_smtp
+                    )
+                    if resultado_envio.enviado:
+                        estado = EstadoNotificacionAPI.ENVIADO
+                    else:
+                        estado = EstadoNotificacionAPI.FALLO
+                        detalle = resultado_envio.detalle
+        respuesta.notificacion = NotificacionAPI(estado=estado, detalle=detalle)
+
+        return respuesta
 
     except HTTPException:
         raise

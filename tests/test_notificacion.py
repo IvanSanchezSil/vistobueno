@@ -7,10 +7,10 @@ Cobertura:
   inclusión de rule_id/cita/ubicación, versión texto plano, caso defensivo
   verde.
 - enviar_notificacion: envío mocked (encabezados Date/Message-ID, From/To,
-  STARTTLS/login condicionales), fallo best-effort (nunca lanza),
-  deshabilitado por defecto.
-- Guardia de contrato: POST /validar no cambia su respuesta mientras la
-  notificación no esté cableada (ola 2).
+  STARTTLS/login condicionales), fallo best-effort (nunca lanza, expone
+  motivo en detalle), deshabilitado por defecto.
+- Guardia de contrato: POST /validar expone el estado de la notificación
+  (campo `notificacion` con `estado` y `detalle`).
 """
 
 import html
@@ -237,9 +237,11 @@ class TestPlantillaCorreo:
 
 class TestEnviarNotificacion:
     def test_deshabilitado_no_toca_smtp(self, smtp_falso):
-        """Config sin flag: retorna False y jamás abre conexión."""
+        """Config sin flag: no envía, explica el motivo y jamás abre conexión."""
         cfg = ConfigSMTP(host="127.0.0.1", notificaciones=False)
-        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg) is False
+        resultado = enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg)
+        assert resultado.enviado is False
+        assert "deshabilitadas" in resultado.detalle
         assert smtp_falso.instancias == []
 
     def test_envio_exitoso_arma_encabezados(self, smtp_falso):
@@ -250,7 +252,7 @@ class TestEnviarNotificacion:
             remitente="no-responder@unitru.edu.pe",
             notificaciones=True,
         )
-        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg) is True
+        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg).enviado is True
         (smtp,) = smtp_falso.instancias
         assert (smtp.host, smtp.port) == ("127.0.0.1", 8025)
         assert "send_message" in smtp.llamadas
@@ -272,7 +274,7 @@ class TestEnviarNotificacion:
             starttls=True,
             notificaciones=True,
         )
-        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg) is True
+        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg).enviado is True
         (smtp,) = smtp_falso.instancias
         assert "starttls" in smtp.llamadas
         assert ("login", "vistobueno", "clave-de-prueba") in smtp.llamadas
@@ -293,7 +295,10 @@ class TestEnviarNotificacion:
 
         monkeypatch.setattr(smtplib, "SMTP", SMTPRoto)
         cfg = ConfigSMTP(host="127.0.0.1", notificaciones=True)
-        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg) is False
+        resultado = enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg)
+        assert resultado.enviado is False
+        # El motivo técnico queda expuesto para el personal del repositorio
+        assert "ConnectionRefusedError" in resultado.detalle
 
     def test_error_smtp_en_login_tambien_es_best_effort(self, monkeypatch):
         class SMTPAuthRoto:
@@ -314,17 +319,30 @@ class TestEnviarNotificacion:
 
         monkeypatch.setattr(smtplib, "SMTP", SMTPAuthRoto)
         cfg = ConfigSMTP(host="smtp.unitru.edu.pe", user="u", password="p", notificaciones=True)
-        assert enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg) is False
+        resultado = enviar_notificacion(dto_rojo(), "destino@prueba.local", cfg)
+        assert resultado.enviado is False
+        assert "SMTPAuthenticationError" in resultado.detalle
 
 
 # ---------------------------------------------------------------------------
-# Guardia de contrato: la respuesta de /validar no cambia en esta ola
+# Guardia de contrato: la respuesta de /validar expone la notificación
 # ---------------------------------------------------------------------------
 
 
 class TestGuardiaContrato:
-    def test_respuesta_con_correo_mantiene_esquema(self):
-        """Con notificaciones no cableadas, la respuesta es idéntica a hoy."""
+    def test_respuesta_expone_estado_de_notificacion(self, monkeypatch):
+        """El esquema incluye `notificacion` (estado + detalle)."""
+        # Defensivo: si el entorno del desarrollador tiene SMTP configurado,
+        # el estado cambiaría. monkeypatch revierte al salir del test.
+        for var in (
+            "VISTOBUENO_SMTP_HOST",
+            "VISTOBUENO_SMTP_PORT",
+            "VISTOBUENO_SMTP_USER",
+            "VISTOBUENO_SMTP_PASSWORD",
+            "VISTOBUENO_SMTP_STARTTLS",
+            "VISTOBUENO_NOTIFICACIONES",
+        ):
+            monkeypatch.delenv(var, raising=False)
         with open(compilar_docx(configuracion_base()), "rb") as f:
             respuesta = CLIENTE.post(
                 "/validar",
@@ -340,8 +358,13 @@ class TestGuardiaContrato:
         assert respuesta.status_code == 200
         assert set(respuesta.json().keys()) == {
             "semaforo",
+            "notificacion",
             "resumen",
             "resultados",
             "como_preguntar_a_una_ia",
             "metadatos",
         }
+        # Documento base con rojo + correo válido, pero notificaciones
+        # deshabilitadas por defecto en el entorno de tests.
+        notificacion = respuesta.json()["notificacion"]
+        assert notificacion == {"estado": "deshabilitado", "detalle": None}

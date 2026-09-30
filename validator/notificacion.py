@@ -22,6 +22,7 @@ import os
 import smtplib
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
+from typing import NamedTuple
 
 from .api_models import ValidarResponse
 
@@ -243,17 +244,31 @@ def plantilla_correo(respuesta: ValidarResponse) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 
+class ResultadoEnvio(NamedTuple):
+    """Resultado de un intento de envío de notificación.
+
+    Atributos:
+        enviado: True si el servidor SMTP aceptó el mensaje.
+        detalle: Motivo técnico del fallo (o del descarte); None si se envió.
+            Pensado para el personal del repositorio, no para el estudiante.
+    """
+
+    enviado: bool
+    detalle: str | None
+
+
 def enviar_notificacion(
     respuesta: ValidarResponse,
     destino: str,
     config: ConfigSMTP | None = None,
-) -> bool:
+) -> ResultadoEnvio:
     """Envía el correo de observaciones al estudiante.
 
-    Devuelve True si el envío fue aceptado por el servidor SMTP; False en
-    cualquier otro caso (deshabilitado, conexión rechazada, error SMTP,
-    timeout). NUNCA lanza: un fallo de notificación no debe romper la
-    respuesta HTTP de POST /validar.
+    Devuelve ResultadoEnvio(enviado=True, detalle=None) si el servidor SMTP
+    aceptó el mensaje; en cualquier otro caso (deshabilitado, conexión
+    rechazada, error SMTP, timeout) devuelve ResultadoEnvio(False, motivo).
+    NUNCA lanza: un fallo de notificación no debe romper la respuesta HTTP
+    de POST /validar.
 
     Args:
         respuesta: DTO con el reporte de validación.
@@ -262,11 +277,14 @@ def enviar_notificacion(
             lee del entorno.
 
     Returns:
-        True si se envió; False en caso contrario.
+        ResultadoEnvio con el veredicto y, si falló, el motivo.
     """
     cfg = config if config is not None else ConfigSMTP.desde_entorno()
     if not cfg.enabled:
-        return False
+        return ResultadoEnvio(
+            enviado=False,
+            detalle="notificaciones deshabilitadas o sin servidor SMTP configurado",
+        )
 
     cuerpo_html, cuerpo_texto = plantilla_correo(respuesta)
 
@@ -290,10 +308,9 @@ def enviar_notificacion(
             if cfg.user:
                 smtp.login(cfg.user, cfg.password)
             smtp.send_message(msg)
-        return True
-    # Nota: los paréntesis son obligatorios en Python < 3.14; mantenerlos
-    # evita SyntaxError si este módulo se ejecuta fuera del entorno Nix.
-    except (OSError, smtplib.SMTPException):
+        return ResultadoEnvio(enviado=True, detalle=None)
+    except (OSError, smtplib.SMTPException) as e:
         # Conexión rechazada, timeout, fallo de EHLO/STARTTLS/AUTH o del propio
-        # envío: notificación best-effort, se registra silenciosamente.
-        return False
+        # envío: notificación best-effort. Se registra el motivo técnico para
+        # que la respuesta de la API pueda exponerlo al personal del repositorio.
+        return ResultadoEnvio(enviado=False, detalle=f"{type(e).__name__}: {e}")
