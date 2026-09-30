@@ -69,6 +69,17 @@ Frontend (React)
 - Si trabajas en el frontend, coordina con Integrante 1 antes de cambiar el contrato de la API.
 - El merge a `master` lo hace el integrante que terminó la tarea, después de verificar que todo funciona.
 
+### Protección del CI
+
+El CI es la barrera de calidad del proyecto y **no se debilita para hacer pasar un PR**:
+
+- Un PR no se mergea con checks rojos: se arregla la causa, no el check.
+- No se eliminan, comentan, saltan ni relajan pasos de `.github/workflows/ci.yml` sin aprobación explícita del equipo, justificada en el PR.
+- El workflow vive **solo** en `.github/workflows/ci.yml` (nombre canónico referenciado por la documentación). No se renombra, duplica ni restaura desde copias antiguas.
+- Prohibido: `git push --no-verify`, `[ci skip]` / `[skip ci]` en mensajes de commit, `continue-on-error` para tapar fallos, y deshabilitar workflows desde la interfaz de GitHub.
+- Toda área con verificación propia (frontend, scripts, motor) debe tener su paso en CI: "lo probé a mano" no es verificación.
+- Todo cambio al CI debe mostrar el pipeline verde en su propio PR.
+
 ### Commits
 
 - **Un commit por tarea lógica** (atómico).
@@ -217,7 +228,7 @@ Al entrar, el shellHook muestra los comandos disponibles. Herramientas principal
 | `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
 | `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |
 
-Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng).
+Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng), Node.js LTS (build del frontend).
 
 ### Gestión de dependencias
 
