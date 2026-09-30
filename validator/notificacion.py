@@ -291,7 +291,9 @@ def enviar_notificacion(
                 smtp.login(cfg.user, cfg.password)
             smtp.send_message(msg)
         return True
-    except OSError, smtplib.SMTPException:
+    # Nota: los paréntesis son obligatorios en Python < 3.14; mantenerlos
+    # evita SyntaxError si este módulo se ejecuta fuera del entorno Nix.
+    except (OSError, smtplib.SMTPException):
         # Conexión rechazada, timeout, fallo de EHLO/STARTTLS/AUTH o del propio
         # envío: notificación best-effort, se registra silenciosamente.
         return False

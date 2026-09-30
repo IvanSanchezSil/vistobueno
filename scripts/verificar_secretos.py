@@ -90,7 +90,9 @@ def verificar_archivo(ruta: Path) -> list[str]:
     violaciones: list[str] = []
     try:
         texto = ruta.read_text(encoding="utf-8", errors="replace")
-    except OSError, UnicodeDecodeError:
+    # Nota: los paréntesis son obligatorios en Python < 3.14; la CI ejecuta
+    # este script con el python3 del runner, no con el 3.14 del entorno Nix.
+    except (OSError, UnicodeDecodeError):
         # Legibilidad ante archivos raros: no se puede verificar y no se
         # bloquea; la capa de asignaciones es la protección principal.
         return violaciones
