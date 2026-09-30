@@ -270,9 +270,9 @@ bytes truncado, 6 de correo). `ruff` y `mypy` limpios en `validator/`.
 - [x] Actualizar FLUJO_API.md (diagrama + tabla de validaciones)
 - [x] Regenerar `openapi_spec.json` a v1.2.0
 - [x] Suite completa: 213/213 tests, ruff y mypy limpios
-- [ ] **Actividad 5 cerrada** (evidencia consolidada en esta bitácora)
-- [ ] Actualizar conteo de suite en `AGENTS.md` y `00_indice_diseno.md` (aprobado)
-- [ ] Push de la rama `semana4-cierre-actividad5` + PR (esperando orden de Master)
+- [x] **Actividad 5 cerrada** (evidencia consolidada en esta bitácora)
+- [x] Actualizar conteo de suite en `AGENTS.md` y `00_indice_diseno.md` (aprobado)
+- [x] Push de la rama `semana4-cierre-actividad5` + PR (mergeado como PR #32)
 
 ---
 
@@ -286,3 +286,7 @@ bytes truncado, 6 de correo). `ruff` y `mypy` limpios en `validator/`.
 - Coordinar con Integrante 2 el campo adicional `correo` antes de abrir el PR.
 - Solicitar credenciales SMTP y acceso DSpace al responsable de la sede
   (Salcedo Quiñones) para no bloquear las semanas 6–7.
+
+> Nota (28/09/2026): las semanas citadas en esta sección corresponden al
+> cronograma de la versión del plan anterior a la revisión v6, que reubicó la
+> Actividad 6 en S7–S9 y la Actividad 9 en S11–S12.

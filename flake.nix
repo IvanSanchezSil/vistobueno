@@ -16,6 +16,7 @@
           uvicorn
           pydantic
           email-validator
+          aiosmtpd
           pyyaml
           python-docx
           pymupdf
@@ -58,6 +59,8 @@
             echo "Comandos disponibles:"
             echo "  nix run .#test -- tests/ -v                    # ejecutar tests"
             echo "  nix run .#serve -- validator.api:app --reload  # iniciar API"
+            echo "  nix run .#smtp-dev                              # sink SMTP local (127.0.0.1:8025)"
+            echo "  nix run .#test-local                            # e2e local: API + sink SMTP"
             echo "  nix flake check                                # tests + verificación"
             echo "  ruff check validator/ scripts/ tests/          # lint Python"
             echo "  mypy validator/ scripts/                       # tipos Python"
@@ -79,6 +82,28 @@
           serve = {
             type = "app";
             program = "${pythonEnv}/bin/uvicorn";
+          };
+
+          # Sink SMTP local (aiosmtpd) para probar notificaciones sin
+          # credenciales reales: acepta SMTP plano en 127.0.0.1:8025.
+          smtp-dev = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "smtp-dev" ''
+              exec ${pythonEnv}/bin/aiosmtpd -n -l 127.0.0.1:8025
+            '');
+          };
+
+          # Prueba local end-to-end: levanta la API + el sink SMTP y valida
+          # el flujo de notificación. Ejecutar desde la raíz del repo.
+          test-local = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "test-local" ''
+              if [ ! -f "$PWD/scripts/servidor_pruebas.py" ]; then
+                echo "Error: ejecutar desde la raíz del repositorio (nix run .#test-local)"
+                exit 1
+              fi
+              exec ${pythonEnv}/bin/python3 "$PWD/scripts/servidor_pruebas.py" "$@"
+            '');
           };
         };
 

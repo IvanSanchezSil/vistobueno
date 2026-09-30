@@ -21,8 +21,9 @@ Frontend (React)
       → extractor DOCX (validator/extractor.py)
       → motor de reglas (validator/engine.py)
       → generador de prompts IA (validator/prompts.py)
+      → notificación por correo (validator/notificacion.py, opt-in + best-effort)
     → respuesta JSON (ValidarResponse)
-  ← semáforo + resumen + resultados + prompts IA + metadatos
+  ← semáforo + notificación + resumen + resultados + prompts IA + metadatos
 ```
 
 ### Componentes existentes
@@ -35,10 +36,13 @@ Frontend (React)
 | **Checks** | `validator/checks.py` | Ejecuta checks individuales (xpath, atributos, regex) |
 | **Prompts IA** | `validator/prompts.py` | Genera prompts template para reglas fallidas |
 | **Exportador Markdown/PDF** | `validator/exportador.py` | Exporta reportes a Markdown y PDF |
+| **Notificación por correo** | `validator/notificacion.py` | Envía las observaciones al estudiante por SMTP (opt-in, best-effort; Actividad 6) |
 | **API** | `validator/api.py` | Endpoint FastAPI `POST /validar` |
 | **DTOs API** | `validator/api_models.py` | Modelos Pydantic de respuesta (campos en español) |
 | **CLI referencia** | `validator/cli.py` | Validador desde línea de comandos |
 | **Tests exportador** | `tests/test_exportador.py` | Tests de exportación Markdown/PDF |
+| **Tests notificación** | `tests/test_notificacion.py` | Tests unitarios + E2E con sink SMTP (aiosmtpd) |
+| **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP en commits (pre-commit + CI) |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
 | **Reglas DSL (producción)** | `reglas_unt.yaml` | 47 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
 
@@ -208,6 +212,7 @@ Al entrar, el shellHook muestra los comandos disponibles. Herramientas principal
 |---------|----------|
 | `nix run .#test -- tests/ -v` | Ejecuta la suite de tests |
 | `nix run .#serve -- validator.api:app --reload` | Inicia la API en desarrollo |
+| `nix run .#smtp-dev` | Sink SMTP local (aiosmtpd en 127.0.0.1:8025) para probar notificaciones |
 | `nix flake check` | Verificación completa (tests + lint del flake) |
 | `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
 | `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |
@@ -289,7 +294,7 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (47 reglas, doc bueno 45/47, suite 213 tests) se
+> Los conteos declarados aquí (47 reglas, doc bueno 45/47, suite 244 tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
 
 ### Cómo agregar una regla nueva al YAML
@@ -329,7 +334,7 @@ Cada integrante tiene su área para evitar conflictos de merge:
 
 | Integrante | Puede modificar | No debe modificar (sin coordinar) |
 |------------|-----------------|-----------------------------------|
-| Integrante 1 (Backend) | `api.py`, `api_models.py`, `tests/`, `docs/CONTRATO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
+| Integrante 1 (Backend) | `api.py`, `api_models.py`, `notificacion.py`, `scripts/verificar_secretos.py`, `tests/`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
 | Integrante 2 (Frontend) | `frontend/` (React), `docs/` | `validator/` (coordina con Int1) |
 | Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
 
@@ -368,6 +373,7 @@ vistobueno/
 │   ├── checks.py                      # Checks individuales (xpath, atributos, regex)
 │   ├── prompts.py                     # Generador de prompts "cómo preguntar a una IA"
 │   ├── exportador.py                  # Exporta reportes a Markdown y PDF
+│   ├── notificacion.py                # Notificación de observaciones por SMTP (Actividad 6)
 │   ├── api.py                         # FastAPI endpoint POST /validar
 │   ├── api_models.py                  # Pydantic DTOs (ValidarResponse, etc.)
 │   ├── cli.py                         # CLI de referencia
@@ -385,6 +391,10 @@ vistobueno/
 │   ├── test_paridad_formatos.py       # Paridad legacy vs DSL
 │   ├── test_propiedad.py              # Tests de propiedad (factory + mutaciones)
 │   ├── test_exportador.py             # Tests de exportación a Markdown/PDF
+│   ├── test_notificacion.py           # Tests unitarios + E2E de notificación (sink aiosmtpd)
+│   ├── test_verificar_secretos.py     # Tests del escáner de secretos SMTP
+│   ├── conftest.py                    # Cliente de prueba y fixtures compartidos
+│   ├── _docx_generator.py             # Generador de DOCX de tamaño controlado (tests 413)
 │   ├── docx_factory.py                # Factory determinista de DOCX
 │   ├── _docx_builder.py               # Builder interno de DOCX
 │   ├── _mutations.py                  # Mutaciones sincronizadas con reglas_unt.yaml
@@ -407,6 +417,7 @@ vistobueno/
 │   ├── evaluar_paridad_plantillas.py  # Paridad legacy vs DSL (recursos/)
 │   ├── migrar_legacy_a_dsl.py         # Migra YAML legacy → DSL
 │   ├── ocr_pdfs.py                    # OCR de reglamentos escaneados
+│   ├── verificar_secretos.py          # Escáner de credenciales SMTP (pre-commit + CI)
 │   └── generate_openapi.py            # Regenerar especificación OpenAPI
 ├── frontend/                          # React + Vite (en desarrollo)
 │   ├── src/
@@ -430,7 +441,10 @@ vistobueno/
 8. `build_report()` agrupa los resultados, calcula el semáforo y el resumen.
 9. `build_ai_help_section()` genera prompts template para las reglas fallidas.
 10. `api.py` mapea los resultados del motor a los DTOs Pydantic (campos en español).
-11. La respuesta JSON se devuelve al frontend.
+11. Si el operador marcó `notificar` y hay `correo` válido con semáforo rojo,
+    `notificacion.py` envía el correo de observaciones (best-effort: un fallo
+    SMTP nunca rompe la respuesta; el estado queda en `notificacion.estado`).
+12. La respuesta JSON se devuelve al frontend.
 
 ### Capa de abstracción: motor vs API
 
