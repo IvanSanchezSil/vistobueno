@@ -8,6 +8,8 @@ import { useState, useCallback, useRef } from 'react'
 //  - Sin conexión / proxy sin backend → mock como modo demo (avisado en Report).
 function Upload({ onValidated, apiUrl }) {
   const [file, setFile] = useState(null)
+  const [correo, setCorreo] = useState('')
+  const [correoError, setCorreoError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [dragActivo, setDragActivo] = useState(false)
@@ -17,6 +19,17 @@ function Upload({ onValidated, apiUrl }) {
   const acceptedTypes = [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ]
+
+  // Validación de formato de correo en el cliente para evitar un 422 innecesario.
+  // Si llega a llegarse con formato inválido, el backend responde 422 con
+  // detail en español que el banner actual ya muestra (sin cambios).
+  const esCorreoValido = (c) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)
+
+  const onCorreoChange = (e) => {
+    const v = e.target.value
+    setCorreo(v)
+    setCorreoError(v && !esCorreoValido(v) ? 'Formato de correo inválido (ej: correo@ejemplo.com).' : null)
+  }
 
   const validarArchivo = (selected) => {
     if (!selected) return false
@@ -88,6 +101,13 @@ function Upload({ onValidated, apiUrl }) {
 
   const validate = async () => {
     if (!file || loading) return
+    // Correo opcional, pero si se escribió con formato inválido NO se valida:
+    // el correo viaja en esta misma solicitud, así que omitirlo en silencio
+    // enviaría el reporte sin notificar al estudiante.
+    if (correo && correoError) {
+      setError('El correo del estudiante tiene un formato inválido. Corrija o deje el campo vacío para validar sin notificación.')
+      return
+    }
     setLoading(true)
     setError(null)
     try {
@@ -95,6 +115,8 @@ function Upload({ onValidated, apiUrl }) {
       try {
         const form = new FormData()
         form.append('archivo', file)
+        // Correo del estudiante (opcional): viaja en la MISMA solicitud POST /validar.
+        if (correo && esCorreoValido(correo)) form.append('correo', correo)
         res = await fetch(`${apiUrl}/validar`, {
           method: 'POST',
           body: form,
@@ -146,10 +168,10 @@ function Upload({ onValidated, apiUrl }) {
   return (
     <main>
       <div className="card">
-        <h2>Sube tu tesis</h2>
+        <h2>Validar documento de tesis</h2>
         <p className="intro">
-          Adjunta tu documento en formato <strong>DOCX</strong> y
-          recibe un reporte automático de cumplimiento con las directivas de formato de la UNT.
+          Adjunte el documento en formato <strong>DOCX</strong> para
+          obtener un reporte automático de cumplimiento con las directivas de formato de la UNT.
         </p>
 
         <div
@@ -160,8 +182,8 @@ function Upload({ onValidated, apiUrl }) {
           onClick={onDropzoneClick}
         >
           <div className="icono" aria-hidden="true">📄</div>
-          <div className="txt-principal">{loading ? 'Validando tu documento…' : 'Arrastra tu archivo aquí'}</div>
-          <div className="txt-sec">o selecciónalo desde tu computadora</div>
+          <div className="txt-principal">{loading ? 'Validando documento…' : 'Arrastre el archivo aquí'}</div>
+          <div className="txt-sec">o selecciónelo desde la computadora</div>
 
           <input
             type="file"
@@ -178,6 +200,29 @@ function Upload({ onValidated, apiUrl }) {
           <div className="nota-formatos">
             Formato permitido: .docx · Tamaño máximo: 10 MB
           </div>
+        </div>
+
+        <div className="campo-correo">
+          <label htmlFor="correo-estudiante">
+            Correo del estudiante <span className="opcional">(opcional)</span>
+          </label>
+          <input
+            type="email"
+            id="correo-estudiante"
+            placeholder="estudiante@correo.unt.edu.pe"
+            value={correo}
+            onChange={onCorreoChange}
+            disabled={loading}
+            aria-invalid={correoError ? 'true' : 'false'}
+            aria-describedby={correoError ? 'correo-error' : 'correo-ayuda'}
+          />
+          {correoError ? (
+            <div id="correo-error" className="campo-error" role="alert">{correoError}</div>
+          ) : (
+            <div id="correo-ayuda" className="campo-ayuda">
+              El correo se usará únicamente para enviar el reporte de validación al estudiante.
+            </div>
+          )}
         </div>
 
         {file && (
@@ -200,7 +245,12 @@ function Upload({ onValidated, apiUrl }) {
                 >
                   ✕
                 </button>
-                <button className="btn-validar" onClick={validate} disabled={loading}>
+                <button
+                  className="btn-validar"
+                  onClick={validate}
+                  disabled={loading || !!(correo && correoError)}
+                  title={correo && correoError ? 'Corrija el correo del estudiante o déjelo vacío' : undefined}
+                >
                   {loading ? (
                     <><span className="spinner" aria-hidden="true"></span> Validando…</>
                   ) : (
