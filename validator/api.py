@@ -178,7 +178,16 @@ async def validar(
         default=None,
         description=(
             "Correo electrónico del estudiante (opcional). "
-            "Se usará para notificar resultados cuando el envío esté habilitado."
+            "Destinatario de las observaciones cuando se solicita el envío "
+            "(campo `notificar`)."
+        ),
+    ),
+    notificar: bool = Form(
+        default=False,
+        description=(
+            "Solicitar el envío del correo de observaciones al estudiante "
+            "(opt-in del operador). Solo aplica con semáforo rojo y un "
+            "`correo` válido."
         ),
     ),
 ):
@@ -282,13 +291,17 @@ async def validar(
         # El estado se expone al personal del repositorio (herramienta de
         # uso interno): "enviado" permite informar "enviamos las observaciones
         # al correo del estudiante"; "fallo" incluye el motivo técnico.
-        # Solo se intenta el envío con observaciones bloqueantes (semáforo
-        # "rojo") y un `correo` válido. enviar_notificacion() NUNCA lanza:
-        # un fallo de SMTP no debe romper la respuesta HTTP de /validar.
+        # El envío es opt-in por solicitud (`notificar`): el operador decide
+        # cuándo el reporte está listo para llegarle al estudiante. Se exige
+        # además semáforo "rojo" y un `correo` válido, y el servidor debe
+        # tener la notificación habilitada. enviar_notificacion() NUNCA
+        # lanza: un fallo de SMTP no debe romper la respuesta HTTP.
         estado = EstadoNotificacionAPI.SIN_CORREO
         detalle: str | None = None
         if correo_normalizado:
-            if respuesta.semaforo != "rojo":
+            if not notificar:
+                estado = EstadoNotificacionAPI.NO_SOLICITADO
+            elif respuesta.semaforo != "rojo":
                 estado = EstadoNotificacionAPI.SIN_OBSERVACIONES
             else:
                 config_smtp = ConfigSMTP.desde_entorno()

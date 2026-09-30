@@ -24,12 +24,15 @@ class EstadoNotificacionAPI(StrEnum):
 
     La herramienta es de uso interno (personal del repositorio): el estado
     describe qué pasó con el envío para que el operador pueda informar al
-    estudiante o reintentar manualmente.
+    estudiante o reintentar manualmente. El envío es opt-in por solicitud
+    (campo `notificar`): el operador decide cuándo el reporte está listo
+    para llegarle al estudiante.
     """
 
     ENVIADO = "enviado"
     FALLO = "fallo"
     SIN_CORREO = "sin_correo"
+    NO_SOLICITADO = "no_solicitado"
     SIN_OBSERVACIONES = "sin_observaciones"
     DESHABILITADO = "deshabilitado"
 
@@ -134,9 +137,10 @@ class ValidarResponse(BaseModel):
         default_factory=lambda: NotificacionAPI(estado=EstadoNotificacionAPI.SIN_CORREO),
         description=(
             "Estado del envío del correo de observaciones al estudiante. "
-            "Solo se intenta el envío cuando hay observaciones bloqueantes "
-            '(semáforo "rojo"), se envió un campo `correo` válido y la '
-            "notificación está habilitada en el servidor."
+            "El envío es opt-in (campo de formulario `notificar`): solo se "
+            "intenta cuando el operador lo solicita, hay observaciones "
+            'bloqueantes (semáforo "rojo"), se envió un campo `correo` '
+            "válido y la notificación está habilitada en el servidor."
         ),
     )
     resumen: ResumenValidacion = Field(..., description="Resumen cuantitativo")
