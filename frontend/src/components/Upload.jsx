@@ -10,6 +10,10 @@ function Upload({ onValidated, apiUrl }) {
   const [file, setFile] = useState(null)
   const [correo, setCorreo] = useState('')
   const [correoError, setCorreoError] = useState(null)
+  // Opt-in de notificación (v1.3.0): solo envía `notificar=true` si el operador
+  // lo pide explícitamente. Así el estudiante no recibe correo por validaciones
+  // intermedias (el backend exige además correo válido, semáforo rojo y SMTP activo).
+  const [notificar, setNotificar] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [dragActivo, setDragActivo] = useState(false)
@@ -28,7 +32,11 @@ function Upload({ onValidated, apiUrl }) {
   const onCorreoChange = (e) => {
     const v = e.target.value
     setCorreo(v)
-    setCorreoError(v && !esCorreoValido(v) ? 'Formato de correo inválido (ej: correo@ejemplo.com).' : null)
+    const invalido = v && !esCorreoValido(v)
+    setCorreoError(invalido ? 'Formato de correo inválido (ej: correo@ejemplo.com).' : null)
+    // Sin correo válido no hay notificación posible: se desmarca el opt-in
+    // para que la petición no quede en un estado inconsistente.
+    if (!v || invalido) setNotificar(false)
   }
 
   const validarArchivo = (selected) => {
@@ -117,6 +125,9 @@ function Upload({ onValidated, apiUrl }) {
         form.append('archivo', file)
         // Correo del estudiante (opcional): viaja en la MISMA solicitud POST /validar.
         if (correo && esCorreoValido(correo)) form.append('correo', correo)
+        // Opt-in de envío: "true"/"1" solo si el operador marcó la casilla
+        // (el backend lo interpreta como default: false).
+        if (notificar && correo && esCorreoValido(correo)) form.append('notificar', 'true')
         res = await fetch(`${apiUrl}/validar`, {
           method: 'POST',
           body: form,
@@ -223,6 +234,27 @@ function Upload({ onValidated, apiUrl }) {
               El correo se usará únicamente para enviar el reporte de validación al estudiante.
             </div>
           )}
+          <label
+            className={`check-notificar ${!correo || correoError ? 'disabled' : ''}`}
+            title={
+              !correo || correoError
+                ? 'Escriba un correo válido para habilitar el envío de observaciones'
+                : undefined
+            }
+          >
+            <input
+              type="checkbox"
+              checked={notificar}
+              onChange={(e) => setNotificar(e.target.checked)}
+              disabled={loading || !correo || !!correoError}
+              aria-describedby="notificar-ayuda"
+            />
+            <span>Enviar observaciones por correo al estudiante</span>
+          </label>
+          <div id="notificar-ayuda" className="campo-ayuda">
+            El envío solo se intenta si el documento tiene errores bloqueantes
+            (semáforo rojo) y las notificaciones están habilitadas en el servidor.
+          </div>
         </div>
 
         {file && (

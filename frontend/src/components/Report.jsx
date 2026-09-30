@@ -54,6 +54,42 @@ function categoriaDe(ruleId) {
   return CATEGORIA_POR_ID[ruleId] || 'Otros'
 }
 
+// Mapeo de `notificacion.estado` (v1.3.0) a badge visible para el personal
+// del repositorio. Tabla de estados del contrato:
+//  - enviado:               informar que el correo salió.
+//  - fallo:                 mostrar el detalle técnico (reintento manual).
+//  - sin_correo:            pedir el correo en el formulario de carga.
+//  - no_solicitado:         ofrecer la casilla de envío (opt-in) en el formulario.
+//  - sin_observaciones/
+//    deshabilitado:         nada que mostrar.
+function badgeNotificacion(notif) {
+  if (!notif || typeof notif.estado !== 'string') return null
+  const detalle = typeof notif.detalle === 'string' && notif.detalle.trim() ? notif.detalle.trim() : null
+  switch (notif.estado) {
+    case 'enviado':
+      return { clase: 'ok', texto: '📧 Enviamos las observaciones al correo del estudiante.' }
+    case 'fallo':
+      return {
+        clase: 'fail',
+        texto: '⚠ No se pudieron enviar las observaciones por correo.',
+        detalle: detalle || 'Motivo técnico no disponible; reintente o envíelo manualmente.',
+      }
+    case 'sin_correo':
+      return {
+        clase: 'warn',
+        texto: 'El correo no fue enviado: falta el correo del estudiante. Agréguelo en el formulario de carga.',
+      }
+    case 'no_solicitado':
+      return {
+        clase: 'info',
+        texto: 'No se solicitó el envío por correo. Active “Enviar observaciones por correo al estudiante” al validar.',
+      }
+    default:
+      // sin_observaciones | deshabilitado → nada relevante
+      return null
+  }
+}
+
 function Report({ data, onBack }) {
   const [filtro, setFiltro] = useState('todos') // 'todos' | 'error' | 'warning'
   const [vista, setVista] = useState('detallada') // 'detallada' | 'simple'
@@ -69,6 +105,7 @@ function Report({ data, onBack }) {
   const prompts = Array.isArray(data?.como_preguntar_a_una_ia) ? data.como_preguntar_a_una_ia : []
   const resumen = data?.resumen || { total: resultados.length, fallidos_error: 0, fallidos_warning: 0 }
   const semaforo = data?.semaforo || 'verde'
+  const notif = badgeNotificacion(data?.notificacion)
 
   const fallidos = useMemo(() => resultados.filter((r) => !r.paso), [resultados])
 
@@ -117,11 +154,10 @@ function Report({ data, onBack }) {
                 ? 'Se detectaron errores de formato que bloquean la entrega conforme a las directivas UNT.'
                 : 'El documento cumple con las directivas de formato de la UNT.'}
             </div>
-            {data?.notificacion && typeof data.notificacion.enviado === 'boolean' && (
-              <div className={`badge-notif ${data.notificacion.enviado ? 'ok' : 'fail'}`} role="status">
-                {data.notificacion.enviado
-                  ? '📧 El reporte fue enviado al correo del estudiante.'
-                  : '⚠ No se pudo enviar el correo al estudiante.'}
+            {notif && (
+              <div className={`badge-notif ${notif.clase}`} role="status">
+                {notif.texto}
+                {notif.detalle && <span className="badge-notif-detalle">{notif.detalle}</span>}
               </div>
             )}
           </div>

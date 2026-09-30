@@ -108,6 +108,15 @@
     .campo-correo input:focus { outline: 2px solid var(--verde); outline-offset: 1px; border-color: var(--verde); }
     .campo-ayuda { margin-top: .35rem; font-size: .78rem; color: var(--gris-texto); }
 
+    /* Opt-in de notificación: casilla junto al campo de correo */
+    .check-notificar {
+      display: flex; align-items: flex-start; gap: .5rem;
+      margin-top: .7rem;
+      font-size: .88rem; font-weight: 500; cursor: pointer;
+    }
+    .check-notificar input { width: auto; margin-top: .15rem; accent-color: var(--verde); cursor: pointer; }
+    .check-notificar.disabled { opacity: .55; cursor: not-allowed; }
+
     /* Archivo seleccionado */
     .archivo { display: none; margin-top: 1.2rem; border: 1px solid var(--gris-borde); border-radius: 8px; padding: .9rem 1rem; }
     .archivo .fila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
@@ -175,6 +184,11 @@
         <label for="correo">Correo del estudiante <span class="opcional">(opcional)</span></label>
         <input type="email" id="correo" placeholder="estudiante@correo.unt.edu.pe" />
         <div class="campo-ayuda">El correo se usará únicamente para enviar el reporte de validación al estudiante.</div>
+        <label class="check-notificar disabled" id="lblNotificar">
+          <input type="checkbox" id="notificar" disabled />
+          <span>Enviar observaciones por correo al estudiante</span>
+        </label>
+        <div class="campo-ayuda">El envío solo se intenta si el documento tiene errores bloqueantes (semáforo rojo) y las notificaciones están habilitadas en el servidor.</div>
       </div>
 
       <!-- Archivo seleccionado -->
@@ -210,6 +224,17 @@
     const archivo = document.getElementById('archivo');
     const btnValidar = document.getElementById('btnValidar');
     const aviso = document.getElementById('aviso');
+    const correo = document.getElementById('correo');
+    const notificar = document.getElementById('notificar');
+    const lblNotificar = document.getElementById('lblNotificar');
+
+    // Opt-in: la casilla solo se habilita con un correo de formato válido.
+    correo.addEventListener('input', function () {
+      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.value);
+      notificar.disabled = !ok;
+      lblNotificar.classList.toggle('disabled', !ok);
+      if (!ok) notificar.checked = false;
+    });
 
     function mostrarArchivo(nombre, tamanio) {
       const ext = nombre.split('.').pop().toUpperCase();

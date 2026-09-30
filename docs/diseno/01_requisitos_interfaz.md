@@ -50,6 +50,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | RF-06 | El sistema debe mostrar el nombre, tamaño y extensión del archivo seleccionado | Media |
 | RF-07 | El operador debe poder cancelar la selección y elegir otro archivo | Media |
 | RF-08 | El operador debe poder ingresar el correo del estudiante (campo opcional) | Alta |
+| RF-26 | El operador debe poder solicitar el envío de observaciones por correo al estudiante (casilla opt-in, habilitada solo con correo válido) | Alta |
 
 ### 4.2 Validación
 
@@ -58,7 +59,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | RF-09 | El operador debe poder iniciar la validación con un clic en "Validar" | Alta |
 | RF-10 | El sistema debe mostrar un indicador de carga durante el proceso | Alta |
 | RF-11 | El sistema debe enviar el archivo al endpoint POST /validar del backend | Alta |
-| RF-12 | El sistema debe enviar el correo del estudiante (si fue ingresado) en la misma solicitud | Alta |
+| RF-12 | El sistema debe enviar el correo del estudiante y la solicitud de envío (`notificar=true`) en la misma petición POST /validar | Alta |
 | RF-13 | Si la API no está disponible, el sistema debe mostrar datos de ejemplo (modo demo, avisado) | Baja |
 
 ### 4.3 Reporte de resultados
@@ -71,7 +72,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | RF-17 | El operador debe poder ver resultados agrupados por categoría | Alta |
 | RF-18 | El operador debe poder expandir/colapsar cada categoría | Alta |
 | RF-19 | Cada regla debe mostrar el valor esperado y el valor encontrado | Alta |
-| RF-20 | El sistema debe mostrar el estado de la notificación por correo (si se envió) | Media |
+| RF-20 | El sistema debe mostrar el estado de la notificación por correo (`enviado`, `fallo` con detalle técnico, `sin_correo`, `no_solicitado`; sin badge en `sin_observaciones`/`deshabilitado`) | Media |
 
 ### 4.4 Prompts IA
 
@@ -92,7 +93,8 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 > - RF-13 antiguo — *porcentaje de cumplimiento* (no existe en la app; el resumen usa KPIs de reglas/errores/advertencias).
 > - RF-16 antiguo — *búsqueda de reglas por nombre/mensaje* (no existe en la app; sí existen los filtros por severidad).
 >
-> Los ID restantes se renumeraron de forma correlativa (RF-01…RF-25).
+> Los ID restantes se renumeraron de forma correlativa (RF-01…RF-25). En S7 se
+> **agregó RF-26** (casilla opt-in de envío por correo) sin renumerar el resto.
 
 ---
 
@@ -128,12 +130,12 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | 1 | Carga | Seleccionar archivo | Botón o drag-and-drop para elegir DOCX |
 | 2 | Carga | Validar tipo y tamaño | Rechazo automático de formatos inválidos y archivos grandes |
 | 3 | Carga | Capturar correo estudiante | Campo opcional para notificación por correo |
-| 4 | Carga | Iniciar validación | Botón "Validar" que envía el archivo y correo al backend |
+| 4 | Carga | Iniciar validación | Botón "Validar" que envía archivo, correo y opt-in `notificar` al backend |
 | 5 | Reporte | Ver semáforo | Indicador verde/rojo del resultado general |
 | 6 | Reporte | Ver resumen | KPIs: total reglas, errores, advertencias |
 | 7 | Reporte | Filtrar por severidad | Chips para alternar entre todos/errores/advertencias |
 | 8 | Reporte | Ver por categoría | Secciones expandibles agrupadas |
-| 9 | Reporte | Ver estado de notificación | Badge de enviado/no enviado al correo del estudiante |
+| 9 | Reporte | Ver estado de notificación | Badge según `notificacion.estado`: enviado / fallo (con detalle) / falta correo / no solicitado |
 | 10 | Reporte | Copiar prompts IA | Botón para copiar cada prompt al portapapeles |
 | 11 | Navegación | Volver a cargar | Botón para regresar a la pantalla de carga |
 
