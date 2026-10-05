@@ -1,0 +1,926 @@
+# ============================================================
+# ESTRUCTURAS PENDIENTES — Fase B, paso 8 del PLAN_TIPO_DOCUMENTO
+# ------------------------------------------------------------
+# Las 5 estructuras que el manual define y el motor aun no cubre: proyecto
+# (cuantitativo/cualitativo), informe (cuantitativo/cualitativo) y trabajo de
+# suficiencia profesional.
+#
+# ESTE ARCHIVO NO LO CARGA LA API. Vive aparte a proposito: estas reglas estan
+# implementadas pero NO probadas contra documentos reales, porque la facultad
+# no tiene plantillas oficiales de estos 5 tipos (a diferencia de la TINV, que si
+# las tiene). Meterlas en `reglas_unt.yaml` haria que la suite midiera un
+# comportamiento que nadie verificó. Para usarlas hace falta una plantilla real
+# de cada tipo.
+#
+# Lo que SI se verifica (test_tipo_documento.TestYamlPendienteOpcional) es la
+# CONFIGURACION: que el archivo carga y pasa el linter del DSL. Eso detecta
+# reglas mal formadas, `aplicar_si` apuntando a una clave que nadie expone, y
+# estados duplicados o vacios. No dice nada sobre si el motor acierta.
+#
+# `deteccion_tipo_documento` se copia de `reglas_unt.yaml` porque el linter
+# resuelve `aplicar_si` contra las claves expuestas del MISMO archivo: sin la
+# copia, estas 5 reglas apuntarian a una clave inexistente. Al editar las
+# etiquetas en produccion, replicar el cambio aqui.
+#
+# Convenciones de lectura, para poder cotejarlas contra el manual:
+# - `original` es el texto tal cual lo lista el manual.
+# - `patron` es solo el nombre del apartado, en mayusculas y sin la
+#   numeracion ("1.4. Tipo de investigacion" -> "TIPO DE INVESTIGACION").
+#   Asi el reconocimiento no depende de si el autor numera los titulos.
+# - `opcional: true` significa que el motor NO lo exige (asi funciona en el
+#   resto del DSL: los opcionales se omiten al construir el DFA).
+# - Los esquemas empiezan en Caratula y terminan en ANEXOS. "Cubierta" no se
+#   incluye porque es la hoja fisica anterior a la caratula, no una seccion.
+# Nota sobre las paginas preliminares del TSP (punto 4 del paso 8):
+# El plan pedia registrar que el manual exige "3.3 Aspectos generales" para el
+# TSP y que eso lo cubria la regla `indice_hojas_preliminares`. Al cotejarlo
+# contra el manual, ninguna de las dos premisas se sostiene:
+# - "Aspectos generales" no aparece en el esquema del TSP (párr. 3628-3667).
+#   En todo el manual solo sale en los parrafos 99, 1347, 1409, 1588, 2023 y
+#   2100, ninguno de ellos del TSP.
+# - La regla `indice_hojas_preliminares` no existe en el repositorio.
+# - El "3.3" que menciona el plan es el criterio 3.3 de la LISTA DE COTEJO
+#   (párr. 3744-3745) y habla de la justificacion, no de las paginas
+#   preliminares.
+# Lo que el manual si exige para el TSP es la numeracion de sus paginas
+# preliminares en romanos minuscula, con la caratula contada pero no enumerada
+# (párr. 3446-3447). Es el mismo texto que el requisito general de la pagina
+# 139, y ya lo cubren tres reglas de produccion: `numeracion_preliminares_romano`
+# (que cita la pagina 139), `numeracion_cuerpo_arabigo` y `caratula_no_se_enumera`.
+# No hace falta una regla nueva, asi que aqui no se anade ninguna.
+#
+# - No se enumeran los anexos individuales: el manual los lista, pero su
+#   presencia y numero dependen del tipo de estudio, asi que no son exigibles
+#   desde el esquema. Los anexos obligatorios ya los cubren otras reglas.
+# ============================================================
+
+version: "2026-09-29"
+namespaces:
+  w: http://schemas.openxmlformats.org/wordprocessingml/2006/main
+  r: http://schemas.openxmlformats.org/officeDocument/2006/relationships
+  a: http://schemas.openxmlformats.org/drawingml/2006/main
+  pic: http://schemas.openxmlformats.org/drawingml/2006/picture
+reglas:
+# Copia de la regla discriminadora de `reglas_unt.yaml` (mismo criterio y mismo
+# orden de especificidad). Unica diferencia: los dos alias del punto 3 del
+# paso 8, que se explican donde estan declarados.
+- id: deteccion_tipo_documento
+  tipo: deteccion
+  descripcion: Determina a qué tipo de documento pertenece la tesis
+  valor_esperado: >-
+    uno de: tinv_cuantitativo, tinv_cualitativo, tinv_revision_literatura,
+    proyecto_cuantitativo, proyecto_cualitativo, informe_cuantitativo,
+    informe_cualitativo, tsp
+  severidad: warning
+  ubicacion: 'Capítulo II — esquemas formales por tipo de título (párr. 75-90)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: 'Cada título profesional exige un esquema formal distinto'
+  deteccion_tipo:
+    expone: tipo_documento
+    declaracion:
+      anexo: 'Anexo 10 — Declaración jurada (párr. 5008-5022)'
+      etiquetas:
+        tsp: ['TRABAJO DE SUFICIENCIA PROFESIONAL', 'TRABAJO DE SERVICIO', 'SERVICIO SOCIAL']
+        # Punto 3 del paso 8: el Anexo 10 no tiene casillas propias para el
+        # informe, solo el encabezado "INFORME DEL PROYECTO" (párr. 5018). Por
+        # eso se admite tambien el nombre de la tesis, que es como lo
+        # escriben algunos autores al llenar el formulario. No colisiona con
+        # la TINV: sus etiquetas son "TESIS PARA OBTENER EL TITULO PROFESIONAL
+        # EN INVESTIGACION ..." y "TRABAJO DE INVESTIGACION ...", y ninguna
+        # contiene esta cadena.
+        informe_cuantitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVA', 'TESIS DE INVESTIGACIÓN CUANTITATIVA']
+        informe_cualitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVA', 'TESIS DE INVESTIGACIÓN CUALITATIVA']
+        proyecto_cuantitativo: ['PROYECTO DE INVESTIGACIÓN CUANTITATIVO']
+        proyecto_cualitativo: ['PROYECTO DE INVESTIGACIÓN CUALITATIVO']
+        tinv_revision_literatura: ['TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN']
+        tinv_cualitativo: ['TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA']
+        tinv_cuantitativo: ['TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA']
+    # En orden de especificidad: gana el primero que alcance su minimo.
+    firmas:
+    - tipo: tsp
+      evidencia: ['SECUENCIA DIDÁCTICA', 'SUSTENTO PSICOPEDAGÓGICO', 'SUSTENTO TEÓRICO CIENTÍFICO']
+      minimo: 2
+    - tipo: informe_cualitativo
+      evidencia: ['SITUACIÓN PROBLEMATIZADA', 'PARTICIPANTES', 'INSTRUMENTOS USADOS EN LA RECOLECCIÓN']
+      minimo: 3
+    - tipo: informe_cuantitativo
+      evidencia: ['SITUACIÓN PROBLEMATIZADA', 'DISEÑO DE CONTRASTACIÓN', 'OPERACIONALIZACIÓN DE LAS VARIABLES']
+      minimo: 2
+    - tipo: proyecto_cuantitativo
+      evidencia: ['PLAN DE INVESTIGACIÓN', 'RECURSOS Y MATERIALES', 'LÍNEA DE INVESTIGACIÓN']
+      minimo: 2
+    - tipo: proyecto_cualitativo
+      evidencia: ['SELECCIÓN DE PARTICIPANTES', 'ESCENARIO', 'UNIDAD DE ANÁLISIS']
+      minimo: 2
+    - tipo: tinv_revision_literatura
+      evidencia: ['METODOLOGÍA DE REVISIÓN', 'DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA', 'ESTADO DEL ARTE']
+      minimo: 2
+    - tipo: tinv_cualitativo
+      evidencia: ['MATRIZ DE CATEGORIZACIÓN', 'ESTRATEGIAS USADAS EN EL ANÁLISIS', 'ANÁLISIS Y DISCUSIÓN DE RESULTADOS']
+      minimo: 2
+    - tipo: tinv_cuantitativo
+      evidencia: ['VARIABLE', 'POBLACIÓN Y MUESTRA', 'INSTRUMENTO']
+      minimo: 2
+    minimo_global: 1
+
+# ---------------------------------------------------------------------------
+# proyecto_cuantitativo
+# ---------------------------------------------------------------------------
+- id: estructura_proyecto_cuantitativo
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo. Igual que en las 3 del
+  # paso 6: si la deteccion no pudo determinarlo o se contradice con la
+  # estructura, el documento se valida contra TODOS los esquemas.
+  aplicar_si:
+    tipo_documento: proyecto_cuantitativo
+  descripcion: 'Estructura obligatoria del Proyecto de Investigación Cuantitativo. El orden debe ser
+    exacto.
+
+    '
+  valor_esperado:
+  - Carátula
+  - Índice
+  - I. ASPECTOS GENERALES
+  - 1.1. Título
+  - 1.2. Autor (es, as)
+  - 1.3. Asesor(a) y grado académico
+  - 1.4. Tipo de investigación
+  - 1.5. Línea  de investigación
+  - 1.6. Localidad y/o institución donde se desarrollará la investigación
+  - 1.7 Duración de la investigación
+  - 1.8. Cronograma (según diagrama de Gantt)
+  - 1.9. Recursos
+  - 1.9.8. Aspectos éticos
+  - II. PLAN DE INVESTIGACIÓN
+  - 2.1. Problema de investigación
+  - 2.2. Objetivos de la investigación
+  - 2.3. Marco teórico
+  - 2.4. Hipótesis (Si corresponde)
+  - 2.5. Metodología
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Proyecto de Investigación Cuantitativo (párr. 1585-1788)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 1585-1788 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: aspectos_generales
+      patron: ASPECTOS GENERALES
+      original: I. ASPECTOS GENERALES
+    - nombre: titulo
+      patron: TÍTULO
+      original: 1.1. Título
+    - nombre: autores
+      patron: AUTOR
+      original: 1.2. Autor (es, as)
+    - nombre: asesor
+      patron: ASESOR
+      original: 1.3. Asesor(a) y grado académico
+    - nombre: tipo_de_investigacion
+      patron: TIPO DE INVESTIGACIÓN
+      original: 1.4. Tipo de investigación
+    - nombre: linea_de_investigacion
+      patron: LÍNEA DE INVESTIGACIÓN
+      original: 1.5. Línea  de investigación
+    - nombre: localidad
+      patron: LOCALIDAD Y/O INSTITUCIÓN
+      original: 1.6. Localidad y/o institución donde se desarrollará la investigación
+    - nombre: duracion
+      patron: DURACIÓN DE LA INVESTIGACIÓN
+      original: 1.7 Duración de la investigación
+    - nombre: cronograma
+      patron: CRONOGRAMA
+      original: 1.8. Cronograma (según diagrama de Gantt)
+    - nombre: recursos
+      patron: RECURSOS
+      original: 1.9. Recursos
+    - nombre: aspectos_eticos
+      patron: ASPECTOS ÉTICOS
+      original: 1.9.8. Aspectos éticos
+    - nombre: plan_de_investigacion
+      patron: PLAN DE INVESTIGACIÓN
+      original: II. PLAN DE INVESTIGACIÓN
+    - nombre: problema_de_investigacion
+      patron: PROBLEMA DE INVESTIGACIÓN
+      original: 2.1. Problema de investigación
+    - nombre: objetivos
+      patron: OBJETIVOS DE LA INVESTIGACIÓN
+      original: 2.2. Objetivos de la investigación
+    - nombre: marco_teorico
+      patron: MARCO TEÓRICO
+      original: 2.3. Marco teórico
+    - nombre: hipotesis
+      patron: HIPÓTESIS
+      original: 2.4. Hipótesis (Si corresponde)
+      opcional: true
+    - nombre: metodologia
+      patron: METODOLOGÍA
+      original: 2.5. Metodología
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+
+# ---------------------------------------------------------------------------
+# proyecto_cualitativo
+# ---------------------------------------------------------------------------
+- id: estructura_proyecto_cualitativo
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo.
+  aplicar_si:
+    tipo_documento: proyecto_cualitativo
+  descripcion: 'Estructura obligatoria del Proyecto de Investigación Cualitativo. El orden debe ser
+    exacto.
+
+    El manual numera el bloque de Aspectos Generales pero no el Plan de
+    Investigación, y esa diferencia con el proyecto cuantitativo es real: aqui
+    no hay hipótesis ni identificación de variables.
+
+    '
+  valor_esperado:
+  - Carátula
+  - Índice
+  - I. ASPECTOS GENERALES
+  - 1.1. Título
+  - 1.2. Autor (es, as)
+  - 1.3. Asesor(a) y grado académico
+  - 1.4. Tipo de investigación
+  - 1.5. Línea  de investigación
+  - 1.6. Localidad y/o institución donde se desarrollará la investigación
+  - 1.7 Duración de la investigación
+  - 1.8. Cronograma (según diagrama de Gantt)
+  - 1.9. Recursos
+  - 1.9.8. Aspectos éticos
+  - II. PLAN DE INVESTIGACIÓN
+  - Problema de investigación
+  - Descripción de la realidad problemática
+  - Formulación del problema
+  - Justificación de la investigación
+  - Limitaciones
+  - Objetivos de la investigación
+  - General
+  - Específicos
+  - Marco teórico
+  - Antecedentes (Estado del Arte)
+  - Bases teóricas
+  - Definición de términos
+  - Matriz de categorías y unidad de análisis
+  - Metodología
+  - Tipo de estudio
+  - Diseño de investigación
+  - Escenario
+  - Selección de participantes
+  - Técnicas e instrumentos, estrategias de recolección de los datos
+  - Técnicas de análisis e interpretación de datos
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Proyecto de Investigación Cualitativo (párr. 2097-2297)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 2097-2297 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: aspectos_generales
+      patron: ASPECTOS GENERALES
+      original: I. ASPECTOS GENERALES
+    - nombre: titulo
+      patron: TÍTULO
+      original: 1.1. Título
+    - nombre: autores
+      patron: AUTOR
+      original: 1.2. Autor (es, as)
+    - nombre: asesor
+      patron: ASESOR
+      original: 1.3. Asesor(a) y grado académico
+    - nombre: tipo_de_investigacion
+      patron: TIPO DE INVESTIGACIÓN
+      original: 1.4. Tipo de investigación
+    - nombre: linea_de_investigacion
+      patron: LÍNEA DE INVESTIGACIÓN
+      original: 1.5. Línea  de investigación
+    - nombre: localidad
+      patron: LOCALIDAD Y/O INSTITUCIÓN
+      original: 1.6. Localidad y/o institución donde se desarrollará la investigación
+    - nombre: duracion
+      patron: DURACIÓN DE LA INVESTIGACIÓN
+      original: 1.7 Duración de la investigación
+    - nombre: cronograma
+      patron: CRONOGRAMA
+      original: 1.8. Cronograma (según diagrama de Gantt)
+    - nombre: recursos
+      patron: RECURSOS
+      original: 1.9. Recursos
+    - nombre: aspectos_eticos
+      patron: ASPECTOS ÉTICOS
+      original: 1.9.8. Aspectos éticos
+    - nombre: plan_de_investigacion
+      patron: PLAN DE INVESTIGACIÓN
+      original: II. PLAN DE INVESTIGACIÓN
+    - nombre: problema_de_investigacion
+      patron: PROBLEMA DE INVESTIGACIÓN
+      original: Problema de investigación
+    - nombre: descripcion_de_la_realidad_problematica
+      patron: DESCRIPCIÓN DE LA REALIDAD PROBLEMÁTICA
+      original: Descripción de la realidad problemática
+    - nombre: formulacion_del_problema
+      patron: FORMULACIÓN DEL PROBLEMA
+      original: Formulación del problema
+    - nombre: justificacion
+      patron: JUSTIFICACIÓN DE LA INVESTIGACIÓN
+      original: Justificación de la investigación
+    - nombre: limitaciones
+      patron: LIMITACIONES
+      original: Limitaciones
+    - nombre: objetivos
+      patron: OBJETIVOS DE LA INVESTIGACIÓN
+      original: Objetivos de la investigación
+    - nombre: objetivo_general
+      patron: GENERAL
+      original: General
+    - nombre: objetivos_especificos
+      patron: ESPECÍFICOS
+      original: Específicos
+    - nombre: marco_teorico
+      patron: MARCO TEÓRICO
+      original: Marco teórico
+    - nombre: antecedentes
+      patron: ANTECEDENTES
+      original: Antecedentes (Estado del Arte)
+    - nombre: bases_teoricas
+      patron: BASES TEÓRICAS
+      original: Bases teóricas
+    - nombre: definicion_de_terminos
+      patron: DEFINICIÓN DE TÉRMINOS
+      original: Definición de términos
+    - nombre: matriz_de_categorias
+      patron: MATRIZ DE CATEGORÍAS Y UNIDAD DE ANÁLISIS
+      original: Matriz de categorías y unidad de análisis
+    - nombre: metodologia
+      patron: METODOLOGÍA
+      original: Metodología
+    - nombre: tipo_de_estudio
+      patron: TIPO DE ESTUDIO
+      original: Tipo de estudio
+    - nombre: diseno_de_investigacion
+      patron: DISEÑO DE INVESTIGACIÓN
+      original: Diseño de investigación
+    - nombre: escenario
+      patron: ESCENARIO
+      original: Escenario
+    - nombre: seleccion_de_participantes
+      patron: SELECCIÓN DE PARTICIPANTES
+      original: Selección de participantes
+    - nombre: tecnicas_e_instrumentos
+      patron: 'TÉCNICAS E INSTRUMENTOS, ESTRATEGIAS DE RECOLECCIÓN DE LOS DATOS'
+      original: 'Técnicas e instrumentos, estrategias de recolección de los datos:'
+    - nombre: tecnicas_de_analisis
+      patron: TÉCNICAS DE ANÁLISIS E INTERPRETACIÓN DE DATOS
+      original: Técnicas de análisis e interpretación de datos
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+
+# ---------------------------------------------------------------------------
+# informe_cuantitativo
+# ---------------------------------------------------------------------------
+- id: estructura_informe_cuantitativo
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo.
+  aplicar_si:
+    tipo_documento: informe_cuantitativo
+  descripcion: 'Estructura obligatoria del Informe de Investigación Cuantitativo. El orden debe
+    ser exacto.
+
+    Se diferencia del cualitativo por las hipótesis y por el diseño de
+    contrastación, que son lo propio del enfoque cuantitativo.
+
+    '
+  valor_esperado:
+  - Carátula (Institución, escuela profesional, título, motivo, autor(es), asesor, lugar, fecha)
+  - Dedicatoria (opcional)
+  - Jurado evaluador
+  - Agradecimiento (opcional)
+  - Índice
+  - Presentación
+  - Resumen
+  - Abstract
+  - INTRODUCCIÓN
+  - El Problema
+  - Situación problemática
+  - Enunciado del problema
+  - Antecedentes
+  - Justificación o importancia (valor teórico y práctico)
+  - Limitaciones
+  - Objetivos
+  - General
+  - Específicos
+  - 1.3. Hipótesis
+  - 1.3.1. Hipótesis general
+  - 1.3.2. Hipótesis específicas
+  - 1.3.3. Variables
+  - 1.3.4. Definición conceptual de las variables
+  - 1.3.5. Operacionalización de las variables.
+  - II. MARCO TEÓRICO (estado del arte)
+  - 2.1. Fundamento teórico de la variable independiente o de la primera variable.
+  - 2.2. Fundamento teórico de la variable dependiente o de la segunda variable.
+  - 'III. METODOLOGÍA (material y métodos):'
+  - 3.1. Población, muestra y muestreo
+  - 3.2. Diseño de contrastación
+  - 3.3. Instrumentos usados en la recolección de datos
+  - 3.4. Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos
+  - IV. ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+  - Resultados
+  - Discusión de resultados
+  - V. CONCLUSIONES Y RECOMENDACIONES
+  - 5.1. Conclusiones
+  - 5.2. Recomendaciones
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Informe de Investigación Cuantitativa (párr. 2668-2721)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 2668-2721 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula (Institución, escuela profesional, título, motivo, autor(es), asesor, lugar, fecha)
+    - nombre: dedicatoria
+      patron: DEDICATORIA
+      original: Dedicatoria (opcional)
+      opcional: true
+    - nombre: jurado_evaluador
+      patron: JURADO EVALUADOR
+      original: Jurado evaluador
+    - nombre: agradecimiento
+      patron: AGRADECIMIENTO
+      original: Agradecimiento (opcional)
+      opcional: true
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: presentacion
+      patron: PRESENTACIÓN
+      original: Presentación
+    - nombre: resumen
+      patron: RESUMEN
+      original: Resumen
+    - nombre: abstract
+      patron: ABSTRACT
+      original: Abstract
+    - nombre: introduccion
+      patron: INTRODUCCIÓN
+      original: INTRODUCCIÓN
+    - nombre: el_problema
+      patron: EL PROBLEMA
+      original: El Problema
+    - nombre: situacion_problematica
+      patron: SITUACIÓN PROBLEMÁTICA
+      original: Situación problemática
+    - nombre: enunciado_del_problema
+      patron: ENUNCIADO DEL PROBLEMA
+      original: Enunciado del problema
+    - nombre: antecedentes
+      patron: ANTECEDENTES
+      original: Antecedentes
+    - nombre: justificacion
+      patron: JUSTIFICACIÓN O IMPORTANCIA
+      original: Justificación o importancia (valor teórico y práctico)
+    - nombre: limitaciones
+      patron: LIMITACIONES
+      original: Limitaciones
+    - nombre: objetivos
+      patron: OBJETIVOS
+      original: Objetivos
+    - nombre: objetivo_general
+      patron: GENERAL
+      original: General
+    - nombre: objetivos_especificos
+      patron: ESPECÍFICOS
+      original: Específicos
+    - nombre: hipotesis
+      patron: HIPÓTESIS
+      original: 1.3. Hipótesis
+    - nombre: hipotesis_general
+      patron: HIPÓTESIS GENERAL
+      original: 1.3.1. Hipótesis general
+    - nombre: hipotesis_especificas
+      patron: HIPÓTESIS ESPECÍFICAS
+      original: 1.3.2. Hipótesis específicas
+    - nombre: variables
+      patron: VARIABLES
+      original: 1.3.3. Variables
+    - nombre: definicion_conceptual
+      patron: DEFINICIÓN CONCEPTUAL DE LAS VARIABLES
+      original: 1.3.4. Definición conceptual de las variables
+    - nombre: operacionalizacion
+      patron: OPERACIONALIZACIÓN DE LAS VARIABLES
+      original: 1.3.5. Operacionalización de las variables.
+    - nombre: marco_teorico
+      patron: MARCO TEÓRICO
+      original: II. MARCO TEÓRICO (estado del arte)
+    - nombre: fundamento_variable_independiente
+      patron: FUNDAMENTO TEÓRICO DE LA VARIABLE INDEPENDIENTE
+      original: 2.1. Fundamento teórico de la variable independiente o de la primera variable.
+    - nombre: fundamento_variable_dependiente
+      patron: FUNDAMENTO TEÓRICO DE LA VARIABLE DEPENDIENTE
+      original: 2.2. Fundamento teórico de la variable dependiente o de la segunda variable.
+    - nombre: metodologia
+      patron: METODOLOGÍA
+      original: 'III. METODOLOGÍA (material y métodos):'
+    - nombre: poblacion_muestra
+      patron: POBLACIÓN, MUESTRA Y MUESTREO
+      original: 3.1. Población, muestra y muestreo
+    - nombre: diseno_de_contrastacion
+      patron: DISEÑO DE CONTRASTACIÓN
+      original: 3.2. Diseño de contrastación
+    - nombre: instrumentos
+      patron: INSTRUMENTOS USADOS EN LA RECOLECCIÓN DE DATOS
+      original: 3.3. Instrumentos usados en la recolección de datos
+    - nombre: metodos_analisis
+      patron: MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS
+      original: 3.4. Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos
+    - nombre: analisis_y_discusion
+      patron: ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+      original: IV. ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+    - nombre: resultados
+      patron: RESULTADOS
+      original: Resultados
+    - nombre: discusion_de_resultados
+      patron: DISCUSIÓN DE RESULTADOS
+      original: Discusión de resultados
+    - nombre: conclusiones_y_recomendaciones
+      patron: CONCLUSIONES Y RECOMENDACIONES
+      original: V. CONCLUSIONES Y RECOMENDACIONES
+    - nombre: conclusiones
+      patron: CONCLUSIONES
+      original: 5.1. Conclusiones
+    - nombre: recomendaciones
+      patron: RECOMENDACIONES
+      original: 5.2. Recomendaciones
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+
+# ---------------------------------------------------------------------------
+# informe_cualitativo
+# ---------------------------------------------------------------------------
+- id: estructura_informe_cualitativo
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo.
+  aplicar_si:
+    tipo_documento: informe_cualitativo
+  descripcion: 'Estructura obligatoria del Informe del Proyecto de Investigación Cualitativo.
+    El orden debe ser exacto.
+
+    Es el mismo esquema que el cuantitativo sin el bloque de hipótesis: aqui
+    las hipótesis se sustituyen por las categorías y la matriz de
+    categorización.
+
+    '
+  valor_esperado:
+  - Carátula (Institución, escuela profesional, título, motivo, autor(es), asesor, lugar, fecha)
+  - Dedicatoria (opcional)
+  - Jurado evaluador
+  - Agradecimiento (opcional)
+  - Índice
+  - Presentación
+  - Resumen
+  - Abstract
+  - I. INTRODUCCIÓN
+  - El problema
+  - Situación problemática
+  - Enunciado del problema
+  - Justificación o importancia
+  - Limitaciones
+  - Objetivos
+  - General
+  - Específicos
+  - Categorías, matriz de categorización y unidad de análisis
+  - Categorías
+  - Matriz de categorización y unidad de análisis
+  - II. MARCO TEÓRICO
+  - Antecedentes (Estado del arte)
+  - Bases teóricas
+  - 'III. METODOLOGÍA (material y métodos):'
+  - Participantes
+  - Diseño
+  - Instrumentos usados en la recolección de datos
+  - Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos.
+  - IV. ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+  - V. CONCLUSIONES Y RECOMENDACIONES
+  - Conclusiones
+  - Recomendaciones
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Informe del Proyecto de Investigación Cualitativo (párr. 3073-3120)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 3073-3120 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula (Institución, escuela profesional, título, motivo, autor(es), asesor, lugar, fecha)
+    - nombre: dedicatoria
+      patron: DEDICATORIA
+      original: Dedicatoria (opcional)
+      opcional: true
+    - nombre: jurado_evaluador
+      patron: JURADO EVALUADOR
+      original: Jurado evaluador
+    - nombre: agradecimiento
+      patron: AGRADECIMIENTO
+      original: Agradecimiento (opcional)
+      opcional: true
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: presentacion
+      patron: PRESENTACIÓN
+      original: Presentación
+    - nombre: resumen
+      patron: RESUMEN
+      original: Resumen
+    - nombre: abstract
+      patron: ABSTRACT
+      original: Abstract
+    - nombre: introduccion
+      patron: INTRODUCCIÓN
+      original: I. INTRODUCCIÓN
+    - nombre: el_problema
+      patron: EL PROBLEMA
+      original: El problema
+    - nombre: situacion_problematica
+      patron: SITUACIÓN PROBLEMÁTICA
+      original: Situación problemática
+    - nombre: enunciado_del_problema
+      patron: ENUNCIADO DEL PROBLEMA
+      original: Enunciado del problema
+    - nombre: justificacion
+      patron: JUSTIFICACIÓN O IMPORTANCIA
+      original: Justificación o importancia
+    - nombre: limitaciones
+      patron: LIMITACIONES
+      original: Limitaciones
+    - nombre: objetivos
+      patron: OBJETIVOS
+      original: Objetivos
+    - nombre: objetivo_general
+      patron: GENERAL
+      original: General
+    - nombre: objetivos_especificos
+      patron: ESPECÍFICOS
+      original: Específicos
+    - nombre: categorias_matriz
+      patron: 'CATEGORÍAS, MATRIZ DE CATEGORIZACIÓN Y UNIDAD DE ANÁLISIS'
+      original: Categorías, matriz de categorización y unidad de análisis
+    - nombre: categorias
+      patron: CATEGORÍAS
+      original: Categorías
+    - nombre: matriz_de_categorizacion
+      patron: MATRIZ DE CATEGORIZACIÓN Y UNIDAD DE ANÁLISIS
+      original: Matriz de categorización y unidad de análisis
+    - nombre: marco_teorico
+      patron: MARCO TEÓRICO
+      original: II. MARCO TEÓRICO
+    - nombre: antecedentes
+      patron: ANTECEDENTES
+      original: Antecedentes (Estado del arte)
+    - nombre: bases_teoricas
+      patron: BASES TEÓRICAS
+      original: Bases teóricas
+    - nombre: metodologia
+      patron: METODOLOGÍA
+      original: 'III. METODOLOGÍA (material y métodos):'
+    - nombre: participantes
+      patron: PARTICIPANTES
+      original: Participantes
+    - nombre: diseno
+      patron: DISEÑO
+      original: Diseño
+    - nombre: instrumentos
+      patron: INSTRUMENTOS USADOS EN LA RECOLECCIÓN DE DATOS
+      original: Instrumentos usados en la recolección de datos
+    - nombre: metodos_analisis
+      patron: MÉTODOS, TÉCNICAS Y PROCEDIMIENTOS USADOS EN EL ANÁLISIS
+      original: Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos.
+    - nombre: analisis_y_discusion
+      patron: ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+      original: IV. ANÁLISIS Y DISCUSIÓN DE RESULTADOS
+    - nombre: conclusiones_y_recomendaciones
+      patron: CONCLUSIONES Y RECOMENDACIONES
+      original: V. CONCLUSIONES Y RECOMENDACIONES
+    - nombre: conclusiones
+      patron: CONCLUSIONES
+      original: Conclusiones
+    - nombre: recomendaciones
+      patron: RECOMENDACIONES
+      original: Recomendaciones
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS
+
+# ---------------------------------------------------------------------------
+# tsp
+# ---------------------------------------------------------------------------
+- id: estructura_tsp
+  tipo: secuencia
+  # El esquema solo le corresponde a su propio tipo.
+  aplicar_si:
+    tipo_documento: tsp
+  descripcion: 'Estructura obligatoria del Trabajo de Suficiencia Profesional. El orden debe ser
+    exacto.
+
+    Es el unico esquema con dos sustentos separados (teorico cientifico y
+    psicopedagogico), y con un bloque de diseño de sesion de aprendizaje que no
+    existe en los demas. En el manual aparece escrito "SUFIENCIA" (párr. 3628,
+    error tipografico); el nombre correcto del tipo es "SUFICIENCIA" y es el
+    que usa la etiqueta de deteccion.
+
+    '
+  valor_esperado:
+  - Carátula (Institución, escuela profesional, título, motivo, autor(es), asesor, lugar, fecha)
+  - Dedicatoria (opcional)
+  - Jurado evaluador
+  - Agradecimiento (opcional)
+  - Índice
+  - Presentación
+  - Resumen
+  - Abstract
+  - INTRODUCCIÓN
+  - Problema
+  - Situación o realidad problemática
+  - Enunciado del problema
+  - Justificación
+  - Limitaciones
+  - Objetivos
+  - General
+  - Específicos
+  - DISEÑO DE SESIÓN DE APRENDIZAJE
+  - Datos informativos
+  - Propósitos y evidencias de aprendizaje
+  - Secuencia didáctica
+  - Recursos y materiales educativos
+  - Referencias bibliográficas
+  - Anexos
+  - SUSTENTO TEÓRICO CIENTÍFICO
+  - Introducción
+  - Desarrollo
+  - SUSTENTO PSICOPEDAGÓGICO
+  - Introducción
+  - Desarrollo
+  - CONCLUSIONES
+  - REFERENCIAS
+  - ANEXOS
+  severidad: error
+  ubicacion: Esquema del Trabajo de Suficiencia Profesional (párr. 3628-3667)
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: Esquema enumerado en párr. 3628-3667 del manual
+  automata_secuencia:
+    normalizacion:
+    - mayusculas
+    - ignorar_indent
+    reconocimiento: greedy
+    estados:
+    - nombre: caratula
+      patron: CARÁTULA
+      original: Carátula (Institución, escuela profesional, título, motivo, autor(es), asesor, lugar, fecha)
+    - nombre: dedicatoria
+      patron: DEDICATORIA
+      original: Dedicatoria (opcional)
+      opcional: true
+    - nombre: jurado_evaluador
+      patron: JURADO EVALUADOR
+      original: Jurado evaluador
+    - nombre: agradecimiento
+      patron: AGRADECIMIENTO
+      original: Agradecimiento (opcional)
+      opcional: true
+    - nombre: indice
+      patron: ÍNDICE
+      original: Índice
+    - nombre: presentacion
+      patron: PRESENTACIÓN
+      original: Presentación
+    - nombre: resumen
+      patron: RESUMEN
+      original: Resumen
+    - nombre: abstract
+      patron: ABSTRACT
+      original: Abstract
+    - nombre: introduccion
+      patron: INTRODUCCIÓN
+      original: INTRODUCCIÓN
+    - nombre: problema
+      patron: PROBLEMA
+      original: Problema
+    - nombre: situacion_o_realidad_problematica
+      patron: SITUACIÓN O REALIDAD PROBLEMÁTICA
+      original: Situación o realidad problemática
+    - nombre: enunciado_del_problema
+      patron: ENUNCIADO DEL PROBLEMA
+      original: Enunciado del problema
+    - nombre: justificacion
+      patron: JUSTIFICACIÓN
+      original: Justificación
+    - nombre: limitaciones
+      patron: LIMITACIONES
+      original: Limitaciones
+    - nombre: objetivos
+      patron: OBJETIVOS
+      original: Objetivos
+    - nombre: objetivo_general
+      patron: GENERAL
+      original: General
+    - nombre: objetivos_especificos
+      patron: ESPECÍFICOS
+      original: Específicos
+    - nombre: diseno_de_sesion_de_aprendizaje
+      patron: DISEÑO DE SESIÓN DE APRENDIZAJE
+      original: DISEÑO DE SESIÓN DE APRENDIZAJE
+    - nombre: datos_informativos
+      patron: DATOS INFORMATIVOS
+      original: Datos informativos
+    - nombre: propositos_y_evidencias
+      patron: PROPÓSITOS Y EVIDENCIAS DE APRENDIZAJE
+      original: Propósitos y evidencias de aprendizaje
+    - nombre: secuencia_didactica
+      patron: SECUENCIA DIDÁCTICA
+      original: Secuencia didáctica
+    - nombre: recursos_y_materiales
+      patron: RECURSOS Y MATERIALES EDUCATIVOS
+      original: Recursos y materiales educativos
+    - nombre: referencias_bibliograficas
+      patron: REFERENCIAS BIBLIOGRÁFICAS
+      original: Referencias bibliográficas
+    - nombre: anexos_diseno_de_sesion
+      patron: ANEXOS
+      original: Anexos
+    - nombre: sustento_teorico_cientifico
+      patron: SUSTENTO TEÓRICO CIENTÍFICO
+      original: SUSTENTO TEÓRICO CIENTÍFICO
+    - nombre: introduccion_sustento_teorico
+      patron: INTRODUCCIÓN
+      original: Introducción
+    - nombre: desarrollo_sustento_teorico
+      patron: DESARROLLO
+      original: Desarrollo
+    - nombre: sustento_psicopedagogico
+      patron: SUSTENTO PSICOPEDAGÓGICO
+      original: SUSTENTO PSICOPEDAGÓGICO
+    - nombre: introduccion_sustento_psicopedagogico
+      patron: INTRODUCCIÓN
+      original: Introducción
+    - nombre: desarrollo_sustento_psicopedagogico
+      patron: DESARROLLO
+      original: Desarrollo
+    - nombre: conclusiones
+      patron: CONCLUSIONES
+      original: CONCLUSIONES
+    - nombre: referencias
+      patron: REFERENCIAS
+      original: REFERENCIAS
+    - nombre: anexos
+      patron: ANEXOS
+      original: ANEXOS

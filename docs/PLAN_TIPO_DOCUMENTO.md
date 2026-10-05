@@ -265,14 +265,27 @@ pueda probar contra documentos reales.
    | proyecto_cualitativo | `ESQUEMA DEL PROYECTO DE INVESTIGACIÓN CUALITATIVO` | 2097-2297 |
    | informe_cuantitativo | `ESQUEMA DEL INFORME DE INVESTIGACIÓN CUANTITATIVA` | 2668-2721 |
    | informe_cualitativo | `ESQUEMA DEL INFORME DEL PROYECTO DE INVESTIGACIÓN CUALITATIVO` | 3073-3120 |
-   | tsp | `ESQUEMA DEL TRABAJO DE SUFIENCIA PROFESIONAL` | 3628-… |
+   | tsp | `ESQUEMA DEL TRABAJO DE SUFIENCIA PROFESIONAL` | 3628-3667 |
 2. Escribir las 5 reglas con `aplicar_si` + `automata_secuencia`, usando
    `opcional: true` donde el manual lo indique. Cada `aplicar_si` acepta **solo
    su tipo exacto**, igual que las 3 del paso 6.
 3. Documentar los alias: `informe_cuantitativo` acepta "Tesis de investigación
-   cuantitativa" y `informe_cualitativo` la variante cualitativa.
-4. Registrar en el archivo que el manual exige 3.3/3.3 Aspectos generales para
-   el TSP, y que esa exigencia ya la cubre la regla `indice_hojas_preliminares`.
+   cuantitativa" y `informe_cualitativo` la variante cualitativa. El Anexo 10 no
+   tiene casillas propias para el informe (solo el encabezado "INFORME DEL
+   PROYECTO", párr. 5018), así que el alias cubre al autor que escribe el
+   nombre de la tesis en vez del nombre del informe.
+4. ~~Registrar que el manual exige "Aspectos generales" para el TSP y que lo
+   cubre `indice_hojas_preliminares`.~~ **Descartado al cotejarlo**: las dos
+   premisas son falsas. "Aspectos generales" no aparece en el esquema del TSP
+   (párr. 3628-3667); en todo el manual solo sale en los párr. 99, 1347, 1409,
+   1588, 2023 y 2100. Y la regla `indice_hojas_preliminares` no existe en el
+   repositorio. El "3.3" del enunciado es el criterio 3.3 de la LISTA DE COTEJO
+   (párr. 3744-3745), que habla de la justificación. Lo que el manual sí exige
+   al TSP es la numeración de sus páginas preliminares en romanos minúscula,
+   con la carátula contada pero no enumerada (párr. 3446-3447): es el mismo
+   texto que el requisito general de la párr. 139 y ya lo cubren
+   `numeracion_preliminares_romano`, `numeracion_cuerpo_arabigo` y
+   `caratula_no_se_enumera`. No hace falta una regla nueva.
 
 **Verificación**
 
@@ -280,6 +293,12 @@ pueda probar contra documentos reales.
   comportamiento).
 - Al cargar el archivo aparte, un documento cuantitativo deja aplicar solo su
   estructura.
+
+> **Estado: hecho.** Creado `reglas_unt_pendientes.yaml` con las 5
+> estructuras y su propia copia de `deteccion_tipo_documento` (el linter
+> resuelve `aplicar_si` contra las claves expuestas del mismo archivo, así que
+> sin la copia no lintearía). El punto 4 del enunciado se descartó al cotejarlo
+> contra el manual; el hallazgo está en la cabecera del archivo.
 
 **Hecho cuando**: las 5 reglas cargan, lintean y son revisables contra el
 manual. **Sin pruebas de comportamiento, por decisión explícita** — no hay

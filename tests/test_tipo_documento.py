@@ -502,6 +502,55 @@ class TestYamlPendienteOpcional:
         assert linter(datos) == []
         assert datos["reglas"], "el archivo debe declarar al menos una regla"
 
+    TIPOS_PENDIENTES = {
+        "proyecto_cuantitativo",
+        "proyecto_cualitativo",
+        "informe_cuantitativo",
+        "informe_cualitativo",
+        "tsp",
+    }
+
+    def test_cada_estructura_pendiente_es_exclusiva_de_su_tipo(self):
+        """Cada `aplicar_si` tiene que aceptar SOLO su tipo exacto.
+
+        Es lo que impide que a un proyecto cuantitativo le exijan la
+        estructura del cualitativo. Los dos proyectos comparten casi todo el
+        esqueleto, asi que un `aplicar_si` laxo pasaria desapercibido.
+        """
+        datos = yaml.safe_load(self.RUTA.read_text(encoding="utf-8"))
+        seen: dict[str, str] = {}
+        for regla in datos["reglas"]:
+            cond = regla.get("aplicar_si")
+            if not cond:
+                continue
+            assert set(cond) == {"tipo_documento"}, regla["id"]
+            (tipo,) = cond.values()
+            assert tipo not in seen, f"{tipo} lo piden dos reglas"
+            seen[tipo] = regla["id"]
+        assert set(seen) == self.TIPOS_PENDIENTES, sorted(seen)
+
+    def test_el_archivo_pendiente_expone_tipo_documento(self):
+        """Las condiciones apuntan a `tipo_documento`, asi que el archivo tiene
+        que traer su propia regla discriminadora.
+
+        No es redundancia gratuita: el linter resuelve `aplicar_si` contra las
+        claves expuestas del MISMO archivo, no contra las de `reglas_unt.yaml`.
+        Sin la copia, estas 5 reglas no lintearian.
+        """
+        datos = yaml.safe_load(self.RUTA.read_text(encoding="utf-8"))
+        expuestas = [
+            r["deteccion_tipo"]["expone"] for r in datos["reglas"] if "deteccion_tipo" in r
+        ]
+        assert expuestas == ["tipo_documento"]
+
+    def test_las_estructuras_pendientes_no_entran_en_produccion(self):
+        """El archivo aparte existe justo para no medir un comportamiento que
+        nadie verifico: no hay plantillas oficiales de estos 5 tipos. Si alguna
+        se colara en `reglas_unt.yaml`, la suite pasaria a medirla."""
+        produccion = (self.RUTA.parent / "reglas_unt.yaml").read_text(encoding="utf-8")
+        for tipo in self.TIPOS_PENDIENTES:
+            assert f"- id: estructura_{tipo}\n" not in produccion, tipo
+
 
 # ---------------------------------------------------------------------------
 # Paso 2: DeteccionTipo
