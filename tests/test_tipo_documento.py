@@ -488,6 +488,17 @@ class TestSinCambioDeComportamiento:
 # ---------------------------------------------------------------------------
 
 
+# Que escribe el autor al marcar su casilla del Anexo 10, por tipo. Es el
+# segundo vocabulario, el que el formulario imprime de verdad.
+_ETIQUETA_PENDIENTE = {
+    "proyecto_cuantitativo": "PROYECTO DE INVESTIGACIÓN CUANTITATIVO",
+    "proyecto_cualitativo": "PROYECTO DE INVESTIGACIÓN CUALITATIVO",
+    "informe_cuantitativo": "INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVA",
+    "informe_cualitativo": "INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVA",
+    "tsp": "TRABAJO DE SUFICIENCIA PROFESIONAL",
+}
+
+
 class TestYamlPendienteOpcional:
     """`reglas_unt_pendientes.yaml` solo existe a partir del paso 8. Si ya
     esta, tiene que cargar y pasar el linter: implementadas pero no probadas
@@ -542,6 +553,48 @@ class TestYamlPendienteOpcional:
             r["deteccion_tipo"]["expone"] for r in datos["reglas"] if "deteccion_tipo" in r
         ]
         assert expuestas == ["tipo_documento"]
+
+    @pytest.mark.parametrize(
+        "tipo",
+        sorted(
+            {
+                "proyecto_cuantitativo",
+                "proyecto_cualitativo",
+                "informe_cuantitativo",
+                "informe_cualitativo",
+                "tsp",
+            }
+        ),
+    )
+    def test_cada_tipo_aplica_solo_estructura_suya(self, tipo):
+        """Segunda verificacion del paso 8: al cargar el archivo aparte, un
+        documento solo deja aplicar la estructura que le corresponde.
+
+        No se comprueba que el DFA reconozca bien las secciones (eso necesita
+        plantillas, que no hay). Se comprueba el `aplicar_si`: que los otros 4
+        esquemas queden marcados como no aplicables. Si un esquema se colara
+        sin condicionar, un proyecto cuantitario recibiria tambien las
+        exigencias del cualitativo, que comparte casi todo el esqueleto.
+        """
+        reglas = load_rules(str(self.RUTA))
+        path = _make_docx(
+            headings=["INTRODUCCION", "MARCO TEORICO", "CONCLUSIONES"],
+            cover=f"\u2612 {_ETIQUETA_PENDIENTE[tipo]}",
+        )
+        try:
+            resultados = validate_docx(path, reglas)
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+        estructuras = {
+            r.rule_id: r.aplicable for r in resultados if r.rule_id.startswith("estructura_")
+        }
+        assert set(estructuras) == {f"estructura_{t}" for t in _ETIQUETA_PENDIENTE}, estructuras
+        for rule_id, aplicable in estructuras.items():
+            esperado = rule_id == f"estructura_{tipo}"
+            assert aplicable is esperado, (
+                f"{tipo}: {rule_id} aplicable={aplicable}, se esperaba {esperado}"
+            )
 
     def test_las_estructuras_pendientes_no_entran_en_produccion(self):
         """El archivo aparte existe justo para no medir un comportamiento que
