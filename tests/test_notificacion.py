@@ -23,7 +23,7 @@ import socket
 import pytest
 from aiosmtpd.controller import Controller
 from conftest import CLIENTE, MIME_DOCX
-from docx_factory import compilar_docx, configuracion_base
+from docx_factory import aplicar_mutacion, compilar_docx, configuracion_base
 
 from validator.api_models import ValidarResponse
 from validator.notificacion import (
@@ -412,9 +412,23 @@ def sink_smtp():
         controlador.stop()
 
 
+# Regla que se desvía para obtener el semáforo rojo. Se elige una regla
+# mecánica y no una de estructura porque las estructuras están condicionadas
+# al tipo documental: el documento base es un plan cuantitativo, así que las
+# estructuras de los otros dos tipos de TINV ya no le aplican y no pueden
+# usarse para ponerlo en rojo. Antes de `aplicar_si` sí lo hacían, y por eso
+# este fixture quedó obsoleto al condicionarlas.
+REGLA_ROJA = "margen_superior"
+
+
 def _docx_rojo() -> bytes:
-    """Bytes del documento base (semáforo rojo: falla 2 reglas de estructura)."""
-    with open(compilar_docx(configuracion_base()), "rb") as f:
+    """Bytes de un documento con semáforo rojo.
+
+    Se parte del documento bueno y se le aplica una sola desviación
+    (márgen superior), de modo que el rojo lo produzca un incumplimiento real
+    y no una estructura que no le corresponde.
+    """
+    with open(compilar_docx(aplicar_mutacion(REGLA_ROJA, configuracion_base())), "rb") as f:
         return f.read()
 
 
@@ -466,8 +480,7 @@ class TestNotificacionEndToEnd:
         assert "Estimado(a) estudiante" in cuerpo_texto
         # El HTML incluye el rule_id de cada regla fallida como referencia estable
         cuerpo_html = mensaje.get_body(preferencelist=("html",)).get_content()
-        assert "estructura_tinv_cualitativo" in cuerpo_html
-        assert "estructura_tinv_revision_literatura" in cuerpo_html
+        assert REGLA_ROJA in cuerpo_html
 
     def test_deshabilitado_no_envia_nada(self, monkeypatch, sink_smtp):
         """Opt-in + rojo + correo, pero notificaciones apagadas: 'deshabilitado'."""
