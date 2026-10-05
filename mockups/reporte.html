@@ -138,7 +138,7 @@
       <div class="semaforo" id="semaforo">
         <div class="luz rojo" id="luz">✕</div>
         <div>
-          <div class="titulo" id="tituloSemaforo">Revisa antes de entregar</div>
+          <div class="titulo" id="tituloSemaforo">Requiere correcciones antes de entregar</div>
           <div class="desc" id="descSemaforo">Se detectaron errores de formato que bloquean la entrega conforme a las directivas UNT.</div>
         </div>
       </div>
@@ -167,7 +167,7 @@
 
       <!-- Vista simple -->
       <div class="vista-simple" id="vistaSimple">
-        <p style="font-size:.9rem;color:var(--gris-texto);margin-top:.9rem;"><strong>Resumen de pendientes:</strong> corrige estos puntos para obtener el visto bueno.</p>
+        <p style="font-size:.9rem;color:var(--gris-texto);margin-top:.9rem;"><strong>Resumen de pendientes:</strong> corregir los siguientes puntos para obtener el visto bueno.</p>
         <div class="pendientes" id="pendientes"></div>
       </div>
 
@@ -178,7 +178,7 @@
     <!-- Cómo preguntar a una IA -->
     <div class="card">
       <h2 style="font-size:1.1rem;">🤖 Cómo preguntar a una IA</h2>
-      <p style="font-size:.85rem;color:var(--gris-texto);margin-top:.3rem;">Copia y pega estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema detectado.</p>
+      <p style="font-size:.85rem;color:var(--gris-texto);margin-top:.3rem;">Copie y pegue estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema detectado.</p>
       <div class="ia-cards" id="iaCards"></div>
     </div>
   </main>
@@ -222,10 +222,10 @@
     const semaforo = hayErrorBloqueante ? 'rojo' : 'verde';
     document.getElementById('luz').className = 'luz ' + semaforo;
     document.getElementById('luz').textContent = semaforo === 'rojo' ? '✕' : '✓';
-    document.getElementById('tituloSemaforo').textContent = semaforo === 'rojo' ? 'Revisa antes de entregar' : '¡Puedes entregar!';
+    document.getElementById('tituloSemaforo').textContent = semaforo === 'rojo' ? 'Requiere correcciones antes de entregar' : 'Documento listo para entregar';
     document.getElementById('descSemaforo').textContent = semaforo === 'rojo'
       ? 'Se detectaron errores de formato que bloquean la entrega conforme a las directivas UNT.'
-      : 'Tu documento cumple con las directivas de formato de la UNT.';
+      : 'El documento cumple con las directivas de formato de la UNT.';
 
     // ── Resumen ──
     document.getElementById('kTotal').textContent = RESULTADOS.length;

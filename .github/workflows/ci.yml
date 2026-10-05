@@ -11,6 +11,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Capa 3 anti-secretos: cubre el caso `git commit --no-verify`.
+      # Corre antes del entorno Nix para fallar rápido. Se ancla al mismo
+      # intérprete que exige el proyecto (requires-python >= 3.14): el
+      # python3 del runner (3.12/3.13) no soporta la sintaxis que produce
+      # ruff con target py314 (PEP 758: except sin paréntesis).
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Escaneo de secretos SMTP
+        run: python3 scripts/verificar_secretos.py --all
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
 
@@ -22,3 +35,18 @@ jobs:
 
       - name: Verify OpenAPI spec is in sync
         run: nix develop --command python3 scripts/generate_openapi.py --check
+
+  # Build del frontend con el Node LTS del flake (fuente de verdad de
+  # dependencias). Job separado para correr en paralelo con `check`.
+  frontend:
+    name: Build frontend (vite)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build frontend (npm ci + vite build)
+        run: nix develop --command sh -c "cd frontend && npm ci && npm run build"

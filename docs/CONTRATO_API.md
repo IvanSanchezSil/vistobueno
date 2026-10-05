@@ -1,7 +1,7 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.2.0 (Semana 4)  
-**Fecha**: 2026-09-23  
+**Versión**: 1.3.0 (Semana 5 — Actividad 6)  
+**Fecha**: 2026-09-30  
 **Estado**: Implementado
 
 ---
@@ -19,7 +19,8 @@ Recibe un archivo DOCX de tesis y devuelve un reporte de validación estructurad
 | Campo | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
 | `archivo` | `file` | Sí | Archivo `.docx` a validar |
-| `correo` | `string` (form) | No | Correo electrónico del estudiante. Si se envía, debe tener formato válido (`usuario@dominio`); se usará para notificar resultados cuando el envío esté habilitado (Actividad 6). Cadena vacía se trata como ausente. |
+| `correo` | `string` (form) | No | Correo electrónico del estudiante. Si se envía, debe tener formato válido (`usuario@dominio`); es el destinatario del correo de observaciones cuando el operador lo solicita (campo `notificar`). Cadena vacía se trata como ausente. |
+| `notificar` | `bool` (form) | No (default: `false`) | Opt-in del operador para enviar el correo de observaciones al estudiante. El envío solo se intenta si además hay `correo` válido y semáforo `rojo`. |
 | `incluir_prompts_ia` | `bool` (query) | No (default: `true`) | Incluir la sección "Cómo preguntar a una IA" en la respuesta |
 
 ### Content-Type
@@ -56,6 +57,10 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 ```json
 {
   "semaforo": "verde",
+  "notificacion": {
+    "estado": "sin_correo",
+    "detalle": null
+  },
   "resumen": {
     "total": 47,
     "fallidos_error": 0,
@@ -94,6 +99,8 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `semaforo` | `string` | `"verde"` si todas las reglas de severidad `error` pasan; `"rojo"` si alguna falla |
+| `notificacion.estado` | `string` | Veredicto del envío del correo de observaciones (ver sección siguiente) |
+| `notificacion.detalle` | `string?` | Motivo técnico cuando `estado` es `"fallo"`; `null` en el resto de casos |
 | `resumen.total` | `int` | Total de reglas evaluadas |
 | `resumen.fallidos_error` | `int` | Reglas con severidad `error` que no pasaron |
 | `resumen.fallidos_warning` | `int` | Reglas con severidad `warning` que no pasaron |
@@ -244,6 +251,54 @@ Si el campo `correo` se envía pero no tiene formato válido:
 
 ---
 
+## Notificación de observaciones por correo (Actividad 6)
+
+La herramienta es de **uso interno** (personal del repositorio): el correo
+se envía al **estudiante**, pero quien opera la validación y decide el envío
+es el personal del repositorio.
+
+### Comportamiento
+
+- El envío es **opt-in por solicitud**: requiere `notificar=true`,
+  un `correo` válido y semáforo `rojo`. Sin `notificar`, jamás se abre una
+  conexión SMTP (el estado es `no_solicitado`).
+- Es **best-effort**: un fallo de SMTP (conexión rechazada, credenciales,
+  timeout) nunca cambia el código HTTP de la respuesta; el fallo queda
+  expuesto en `notificacion.detalle` para que el operador reintente o envíe
+  el correo manualmente.
+- Deshabilitado por defecto en el servidor: el envío además exige que la
+  configuración SMTP esté presente (ver abajo).
+
+### Estados de `notificacion.estado`
+
+| Estado | Significado | Sugerencia de UI (personal del repositorio) |
+|--------|-------------|---------------------------------------------|
+| `enviado` | El servidor SMTP aceptó el correo | "Enviamos las observaciones al correo del estudiante." |
+| `fallo` | Se intentó enviar y falló | Mostrar `detalle` (motivo técnico) para reintentar o enviar manualmente |
+| `no_solicitado` | Había correo, pero no se pidió el envío | Ofrecer el checkbox de envío |
+| `sin_correo` | No se envió `correo` (aunque haya `notificar`) | Pedir el correo del estudiante |
+| `sin_observaciones` | Se pidió el envío, pero el semáforo no es `rojo` | Nada que notificar |
+| `deshabilitado` | Se pidió el envío, pero el servidor no tiene la notificación habilitada | Nota de configuración para administradores |
+
+### Configuración del servidor (variables de entorno)
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `VISTOBUENO_NOTIFICACIONES` | (vacío) | `1` habilita el envío |
+| `VISTOBUENO_SMTP_HOST` | (vacío) | Servidor SMTP institucional |
+| `VISTOBUENO_SMTP_PORT` | `587` | Puerto SMTP |
+| `VISTOBUENO_SMTP_USER` | (vacío) | Usuario SMTP (vacío = sin autenticación) |
+| `VISTOBUENO_SMTP_PASSWORD` | (vacío) | Contraseña SMTP. **Nunca se commitea** (bloqueada por pre-commit y CI) |
+| `VISTOBUENO_SMTP_STARTTLS` | `true` | Negociar STARTTLS tras conectar |
+| `VISTOBUENO_CORREO_REMITENTE` | `no-responder@unitru.edu.pe` | Buzón institucional que figura como From |
+
+El correo incluye una tabla HTML con las observaciones (severidad,
+mensaje, valores esperado/encontrado, referencia normativa y `rule_id`),
+una versión en texto plano y encabezados `Date`/`Message-ID` exigidos por
+los servidores reales.
+
+---
+
 ## Ejemplo de solicitud curl
 
 ```bash
@@ -258,8 +313,12 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
 ```bash
 curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
   -F "archivo=@mi_tesis.docx" \
-  -F "correo=estudiante@unitru.edu.pe"
+  -F "correo=estudiante@unitru.edu.pe" \
+  -F "notificar=true"
 ```
+
+Sin `notificar=true` el correo **no** se envía: la respuesta devolvería
+`notificacion.estado = "no_solicitado"`.
 
 ---
 
@@ -309,6 +368,23 @@ El motor interno (`validator.engine`) devuelve `RuleResult` (dataclass) y `build
 ---
 
 ## Changelog
+
+### v1.3.0 (2026-09-30 — Semana 5, Actividad 6)
+
+- **Nuevo campo opcional `notificar`** (form, default `false`): opt-in del
+  operador para el envío del correo de observaciones. Sin él no se abre
+  conexión SMTP.
+- **Nuevo campo en la respuesta `notificacion`**: `{estado, detalle}` con
+  estados `enviado | fallo | no_solicitado | sin_correo | sin_observaciones
+  | deshabilitado`. Con `fallo`, `detalle` expone el motivo técnico.
+- **Envío best-effort cableado al flujo de validación**: requiere
+  `notificar=true` + `correo` válido + semáforo `rojo` + notificaciones
+  habilitadas en el servidor; un fallo SMTP jamás cambia el código HTTP.
+- Nueva sección de documentación del comportamiento y de la configuración
+  SMTP por variables de entorno.
+- Ejemplo `curl` con `correo` + `notificar`.
+- Versión del endpoint: `1.2.0` → `1.3.0` (cambio aditivo; el frontend
+  existente no se rompe: `notificacion` tiene valor por defecto).
 
 ### v1.2.0 (2026-09-23 — Semana 4, cierre Actividad 5)
 

@@ -21,8 +21,9 @@ Frontend (React)
       → extractor DOCX (validator/extractor.py)
       → motor de reglas (validator/engine.py)
       → generador de prompts IA (validator/prompts.py)
+      → notificación por correo (validator/notificacion.py, opt-in + best-effort)
     → respuesta JSON (ValidarResponse)
-  ← semáforo + resumen + resultados + prompts IA + metadatos
+  ← semáforo + notificación + resumen + resultados + prompts IA + metadatos
 ```
 
 ### Componentes existentes
@@ -35,10 +36,13 @@ Frontend (React)
 | **Checks** | `validator/checks.py` | Ejecuta checks individuales (xpath, atributos, regex) |
 | **Prompts IA** | `validator/prompts.py` | Genera prompts template para reglas fallidas |
 | **Exportador Markdown/PDF** | `validator/exportador.py` | Exporta reportes a Markdown y PDF |
+| **Notificación por correo** | `validator/notificacion.py` | Envía las observaciones al estudiante por SMTP (opt-in, best-effort; Actividad 6) |
 | **API** | `validator/api.py` | Endpoint FastAPI `POST /validar` |
 | **DTOs API** | `validator/api_models.py` | Modelos Pydantic de respuesta (campos en español) |
 | **CLI referencia** | `validator/cli.py` | Validador desde línea de comandos |
 | **Tests exportador** | `tests/test_exportador.py` | Tests de exportación Markdown/PDF |
+| **Tests notificación** | `tests/test_notificacion.py` | Tests unitarios + E2E con sink SMTP (aiosmtpd) |
+| **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP en commits (pre-commit + CI) |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
 | **Reglas DSL (producción)** | `reglas_unt.yaml` | 48 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
 
@@ -64,6 +68,17 @@ Frontend (React)
 - Si trabajas en la API, coordina con Integrante 3 antes de modificar `engine.py` o `checks.py`.
 - Si trabajas en el frontend, coordina con Integrante 1 antes de cambiar el contrato de la API.
 - El merge a `master` lo hace el integrante que terminó la tarea, después de verificar que todo funciona.
+
+### Protección del CI
+
+El CI es la barrera de calidad del proyecto y **no se debilita para hacer pasar un PR**:
+
+- Un PR no se mergea con checks rojos: se arregla la causa, no el check.
+- No se eliminan, comentan, saltan ni relajan pasos de `.github/workflows/ci.yml` sin aprobación explícita del equipo, justificada en el PR.
+- El workflow vive **solo** en `.github/workflows/ci.yml` (nombre canónico referenciado por la documentación). No se renombra, duplica ni restaura desde copias antiguas.
+- Prohibido: `git push --no-verify`, `[ci skip]` / `[skip ci]` en mensajes de commit, `continue-on-error` para tapar fallos, y deshabilitar workflows desde la interfaz de GitHub.
+- Toda área con verificación propia (frontend, scripts, motor) debe tener su paso en CI: "lo probé a mano" no es verificación.
+- Todo cambio al CI debe mostrar el pipeline verde en su propio PR.
 
 ### Commits
 
@@ -209,11 +224,12 @@ Al entrar, el shellHook muestra los comandos disponibles. Herramientas principal
 |---------|----------|
 | `nix run .#test -- tests/ -v` | Ejecuta la suite de tests |
 | `nix run .#serve -- validator.api:app --reload` | Inicia la API en desarrollo |
+| `nix run .#smtp-dev` | Sink SMTP local (aiosmtpd en 127.0.0.1:8025) para probar notificaciones |
 | `nix flake check` | Verificación completa (tests + lint del flake) |
 | `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
 | `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |
 
-Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng).
+Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng), Node.js LTS (build del frontend).
 
 ### Gestión de dependencias
 
@@ -332,7 +348,7 @@ Cada integrante tiene su área para evitar conflictos de merge:
 
 | Integrante | Puede modificar | No debe modificar (sin coordinar) |
 |------------|-----------------|-----------------------------------|
-| Integrante 1 (Backend) | `api.py`, `api_models.py`, `tests/`, `docs/CONTRATO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
+| Integrante 1 (Backend) | `api.py`, `api_models.py`, `notificacion.py`, `scripts/verificar_secretos.py`, `tests/`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
 | Integrante 2 (Frontend) | `frontend/` (React), `docs/` | `validator/` (coordina con Int1) |
 | Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
 
@@ -371,6 +387,7 @@ vistobueno/
 │   ├── checks.py                      # Checks individuales (xpath, atributos, regex)
 │   ├── prompts.py                     # Generador de prompts "cómo preguntar a una IA"
 │   ├── exportador.py                  # Exporta reportes a Markdown y PDF
+│   ├── notificacion.py                # Notificación de observaciones por SMTP (Actividad 6)
 │   ├── api.py                         # FastAPI endpoint POST /validar
 │   ├── api_models.py                  # Pydantic DTOs (ValidarResponse, etc.)
 │   ├── cli.py                         # CLI de referencia
@@ -388,6 +405,10 @@ vistobueno/
 │   ├── test_paridad_formatos.py       # Paridad legacy vs DSL
 │   ├── test_propiedad.py              # Tests de propiedad (factory + mutaciones)
 │   ├── test_exportador.py             # Tests de exportación a Markdown/PDF
+│   ├── test_notificacion.py           # Tests unitarios + E2E de notificación (sink aiosmtpd)
+│   ├── test_verificar_secretos.py     # Tests del escáner de secretos SMTP
+│   ├── conftest.py                    # Cliente de prueba y fixtures compartidos
+│   ├── _docx_generator.py             # Generador de DOCX de tamaño controlado (tests 413)
 │   ├── docx_factory.py                # Factory determinista de DOCX
 │   ├── _docx_builder.py               # Builder interno de DOCX
 │   ├── _mutations.py                  # Mutaciones sincronizadas con reglas_unt.yaml
@@ -411,6 +432,7 @@ vistobueno/
 │   ├── evaluar_paridad_plantillas.py  # Paridad legacy vs DSL (recursos/)
 │   ├── migrar_legacy_a_dsl.py         # Migra YAML legacy → DSL
 │   ├── ocr_pdfs.py                    # OCR de reglamentos escaneados
+│   ├── verificar_secretos.py          # Escáner de credenciales SMTP (pre-commit + CI)
 │   └── generate_openapi.py            # Regenerar especificación OpenAPI
 ├── frontend/                          # React + Vite (en desarrollo)
 │   ├── src/
@@ -434,7 +456,10 @@ vistobueno/
 8. `build_report()` agrupa los resultados, calcula el semáforo y el resumen.
 9. `build_ai_help_section()` genera prompts template para las reglas fallidas.
 10. `api.py` mapea los resultados del motor a los DTOs Pydantic (campos en español).
-11. La respuesta JSON se devuelve al frontend.
+11. Si el operador marcó `notificar` y hay `correo` válido con semáforo rojo,
+    `notificacion.py` envía el correo de observaciones (best-effort: un fallo
+    SMTP nunca rompe la respuesta; el estado queda en `notificacion.estado`).
+12. La respuesta JSON se devuelve al frontend.
 
 ### Capa de abstracción: motor vs API
 

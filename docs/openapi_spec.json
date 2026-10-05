@@ -3,7 +3,7 @@
   "info": {
     "title": "VistoBueno API",
     "description": "API de validación automática de formato de tesis — UNT FECyC",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "paths": {
     "/validar": {
@@ -85,7 +85,13 @@
               }
             ],
             "title": "Correo",
-            "description": "Correo electrónico del estudiante (opcional). Se usará para notificar resultados cuando el envío esté habilitado."
+            "description": "Correo electrónico del estudiante (opcional). Destinatario de las observaciones cuando se solicita el envío (campo `notificar`)."
+          },
+          "notificar": {
+            "type": "boolean",
+            "title": "Notificar",
+            "description": "Solicitar el envío del correo de observaciones al estudiante (opt-in del operador). Solo aplica con semáforo rojo y un `correo` válido.",
+            "default": false
           }
         },
         "type": "object",
@@ -93,6 +99,19 @@
           "archivo"
         ],
         "title": "Body_validar_validar_post"
+      },
+      "EstadoNotificacionAPI": {
+        "type": "string",
+        "enum": [
+          "enviado",
+          "fallo",
+          "sin_correo",
+          "no_solicitado",
+          "sin_observaciones",
+          "deshabilitado"
+        ],
+        "title": "EstadoNotificacionAPI",
+        "description": "Estado del envío del correo de observaciones al estudiante.\n\nLa herramienta es de uso interno (personal del repositorio): el estado\ndescribe qué pasó con el envío para que el operador pueda informar al\nestudiante o reintentar manualmente. El envío es opt-in por solicitud\n(campo `notificar`): el operador decide cuándo el reporte está listo\npara llegarle al estudiante."
       },
       "MetadatosValidacion": {
         "properties": {
@@ -126,6 +145,32 @@
         ],
         "title": "MetadatosValidacion",
         "description": "Metadatos del procesamiento, agregados por la capa API.\n\nEstos campos no existen en el motor interno; se agregan aquí\npara dar contexto al frontend sobre el archivo procesado."
+      },
+      "NotificacionAPI": {
+        "properties": {
+          "estado": {
+            "$ref": "#/components/schemas/EstadoNotificacionAPI",
+            "description": "Veredicto del envío"
+          },
+          "detalle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detalle",
+            "description": "Motivo técnico cuando el envío falló; None en el resto de casos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado"
+        ],
+        "title": "NotificacionAPI",
+        "description": "Estado de la notificación por correo de observaciones.\n\nExposición para el personal del repositorio: con `estado` \"enviado\" la\ninterfaz puede informar \"enviamos las observaciones al correo del\nestudiante\"; con \"fallo\", el `detalle` explica el motivo técnico para\nreintentar o enviar manualmente."
       },
       "PromptIA": {
         "properties": {
@@ -272,6 +317,10 @@
             "title": "Semaforo",
             "description": "\"verde\" si todas las reglas error pasan, \"rojo\" si alguna falla"
           },
+          "notificacion": {
+            "$ref": "#/components/schemas/NotificacionAPI",
+            "description": "Estado del envío del correo de observaciones al estudiante. El envío es opt-in (campo de formulario `notificar`): solo se intenta cuando el operador lo solicita, hay observaciones bloqueantes (semáforo \"rojo\"), se envió un campo `correo` válido y la notificación está habilitada en el servidor."
+          },
           "resumen": {
             "$ref": "#/components/schemas/ResumenValidacion",
             "description": "Resumen cuantitativo"
@@ -314,6 +363,9 @@
               "archivo_tamano_bytes": 123456,
               "reglas_evaluadas": 47,
               "version_esquema": "2026-09-01"
+            },
+            "notificacion": {
+              "estado": "sin_correo"
             },
             "resultados": [
               {
