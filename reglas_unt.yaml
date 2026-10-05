@@ -693,10 +693,9 @@ reglas:
 # Verificado sobre la estructura real de la plantilla, no sobre el indice.
 - id: estructura_tinv_cuantitativo
   tipo: secuencia
-  tipo: secuencia
   # El esquema solo le corresponde a su propio tipo. Si la deteccion no pudo
   # determinarlo (sin_determinar) o se contradice con la estructura
-  # (contradictorio), el documento se valida contra TODOS los esquemas: es
+  # Si la detección no pudo determinarlo, el documento se valida contra su tipo exacto
   # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
   aplicar_si:
     tipo_documento: tinv_cuantitativo
@@ -827,10 +826,9 @@ reglas:
       original: ANEXOS
 - id: estructura_tinv_cualitativo
   tipo: secuencia
-  tipo: secuencia
   # El esquema solo le corresponde a su propio tipo. Si la deteccion no pudo
   # determinarlo (sin_determinar) o se contradice con la estructura
-  # (contradictorio), el documento se valida contra TODOS los esquemas: es
+  # Si la detección no pudo determinarlo, el documento se valida contra su tipo exacto
   # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
   aplicar_si:
     tipo_documento: tinv_cualitativo
@@ -944,10 +942,9 @@ reglas:
       original: ANEXOS
 - id: estructura_tinv_revision_literatura
   tipo: secuencia
-  tipo: secuencia
   # El esquema solo le corresponde a su propio tipo. Si la deteccion no pudo
   # determinarlo (sin_determinar) o se contradice con la estructura
-  # (contradictorio), el documento se valida contra TODOS los esquemas: es
+  # Si la detección no pudo determinarlo, el documento se valida contra su tipo exacto
   # preferible mostrar de mas que dejar la estructura sin revisar en silencio.
   aplicar_si:
     tipo_documento: tinv_revision_literatura
