@@ -676,6 +676,21 @@ reglas:
     - ciencias matemáticas
     - educación y ciencias de la comunicación y desarrollo sostenible
     ignore_case: true
+# EVALUADO: desviaciones entre la plantilla oficial y el esquema del manual.
+# La plantilla oficial del proyecto cuantitativo (EDUCACION INICIAL, en
+# `recursos/`) exige 3 secciones que el esquema del manual NO lista. Por eso
+# el DFA de abajo no las exige: si las exigiera, un estudiante que siga la
+# plantilla oficial que la propia facultad entrega seria reportado en rojo.
+# - "Aspectos eticos": la plantilla la trae dentro de Metodologia, pero el
+#   manual solo la define en el esquema del PROYECTO (parr. 1755) y en los
+#   informes, nunca en el del trabajo de investigacion.
+# - "Discusion": la plantilla la trae como seccion propia, despues de
+#   Resultados. El manual solo nombra "ANALISIS Y DISCUSION DE RESULTADOS" en
+#   los esquemas de INFORME (parr. 660, 700), nunca en los del TINV.
+# - "Conclusiones y Recomendaciones": la plantilla agrupa el bloque y lo
+#   separa en Conclusiones + Recomendaciones. El esquema del manual solo pide
+#   "CONCLUSIONES" para el TINV; "Recomendaciones" es propia de los informes.
+# Verificado sobre la estructura real de la plantilla, no sobre el indice.
 - id: estructura_tinv_cuantitativo
   tipo: secuencia
   tipo: secuencia

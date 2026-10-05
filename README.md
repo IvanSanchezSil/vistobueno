@@ -97,7 +97,7 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 > - `unt_format_rules_schema.yaml` — formato **legacy** (checks con
 >   `mecanismo_verificable`). Es la fuente histórica (Semana 2); la API ya no lo
 >   carga.
-> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **47 reglas**:
+> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **48 reglas**:
 >   las 32 legacy migradas (F1) + 9 reglas antes no-deterministas mecanizadas
 >   a mano en la F3 (tokenizer + analizadores de conteo/lista/hipervínculo)
 >   + `indice_paginas_separadas` (paginación real por `w:lastRenderedPageBreak`)
@@ -107,6 +107,12 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 >   Para las 32 reglas compartidas, ambos motores dan resultados idénticos
 >   (paridad verificada con `scripts/evaluar_paridad_plantillas.py` contra
 >   `recursos/`).
+> - `reglas_unt_pendientes.yaml` — las **5 estructuras que faltan** (proyecto
+>   cuantitativo/cualitativo, informe cuantitativo/cualitativo y trabajo de
+>   suficiencia profesional), con `deteccion_tipo_documento` incluida.
+>   **La API no lo carga**: están implementadas pero sin probar contra
+>   documentos reales, porque la facultad no tiene plantillas de esos 5 tipos.
+>   Meterlas en producción haría que la suite midiera algo que nadie verificó.
 
 ```
 validator/
@@ -147,7 +153,8 @@ scripts/
   migrar_legacy_a_dsl.py          # Migra YAML legacy → DSL
   ocr_pdfs.py                     # OCR de reglamentos escaneados
 
-reglas_unt.yaml            # Reglas en formato DSL (47 reglas)
+reglas_unt.yaml            # Reglas en formato DSL (48 reglas) - lo carga la API
+reglas_unt_pendientes.yaml # 5 estructuras implementadas y sin probar (no lo carga la API)
 reglas_dsl_ejemplo.yaml    # Ejemplo de reglas DSL
 ```
 
@@ -204,11 +211,13 @@ pytest tests/ --cov=validator --cov-report=term-missing
 nix flake check
 ```
 
-La suite (**213 tests**) incluye los **tests de propiedad** (F6): un factory
+La suite (**368 tests**) incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en
 `tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
 este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)
-genera un documento "bueno" (45/47) y 47 mutaciones de una sola propiedad
+genera un documento "bueno" (46 de 48 evaluadas; las 2 estructuras de los otros
+tipos de TINV no le aplican, porque el documento es un plan cuantitativo) y 48
+mutaciones de una sola propiedad
 (`tests/test_propiedad.py`), verificando que un desvío mínimo invalida solo
 su regla. Sobre eso, las **mejoras de ingeniería F4** agregaron: un **linter
 del DSL** (`validator/dsl_check.py`) que valida la configuración al cargar

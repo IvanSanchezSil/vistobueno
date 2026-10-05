@@ -42,6 +42,7 @@ reglas:
     nota_pie: { ... }          # F2 ítem 3 — numeración de notas al pie
     toc_apunta: { ... }        # F2 ítem 11 — el índice apunta a secciones reales
     toc_numeracion: { ... }    # F2 ítem 12 — jerarquía de numeración del índice
+    deteccion_tipo: { ... }     # Fase B — publica el tipo documental
 ```
 
 El `engine` detecta el formato por la clave `reglas` (DSL) vs `rules`
@@ -397,16 +398,104 @@ Usado por la regla *indice_numeracion_jerarquica* (warning, Manual párr. 194).
 
 ---
 
+### 16. `deteccion_tipo` → `DeteccionTipo` (Fase B)
+
+No es un verificador de formato: es la única regla que **publica un dato en
+el contexto** del documento, del que dependen las demás. Determina a qué tipo
+de documento pertenece la tesis para que cada estructura se valide solo si
+corresponde.
+
+```yaml
+- id: deteccion_tipo_documento
+  tipo: deteccion
+  severidad: warning          # siempre informa, nunca bloquea (decisión 4)
+  deteccion_tipo:
+    expone: tipo_documento    # la clave que publica en el contexto
+    declaracion:              # nivel 1: lo que el autor escribió
+      anexo: 'Anexo 10 — Declaración jurada (párr. 5008-5022)'
+      etiquetas:              # etiqueta -> tipo, o lista de etiquetas
+        tinv_cuantitativo:
+          - 'TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA'
+          - 'TRABAJO DE INVESTIGACIÓN CUANTITATIVO'
+    firmas:                   # nivel 2: lo que el documento trae en su estructura
+    - tipo: tsp
+      evidencia: ['SECUENCIA DIDÁCTICA', 'SUSTENTO PSICOPEDAGÓGICO']
+      minimo: 2               # cuántos de esosasaros hay que alcanzar
+    minimo_global: 1          # sin esto, ninguna firma se alcanza
+```
+
+Detecta en **dos niveles**, y el primero que llegue a su umbral gana:
+
+1. **`declaracion`** — busca cada etiqueta del Anexo 10 en el texto. Si el
+   autor marcó la casilla, manda eso. La comparación es por subcadena, así que
+   las etiquetas cortas ceden ante las más específicas: el orden de `firmas` y
+   de `etiquetas` importa.
+2. **`firmas`** — conjuntos de secciones que solo tiene un tipo. `minimo: 2`
+   significa "al menos 2 de las 3 evidencias".
+
+El resultado es uno de cinco valores, y `expone` publica ese valor como
+`tipo_documento`:
+
+| `nivel` | Significado | ¿Se publica? |
+|---------|-------------|--------------|
+| `declarado` | El autor lo escribió en el Anexo 10 | Sí, el tipo declarado |
+| `inferido` | Alcanzó una firma estructural | Sí, el tipo de la firma |
+| `sin_determinar` | Ninguna fuente llega al umbral | No: publica `sin_determinar` |
+| `contradictorio` | Dos fuentes dan tipos distintos | No: publica `contradictorio` |
+
+Cuando el valor es `sin_determinar` o `contradictorio`, ninguna estructura
+aplica: el documento se valida contra **todas** a la vez. Es preferible
+mostrar de más que dejar la estructura sin revisar en silencio.
+
+#### `expone`
+
+Declara la clave que la regla publica en el contexto. Debe ser un texto no
+vacío y **solo puede aparecer en una regla** del archivo (si dos reglas
+publican la misma clave, el contexto sería ambiguo y el linter lo rechaza).
+Una regla con `expone` no puede llevar `aplicar_si`: no puede condicionarse a
+un valor que ella misma produce.
+
+#### `aplicar_si`
+
+Condiciona una regla a un valor del contexto. Las condiciones se resuelven en
+**dos fases**: primero se ejecuta todo lo que expone claves, después lo que se
+condiciona. Por eso una regla condicionada puede declararse *antes* que la
+que produce su clave, y el orden del YAML es irrelevante.
+
+```yaml
+- id: estructura_tinv_cuantitativo
+  aplicar_si:
+    tipo_documento: tinv_cuantitativo    # solo su tipo exacto
+```
+
+- El valor puede ser un escalar o una **lista de aceptados**. Una lista vacía
+  no casaría con nada y dejaría la regla muerta, así que el linter la rechaza.
+- La clave tiene que exponerla **alguna regla del mismo archivo**. El linter
+  no consulta los otros YAML del repositorio: es lo que obliga a que un
+  archivo como `reglas_unt_pendientes.yaml` traiga su propia copia de
+  `deteccion_tipo_documento`.
+- Una regla que **no** aplica no ha fallado: se emite con `passed=True` y
+  `aplicable=False`. Así no puede bloquear la entrega, y el resumen cuenta
+  aparte lo evaluado de lo omitido.
+
+Usado por `estructura_tinv_cuantitativo`, `estructura_tinv_cualitativo`,
+`estructura_tinv_revision_literatura` y por las 5 estructuras de
+`reglas_unt_pendientes.yaml`.
+
+---
+
 ## Componentes de código
 
 | Archivo | Clases | Responsabilidad |
 |---------|--------|-----------------|
 | `validator/automata.py` | `DFA`, `Transicion`, `GramaticaEstructura`, `PDA`, `TransicionPDA` | DFA, PDA y gramáticas puras, sin conocimiento del DOCX |
 | `validator/tokenizer.py` | `Token`, `tokenizar`, `seccion`, `solo`, `textos` | Análisis léxico: flujo tipado del `<w:body>` y cortes por sección |
-| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo`, `AnalizadorPaginacion`, `AnalizadorNotaPie`, `AnalizadorTocApunta`, `AnalizadorTocNumeracion` | Analizadores de hoja sobre `ExtractedDocx` |
+| `validator/analizadores.py` | `Analizador` (ABC), `AnalizadorXML`, `AnalizadorRegex`, `AnalizadorLista`, `AnalizadorConteoNodos`, `AnalizadorImagen`, `AnalizadorCantidadPatron`, `AnalizadorListaObligatoria`, `AnalizadorHipervinculo`, `AnalizadorPaginacion`, `AnalizadorNotaPie`, `AnalizadorTocApunta`, `AnalizadorTocNumeracion`, `DeteccionTipo` | Analizadores de hoja sobre `ExtractedDocx` |
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |
+| `reglas_unt.yaml` | — | 48 reglas de producción, incluida `deteccion_tipo_documento` |
+| `reglas_unt_pendientes.yaml` | — | 5 estructuras implementadas y **sin** probar contra documentos reales (no hay plantillas de esos tipos); no lo carga la API |
 
 ---
 

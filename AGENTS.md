@@ -45,6 +45,7 @@ Frontend (React)
 | **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP en commits (pre-commit + CI) |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
 | **Reglas DSL (producción)** | `reglas_unt.yaml` | 48 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
+| **Reglas DSL pendientes** | `reglas_unt_pendientes.yaml` | 5 estructuras implementadas y sin probar; no lo carga la API |
 
 ---
 
@@ -300,6 +301,13 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
   `indice_numeracion_jerarquica`) y la regla discriminadora
   `deteccion_tipo_documento` (Semana 6, Paso 3: identifica a qué tipo de
   documento pertenece la tesis y publica `tipo_documento` en el contexto).
+- **Estructuras pendientes** en `reglas_unt_pendientes.yaml`: las 5 que el
+  manual define y el motor no cubría (proyecto e informe, cuantitativo y
+  cualitativo, más trabajo de suficiencia profesional). **La API no lo
+  carga**: están implementadas pero sin probar contra documentos reales,
+  porque la facultad no tiene plantillas de esos 5 tipos. Solo se verifica
+  la configuración (que cargan y lintean), no el comportamiento. Para
+  usarlas hace falta una plantilla real de cada tipo.
 - Las reglas cubren: papel, fuente, tamaños, interlineado, alineación, márgenes, numeración, sangría, estructura de secciones.
 
 ### Severidad
@@ -308,8 +316,10 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 322 tests) se
+> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 368 tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
+> Del doc bueno se evalúan 46 de 48: las 2 estructuras de los otros tipos de
+> TINV no le aplican porque el documento es un plan cuantitativo.
 
 ### Cómo agregar una regla nueva al YAML
 
@@ -378,6 +388,7 @@ vistobueno/
 ├── flake.nix                          # Entorno de desarrollo Nix
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
 ├── reglas_unt.yaml                    # Reglas en formato DSL (48 reglas)
+├── reglas_unt_pendientes.yaml         # 5 estructuras pendientes, sin probar
 ├── reglas_dsl_ejemplo.yaml            # Ejemplo de reglas DSL
 ├── validator/
 │   ├── __init__.py                    # Docstring del paquete
