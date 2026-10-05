@@ -574,16 +574,31 @@ FIRMAS = [
     },
 ]
 
-# Etiquetas del Anexo 10, con el vocabulario del formulario (no el del manual).
+# Etiquetas del Anexo 10. Cada tipo tiene dos vocabularios distintos: el del
+# titulo que se opto y el que imprime el formulario. No son intercambiables,
+# asi que se listan los dos (espejo de reglas_unt.yaml).
 ETIQUETAS = {
-    "tsp": ["TRABAJO DE SUFICIENCIA PROFESIONAL", "TRABAJO DE SERVICIO", "SERVICIO SOCIAL"],
+    "tsp": [
+        "TRABAJO DE SUFICIENCIA PROFESIONAL",
+        "TRABAJO DE SERVICIO",
+        "SERVICIO SOCIAL",
+    ],
     "informe_cualitativo": ["INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO"],
     "informe_cuantitativo": ["INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO"],
     "proyecto_cuantitativo": ["PROYECTO DE INVESTIGACIÓN CUANTITATIVO"],
     "proyecto_cualitativo": ["PROYECTO DE INVESTIGACIÓN CUALITATIVO"],
-    "tinv_revision_literatura": ["TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN"],
-    "tinv_cualitativo": ["TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA"],
-    "tinv_cuantitativo": ["TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA"],
+    "tinv_revision_literatura": [
+        "TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN",
+        "TRABAJO DE INVESTIGACIÓN DE REVISIÓN DE LA LITERATURA",
+    ],
+    "tinv_cualitativo": [
+        "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA",
+        "TRABAJO DE INVESTIGACIÓN CUALITATIVO",
+    ],
+    "tinv_cuantitativo": [
+        "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA",
+        "TRABAJO DE INVESTIGACIÓN CUANTITATIVO",
+    ],
 }
 
 
@@ -1426,6 +1441,95 @@ class TestCasosLimite:
         assert centinelas == [], (
             f"un tipo declarado no puede salir como no determinado: aparecieron {centinelas}"
         )
+
+    def test_cada_tipo_se_declara_con_los_dos_vocabularios(self):
+        """El manual usa dos vocabularios y no son intercambiables: el del
+        titulo que se opta y el que imprime el formulario del Anexo 10.
+
+        El segundo es el que de verdad aparece marcado, porque la declaracion
+        se lee del Anexo 10. Antes de esta correccion, un autor que marcaba la
+        casilla del formulario no declaraba nada: el motor buscaba el
+        vocabulario del titulo, que en el Anexo 10 no aparece ni una vez.
+        """
+        casos = [
+            (
+                "tinv_cuantitativo",
+                "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA",
+                "TRABAJO DE INVESTIGACIÓN CUANTITATIVO",
+            ),
+            (
+                "tinv_cualitativo",
+                "TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA",
+                "TRABAJO DE INVESTIGACIÓN CUALITATIVO",
+            ),
+            (
+                "tinv_revision_literatura",
+                "TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN",
+                "TRABAJO DE INVESTIGACIÓN DE REVISIÓN DE LA LITERATURA",
+            ),
+        ]
+        for tipo, del_titulo, del_formulario in casos:
+            for vocabulario in (del_titulo, del_formulario):
+                # El cuerpo no aporta ninguna firma: si el tipo se reconoce,
+                # es solo porque la declaracion se leyo.
+                _ok, nivel, valor, _ev, _d = _detectar(
+                    [_con_casilla(vocabulario)],
+                    {"anexo": "Anexo 10", "etiquetas": ETIQUETAS},
+                )
+                assert valor == tipo, f"{vocabulario} deberia declarar {tipo}"
+                assert nivel == NIVEL_DECLARADO, vocabulario
+
+    def test_ninguna_etiqueta_declara_a_un_tipo_ajeno(self):
+        """Como el cotejo es por subcadena, anadir el vocabulario del
+        formulario podria hacer que una sola casilla declarara a dos tipos. Se
+        comprueba que cada etiqueta declara exactamente al tipo que la posee,
+        para los 8 tipos y todas sus etiquetas."""
+        for tipo, etiquetas in ETIQUETAS.items():
+            for etiqueta in etiquetas:
+                _ok, _nivel, valor, _ev, _d = _detectar(
+                    [_con_casilla(etiqueta)],
+                    {"anexo": "Anexo 10", "etiquetas": ETIQUETAS},
+                )
+                assert valor == tipo, f"{etiqueta} declaro {valor}, no {tipo}"
+
+    def test_las_casillas_del_anexo_10_declaran_su_tipo(self):
+        """Integracion con el YAML de produccion para el otro vocabulario.
+
+        El Anexo 10 ofrece casillas que dicen "TRABAJO DE INVESTIGACION
+        CUANTITATIVO" (parrr. 5014-5016 del manual), no el nombre del titulo.
+        Esas son las palabras que el autor realmente marca, asi que son las
+        que el motor tiene que leer. Con el vocabulario equivocado, marcar la
+        casilla no declaraba nada y el documento caia en sin_determinado con
+        su error centinela.
+        """
+        casos = [
+            ("TRABAJO DE INVESTIGACIÓN CUANTITATIVO", "tinv_cuantitativo"),
+            ("TRABAJO DE INVESTIGACIÓN CUALITATIVO", "tinv_cualitativo"),
+            (
+                "TRABAJO DE INVESTIGACIÓN DE REVISIÓN DE LA LITERATURA",
+                "tinv_revision_literatura",
+            ),
+            ("TRABAJO DE SUFICIENCIA PROFESIONAL", "tsp"),
+        ]
+        for casilla, tipo in casos:
+            path = _make_docx(
+                headings=["INTRODUCCION", "MARCO TEORICO", "CONCLUSIONES"],
+                cover=f"☒ {casilla}",
+            )
+            try:
+                res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+            finally:
+                Path(path).unlink(missing_ok=True)
+
+            deteccion = next(r for r in res if r.rule_id == "deteccion_tipo_documento")
+            assert f"declarado={tipo}" in deteccion.found, casilla
+
+            centinelas = [
+                r.rule_id
+                for r in res
+                if r.rule_id in {"tipo_documento_no_determinado", "tipo_documento_contradictorio"}
+            ]
+            assert centinelas == [], f"{casilla} produjo {centinelas}"
 
     def test_el_centinela_no_determinado_es_aplicable_y_explica(self):
         path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])

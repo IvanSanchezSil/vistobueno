@@ -453,17 +453,19 @@ estructuras de cualitativo y de revisión, que no aplican a un plan cuantitativo
 - **Solo los 3 TINV tienen reglas de estructura.** Una TSP, un informe o un
   proyecto no reciben ninguna validación estructural: salen vacíos por ese
   lado. Las 5 reglas nuevas van en el archivo aparte (paso 8).
-- **El Anexo 10 del manual contradice al resto del manual en el vocabulario.**
-  El Anexo 10 (párr. 5012-5022) llama a las tesis "TRABAJO DE INVESTIGACIÓN
-  CUANTITATIVO" y "TRABAJO DE INVESTIGACIÓN DE REVISIÓN DE LA LITERATURA",
-  mientras que `declaracion.etiquetas` en `reglas_unt.yaml` busca "TESIS PARA
-  OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA" y "TESIS PARA
-  OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN". Ninguna de esas dos
-  cadenas del YAML aparece en el manual. Además el Anexo 10 escribe el TSP
-  como "TRABAJO DE **SUFIENCIA** PROFESIONAL" (párr. 5022, sin la C), cuando
-  el cuerpo del manual usa la forma correcta 24 veces. Verificar contra el
-  formulario que la facultad aplica de verdad antes de ajustar el resto de
-  las etiquetas.
+- **El Anexo 10 y los encabezados de capítulo usan dos vocabularios que no son
+  intercambiables.** El Anexo 10 (párr. 5014-5016) pide marcar "TRABAJO DE
+  INVESTIGACIÓN CUANTITATIVO"; el nombre del título que se opta es "TESIS PARA
+  OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA". Como la
+  declaración se lee del Anexo 10, lo que el autor marca es el primero, y el
+  motor lista **los dos** por tipo. Quedan dos huecos sin resolver, ambos del
+  lado del formulario, que no son culpa del motor:
+  - El Anexo 10 no ofrece casillas propias para el informe (solo el encabezado
+    "INFORME DEL PROYECTO", párr. 5018). Un informe solo se reconoce por el
+    título o por las firmas.
+  - "TRABAJO DE INVESTIGACIÓN DE LA PRÁCTICA PROFESIONAL" (párr. 5015) es la
+    única casilla sin tipo canónico: aparece una sola vez en todo el manual y
+    ninguna sección la desarrolla. Se deja sin mapear a propósito.
 
 ## Sobre el tipo desconocido y la contradicción (decisión 6)
 

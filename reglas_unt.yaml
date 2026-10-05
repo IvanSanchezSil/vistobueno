@@ -33,20 +33,41 @@ reglas:
   deteccion_tipo:
     expone: tipo_documento
     declaracion:
-      anexo: 'Anexo 10 — Declaración jurada (párr. 1825-1835)'
+      anexo: 'Anexo 10 — Declaración jurada (párr. 5008-5022)'
+      # El manual usa DOS vocabularios distintos y no son intercambiables:
+      #
+      # 1. El del TÍTULO que se opta, que aparece en los encabezados de cada
+      #    capítulo ("TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN
+      #    INVESTIGACIÓN CUANTITATIVA").
+      # 2. El del FORMULARIO del Anexo 10 (párr. 5014-5016), donde el autor
+      #    marca una casilla y lo que aparece impreso es "TRABAJO DE
+      #    INVESTIGACIÓN CUANTITATIVO".
+      #
+      # Se listan los dos porque la declaración se lee del Anexo 10, y lo que
+      # se encuentra ahí escrito es el segundo. El primero se conserva por si
+      # el autor transcribe el título en lugar de marcar la casilla.
       etiquetas:
         # EVALUADO: el manual llama a este tipo "Trabajo de Suficiencia
-        # Profesional" (párr. 89, 3430), que es el termino con el que se
-        # declara. Las dos etiquetas siguientes no aparecen en ninguna parte
-        # del manual; se conservan porque la facultad las usa en la practica.
+        # Profesional" (párr. 89, 3430). Las dos etiquetas siguientes no
+        # aparecen en ninguna parte del manual; se conservan porque la
+        # facultad las usa en la practica.
         tsp: ['TRABAJO DE SUFICIENCIA PROFESIONAL', 'TRABAJO DE SERVICIO', 'SERVICIO SOCIAL']
+        # El Anexo 10 no ofrece casillas propias para el informe (solo el
+        # encabezado "INFORME DEL PROYECTO", párr. 5018), asi que estas dos
+        # etiquetas solo se pueden dar por el titulo o por las firmas.
         informe_cuantitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUANTITATIVO']
         informe_cualitativo: ['INFORME DE PROYECTO DE INVESTIGACIÓN CUALITATIVO']
         proyecto_cuantitativo: ['PROYECTO DE INVESTIGACIÓN CUANTITATIVO']
         proyecto_cualitativo: ['PROYECTO DE INVESTIGACIÓN CUALITATIVO']
-        tinv_revision_literatura: ['TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN']
-        tinv_cualitativo: ['TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA']
-        tinv_cuantitativo: ['TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA']
+        tinv_revision_literatura:
+          - 'TESIS PARA OBTENER EL GRADO DE BACHILLER EN INVESTIGACIÓN'
+          - 'TRABAJO DE INVESTIGACIÓN DE REVISIÓN DE LA LITERATURA'
+        tinv_cualitativo:
+          - 'TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUALITATIVA'
+          - 'TRABAJO DE INVESTIGACIÓN CUALITATIVO'
+        tinv_cuantitativo:
+          - 'TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA'
+          - 'TRABAJO DE INVESTIGACIÓN CUANTITATIVO'
     # En orden de especificidad (decisión 2): gana el primero que alcance su
     # mínimo. El informe es la versión revisada del proyecto, así que sus
     # firmas son más específicas y se evalúan antes.
