@@ -34,7 +34,7 @@ Se evaluaron las interfaces de **carga**, **resultados** y **desplegables** cont
 | Área | Cambio |
 |------|--------|
 | **Carga** | Límite unificado a **10 MB**; spinner + dropzone deshabilitada; click en toda la dropzone; botón ✕ para quitar archivo; aviso de error cerrable; solo `.docx`. |
-| **Errores API** | HTTP con cuerpo JSON (`detail`) → mensaje real al usuario **sin** mock. Error de red o proxy sin JSON → fallback a mock **como modo demo** (avisado en Report con `__mock`). Título de aviso genérico: “No se pudo validar.” |
+| **Errores API** | HTTP con cuerpo JSON (`detail`) → mensaje real al usuario **sin** mock. Error de red o proxy sin JSON → fallback a mock **como modo demo** (avisado en Report con `__mock`). Título de aviso genérico: “No se pudo validar.” (luego reemplazado por mensajes específicos en C26) |
 | **Resultados** | Scroll suave al semáforo; categorías en cards IA en vez de `rule_id`; desplegables cerrados por defecto; badge de severidad eliminado (redundante con icono); iconos compactos con `aria-label`. |
 | **Layout / CSS** | Pantalla completa centrada (alto y ancho); botón “← Validar otro archivo” visible; separación intro ↔ dropzone; footer separado; fuentes mínimas 12 px; `focus-visible` en `summary`/labels; botón Copiar ≥ 44 px; contraste dark en chips/avisos; spinner. |
 
@@ -122,7 +122,37 @@ El campo deja de ser `{ enviado: boolean }` y pasa a un objeto con 6 estados (co
 - Backend del PR #37 en `:8001`: con correo → `{"estado":"deshabilitado","detalle":null}` (SMTP apagado); sin correo → `{"estado":"sin_correo"}`.
 - Backend `master` en `:8000`: acepta el campo extra `notificar` sin romperse (HTTP 200, sin `notificacion` → la UI no muestra badge).
 - Proxy Vite `:5173` → `:8000`: 200 (docx), 415 (.txt), 422 (correo inválido) — todos con `detail` español.
-- `npm run build` OK; `pytest` 192 passed / 21 skipped.
+- `npm run build` OK; `pytest` 192 passed / 21 skipped (re-verif. 2026-10-06: 223 passed, 21 skipped tras #37–#39).
+
+---
+
+### Cuarta tanda — Auditoría UX integral (opción 3, C17–C29)
+
+Se pidió comparar tres opciones de mejora de la interfaz y se aplicó la completa, con una auditoría automatizada (`explore`) sobre `App.jsx`, `Upload.jsx`, `Report.jsx`, `index.css` y `mocks.js`.
+
+#### 3 bugs de alta severidad
+
+- **C17 — modo oscuro inoperante**: el JS aplicaba la clase `.dark` pero el CSS solo escuchaba `@media (prefers-color-scheme)`, así que el botón no cambiaba nada y la preferencia no persistía. Se agregó `temaOscuroInicial()` (localStorage `vb-tema` → `matchMedia`) aplicado en `main.jsx` **antes del primer render**, `DarkModeToggle` con `aria-pressed`, y se eliminó el bloque `@media` para que `.dark` sea la única fuente de verdad.
+- **C18 — semáforo verde por defecto**: `data?.semaforo || 'verde'` podía pintar paloma sobre un reporte caído → fallback seguro (solo `verde` explícito).
+- **C19 — mock incoherente**: `resumen.total = 47` contra 13 resultados listados → KPIs calculados de `MOCK_RESULTADOS` (13/2/2).
+
+#### Accesibilidad y móvil
+
+- **C20–C22**: regiones y anuncios `aria-live` (`sr-only role=status`) para validación, filtros, búsqueda, copiado y carga de reporte; dropzone operable con teclado (`role=button`, Enter/Espacio) con foco de retorno al cerrar errores; foco al título del reporte al montar.
+- **C23–C24**: contraste AA (`--ambar` `#b26a00`→`#9c5700` = 5.56:1, subtítulo del header, microtexto `.72rem`) y targets ≥44 px (chips, `btn-vista`, tema, quitar, cerrar, seleccionar, `summary`).
+- **C25**: primera `@media (max-width:599px)` — header envolvente, corte del nombre de archivo, chips con scroll horizontal (exigido por el wireframe S2) y controles apilados.
+
+#### Microcopy, features y tooling
+
+- **C26**: errores como objetos `{titulo, texto}` (formato, peso, HTTP del servidor, correo) en vez del "No se pudo validar." genérico; fallo de clipboard visible en el botón; botón "Validar otro archivo" duplicado del header eliminado.
+- **C27–C28**: se implementaron las dos piezas del wireframe S2 que nunca existieron — **barra de progreso de cumplimiento** (`role=progressbar`, 3 segmentos + "X de 47 reglas cumple (Y%)") y **campo "Buscar regla o mensaje…"** que filtra ambas vistas con anuncio de resultados.
+- **C29**: `npm run lint` no ejecutaba (eslint sin configuración) → `.eslintrc.cjs` con `eslint:recommended` + `plugin:react` + `plugin:react-hooks` (`rules-of-hooks` y `exhaustive-deps` activos).
+
+#### Verificación (2026-10-06)
+
+- `npm run lint` → 0 errores · `npm run build` → OK (166.48 kB JS / 16.48 kB CSS).
+- `pytest` → 223 passed, 21 skipped · `scripts/e2e_flujo_completo.sh` → **11/11 ✅** (`resultados_vistobueno/S7_pruebas_usabilidad/evidencias/e2e_run.log`).
+- Pendiente: commit/PR de esta tanda (archivos en el árbol de trabajo).
 
 ---
 
@@ -152,6 +182,6 @@ El campo deja de ser `{ enviado: boolean }` y pasa a un objeto con 6 estados (co
 
 ## Plan siguiente
 
-- Verificar build (`npm run build`) y commit de la nueva tanda.
+- Commit + PR de la cuarta tanda (C17–C29, auditoría UX) y cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt`.
 - Integrar feedback de revisión del PR (si lo hay).
-- Cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt`.
+- Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
