@@ -152,13 +152,13 @@ Se pidió comparar tres opciones de mejora de la interfaz y se aplicó la comple
 
 - `npm run lint` → 0 errores · `npm run build` → OK (166.48 kB JS / 16.48 kB CSS).
 - `pytest` → 223 passed, 21 skipped · `scripts/e2e_flujo_completo.sh` → **11/11 ✅** (`resultados_vistobueno/S7_pruebas_usabilidad/evidencias/e2e_run.log`).
-- Pendiente: commit/PR de esta tanda (archivos en el árbol de trabajo).
+- Commit `df05bd6` (rama `s7-auditoria-ux`) → PR [#41](https://github.com/retblast/vistobueno/pull/41) (abierto).
 
 ---
 
 ## Evidencias
 
-- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), commit pendiente (Arreglos.txt v2).
+- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29).
 - PRs: https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
 - Archivos: `frontend/src/components/Upload.jsx`, `Report.jsx`, `frontend/src/index.css`, `frontend/src/mocks.js`, `frontend/src/App.jsx`, `frontend/vite.config.js`, `frontend/.env.example`, `README.md`, `docs/diseno/01_requisitos_interfaz.md`, `docs/diseno/03_wireframes.md`, `mockups/carga.html`, `mockups/reporte.html`.
 
@@ -182,6 +182,6 @@ Se pidió comparar tres opciones de mejora de la interfaz y se aplicó la comple
 
 ## Plan siguiente
 
-- Commit + PR de la cuarta tanda (C17–C29, auditoría UX) y cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt`.
+- PR [#41](https://github.com/retblast/vistobueno/pull/41) (cuarta tanda, C17–C29) en revisión; cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
 - Integrar feedback de revisión del PR (si lo hay).
 - Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
