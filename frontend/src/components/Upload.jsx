@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 // Estructura base: pantalla de carga con drag & drop.
 // Replica el mockup mockups/carga.html pero con interactividad real:
@@ -6,6 +6,31 @@ import { useState, useCallback, useRef } from 'react'
 //  - Llama al endpoint POST /validar del backend (Integrante 1).
 //  - Errores HTTP con detalle JSON → se muestran al usuario (sin mock).
 //  - Sin conexión / proxy sin backend → mock como modo demo (avisado en Report).
+// Constantes y validación de archivo a nivel de módulo (sin dependencia de
+// estado): así handleFiles puede ser useCallback([]) sin violar exhaustive-deps.
+const MAX_BYTES = 10 * 1024 * 1024 // 10 MB, igual que el backend
+const acceptedTypes = [
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]
+// Validación de formato de correo en el cliente para evitar un 422 innecesario.
+// Si llega a llegarse con formato inválido, el backend responde 422 con
+// detail en español que el banner actual ya muestra (sin cambios).
+const esCorreoValido = (c) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)
+
+// Devuelve {titulo, texto} si el archivo no es válido; null si pasa.
+const validarArchivo = (selected) => {
+  if (!acceptedTypes.includes(selected.type) && !selected.name?.toLowerCase().endsWith('.docx')) {
+    return { titulo: 'Archivo no compatible.', texto: 'El archivo no es .docx. Selecciona un documento de Word.' }
+  }
+  if (selected.size > MAX_BYTES) {
+    return {
+      titulo: 'Archivo demasiado grande.',
+      texto: `El archivo pesa ${(selected.size / 1024 / 1024).toFixed(1)} MB. El límite es de 10 MB.`,
+    }
+  }
+  return null
+}
+
 function Upload({ onValidated, apiUrl }) {
   const [file, setFile] = useState(null)
   const [correo, setCorreo] = useState('')
@@ -18,16 +43,19 @@ function Upload({ onValidated, apiUrl }) {
   const [error, setError] = useState(null)
   const [dragActivo, setDragActivo] = useState(false)
   const inputRef = useRef(null)
+  const zonaRef = useRef(null)
 
-  const MAX_BYTES = 10 * 1024 * 1024 // 10 MB, igual que el backend
-  const acceptedTypes = [
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ]
-
-  // Validación de formato de correo en el cliente para evitar un 422 innecesario.
-  // Si llega a llegarse con formato inválido, el backend responde 422 con
-  // detail en español que el banner actual ya muestra (sin cambios).
-  const esCorreoValido = (c) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)
+  // Al volver del reporte ("Validar otro archivo") Upload se remonta de cero:
+  // devuelve el foco a la dropzone (no lo pierde en <body>). En la carga inicial
+  // de la app NO roba el foco.
+  const primeraCarga = useRef(true)
+  useEffect(() => {
+    if (primeraCarga.current) {
+      primeraCarga.current = false
+      return
+    }
+    zonaRef.current?.focus()
+  }, [])
 
   const onCorreoChange = (e) => {
     const v = e.target.value
@@ -39,28 +67,20 @@ function Upload({ onValidated, apiUrl }) {
     if (!v || invalido) setNotificar(false)
   }
 
-  const validarArchivo = (selected) => {
-    if (!selected) return false
-    if (!acceptedTypes.includes(selected.type) && !selected.name?.toLowerCase().endsWith('.docx')) {
-      setError('El archivo no es .docx. Selecciona un documento de Word.')
-      return false
-    }
-    if (selected.size > MAX_BYTES) {
-      setError(`El archivo pesa ${(selected.size / 1024 / 1024).toFixed(1)} MB. El límite es de 10 MB.`)
-      return false
-    }
-    return true
-  }
-
+  // Limpia el input para que re-elegir el MISMO archivo vuelva a disparar
+  // onChange (el File ya guardado en el estado sigue siendo válido).
   const handleFiles = useCallback((files) => {
     if (files && files[0]) {
-      if (validarArchivo(files[0])) {
+      const err = validarArchivo(files[0])
+      if (err) {
+        setError(err)
+        setFile(null)
+      } else {
         setError(null)
         setFile(files[0])
-      } else {
-        setFile(null)
       }
     }
+    if (inputRef.current) inputRef.current.value = ''
   }, [])
 
   const onDrop = useCallback((e) => {
@@ -94,7 +114,11 @@ function Upload({ onValidated, apiUrl }) {
     if (inputRef.current) inputRef.current.value = ''
   }, [])
 
-  const cerrarError = useCallback(() => setError(null), [])
+  // Cerrar el error devuelve el foco a la dropzone (no lo pierde en <body>).
+  const cerrarError = useCallback(() => {
+    setError(null)
+    zonaRef.current?.focus()
+  }, [])
 
   // Fallback a reporte mock SOLO cuando no hay respuesta útil del backend
   // (error de red o proxy sin cuerpo JSON). Modo demo, siempre avisado en Report.
@@ -109,13 +133,6 @@ function Upload({ onValidated, apiUrl }) {
 
   const validate = async () => {
     if (!file || loading) return
-    // Correo opcional, pero si se escribió con formato inválido NO se valida:
-    // el correo viaja en esta misma solicitud, así que omitirlo en silencio
-    // enviaría el reporte sin notificar al estudiante.
-    if (correo && correoError) {
-      setError('El correo del estudiante tiene un formato inválido. Corrija o deje el campo vacío para validar sin notificación.')
-      return
-    }
     setLoading(true)
     setError(null)
     try {
@@ -164,7 +181,10 @@ function Upload({ onValidated, apiUrl }) {
 
       if (detail) {
         // Respuesta HTTP con detalle del backend (413/415/422/500, etc.)
-        setError(`El servidor rechazó la validación (HTTP ${res.status}): ${detail}`)
+        setError({
+          titulo: `El servidor rechazó la validación (HTTP ${res.status}).`,
+          texto: detail,
+        })
         return
       }
 
@@ -186,14 +206,29 @@ function Upload({ onValidated, apiUrl }) {
         </p>
 
         <div
+          ref={zonaRef}
           className={`dropzone ${dragActivo ? 'drag' : ''} ${loading ? 'loading' : ''}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onClick={onDropzoneClick}
+          role="button"
+          tabIndex={loading ? -1 : 0}
+          aria-label="Seleccionar archivo DOCX: arrastre un archivo o pulse Enter para abrir el selector"
+          aria-describedby="nota-formatos"
+          onKeyDown={(e) => {
+            if (loading) return
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              openPicker()
+            }
+          }}
         >
           <div className="icono" aria-hidden="true">📄</div>
-          <div className="txt-principal">{loading ? 'Validando documento…' : 'Arrastre el archivo aquí'}</div>
+          {/* role=status: anuncia a lectores de pantalla el cambio a "Validando…" */}
+          <div className="txt-principal" role="status">
+            {loading ? 'Validando documento…' : 'Arrastre el archivo aquí'}
+          </div>
           <div className="txt-sec">o selecciónelo desde la computadora</div>
 
           <input
@@ -208,7 +243,7 @@ function Upload({ onValidated, apiUrl }) {
             {loading ? 'Validando…' : 'Seleccionar archivo'}
           </label>
 
-          <div className="nota-formatos">
+          <div className="nota-formatos" id="nota-formatos">
             Formato permitido: .docx · Tamaño máximo: 10 MB
           </div>
         </div>
@@ -297,10 +332,10 @@ function Upload({ onValidated, apiUrl }) {
         {error && (
           <div className="aviso error" role="alert">
             <div className="aviso-fila">
-              <strong>No se pudo validar.</strong>
+              <strong>{error.titulo}</strong>
               <button className="aviso-cerrar" onClick={cerrarError} aria-label="Cerrar aviso">✕</button>
             </div>
-            <span className="ejemplos">{error}</span>
+            <span className="ejemplos">{error.texto}</span>
           </div>
         )}
       </div>
