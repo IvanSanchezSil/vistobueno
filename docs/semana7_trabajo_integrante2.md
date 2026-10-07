@@ -34,7 +34,7 @@ Se evaluaron las interfaces de **carga**, **resultados** y **desplegables** cont
 | Área | Cambio |
 |------|--------|
 | **Carga** | Límite unificado a **10 MB**; spinner + dropzone deshabilitada; click en toda la dropzone; botón ✕ para quitar archivo; aviso de error cerrable; solo `.docx`. |
-| **Errores API** | HTTP con cuerpo JSON (`detail`) → mensaje real al usuario **sin** mock. Error de red o proxy sin JSON → fallback a mock **como modo demo** (avisado en Report con `__mock`). Título de aviso genérico: “No se pudo validar.” |
+| **Errores API** | HTTP con cuerpo JSON (`detail`) → mensaje real al usuario **sin** mock. Error de red o proxy sin JSON → fallback a mock **como modo demo** (avisado en Report con `__mock`). Título de aviso genérico: “No se pudo validar.” (luego reemplazado por mensajes específicos en C26) |
 | **Resultados** | Scroll suave al semáforo; categorías en cards IA en vez de `rule_id`; desplegables cerrados por defecto; badge de severidad eliminado (redundante con icono); iconos compactos con `aria-label`. |
 | **Layout / CSS** | Pantalla completa centrada (alto y ancho); botón “← Validar otro archivo” visible; separación intro ↔ dropzone; footer separado; fuentes mínimas 12 px; `focus-visible` en `summary`/labels; botón Copiar ≥ 44 px; contraste dark en chips/avisos; spinner. |
 
@@ -122,14 +122,77 @@ El campo deja de ser `{ enviado: boolean }` y pasa a un objeto con 6 estados (co
 - Backend del PR #37 en `:8001`: con correo → `{"estado":"deshabilitado","detalle":null}` (SMTP apagado); sin correo → `{"estado":"sin_correo"}`.
 - Backend `master` en `:8000`: acepta el campo extra `notificar` sin romperse (HTTP 200, sin `notificacion` → la UI no muestra badge).
 - Proxy Vite `:5173` → `:8000`: 200 (docx), 415 (.txt), 422 (correo inválido) — todos con `detail` español.
-- `npm run build` OK; `pytest` 192 passed / 21 skipped.
+- `npm run build` OK; `pytest` 192 passed / 21 skipped (re-verif. 2026-10-06: 223 passed, 21 skipped tras #37–#39).
+
+---
+
+### Cuarta tanda — Auditoría UX integral (opción 3, C17–C29)
+
+Se pidió comparar tres opciones de mejora de la interfaz y se aplicó la completa, con una auditoría automatizada (`explore`) sobre `App.jsx`, `Upload.jsx`, `Report.jsx`, `index.css` y `mocks.js`.
+
+#### 3 bugs de alta severidad
+
+- **C17 — modo oscuro inoperante**: el JS aplicaba la clase `.dark` pero el CSS solo escuchaba `@media (prefers-color-scheme)`, así que el botón no cambiaba nada y la preferencia no persistía. Se agregó `temaOscuroInicial()` (localStorage `vb-tema` → `matchMedia`) aplicado en `main.jsx` **antes del primer render**, `DarkModeToggle` con `aria-pressed`, y se eliminó el bloque `@media` para que `.dark` sea la única fuente de verdad.
+- **C18 — semáforo verde por defecto**: `data?.semaforo || 'verde'` podía pintar paloma sobre un reporte caído → fallback seguro (solo `verde` explícito).
+- **C19 — mock incoherente**: `resumen.total = 47` contra 13 resultados listados → KPIs calculados de `MOCK_RESULTADOS` (13/2/2).
+
+#### Accesibilidad y móvil
+
+- **C20–C22**: regiones y anuncios `aria-live` (`sr-only role=status`) para validación, filtros, búsqueda, copiado y carga de reporte; dropzone operable con teclado (`role=button`, Enter/Espacio) con foco de retorno al cerrar errores; foco al título del reporte al montar.
+- **C23–C24**: contraste AA (`--ambar` `#b26a00`→`#9c5700` = 5.56:1, subtítulo del header, microtexto `.72rem`) y targets ≥44 px (chips, `btn-vista`, tema, quitar, cerrar, seleccionar, `summary`).
+- **C25**: primera `@media (max-width:599px)` — header envolvente, corte del nombre de archivo, chips con scroll horizontal (exigido por el wireframe S2) y controles apilados.
+
+#### Microcopy, features y tooling
+
+- **C26**: errores como objetos `{titulo, texto}` (formato, peso, HTTP del servidor, correo) en vez del "No se pudo validar." genérico; fallo de clipboard visible en el botón; botón "Validar otro archivo" duplicado del header eliminado.
+- **C27–C28**: se implementaron las dos piezas del wireframe S2 que nunca existieron — **barra de progreso de cumplimiento** (`role=progressbar`, 3 segmentos + "X de 47 reglas cumple (Y%)") y **campo "Buscar regla o mensaje…"** que filtra ambas vistas con anuncio de resultados.
+- **C29**: `npm run lint` no ejecutaba (eslint sin configuración) → `.eslintrc.cjs` con `eslint:recommended` + `plugin:react` + `plugin:react-hooks` (`rules-of-hooks` y `exhaustive-deps` activos).
+
+#### Verificación (2026-10-06)
+
+- `npm run lint` → 0 errores · `npm run build` → OK (166.48 kB JS / 16.48 kB CSS).
+- `pytest` → 223 passed, 21 skipped · `scripts/e2e_flujo_completo.sh` → **11/11 ✅** (`resultados_vistobueno/S7_pruebas_usabilidad/evidencias/e2e_run.log`).
+- Commit `df05bd6` (rama `s7-auditoria-ux`) → PR [#41](https://github.com/retblast/vistobueno/pull/41) (abierto).
+
+---
+
+### Quinta tanda — Fase A de la revisión integrada (C30–C38)
+
+Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVISION_INTEGRADA.txt` (revisión exhaustiva del 07/10 que identificó 33 hallazgos en total). Se aplicaron los 8 puntos del frontend sobre la rama `s7-auditoria-ux`:
+
+- **C30 (F1)**: `npm run lint` ahora cubre `.jsx` (`eslint . --ext .js,.jsx`) → 0 errores y 0 warnings **reales** (antes el lint silenciosamente ignoraba los componentes); se corrigieron el import muerto de `MOCK_REPORT` y las dependencias de `handleFiles`.
+- **C31–C33 (F2–F4) dark**: `--ambar: #ffb74d` dentro de `.dark` (el valor de claro daría ~2.5:1 sobre el fondo oscuro), `.dark .chip.on` para que el chip activo conserve el resaltado verde, y `color-scheme: dark` para que el placeholder nativo del buscador sea legible.
+- **C34–C35 (F5–F6) aria-live/buscador**: el anuncio ahora cuenta solo las filas visibles de la vista actual (`cuentaVisible`) y va con debounce de 350 ms (sin spam al teclear); el buscador también filtra la sección "Cómo preguntar a una IA" (`promptsVisibles` con `useMemo`).
+- **C36 (F7)**: el mock de demo pasó de `notificacion.enviado` a `no_solicitado` — la demo ya no afirma envíos inexistentes.
+- **C37–C38 (F8)**: re-elegir el mismo archivo ahora dispara `change` (reset del input), el foco vuelve a la dropzone al regresar desde el reporte, validador y constantes a nivel de módulo, rama muerta de correo fuera; limpieza de 29 selectores `[data-theme]` muertos, `--tinta`, `.der-header` e import sin uso; `favicon.svg` real (antes 404).
+
+#### Verificación (2026-10-07)
+
+- `npm run lint` → **0 errores / 0 warnings** · `npm run build` → OK (162.66 kB JS / 15.78 kB CSS + chunk `mocks`).
+- `pytest -o addopts=""` → 223 passed, 21 skipped · `scripts/e2e_flujo_completo.sh` → **11/11** (`resultados_vistobueno/S7_pruebas_usabilidad/evidencias/e2e_run.log`).
+- CSS servido verificado en `:5173`: sin `data-theme`, con `.dark --ambar: #ffb74d`, `color-scheme: dark` y `.dark .chip.on`; `/favicon.svg` → 200.
+- Commit `d306f36` + `4c9cc55` pushados 2026-10-07 a `Rodo00/vistobueno`: rama `s7-auditoria-ux` (PR #41 ahora con 4 commits, mergeable) y `master` del fork actualizado a `d05d8e1` (upstream `e98ea7a` + C17–C38 + workflows propios `Main.yml`/`main.yml`).
+
+---
+
+### Sexta tanda — Observaciones de la revisión independiente (Arreglos.txt v4)
+
+El revisor probó el PR por su cuenta (CI 2/2 verde, lint/build/pytest locales, merge de prueba contra `e98ea7a` sin conflictos) y dejó dos observaciones no bloqueantes, ejecutadas el 07/10:
+
+- **C39 (obs 1)**: `scripts/e2e_flujo_completo.sh` se citaba como evidencia (11/11) pero no existía en el repo → **versionado canónico** en `scripts/e2e_flujo_completo.sh`: `ROOT` autodetectado desde la ubicación del script (antes hardcodeado) e intérprete `.venv`/`python3` portable. La copia de `resultados_vistobueno/` quedó como wrapper hacia el canónico (la referencia documentada sigue funcionando). Verificado: E2E **11/11** vía wrapper (`evidencias/e2e_run.log`, 2026-10-07). Commit `21d0ac3` (PR #42).
+- **C40 (obs 2)**: el PR agregaba ESLint pero el CI no ejecutaba `npm run lint` → **PR separado [#43](https://github.com/retblast/vistobueno/pull/43)** (`ci-frontend-lint`, `abac6b6`): paso aditivo `Lint frontend (eslint)` en el job `frontend` (reutiliza `node_modules`, no toca pasos existentes), más la config que la base `e98ea7a` necesita (`.eslintrc.cjs`, `--ext .js,.jsx`, `eslint-plugin-react-hooks`) y el fix del import `MOCK_REPORT` sin uso para que el paso nazca verde (mismo hallazgo C30). Los 3 warnings restantes los cierra la Fase A (#42). **Pendiente de aprobación del equipo** (AGENTS: todo cambio al CI verde en su propio PR).
+
+#### Verificación (2026-10-07)
+
+- Rama `ci-frontend-lint`: `npm run lint` → 0 errores (exit 0; 3 warnings no bloqueantes) · `npm run build` → OK.
+- Rama `s7-auditoria-ux`: E2E **11/11** con el script versionado (`scripts/e2e_flujo_completo.sh`).
 
 ---
 
 ## Evidencias
 
-- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), commit pendiente (Arreglos.txt v2).
-- PRs: https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
+- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38), `21d0ac3` (script E2E versionado, C39), `abac6b6` (lint en CI, C40, rama `ci-frontend-lint`).
+- PRs: https://github.com/retblast/vistobueno/pull/41 · https://github.com/retblast/vistobueno/pull/42 · https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
 - Archivos: `frontend/src/components/Upload.jsx`, `Report.jsx`, `frontend/src/index.css`, `frontend/src/mocks.js`, `frontend/src/App.jsx`, `frontend/vite.config.js`, `frontend/.env.example`, `README.md`, `docs/diseno/01_requisitos_interfaz.md`, `docs/diseno/03_wireframes.md`, `mockups/carga.html`, `mockups/reporte.html`.
 
 ---
@@ -152,6 +215,7 @@ El campo deja de ser `{ enviado: boolean }` y pasa a un objeto con 6 estados (co
 
 ## Plan siguiente
 
-- Verificar build (`npm run build`) y commit de la nueva tanda.
-- Integrar feedback de revisión del PR (si lo hay).
-- Cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt`.
+- PR [#42](https://github.com/retblast/vistobueno/pull/42) (`Rodo00:master` → `master`, head `842ba75`, C17–C38 + workflows del fork) **activo**, mergeable y CI verde; subsume al PR [#41](https://github.com/retblast/vistobueno/pull/41) (5 commits, cerrable cuando #42 se fusione). Cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
+- PR [#43](https://github.com/retblast/vistobueno/pull/43) (lint en CI, rama `ci-frontend-lint`) **abierto, pendiente de aprobación del equipo**; cerrar cuando se fusione.
+- Integrar feedback de revisión de los PRs #42/#43 (si lo hay); fases B/C/D de la revisión (motor, backend, infra) pendientes de asignación.
+- Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
