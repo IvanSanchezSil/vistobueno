@@ -50,3 +50,10 @@ jobs:
 
       - name: Build frontend (npm ci + vite build)
         run: nix develop --command sh -c "cd frontend && npm ci && npm run build"
+
+      # Observación de revisión (Arreglos.txt v4): toda área con
+      # verificación propia debe tener su paso en CI (AGENTS.md,
+      # "Protección del CI"). Aditivo: reutiliza node_modules del
+      # paso anterior; no toca ni relaja ningún paso existente.
+      - name: Lint frontend (eslint)
+        run: nix develop --command sh -c "cd frontend && npm run lint"
