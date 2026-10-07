@@ -171,13 +171,13 @@ Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVIS
 - `npm run lint` → **0 errores / 0 warnings** · `npm run build` → OK (162.66 kB JS / 15.78 kB CSS + chunk `mocks`).
 - `pytest -o addopts=""` → 223 passed, 21 skipped · `scripts/e2e_flujo_completo.sh` → **11/11** (`resultados_vistobueno/S7_pruebas_usabilidad/evidencias/e2e_run.log`).
 - CSS servido verificado en `:5173`: sin `data-theme`, con `.dark --ambar: #ffb74d`, `color-scheme: dark` y `.dark .chip.on`; `/favicon.svg` → 200.
-- Commit `d306f36` **local** en `s7-auditoria-ux` (sin push por indicación; al subir actualizará el PR #41).
+- Commit `d306f36` + `4c9cc55` pushados 2026-10-07 a `Rodo00/vistobueno`: rama `s7-auditoria-ux` (PR #41 ahora con 4 commits, mergeable) y `master` del fork actualizado a `d05d8e1` (upstream `e98ea7a` + C17–C38 + workflows propios `Main.yml`/`main.yml`).
 
 ---
 
 ## Evidencias
 
-- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` (Fase A revisión, C30–C38, local sin push).
+- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38).
 - PRs: https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
 - Archivos: `frontend/src/components/Upload.jsx`, `Report.jsx`, `frontend/src/index.css`, `frontend/src/mocks.js`, `frontend/src/App.jsx`, `frontend/vite.config.js`, `frontend/.env.example`, `README.md`, `docs/diseno/01_requisitos_interfaz.md`, `docs/diseno/03_wireframes.md`, `mockups/carga.html`, `mockups/reporte.html`.
 
@@ -201,7 +201,6 @@ Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVIS
 
 ## Plan siguiente
 
-- PR [#41](https://github.com/retblast/vistobueno/pull/41) (cuarta tanda, C17–C29) en revisión; cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
-- Subir `d306f36` (Fase A) cuando el equipo lo indique — actualiza el PR #41 o abre PR aparte.
+- PR [#41](https://github.com/retblast/vistobueno/pull/41) (C17–C38) en revisión; cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
 - Integrar feedback de revisión del PR (si lo hay); fases B/C/D de la revisión (motor, backend, infra) pendientes de asignación.
 - Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
