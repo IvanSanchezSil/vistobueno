@@ -175,9 +175,23 @@ Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVIS
 
 ---
 
+### Sexta tanda — Observaciones de la revisión independiente (Arreglos.txt v4)
+
+El revisor probó el PR por su cuenta (CI 2/2 verde, lint/build/pytest locales, merge de prueba contra `e98ea7a` sin conflictos) y dejó dos observaciones no bloqueantes, ejecutadas el 07/10:
+
+- **C39 (obs 1)**: `scripts/e2e_flujo_completo.sh` se citaba como evidencia (11/11) pero no existía en el repo → **versionado canónico** en `scripts/e2e_flujo_completo.sh`: `ROOT` autodetectado desde la ubicación del script (antes hardcodeado) e intérprete `.venv`/`python3` portable. La copia de `resultados_vistobueno/` quedó como wrapper hacia el canónico (la referencia documentada sigue funcionando). Verificado: E2E **11/11** vía wrapper (`evidencias/e2e_run.log`, 2026-10-07). Commit `21d0ac3` (PR #42).
+- **C40 (obs 2)**: el PR agregaba ESLint pero el CI no ejecutaba `npm run lint` → **PR separado [#43](https://github.com/retblast/vistobueno/pull/43)** (`ci-frontend-lint`, `abac6b6`): paso aditivo `Lint frontend (eslint)` en el job `frontend` (reutiliza `node_modules`, no toca pasos existentes), más la config que la base `e98ea7a` necesita (`.eslintrc.cjs`, `--ext .js,.jsx`, `eslint-plugin-react-hooks`) y el fix del import `MOCK_REPORT` sin uso para que el paso nazca verde (mismo hallazgo C30). Los 3 warnings restantes los cierra la Fase A (#42). **Pendiente de aprobación del equipo** (AGENTS: todo cambio al CI verde en su propio PR).
+
+#### Verificación (2026-10-07)
+
+- Rama `ci-frontend-lint`: `npm run lint` → 0 errores (exit 0; 3 warnings no bloqueantes) · `npm run build` → OK.
+- Rama `s7-auditoria-ux`: E2E **11/11** con el script versionado (`scripts/e2e_flujo_completo.sh`).
+
+---
+
 ## Evidencias
 
-- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38).
+- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38), `21d0ac3` (script E2E versionado, C39), `abac6b6` (lint en CI, C40, rama `ci-frontend-lint`).
 - PRs: https://github.com/retblast/vistobueno/pull/41 · https://github.com/retblast/vistobueno/pull/42 · https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
 - Archivos: `frontend/src/components/Upload.jsx`, `Report.jsx`, `frontend/src/index.css`, `frontend/src/mocks.js`, `frontend/src/App.jsx`, `frontend/vite.config.js`, `frontend/.env.example`, `README.md`, `docs/diseno/01_requisitos_interfaz.md`, `docs/diseno/03_wireframes.md`, `mockups/carga.html`, `mockups/reporte.html`.
 
@@ -202,5 +216,6 @@ Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVIS
 ## Plan siguiente
 
 - PR [#42](https://github.com/retblast/vistobueno/pull/42) (`Rodo00:master` → `master`, head `842ba75`, C17–C38 + workflows del fork) **activo**, mergeable y CI verde; subsume al PR [#41](https://github.com/retblast/vistobueno/pull/41) (5 commits, cerrable cuando #42 se fusione). Cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
-- Integrar feedback de revisión del PR (si lo hay); fases B/C/D de la revisión (motor, backend, infra) pendientes de asignación.
+- PR [#43](https://github.com/retblast/vistobueno/pull/43) (lint en CI, rama `ci-frontend-lint`) **abierto, pendiente de aprobación del equipo**; cerrar cuando se fusione.
+- Integrar feedback de revisión de los PRs #42/#43 (si lo hay); fases B/C/D de la revisión (motor, backend, infra) pendientes de asignación.
 - Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
