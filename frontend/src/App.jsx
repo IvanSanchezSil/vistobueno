@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import Upload from './components/Upload'
 import Report from './components/Report'
-import { MOCK_REPORT } from './mocks'
 
 // API base URL:
 // - Default '' = mismo origen (funciona con el proxy de Vite en `npm run dev`).
