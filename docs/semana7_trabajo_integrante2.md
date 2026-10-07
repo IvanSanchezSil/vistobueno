@@ -178,7 +178,7 @@ Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVIS
 ## Evidencias
 
 - Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38).
-- PRs: https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
+- PRs: https://github.com/retblast/vistobueno/pull/41 · https://github.com/retblast/vistobueno/pull/42 · https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
 - Archivos: `frontend/src/components/Upload.jsx`, `Report.jsx`, `frontend/src/index.css`, `frontend/src/mocks.js`, `frontend/src/App.jsx`, `frontend/vite.config.js`, `frontend/.env.example`, `README.md`, `docs/diseno/01_requisitos_interfaz.md`, `docs/diseno/03_wireframes.md`, `mockups/carga.html`, `mockups/reporte.html`.
 
 ---
@@ -201,6 +201,6 @@ Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVIS
 
 ## Plan siguiente
 
-- PR [#41](https://github.com/retblast/vistobueno/pull/41) (C17–C38) en revisión; cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
+- PR [#42](https://github.com/retblast/vistobueno/pull/42) (`Rodo00:master` → `master`, head `842ba75`, C17–C38 + workflows del fork) **activo**, mergeable y CI verde; subsume al PR [#41](https://github.com/retblast/vistobueno/pull/41) (5 commits, cerrable cuando #42 se fusione). Cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
 - Integrar feedback de revisión del PR (si lo hay); fases B/C/D de la revisión (motor, backend, infra) pendientes de asignación.
 - Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
