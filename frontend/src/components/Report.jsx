@@ -99,9 +99,25 @@ function Report({ data, onBack }) {
   const [copiado, setCopiado] = useState(null) // rule_id | `error:${rule_id}` | null
   const [anuncio, setAnuncio] = useState('')
   const semaforoRef = useRef(null)
+  const anuncioTimer = useRef(null)
 
-  const resultados = Array.isArray(data?.resultados) ? data.resultados : []
-  const prompts = Array.isArray(data?.como_preguntar_a_una_ia) ? data.como_preguntar_a_una_ia : []
+  // Anuncia con retardo: sin esto, cada pulsación de tecla en la búsqueda
+  // re-llena la región viva y el lector de pantalla no deja de hablar.
+  const anunciar = (texto) => {
+    if (anuncioTimer.current) clearTimeout(anuncioTimer.current)
+    anuncioTimer.current = setTimeout(() => setAnuncio(texto), 350)
+  }
+
+  // useMemo: sin esto, el `[]` del fallback sería un array nuevo en cada render
+  // y las memorias que dependen de él se recalcularían siempre (aviso exhaustive-deps).
+  const resultados = useMemo(
+    () => (Array.isArray(data?.resultados) ? data.resultados : []),
+    [data]
+  )
+  const prompts = useMemo(
+    () => (Array.isArray(data?.como_preguntar_a_una_ia) ? data.como_preguntar_a_una_ia : []),
+    [data]
+  )
   const resumen = data?.resumen || { total: resultados.length, fallidos_error: 0, fallidos_warning: 0 }
   // Fail-safe: solo "verde" explícito muestra "listo para entregar".
   // Un payload incompleto/inesperado NUNCA debe decir que la tesis está lista.
@@ -122,6 +138,9 @@ function Report({ data, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Liberar el temporizador de anuncios al desmontar.
+  useEffect(() => () => clearTimeout(anuncioTimer.current), [])
+
   const q = busqueda.trim().toLowerCase()
   const coincide = (r) =>
     !q ||
@@ -134,6 +153,33 @@ function Report({ data, onBack }) {
     [resultados, filtro, q]
   )
   const fallidos = useMemo(() => visibles.filter((r) => !r.paso), [visibles])
+
+  // Prompts de IA con el MISMO filtro de búsqueda que la lista de resultados
+  // (si no, la sección "Cómo preguntar a una IA" queda desconectada).
+  const promptsVisibles = useMemo(
+    () =>
+      prompts.filter(
+        (p) =>
+          !q ||
+          [p.prompt, p.rule_id, categoriaDe(p.rule_id)].some(
+            (v) => typeof v === 'string' && v.toLowerCase().includes(q)
+          )
+      ),
+    [prompts, q]
+  )
+
+  // Cuenta lo que REALMENTE se pinta en la vista actual: la vista simple solo
+  // lista pendientes, así que anunciar el total de coincidencias sería mentira.
+  const cuentaVisible = (f, qq) => {
+    const base = resultados.filter(
+      (r) =>
+        (f === 'todos' || r.severidad === f) &&
+        (!qq ||
+          [r.mensaje, r.message, r.esperado, r.expected, r.encontrado, r.found, r.rule_id]
+            .some((x) => typeof x === 'string' && x.toLowerCase().includes(qq)))
+    )
+    return vista === 'simple' ? base.filter((r) => !r.paso).length : base.length
+  }
 
   // Agrupa los resultados filtrados por categoría para la vista detallada.
   const grupos = useMemo(() => {
@@ -156,8 +202,11 @@ function Report({ data, onBack }) {
 
   const cambiarFiltro = (f) => {
     setFiltro(f)
-    const n = resultados.filter((r) => (f === 'todos' || r.severidad === f) && coincide(r)).length
-    setAnuncio(`Filtro «${ETIQUETA_FILTRO[f]}»: ${n} de ${resultados.length} reglas visibles.`)
+    const n = cuentaVisible(f, q)
+    anunciar(
+      `Filtro «${ETIQUETA_FILTRO[f]}»: ${n} de ${resultados.length} ` +
+        `${vista === 'simple' ? 'pendientes' : 'reglas'} visibles.`
+    )
   }
 
   const cambiarVista = (v) => {
@@ -169,17 +218,13 @@ function Report({ data, onBack }) {
     const v = e.target.value
     setBusqueda(v)
     const qq = v.trim().toLowerCase()
-    const n = resultados.filter(
-      (r) => (filtro === 'todos' || r.severidad === filtro) &&
-        (!qq || [r.mensaje, r.message, r.esperado, r.expected, r.encontrado, r.found, r.rule_id]
-          .some((x) => typeof x === 'string' && x.toLowerCase().includes(qq)))
-    ).length
-    setAnuncio(
+    const n = cuentaVisible(filtro, qq)
+    anunciar(
       !qq
         ? `Búsqueda borrada: ${resultados.length} reglas.`
         : n === 0
           ? `Ninguna regla coincide con «${v.trim()}».`
-          : `${n} reglas coinciden con «${v.trim()}».`
+          : `${n} ${vista === 'simple' ? 'pendientes coinciden' : 'reglas coinciden'} con «${v.trim()}».`
     )
   }
 
@@ -240,24 +285,27 @@ function Report({ data, onBack }) {
           <div className="kpi ambar"><div className="num">{warnN}</div><div className="lbl">Advertencias</div></div>
         </div>
 
-        {/* Barra de progreso de cumplimiento (3 segmentos: ok / warn / error) */}
-        <div
-          className="progreso"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pctOk}
-          aria-label={`Cumplimiento del formato: ${pctOk}% de reglas cumplidas`}
-        >
-          <div className="progreso-track" aria-hidden="true">
-            <span className="seg ok" style={{ width: `${pct(okN)}%` }} />
-            <span className="seg warn" style={{ width: `${pct(warnN)}%` }} />
-            <span className="seg err" style={{ width: `${pct(errN)}%` }} />
+        {/* Barra de progreso de cumplimiento (3 segmentos: ok / warn / error).
+            Oculta si no hay total: un "0%" con datos vacío solo confunde. */}
+        {total > 0 && (
+          <div
+            className="progreso"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={pctOk}
+            aria-label={`Cumplimiento del formato: ${pctOk}% de reglas cumplidas`}
+          >
+            <div className="progreso-track" aria-hidden="true">
+              <span className="seg ok" style={{ width: `${pct(okN)}%` }} />
+              <span className="seg warn" style={{ width: `${pct(warnN)}%` }} />
+              <span className="seg err" style={{ width: `${pct(errN)}%` }} />
+            </div>
+            <div className="progreso-txt">
+              {pctOk}% de reglas cumplidas · {errN + warnN} pendiente{errN + warnN === 1 ? '' : 's'} de entregar
+            </div>
           </div>
-          <div className="progreso-txt">
-            {pctOk}% de reglas cumplidas · {errN + warnN} pendiente{errN + warnN === 1 ? '' : 's'} de entregar
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ── Controles (filtro + búsqueda + vista) ───── */}
@@ -406,10 +454,14 @@ function Report({ data, onBack }) {
           Copie y pegue estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema.
         </p>
         <div className="ia-cards">
-          {prompts.length === 0 ? (
-            <p className="ia-empty">No hay problemas detectados. ¡Felicidades!</p>
+          {promptsVisibles.length === 0 ? (
+            <p className="ia-empty">
+              {textoBusqueda
+                ? `Ningún prompt coincide con «${textoBusqueda}».`
+                : 'No hay problemas detectados. ¡Felicidades!'}
+            </p>
           ) : (
-            prompts.map((p) => (
+            promptsVisibles.map((p) => (
               <div key={p.rule_id} className="ia-card">
                 <div className="head">
                   <span className="rule">{categoriaDe(p.rule_id)}</span>

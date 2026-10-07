@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 // Estructura base: pantalla de carga con drag & drop.
 // Replica el mockup mockups/carga.html pero con interactividad real:
@@ -6,6 +6,31 @@ import { useState, useCallback, useRef } from 'react'
 //  - Llama al endpoint POST /validar del backend (Integrante 1).
 //  - Errores HTTP con detalle JSON → se muestran al usuario (sin mock).
 //  - Sin conexión / proxy sin backend → mock como modo demo (avisado en Report).
+// Constantes y validación de archivo a nivel de módulo (sin dependencia de
+// estado): así handleFiles puede ser useCallback([]) sin violar exhaustive-deps.
+const MAX_BYTES = 10 * 1024 * 1024 // 10 MB, igual que el backend
+const acceptedTypes = [
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+]
+// Validación de formato de correo en el cliente para evitar un 422 innecesario.
+// Si llega a llegarse con formato inválido, el backend responde 422 con
+// detail en español que el banner actual ya muestra (sin cambios).
+const esCorreoValido = (c) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)
+
+// Devuelve {titulo, texto} si el archivo no es válido; null si pasa.
+const validarArchivo = (selected) => {
+  if (!acceptedTypes.includes(selected.type) && !selected.name?.toLowerCase().endsWith('.docx')) {
+    return { titulo: 'Archivo no compatible.', texto: 'El archivo no es .docx. Selecciona un documento de Word.' }
+  }
+  if (selected.size > MAX_BYTES) {
+    return {
+      titulo: 'Archivo demasiado grande.',
+      texto: `El archivo pesa ${(selected.size / 1024 / 1024).toFixed(1)} MB. El límite es de 10 MB.`,
+    }
+  }
+  return null
+}
+
 function Upload({ onValidated, apiUrl }) {
   const [file, setFile] = useState(null)
   const [correo, setCorreo] = useState('')
@@ -20,15 +45,17 @@ function Upload({ onValidated, apiUrl }) {
   const inputRef = useRef(null)
   const zonaRef = useRef(null)
 
-  const MAX_BYTES = 10 * 1024 * 1024 // 10 MB, igual que el backend
-  const acceptedTypes = [
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ]
-
-  // Validación de formato de correo en el cliente para evitar un 422 innecesario.
-  // Si llega a llegarse con formato inválido, el backend responde 422 con
-  // detail en español que el banner actual ya muestra (sin cambios).
-  const esCorreoValido = (c) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)
+  // Al volver del reporte ("Validar otro archivo") Upload se remonta de cero:
+  // devuelve el foco a la dropzone (no lo pierde en <body>). En la carga inicial
+  // de la app NO roba el foco.
+  const primeraCarga = useRef(true)
+  useEffect(() => {
+    if (primeraCarga.current) {
+      primeraCarga.current = false
+      return
+    }
+    zonaRef.current?.focus()
+  }, [])
 
   const onCorreoChange = (e) => {
     const v = e.target.value
@@ -40,31 +67,20 @@ function Upload({ onValidated, apiUrl }) {
     if (!v || invalido) setNotificar(false)
   }
 
-  const validarArchivo = (selected) => {
-    if (!selected) return false
-    if (!acceptedTypes.includes(selected.type) && !selected.name?.toLowerCase().endsWith('.docx')) {
-      setError({ titulo: 'Archivo no compatible.', texto: 'El archivo no es .docx. Selecciona un documento de Word.' })
-      return false
-    }
-    if (selected.size > MAX_BYTES) {
-      setError({
-        titulo: 'Archivo demasiado grande.',
-        texto: `El archivo pesa ${(selected.size / 1024 / 1024).toFixed(1)} MB. El límite es de 10 MB.`,
-      })
-      return false
-    }
-    return true
-  }
-
+  // Limpia el input para que re-elegir el MISMO archivo vuelva a disparar
+  // onChange (el File ya guardado en el estado sigue siendo válido).
   const handleFiles = useCallback((files) => {
     if (files && files[0]) {
-      if (validarArchivo(files[0])) {
+      const err = validarArchivo(files[0])
+      if (err) {
+        setError(err)
+        setFile(null)
+      } else {
         setError(null)
         setFile(files[0])
-      } else {
-        setFile(null)
       }
     }
+    if (inputRef.current) inputRef.current.value = ''
   }, [])
 
   const onDrop = useCallback((e) => {
@@ -117,16 +133,6 @@ function Upload({ onValidated, apiUrl }) {
 
   const validate = async () => {
     if (!file || loading) return
-    // Correo opcional, pero si se escribió con formato inválido NO se valida:
-    // el correo viaja en esta misma solicitud, así que omitirlo en silencio
-    // enviaría el reporte sin notificar al estudiante.
-    if (correo && correoError) {
-      setError({
-        titulo: 'Correo del estudiante inválido.',
-        texto: 'El correo del estudiante tiene un formato inválido. Corrija o deje el campo vacío para validar sin notificación.',
-      })
-      return
-    }
     setLoading(true)
     setError(null)
     try {

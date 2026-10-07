@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import Upload from './components/Upload'
 import Report from './components/Report'
-import { MOCK_REPORT } from './mocks'
 
 // API base URL:
 // - Default '' = mismo origen (funciona con el proxy de Vite en `npm run dev`).
@@ -59,9 +58,7 @@ function App() {
             <div className="sub">FECyC · Universidad Nacional de Trujillo</div>
           </div>
         </div>
-        <div className="der-header">
-          <DarkModeToggle />
-        </div>
+        <DarkModeToggle />
       </header>
       {currentView}
       <footer>
