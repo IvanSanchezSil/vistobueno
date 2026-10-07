@@ -156,9 +156,28 @@ Se pidió comparar tres opciones de mejora de la interfaz y se aplicó la comple
 
 ---
 
+### Quinta tanda — Fase A de la revisión integrada (C30–C38)
+
+Se ejecutó la fase A del plan propuesto en `resultados_vistobueno/INFORME_REVISION_INTEGRADA.txt` (revisión exhaustiva del 07/10 que identificó 33 hallazgos en total). Se aplicaron los 8 puntos del frontend sobre la rama `s7-auditoria-ux`:
+
+- **C30 (F1)**: `npm run lint` ahora cubre `.jsx` (`eslint . --ext .js,.jsx`) → 0 errores y 0 warnings **reales** (antes el lint silenciosamente ignoraba los componentes); se corrigieron el import muerto de `MOCK_REPORT` y las dependencias de `handleFiles`.
+- **C31–C33 (F2–F4) dark**: `--ambar: #ffb74d` dentro de `.dark` (el valor de claro daría ~2.5:1 sobre el fondo oscuro), `.dark .chip.on` para que el chip activo conserve el resaltado verde, y `color-scheme: dark` para que el placeholder nativo del buscador sea legible.
+- **C34–C35 (F5–F6) aria-live/buscador**: el anuncio ahora cuenta solo las filas visibles de la vista actual (`cuentaVisible`) y va con debounce de 350 ms (sin spam al teclear); el buscador también filtra la sección "Cómo preguntar a una IA" (`promptsVisibles` con `useMemo`).
+- **C36 (F7)**: el mock de demo pasó de `notificacion.enviado` a `no_solicitado` — la demo ya no afirma envíos inexistentes.
+- **C37–C38 (F8)**: re-elegir el mismo archivo ahora dispara `change` (reset del input), el foco vuelve a la dropzone al regresar desde el reporte, validador y constantes a nivel de módulo, rama muerta de correo fuera; limpieza de 29 selectores `[data-theme]` muertos, `--tinta`, `.der-header` e import sin uso; `favicon.svg` real (antes 404).
+
+#### Verificación (2026-10-07)
+
+- `npm run lint` → **0 errores / 0 warnings** · `npm run build` → OK (162.66 kB JS / 15.78 kB CSS + chunk `mocks`).
+- `pytest -o addopts=""` → 223 passed, 21 skipped · `scripts/e2e_flujo_completo.sh` → **11/11** (`resultados_vistobueno/S7_pruebas_usabilidad/evidencias/e2e_run.log`).
+- CSS servido verificado en `:5173`: sin `data-theme`, con `.dark --ambar: #ffb74d`, `color-scheme: dark` y `.dark .chip.on`; `/favicon.svg` → 200.
+- Commit `d306f36` **local** en `s7-auditoria-ux` (sin push por indicación; al subir actualizará el PR #41).
+
+---
+
 ## Evidencias
 
-- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29).
+- Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` (Fase A revisión, C30–C38, local sin push).
 - PRs: https://github.com/retblast/vistobueno/pull/31 · https://github.com/Rodo00/vistobueno/pull/10
 - Archivos: `frontend/src/components/Upload.jsx`, `Report.jsx`, `frontend/src/index.css`, `frontend/src/mocks.js`, `frontend/src/App.jsx`, `frontend/vite.config.js`, `frontend/.env.example`, `README.md`, `docs/diseno/01_requisitos_interfaz.md`, `docs/diseno/03_wireframes.md`, `mockups/carga.html`, `mockups/reporte.html`.
 
@@ -183,5 +202,6 @@ Se pidió comparar tres opciones de mejora de la interfaz y se aplicó la comple
 ## Plan siguiente
 
 - PR [#41](https://github.com/retblast/vistobueno/pull/41) (cuarta tanda, C17–C29) en revisión; cerrar actividad 7 en `resultados_vistobueno/S7_pruebas_usabilidad/resumen.txt` tras la fusión.
-- Integrar feedback de revisión del PR (si lo hay).
+- Subir `d306f36` (Fase A) cuando el equipo lo indique — actualiza el PR #41 o abre PR aparte.
+- Integrar feedback de revisión del PR (si lo hay); fases B/C/D de la revisión (motor, backend, infra) pendientes de asignación.
 - Capturas de pantalla pendientes (`resultados_vistobueno/S7_pruebas_usabilidad/capturas/`).
