@@ -1757,7 +1757,9 @@ def _con_content_control(texto, val="1"):
 def _fila_con_casilla_y_etiqueta(etiqueta, char="F0FE"):
     """Fila de tabla del Anexo 10: la casilla (símbolo Wingdings) en una celda
     y la etiqueta en la celda vecina."""
-    celda_casilla = f'<w:tc><w:p><w:r><w:sym w:font="Wingdings" w:char="{char}"/></w:r></w:p></w:tc>'
+    celda_casilla = (
+        f'<w:tc><w:p><w:r><w:sym w:font="Wingdings" w:char="{char}"/></w:r></w:p></w:tc>'
+    )
     celda_etiqueta = f"<w:tc>{_para(etiqueta)}</w:tc>"
     return f"<w:tbl><w:tr>{celda_casilla}{celda_etiqueta}</w:tr></w:tbl>"
 
@@ -1813,10 +1815,30 @@ class TestAvisoSinEstructura:
     @pytest.mark.parametrize(
         ("titulos", "esperado", "re"),
         [
-            (["PLAN DE INVESTIGACIÓN", "LÍNEA DE INVESTIGACIÓN"], "proyecto_cuantitativo", "PROYECTO"),
-            (["SELECCIÓN DE PARTICIPANTES", "UNIDAD DE ANÁLISIS"], "proyecto_cualitativo", "PROYECTO"),
-            (["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN"], "informe_cuantitativo", "INFORME"),
-            (["SITUACIÓN PROBLEMATIZADA", "PARTICIPANTES", "INSTRUMENTOS USADOS EN LA RECOLECCIÓN"], "informe_cualitativo", "INFORME"),
+            (
+                ["PLAN DE INVESTIGACIÓN", "LÍNEA DE INVESTIGACIÓN"],
+                "proyecto_cuantitativo",
+                "PROYECTO",
+            ),
+            (
+                ["SELECCIÓN DE PARTICIPANTES", "UNIDAD DE ANÁLISIS"],
+                "proyecto_cualitativo",
+                "PROYECTO",
+            ),
+            (
+                ["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN"],
+                "informe_cuantitativo",
+                "INFORME",
+            ),
+            (
+                [
+                    "SITUACIÓN PROBLEMATIZADA",
+                    "PARTICIPANTES",
+                    "INSTRUMENTOS USADOS EN LA RECOLECCIÓN",
+                ],
+                "informe_cualitativo",
+                "INFORME",
+            ),
             (["SECUENCIA DIDÁCTICA", "SUSTENTO PSICOPEDAGÓGICO"], "tsp", "SUFICIENCIA"),
         ],
     )
