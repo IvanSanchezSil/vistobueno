@@ -322,6 +322,16 @@ def _verificar_paridad(docx_path: str) -> dict:
         "estructura_tinv_cuantitativo",
         "estructura_tinv_cualitativo",
         "estructura_tinv_revision_literatura",
+        # Márgenes (handover issue #2): el DSL valida SOLO las secciones que
+        # rigen el cuerpo (`contexto: seccion_cuerpo`), dejando fuera las
+        # landscape de anexos; el legacy mira todas las secciones (no tiene
+        # el concepto de sección). El veredicto `passed` coincide en los
+        # documentos sintéticos, pero el `found` difiere (menos nodos), así
+        # que aquí solo se compara el resultado binario.
+        "margen_superior",
+        "margen_inferior",
+        "margen_derecho",
+        "margen_izquierdo",
     }
     # Desde el paso 4 el DSL hace algo que el motor legacy no puede: condicionar
     # una regla a la clave que publica otra (`aplicar_si`). Una estructura que

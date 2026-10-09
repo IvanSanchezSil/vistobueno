@@ -341,6 +341,14 @@ reglas:
     atributo: '@w:val'
     comparacion: all_eq
     esperado: center
+# Márgenes del cuerpo: se validan SOLO las secciones que rigen el cuerpo real
+# (contexto `seccion_cuerpo`), y en las secciones landscape se normaliza la
+# rotación que Word aplica (bottom<->left, top<->right): el empaste sigue en
+# el mismo borde físico. Antes se validaba `all_eq` sobre TODAS las secciones
+# con el valor OOXML crudo, y las secciones landscape (tablas anchas legítimas,
+# incluso dentro del cuerpo, p. ej. OPERACIONALIZACIÓN) producían falsos
+# positivos (handover issue #2). La política queda resuelta: se acepta la
+# rotación estándar de Word; no se exige uniformidad fuera del cuerpo.
 - id: margen_superior
   tipo: atributo_xml
   descripcion: Margen superior del documento
@@ -351,7 +359,7 @@ reglas:
   cita: '"Superior: 2.5 cm"'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: seccion_cuerpo
     xpath: (//w:sectPr)/w:pgMar
     atributo: '@w:top'
     comparacion: all_eq
@@ -366,7 +374,7 @@ reglas:
   cita: '"Inferior: 2.5 cm"'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: seccion_cuerpo
     xpath: (//w:sectPr)/w:pgMar
     atributo: '@w:bottom'
     comparacion: all_eq
@@ -381,7 +389,7 @@ reglas:
   cita: '"Derecho: 2.5 cm"'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: seccion_cuerpo
     xpath: (//w:sectPr)/w:pgMar
     atributo: '@w:right'
     comparacion: all_eq
@@ -396,7 +404,7 @@ reglas:
   cita: '"Izquierdo: 3.0 cm"'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: seccion_cuerpo
     xpath: (//w:sectPr)/w:pgMar
     atributo: '@w:left'
     comparacion: all_eq

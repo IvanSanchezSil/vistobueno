@@ -94,7 +94,7 @@ Verifica atributos de nodos o su presencia vía XPath.
 ```yaml
 atributo_xml:
   parte: document | footer | header     # defecto: document
-  contexto: todos | cuerpo              # defecto: todos
+  contexto: todos | cuerpo | seccion_cuerpo  # defecto: todos
   xpath: //w:sectPr[1]/w:pgSz
   atributo: "@w:w"                      # solo para comparaciones de valor
   comparacion: eq | all_eq | contains | exists | not_exists

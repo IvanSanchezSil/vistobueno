@@ -80,6 +80,23 @@ class AnalizadorXML(Analizador):
     Se usa para los DSL `atributo_xml` y `presencia_xml`.
     """
 
+    # En secciones landscape Word rota el par de márgenes opuestos
+    # (bottom<->left y top<->right) para que el empaste siga en el mismo
+    # borde físico. Al comparar un margen en una sección landscape se usa el
+    # valor del atributo rotado (handover issue #2).
+    _ROTACION_MARGEN = {
+        "@w:top": "@w:right",
+        "@w:right": "@w:top",
+        "@w:bottom": "@w:left",
+        "@w:left": "@w:bottom",
+    }
+
+    def _valor_margen(self, extracted, node, atributo, key):
+        """Valor de `atributo` normalizado para la orientación de la sección."""
+        if atributo in self._ROTACION_MARGEN and extracted.es_seccion_landscape(node):
+            key = _resolve_attr_key(self._ROTACION_MARGEN[atributo])
+        return node.get(key)
+
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
@@ -106,7 +123,7 @@ class AnalizadorXML(Analizador):
         if atributo is None:
             return False, "falta 'atributo' para comparación de atributo"
         key = _resolve_attr_key(atributo)
-        vals = [n.get(key) for n in nodes]
+        vals = [self._valor_margen(extracted, n, atributo, key) for n in nodes]
         vals = [v for v in vals if v is not None]
         self.valor = vals[0] if vals else None
 

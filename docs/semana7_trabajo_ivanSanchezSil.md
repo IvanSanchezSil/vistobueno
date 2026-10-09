@@ -94,6 +94,40 @@
   quedan márgenes landscape, XPaths de carátula y `sangria_parrafo`, issues
   #2/#4/#7 del handover).
 
+### 2026-10-09 — Issue #2 del handover: márgenes en secciones landscape
+
+- **Diagnóstico**: las reglas `margen_*` validaban `all_eq` sobre **todas** las
+  secciones del documento. La tesis de Linares tiene una sección **landscape
+  DENTRO del cuerpo** (una tabla de OPERACIONALIZACIÓN de 3 párrafos), y Word
+  rota los márgenes en landscape (bottom<->left, top<->right) para que el
+  empaste siga en el mismo borde físico. Por eso `margen_inferior` (1701 vs
+  1418) y `margen_izquierdo` (1418 vs 1701) daban falsos rojos.
+- **Decisión (en conjunto con el equipo)**: validar SOLO las secciones que
+  rigen el cuerpo real (`contexto: seccion_cuerpo`) **y normalizar la
+  rotación** que Word aplica en landscape. Se acepta la rotación estándar; no
+  se exige uniformidad fuera del cuerpo.
+- **Implementación**:
+  - `validator/extractor.py`: `_rango_cuerpo()` (helper del rango semántico),
+    `_secciones_cuerpo()` (sectPr que gobiernan el cuerpo, con orden por rango
+    de documento y fallback a todos si vacío), campo `_secciones_cuerpo` en
+    `ExtractedDocx`, métodos `_nodo_seccion()` / `es_seccion_cuerpo()` /
+    `es_seccion_landscape()`, y rama `contexto == "seccion_cuerpo"` en `xpath()`.
+  - `validator/analizadores.py`: en `AnalizadorXML`, `_valor_margen()` devuelve
+    el atributo rotado (top<->right, bottom<->left) cuando el `w:pgMar` está en
+    una sección landscape (`_ROTACION_MARGEN`).
+  - `reglas_unt.yaml`: las 4 reglas `margen_*` pasan a `contexto: seccion_cuerpo`
+    con comentario de la política.
+- **Tests**: `tests/test_margenes_landscape.py` (3 tests) — una sección
+  landscape legítima dentro del cuerpo no falla; una sección del cuerpo con
+  margen mal sigue fallando; evidencia de la rotación (bottom=1701/left=1418)
+  y de que el contexto incluye la landscape. Los 4 ids de márgenes entran a
+  `solo_passed` en `tests/test_paridad_formatos.py` (el `found` del DSL, que
+  cuenta menos nodos, difiere del legacy, que valida todos).
+- **Verificación**: suite completa **384 tests pasan** (+3); `ruff` + `mypy`
+  limpios; `nix flake check` verde; plantillas oficiales sin regresión
+  (3 errores / 10 warnings); en Linares los 4 márgenes ya pasan (6 → 4
+  errores; quedan solo los issues de carátula #3/#4/#7).
+
 ---
 
 ## Evidencias producidas
@@ -105,6 +139,10 @@
   `README.md`, `AGENTS.md`, `docs/diseno/00_indice_diseno.md` y esta bitácora.
 - Issue #1: `validator/extractor.py` (cuerpo semántico) y los fixtures
   `tests/_docx_builder.py` + `tests/test_paridad_formatos.py`.
+- Issue #2: `validator/extractor.py` (`seccion_cuerpo`, `es_seccion_landscape`),
+  `validator/analizadores.py` (rotación de márgenes en landscape),
+  `reglas_unt.yaml` (contexto), `tests/test_margenes_landscape.py`, `docs/DSL.md`
+  (documentado `contexto: seccion_cuerpo`).
 - Todo se agrupa en el **PR #45** (rama `semana7-fix-reglas-estructura`).
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo, en la raíz local y en `docs/pruebas/`).
@@ -143,8 +181,8 @@
 
 ## Plan de la semana siguiente
 
-1. Revisar los siguientes issues del handover/INFORME (uno por uno): márgenes
-   landscape, XPaths de carátula.
+1. Revisar los siguientes issues del handover/INFORME (uno por uno): XPaths de
+   carátula (#3/#4), `aplicar_si` (#5) y `vals[:3]` (#7).
 2. Convertir la tesis de Carrión (PDF) para poder validarla y medir la
    detección con un segundo documento real.
 3. Incorporar las 5 estructuras pendientes (`reglas_unt_pendientes.yaml`) a

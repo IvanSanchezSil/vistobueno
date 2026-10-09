@@ -45,19 +45,13 @@ def _para_ancestor(node):
     return cur
 
 
-def _cuerpo_paras(doc) -> set:
-    """Párrafos del cuerpo real del documento (para reglas de formato).
+def _rango_cuerpo(doc) -> tuple[list, int, int]:
+    """Índices del rango del cuerpo real: párrafos top-level desde el primer
+    heading "Introducción" hasta antes de "Referencias"/"Bibliografía"/"Anexos".
 
-    El cuerpo empieza en el primer heading "Introducción" y termina antes
-    del primer heading "Referencias"/"Bibliografía"/"Anexos". Quedan fuera
-    los headings (los títulos de capítulo van centrados y con su propio
-    tamaño), los párrafos vacíos (separadores) y los captions de tabla
-    "Nota."/"Fuente." (tipografía APA legítima que el manual no prescribe).
-    Si el documento no tiene heading "Introducción", todo el documento es
-    candidato (fallback robusto).
-
-    Solo se consideran párrafos top-level de `w:body`; los que viven dentro
-    de una tabla quedan excluidos por construcción.
+    Si no hay heading "Introducción", el rango cubre todo el documento
+    (fallback robusto). Devuelve `(paras, start, end)` sobre
+    `//w:body/w:p` (solo párrafos top-level; los de tabla quedan fuera).
     """
     paras = doc.xpath("//w:body/w:p", namespaces=NS)
 
@@ -90,7 +84,24 @@ def _cuerpo_paras(doc) -> set:
 
     start = inicio + 1 if inicio is not None else 0
     end = fin if fin is not None else len(paras)
+    return paras, start, end
 
+
+def _cuerpo_paras(doc) -> set:
+    """Párrafos del cuerpo real del documento (para reglas de formato).
+
+    El cuerpo empieza en el primer heading "Introducción" y termina antes
+    del primer heading "Referencias"/"Bibliografía"/"Anexos". Quedan fuera
+    los headings (los títulos de capítulo van centrados y con su propio
+    tamaño), los párrafos vacíos (separadores) y los captions de tabla
+    "Nota."/"Fuente." (tipografía APA legítima que el manual no prescribe).
+    Si el documento no tiene heading "Introducción", todo el documento es
+    candidato (fallback robusto).
+
+    Solo se consideran párrafos top-level de `w:body`; los que viven dentro
+    de una tabla quedan excluidos por construcción.
+    """
+    paras, start, end = _rango_cuerpo(doc)
     result = set()
     for i in range(start, end):
         p = paras[i]
@@ -104,6 +115,39 @@ def _cuerpo_paras(doc) -> set:
             continue
         result.add(p)
     return result
+
+
+def _secciones_cuerpo(doc) -> set:
+    """Conjunto de `w:sectPr` que rigen el cuerpo real del documento.
+
+    Cada párrafo pertenece a la sección que termina en el primer `w:sectPr`
+    en orden de documento con posición mayor o igual a la suya (si el mismo
+    párrafo trae un `w:sectPr` en `pPr`, esa es su sección). Devolvemos
+    las secciones que gobiernan el rango semántico del cuerpo, para que las
+    reglas de márgenes validen las páginas del texto (las que el manual
+    regula) y no las secciones landscape de anexos con tablas, que Word
+    legitima con los márgenes rotados (bottom↔left).
+
+    Si el rango está vacío o sin párrafos, todo el documento es candidato
+    (fallback robusto): `secciones = TODOS los sectPr`.
+    """
+    paras, start, end = _rango_cuerpo(doc)
+    sectprs = doc.xpath("//w:sectPr", namespaces=NS)
+    # Orden de documento: lxml mantiene proxies estables para un mismo nodo
+    # mientras el root del documento tenga referencias fuertes (misma regla
+    # que _paginacion_para), así los elementos sirven como clave de dict.
+    rank = {el: i for i, el in enumerate(doc.iter())}
+
+    gobernantes: set = set()
+    for p in paras[start:end]:
+        for s in sectprs:
+            if rank[s] >= rank[p]:
+                gobernantes.add(s)
+                break
+
+    if not gobernantes:
+        return set(sectprs)
+    return gobernantes
 
 
 def _paginacion_para(document) -> dict[int, int]:
@@ -153,6 +197,9 @@ class ExtractedDocx:
     footers: list
     footnotes: etree._Element | None
     _cuerpo: set
+    # Secciones que rigen el cuerpo real (issue handover #2): las reglas de
+    # márgenes validan solo estas, excluyendo secciones landscape de anexos.
+    _secciones_cuerpo: set = field(default_factory=set, repr=False)
     # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
     _cache: dict = field(default_factory=dict, repr=False)
@@ -170,6 +217,30 @@ class ExtractedDocx:
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
+
+    def _nodo_seccion(self, node):
+        """Ancestro `w:sectPr` del nodo (o el mismo si es un sectPr)."""
+        cur = node
+        while cur is not None and cur.tag != W + "sectPr":
+            cur = cur.getparent()
+        return cur
+
+    def es_seccion_cuerpo(self, node) -> bool:
+        """¿El nodo pertenece a una sección que rige el cuerpo real?"""
+        return self._nodo_seccion(node) in self._secciones_cuerpo
+
+    def es_seccion_landscape(self, node) -> bool:
+        """¿El `w:pgMar` del nodo vive en una sección landscape?
+
+        Word rota los márgenes en secciones landscape (bottom<->left,
+        top<->right): el empaste sigue en el mismo borde físico. Las reglas
+        de márgenes normalizan ese valor rotado antes de comparar.
+        """
+        s = self._nodo_seccion(node)
+        if s is None:
+            return False
+        sz = s.find(W + "pgSz")
+        return sz is not None and sz.get(W + "orient") == "landscape"
 
     def pagina_de(self, node) -> int | None:
         """Número físico de página de un párrafo (None si no es un párrafo
@@ -201,7 +272,10 @@ class ExtractedDocx:
         dos secciones con el mismo XPath comparten el resultado. Para encabe-
         zados/pies consulta TODAS las partes del tipo (`header*.xml`,
         `footer*.xml`) y combina los resultados. Con `contexto == "cuerpo"`
-        se filtra por los párrafos del cuerpo real del documento.
+        se filtra por los párrafos del cuerpo real del documento; con
+        `contexto == "seccion_cuerpo"`, por las secciones que rigen ese
+        cuerpo (márgenes, papel), lo que deja fuera las secciones landscape
+        de anexos.
         """
         clave = (parte, contexto, xpath_expr)
         if clave in self._cache:
@@ -214,6 +288,8 @@ class ExtractedDocx:
             nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
         if contexto == "cuerpo":
             nodos = [n for n in nodos if self.is_cuerpo(n)]
+        if contexto == "seccion_cuerpo":
+            nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
         self._cache[clave] = nodos
         return nodos
 
@@ -250,5 +326,6 @@ def extract(docx_path: str) -> ExtractedDocx:
         footers=footers,
         footnotes=footnotes,
         _cuerpo=_cuerpo_paras(document),
+        _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),
     )
