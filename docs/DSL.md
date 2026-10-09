@@ -426,12 +426,19 @@ corresponde.
 
 Detecta en **dos niveles**, y el primero que llegue a su umbral gana:
 
-1. **`declaracion`** — busca cada etiqueta del Anexo 10 en el texto. Si el
-   autor marcó la casilla, manda eso. La comparación es por subcadena, así que
-   las etiquetas cortas ceden ante las más específicas: el orden de `firmas` y
-   de `etiquetas` importa.
+1. **`declaracion`** — busca cada etiqueta del Anexo 10 junto a una casilla
+   marcada. La casilla se lee como símbolo, texto plano o content-control de
+   Word (`w14:checkbox`), y puede vivir en cualquier párrafo del cuerpo,
+   incluida una tabla (`w:tbl`) o un bloque `w:sdt`. Si el Anexo 10 es una
+   tabla, la etiqueta se busca en la **misma fila** que la casilla (suelen ir
+   en celdas distintas). La comparación es por subcadena, así que las
+   etiquetas cortas ceden ante las más específicas.
 2. **`firmas`** — conjuntos de secciones que solo tiene un tipo. `minimo: 2`
-   significa "al menos 2 de las 3 evidencias".
+   significa "al menos 2 de las 3 evidencias". Las firmas se cotejan **solo
+   contra párrafos con estilo de título** (los mismos que consume el DFA de
+   estructura): la prosa es ruido y no cuenta como evidencia estructural, para
+   que un párrafo cualquiera (p. ej. la línea "Línea de investigación:" de la
+   carátula) no alcance el mínimo de otro tipo y robe la clasificación.
 
 El resultado es uno de cinco valores, y `expone` publica ese valor como
 `tipo_documento`:
@@ -443,9 +450,13 @@ El resultado es uno de cinco valores, y `expone` publica ese valor como
 | `sin_determinar` | Ninguna fuente llega al umbral | No: publica `sin_determinar` |
 | `contradictorio` | Dos fuentes dan tipos distintos | No: publica `contradictorio` |
 
-Cuando el valor es `sin_determinar` o `contradictorio`, ninguna estructura
-aplica: el documento se valida contra **todas** a la vez. Es preferible
-mostrar de más que dejar la estructura sin revisar en silencio.
+Cuando el valor es `sin_determinar` o `contradictorio` ninguna estructura
+aplica y el motor emite **un error centinela accionable** (decisión 6), en vez
+de validar contra todos los esquemas a la vez. Además, si el tipo publicado es
+uno de los 5 **sin estructura cargada** (proyecto, informe y TSP), el motor
+emite un **warning** `tipo_documento_sin_estructura`: el documento se valida
+con las reglas generales, pero su esquema formal aún no — así el semáforo no
+vende un "verde" que no validó el capítulo de metodología.
 
 #### `expone`
 

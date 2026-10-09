@@ -46,6 +46,10 @@ reglas:
       # Se listan los dos porque la declaración se lee del Anexo 10, y lo que
       # se encuentra ahí escrito es el segundo. El primero se conserva por si
       # el autor transcribe el título en lugar de marcar la casilla.
+      #
+      # La casilla (símbolo, texto plano o content-control w14) puede vivir en
+      # cualquier párrafo del cuerpo, dentro de una tabla o de un w:sdt; si es
+      # una tabla, la etiqueta se busca en la MISMA fila (revisión del PR #45).
       etiquetas:
         # EVALUADO: el manual llama a este tipo "Trabajo de Suficiencia
         # Profesional" (párr. 89, 3430). Las dos etiquetas siguientes no
@@ -71,6 +75,12 @@ reglas:
     # En orden de especificidad (decisión 2): gana el primero que alcance su
     # mínimo. El informe es la versión revisada del proyecto, así que sus
     # firmas son más específicas y se evalúan antes.
+    #
+    # Las firmas se cotejan SOLO contra párrafos con estilo de título, igual
+    # que el DFA de estructura (revisión del PR #45). La prosa no cuenta como
+    # evidencia: la línea "Línea de investigación:" de la carátula está en
+    # toda tesis, pero no es un título, así que no debe alcanzar el mínimo de
+    # proyecto en un documento que no lo es.
     firmas:
     - tipo: tsp
       evidencia: ['SECUENCIA DIDÁCTICA', 'SUSTENTO PSICOPEDAGÓGICO', 'SUSTENTO TEÓRICO CIENTÍFICO']

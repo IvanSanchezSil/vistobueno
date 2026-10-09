@@ -715,15 +715,19 @@ def _cfg_deteccion(declaracion=None, firmas=None):
     return cfg
 
 
-def _docx_de_parrafos(parrafos_xml: list[str]) -> str:
+def _docx_de_parrafos(parrafos_xml: list[str], xmlns: str = "") -> str:
     """DOCX mínimo a partir de XML de párrafos crudo (para poder meter
-    `w:sym`, que un builder de texto plano no sabe escribir)."""
+    `w:sym`, que un builder de texto plano no sabe escribir).
+
+    `xmlns` permite declarar prefijos extra (p. ej. `xmlns:w14=...` para los
+    content-control del Anexo 10).
+    """
     from test_dsl import CONTENT_TYPES, RELS
 
     body = "".join(parrafos_xml)
     doc = (
         f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        f'<w:document xmlns:w="{WNS}"><w:body>{body}'
+        f'<w:document xmlns:w="{WNS}" {xmlns}><w:body>{body}'
         f'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>'
         f"</w:body></w:document>"
     )
@@ -736,9 +740,9 @@ def _docx_de_parrafos(parrafos_xml: list[str]) -> str:
     return path
 
 
-def _detectar(parrafos_xml, declaracion=None, firmas=None):
+def _detectar(parrafos_xml, declaracion=None, firmas=None, xmlns=""):
     """Ejecuta el analizador y devuelve (ok, nivel, valor, evidencia, detalle)."""
-    path = _docx_de_parrafos(parrafos_xml)
+    path = _docx_de_parrafos(parrafos_xml, xmlns=xmlns)
     try:
         analizador = DeteccionTipo(_cfg_deteccion(declaracion, firmas))
         ok, detalle = analizador.analizar(extract(path))
@@ -1690,3 +1694,152 @@ class TestCasosLimite:
         assert (
             ids.index("tipo_documento_no_determinado") == ids.index("deteccion_tipo_documento") + 1
         )
+
+
+# ---------------------------------------------------------------------------
+# Revisión del PR #45 — inferencia solo sobre títulos, declaración robusta y
+# aviso de tipo sin estructura cargada.
+# ---------------------------------------------------------------------------
+
+
+class TestInferenciaSoloTitulos:
+    """Las firmas estructurales se cotejan SOLO contra párrafos con estilo de
+    título (respuesta a la pregunta 1 de la revisión). La prosa es ruido: la
+    línea "Línea de investigación:" de la carátula, o un párrafo que mencione
+    "recursos y materiales", no debe contar como evidencia y virar el tipo."""
+
+    def test_un_parrafo_normal_no_cuenta_como_firma(self):
+        # Prosa con las evidencias de proyecto en párrafos normales.
+        prose = [
+            _para("Línea de Investigación: innovación educativa"),
+            _para("3.4 Recursos y materiales del proyecto"),
+            _para("Plan de investigación del pregrado"),
+        ]
+        _ok, _nivel, valor, evidencia, detalle = _detectar(
+            [*prose, _t("POBLACIÓN Y MUESTRA"), _t("INSTRUMENTO")]
+        )
+        assert valor == "tinv_cuantitativo", detalle
+        assert "proyecto_cuantitativo" not in evidencia
+
+    def test_tesis_tinv_que_menciona_proyecto_en_prosa_no_vira(self):
+        """Caso exacto de la revisión: una tesis TINV que mencione "recursos
+        y materiales" o "plan de investigación" en un párrafo alcanzaba el
+        mínimo de proyecto y ganaba. Con títulos, la prosa no cuenta."""
+        prose = [_para("Los recursos y materiales de la escuela"), _para("Plan de investigación")]
+        _ok, _nivel, valor, _ev, detalle = _detectar(
+            [*prose, _t("VARIABLE"), _t("POBLACIÓN Y MUESTRA")]
+        )
+        assert valor == "tinv_cuantitativo", detalle
+
+    def test_un_proyecto_real_si_se_detecta(self):
+        """El fix no debe cegar la detección: si el documento trae los títulos
+        de proyecto como encabezados, se detecta proyecto."""
+        _ok, _nivel, valor, _ev, detalle = _detectar(
+            [_t("PLAN DE INVESTIGACIÓN"), _t("LÍNEA DE INVESTIGACIÓN")]
+        )
+        assert valor == "proyecto_cuantitativo", detalle
+
+
+_W14_XMLNS = 'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"'
+
+
+def _con_content_control(texto, val="1"):
+    """Etiqueta dentro de un content-control de Word (`w:sdt`) con casilla
+    `w14:checkbox` en su `w:sdtPr` — el `w14:checked` vive fuera del párrafo."""
+    return (
+        "<w:sdt>"
+        f'<w:sdtPr><w14:checkbox><w14:checked w14:val="{val}"/></w14:checkbox></w:sdtPr>'
+        f"<w:sdtContent>{_para(texto)}</w:sdtContent>"
+        "</w:sdt>"
+    )
+
+
+def _fila_con_casilla_y_etiqueta(etiqueta, char="F0FE"):
+    """Fila de tabla del Anexo 10: la casilla (símbolo Wingdings) en una celda
+    y la etiqueta en la celda vecina."""
+    celda_casilla = f'<w:tc><w:p><w:r><w:sym w:font="Wingdings" w:char="{char}"/></w:r></w:p></w:tc>'
+    celda_etiqueta = f"<w:tc>{_para(etiqueta)}</w:tc>"
+    return f"<w:tbl><w:tr>{celda_casilla}{celda_etiqueta}</w:tr></w:tbl>"
+
+
+class TestDeclaracionEnTablaYSdt:
+    """Respuesta a la pregunta 2 de la revisión: la casilla del Anexo 10 debe
+    leerse aunque viva dentro de una tabla, en un content-control de Word, o
+    en una celda distinta a la de su etiqueta."""
+
+    def test_declaracion_en_una_tabla_con_etiqueta_en_otra_celda(self):
+        declaracion = {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        _ok, nivel, valor, _ev, detalle = _detectar(
+            [_fila_con_casilla_y_etiqueta("PROYECTO DE INVESTIGACIÓN CUANTITATIVO")],
+            declaracion=declaracion,
+        )
+        assert nivel == NIVEL_DECLARADO
+        assert valor == "proyecto_cuantitativo", detalle
+
+    def test_casilla_vacia_en_la_tabla_no_declara(self):
+        declaracion = {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        _ok, nivel, valor, _ev, detalle = _detectar(
+            ["La fila 1", _fila_con_casilla_y_etiqueta("INFORME DE PROYECTO", char="F0A8")],
+            declaracion=declaracion,
+        )
+        assert valor == TIPO_SIN_DETERMINAR
+        assert nivel == NIVEL_NO_DETERMINADO
+
+    def test_declaracion_en_content_control_w14(self):
+        declaracion = {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        _ok, _nivel, valor, _ev, detalle = _detectar(
+            [_con_content_control("PROYECTO DE INVESTIGACIÓN CUANTITATIVO")],
+            declaracion=declaracion,
+            xmlns=_W14_XMLNS,
+        )
+        assert valor == "proyecto_cuantitativo", detalle
+
+    def test_content_control_w14_desmarcado_no_declara(self):
+        declaracion = {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+        _ok, nivel, valor, _ev, detalle = _detectar(
+            [_con_content_control("PROYECTO DE INVESTIGACIÓN CUANTITATIVO", val="0")],
+            declaracion=declaracion,
+            xmlns=_W14_XMLNS,
+        )
+        assert valor == TIPO_SIN_DETERMINAR
+        assert nivel == NIVEL_NO_DETERMINADO
+
+
+class TestAvisoSinEstructura:
+    """Respuesta a la salida B de la revisión: un tipo de documento cuyo
+    esquema aún no tiene validación estructural (proyecto, informe y TSP) no
+    debe salir en verde silencioso, pero tampoco bloquear: avisa con warning."""
+
+    @pytest.mark.parametrize(
+        ("titulos", "esperado", "re"),
+        [
+            (["PLAN DE INVESTIGACIÓN", "LÍNEA DE INVESTIGACIÓN"], "proyecto_cuantitativo", "PROYECTO"),
+            (["SELECCIÓN DE PARTICIPANTES", "UNIDAD DE ANÁLISIS"], "proyecto_cualitativo", "PROYECTO"),
+            (["SITUACIÓN PROBLEMATIZADA", "DISEÑO DE CONTRASTACIÓN"], "informe_cuantitativo", "INFORME"),
+            (["SITUACIÓN PROBLEMATIZADA", "PARTICIPANTES", "INSTRUMENTOS USADOS EN LA RECOLECCIÓN"], "informe_cualitativo", "INFORME"),
+            (["SECUENCIA DIDÁCTICA", "SUSTENTO PSICOPEDAGÓGICO"], "tsp", "SUFICIENCIA"),
+        ],
+    )
+    def test_aviso_para_los_cinco_tipos_sin_estructura(self, titulos, esperado, re):
+        path = _make_docx(headings=titulos)
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+        deteccion = next(r for r in res if r.rule_id == "deteccion_tipo_documento")
+        assert esperado in deteccion.found
+
+        avisos = [r for r in res if r.rule_id == "tipo_documento_sin_estructura"]
+        assert avisos, "un tipo sin estructura debe emitir el aviso"
+        assert [a.severity.value for a in avisos] == ["warning"]
+        assert re in avisos[0].message
+
+    def test_tinv_no_emite_el_aviso(self):
+        path = _make_docx(headings=["VARIABLE", "POBLACIÓN Y MUESTRA"])
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        ids = {r.rule_id for r in res}
+        assert "tipo_documento_sin_estructura" not in ids
