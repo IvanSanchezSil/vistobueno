@@ -1113,6 +1113,8 @@ reglas:
 
 - id: referencias_minimo_cuantitativo
   tipo: estructura
+  aplicar_si:
+    tipo_documento: tinv_cuantitativo
   descripcion: Mínimo de referencias bibliográficas para Trabajo de Investigación Cuantitativo
   valor_esperado: '>= 20 referencias'
   severidad: warning
@@ -1126,6 +1128,8 @@ reglas:
 
 - id: referencias_minimo_cualitativo
   tipo: estructura
+  aplicar_si:
+    tipo_documento: tinv_cualitativo
   descripcion: Mínimo de referencias bibliográficas para Trabajo de Investigación Cualitativo
   valor_esperado: '>= 30 referencias'
   severidad: warning
@@ -1139,6 +1143,8 @@ reglas:
 
 - id: referencias_minimo_revision
   tipo: estructura
+  aplicar_si:
+    tipo_documento: tinv_revision_literatura
   descripcion: Mínimo de referencias bibliográficas para Trabajo de Revisión de la Literatura
   valor_esperado: '>= 20 referencias'
   severidad: warning
@@ -1154,6 +1160,8 @@ reglas:
 
 - id: anexos_minimos_cuantitativo
   tipo: estructura
+  aplicar_si:
+    tipo_documento: tinv_cuantitativo
   descripcion: Anexos obligatorios para Trabajo de Investigación Cuantitativo
   valor_esperado:
   - Matriz de consistencia
@@ -1186,6 +1194,8 @@ reglas:
 
 - id: anexos_minimos_cualitativo
   tipo: estructura
+  aplicar_si:
+    tipo_documento: tinv_cualitativo
   descripcion: Anexos obligatorios para Trabajo de Investigación Cualitativo
   valor_esperado:
   - Matriz de consistencia
@@ -1238,6 +1248,10 @@ reglas:
 
 - id: proyecto_caratula_texto
   tipo: formato_texto
+  aplicar_si:
+    tipo_documento:
+      - proyecto_cuantitativo
+      - proyecto_cualitativo
   descripcion: En la carátula del Proyecto, la línea de tipo dice "Proyecto de Investigación" (no "Trabajo de Investigación para optar...")
   valor_esperado: Proyecto de Investigación
   severidad: error

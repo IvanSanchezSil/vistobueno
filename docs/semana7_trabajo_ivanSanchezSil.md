@@ -166,6 +166,39 @@
   hallazgo real del estudiante, y `proyecto_caratula_texto`, issue #5).
   `ruff` + `mypy` limpios; `nix flake check` verde.
 
+### 2026-10-09 — Issue #5 del handover: `aplicar_si` en reglas tipo-específicas
+
+- **Diagnóstico**: 6 reglas solo tienen sentido en un tipo de documento, pero
+  se evaluaban SIEMPRE: los mínimos de referencias/anexos de cualitativo y
+  revisión fallaban en tesis cuantitativas (8/8 anexos faltantes,
+  `nodos=0 minimo=30`), y `proyecto_caratula_texto` buscaba "Proyecto de
+  Investigación" en tesis TINV. Falsos positivos imposibles de corregir.
+- **Fix**: `aplicar_si: {tipo_documento: ...}` en las 6 reglas, el mismo
+  mecanismo que ya usaban los 3 esquemas de estructura:
+  `referencias_minimo_cuantitativo` (tinv_cuantitativo),
+  `referencias_minimo_cualitativo` (tinv_cualitativo),
+  `referencias_minimo_revision` (tinv_revision_literatura),
+  `anexos_minimos_cuantitativo` (tinv_cuantitativo),
+  `anexos_minimos_cualitativo` (tinv_cualitativo) y
+  `proyecto_caratula_texto` (proyecto_cuantitativo/proyecto_cualitativo).
+- **Mutaciones**: en el doc base (cuantitativo) esas reglas ya no se evalúan,
+  así que sus mutaciones quedaban inefectivas. Ahora componen un **volteo de
+  tipo** (los headings que ya usaban las mutaciones de estructura; para
+  proyecto, 2 firmas de título que ganan por orden de especificidad) con el
+  desvío propio. El volteo mueve de paso a todas las reglas condicionadas:
+  `REGLAS_ACOPLADAS` documenta esos acoples, y
+  `tipo_documento_sin_estructura` entra a `CENTINELAS` (aparece solo en el
+  doc mutado a proyecto).
+- **Tests actualizados**: 42 de 48 evaluadas en el doc bueno (6 no aplicables),
+  plantilla oficial con 2 errores reales (3 antes), la detección contradictoria
+  retira también los mínimos del tipo cuantitativo, y el caso sin marcadores
+  no inventa errores de ningún tipo. Suite completa: **388 tests pasan**.
+- **Verificación**: Linares queda en **1 error** (solo
+  `caratula_autores_mayusculas_sin_negrita`, un hallazgo real del estudiante)
+  y 5 warnings; plantillas oficiales en **2 errores / 7 warnings** (antes
+  3/10). Los falsos positivos tipo-específicos desaparecen como N/A.
+  `ruff` + `mypy` limpios; `nix flake check` verde.
+
 ---
 
 ## Evidencias producidas
@@ -184,6 +217,11 @@
 - Issue #3/#4: `validator/extractor.py` (`contexto: caratula`,
   `_caratula_paras`), `reglas_unt.yaml` (XPath posicional del título + contexto),
   `tests/test_caratula.py`, `docs/DSL.md` (documentado `contexto: caratula`).
+- Issue #5: `reglas_unt.yaml` (`aplicar_si` en 6 reglas tipo-específicas),
+  `tests/_mutations.py` (volteos de tipo + acoples + `NO_APLICABLES_BASE`),
+  `tests/test_propiedad.py` (centinela `tipo_documento_sin_estructura`),
+  `tests/test_tipo_documento.py` (expectativas 42/48 y 6 no aplicables),
+  `README.md` + `AGENTS.md` + `docs/diseno/00_indice_diseno.md` (conteos).
 - Todo se agrupa en el **PR #45** (rama `semana7-fix-reglas-estructura`).
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo, en la raíz local y en `docs/pruebas/`).
@@ -222,8 +260,9 @@
 
 ## Plan de la semana siguiente
 
-1. Revisar los siguientes issues del handover/INFORME (uno por uno):
-   `aplicar_si` (#5) y `vals[:3]` (#7) (los de carátula #3/#4 ya quedaron).
+1. Revisar el último issue del handover/INFORME: `vals[:3]` (#7 — el
+   reporting de `all_eq` esconde los valores no conformes). El `aplicar_si`
+   (#5) y los de carátula (#3/#4) ya quedaron.
 2. Convertir la tesis de Carrión (PDF) para poder validarla y medir la
    detección con un segundo documento real.
 3. Incorporar las 5 estructuras pendientes (`reglas_unt_pendientes.yaml`) a

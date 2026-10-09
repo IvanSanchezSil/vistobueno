@@ -41,6 +41,20 @@ ESTRUCTURA = {
     "estructura_tinv_revision_literatura",
 }
 
+# Reglas condicionadas al tipo de documento (handover issue #5): además de
+# los 3 esquemas de estructura, los mínimos de referencias/anexos por tipo y
+# el texto de carátula del Proyecto. En un documento de otro tipo NO se
+# evalúan (`aplicable=False`): reportarlas como fallidas sería exigirle al
+# estudiante anexos de una tesis cualitativa en una cuantitativa.
+TIPO_ESPECIFICAS = ESTRUCTURA | {
+    "referencias_minimo_cuantitativo",
+    "referencias_minimo_cualitativo",
+    "referencias_minimo_revision",
+    "anexos_minimos_cuantitativo",
+    "anexos_minimos_cualitativo",
+    "proyecto_caratula_texto",
+}
+
 
 def _regla_simple(rule_id, severidad="error", **extra):
     """Regla mínima con un solo analizador, la base para las pruebas de
@@ -368,10 +382,11 @@ class TestDosFases:
         assert resumen["total_evaluadas"] == 2
         assert resumen["reglas_no_aplicables"] == 1
 
-    def test_el_documento_bueno_cuenta_46_de_48(self):
+    def test_el_documento_bueno_cuenta_42_de_48(self):
         """Guarda sobre el YAML real: el documento bueno es un plan
-        cuantitativo, así que las 2 estructuras que no aplican son las de
-        cualitativo y revisión."""
+        cuantitativo, así que no se evalúan las 6 reglas de otros tipos (los
+        2 esquemas alternativos, los mínimos de referencias/anexos de
+        cualitativo y revisión, y la carátula del Proyecto)."""
         from docx_factory import compilar_docx, configuracion_base  # noqa: E402
 
         path = compilar_docx(configuracion_base())
@@ -380,9 +395,9 @@ class TestDosFases:
         finally:
             Path(path).unlink(missing_ok=True)
         rep = build_report(res)
-        assert rep["resumen"]["total_evaluadas"] == 46
-        assert rep["resumen"]["reglas_no_aplicables"] == 2
-        assert len(rep["resultados"]) == 46
+        assert rep["resumen"]["total_evaluadas"] == 42
+        assert rep["resumen"]["reglas_no_aplicables"] == 6
+        assert len(rep["resultados"]) == 42
         assert rep["semaforo"] == "verde"
 
     def test_orden_del_yaml_se_conserva(self):
@@ -438,10 +453,10 @@ class TestSinCambioDeComportamiento:
             / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
         )
 
-    def test_solo_las_tres_estructuras_se_condicionan(self):
+    def test_solo_las_reglas_tipo_especificas_se_condicionan(self):
         reglas = load_rules(str(RUTA_REGLAS))["reglas"]
         condicionadas = {r["id"] for r in reglas if r.get("aplicar_si")}
-        assert condicionadas == ESTRUCTURA
+        assert condicionadas == TIPO_ESPECIFICAS
 
     def test_ninguna_regla_condicionada_tambien_expone(self):
         """Condicionarse a un valor que uno mismo produce no tiene sentido."""
@@ -450,7 +465,7 @@ class TestSinCambioDeComportamiento:
             if r.get("aplicar_si"):
                 assert "expone" not in r and not any(s in r for s in ("deteccion_tipo",)), r["id"]
 
-    def test_doc_bueno_solo_omite_los_esquemas_de_otros_tipos(self):
+    def test_doc_bueno_solo_omite_las_reglas_de_otros_tipos(self):
         from docx_factory import compilar_docx, configuracion_base
 
         path = compilar_docx(configuracion_base())
@@ -459,15 +474,17 @@ class TestSinCambioDeComportamiento:
         finally:
             Path(path).unlink(missing_ok=True)
         assert len(res) == 48
-        assert {r.rule_id for r in res if not r.aplicable} == {
-            "estructura_tinv_cualitativo",
-            "estructura_tinv_revision_literatura",
+        assert {r.rule_id for r in res if not r.aplicable} == TIPO_ESPECIFICAS - {
+            "estructura_tinv_cuantitativo",
+            "referencias_minimo_cuantitativo",
+            "anexos_minimos_cuantitativo",
         }
 
     def test_plantilla_oficial_no_reporta_esquemas_imposibles(self):
-        """Los 2 errores que no se podían corregir desaparecieron: la
-        plantilla es cuantitativa, así que los esquemas cualitativo y de
-        revisión no le aplican. Quedan 3 errores reales.
+        """Los errores imposibles de corregir desaparecieron: la plantilla es
+        cuantitativa, así que los esquemas cualitativo y de revisión, sus
+        mínimos y la carátula del Proyecto no le aplican. Quedan 2 errores
+        reales (autores sin mayúsculas y palabras clave).
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
         plantilla no existe y el test se omite.
@@ -478,8 +495,8 @@ class TestSinCambioDeComportamiento:
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
         assert len(res) == 48
         fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
-        assert not fallidos & ESTRUCTURA
-        assert len(fallidos) == 3
+        assert not fallidos & TIPO_ESPECIFICAS
+        assert len(fallidos) == 2
         assert build_report(res)["semaforo"] == "rojo"
 
 
@@ -1426,12 +1443,13 @@ class TestMutacionDeLaDeteccion:
         assert "contradictorio" in r.found
         assert "proyecto_cualitativo" in r.found
 
-    def test_solo_mueve_la_deteccion_y_la_estructura_que_deja_de_aplicar(self):
+    def test_solo_mueve_la_deteccion_y_las_reglas_del_tipo(self):
         """La mutación añade un anexo y no toca ningún título, así que lo
         único que cambia es la clasificación: al quedar contradictoria la
         detección, la estructura que antes aplicaba (cuantitativo) deja de
-        aplicar porque el tipo ya no es ninguno de los tres. Las dos
-        alternativas ya eran no aplicables y siguen siéndolo."""
+        aplicar porque el tipo ya no es ninguno de los tres, y con ella los
+        mínimos de referencias y anexos del mismo tipo. Las reglas de los
+        otros tipos ya eran no aplicables y siguen siéndolo."""
         limpio, _ = _validar_factory()
         sucio, _ = self._validar_mutado()
         antes = {r.rule_id: (r.passed, r.found, r.aplicable) for r in limpio}
@@ -1440,6 +1458,8 @@ class TestMutacionDeLaDeteccion:
         assert movidas == {
             "deteccion_tipo_documento",
             "estructura_tinv_cuantitativo",
+            "referencias_minimo_cuantitativo",
+            "anexos_minimos_cuantitativo",
         }
         # La que dejó de aplicar pasó de aplicable a no aplicable.
         assert antes["estructura_tinv_cuantitativo"][2] is True
@@ -1451,16 +1471,16 @@ class TestMutacionDeLaDeteccion:
         secciones que el estudiante no puede corregir sin adivinar el tipo.
 
         La detección sigue siendo `warning` (informa, no bloquea) y las
-        estructuras no aplican: el único error es el centinela.
+        reglas tipo-específicas no aplican: el único error es el centinela.
         """
         sucio, _ = self._validar_mutado()
         deteccion = next(r for r in sucio if r.rule_id == "deteccion_tipo_documento")
         assert deteccion.severity.value == "warning"
         assert deteccion.passed is False
 
-        # Ninguna estructura se evalúa: no sabemos el tipo, así que no se
-        # puede exigir la estructura de ninguno.
-        for rid in ESTRUCTURA:
+        # Ninguna regla tipo-específica se evalúa: no sabemos el tipo, así
+        # que no se puede exigir la estructura ni los mínimos de ninguno.
+        for rid in TIPO_ESPECIFICAS:
             r = next(x for x in sucio if x.rule_id == rid)
             assert r.aplicable is False, rid
 
@@ -1513,7 +1533,7 @@ class TestCasosLimite:
             for r in res
             if not r.passed
             and r.severity.value == "error"
-            and (r.rule_id in ESTRUCTURA or "tipo_documento" in r.rule_id)
+            and (r.rule_id in TIPO_ESPECIFICAS or "tipo_documento" in r.rule_id)
         ]
         assert [r.rule_id for r in errores_tipo] == ["tipo_documento_no_determinado"]
 
