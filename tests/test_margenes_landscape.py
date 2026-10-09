@@ -36,7 +36,7 @@ MARG_LAND = 'w:top="1418" w:bottom="1701" w:left="1418" w:right="1418"'
 
 def _p(texto: str, ppr: str = "") -> str:
     ppr_xml = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
-    return f"<w:p>{ppr_xml}<w:r><w:t xml:space=\"preserve\">{texto}</w:t></w:r></w:p>"
+    return f'<w:p>{ppr_xml}<w:r><w:t xml:space="preserve">{texto}</w:t></w:r></w:p>'
 
 
 def _h(texto: str) -> str:
