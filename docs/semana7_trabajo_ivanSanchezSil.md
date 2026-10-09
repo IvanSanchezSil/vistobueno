@@ -128,6 +128,44 @@
   (3 errores / 10 warnings); en Linares los 4 márgenes ya pasan (6 → 4
   errores; quedan solo los issues de carátula #3/#4/#7).
 
+### 2026-10-09 — Issues #3/#4 del handover: XPaths de carátula
+
+- **Diagnóstico**: las reglas de la carátula se evaluaban sobre **todo** el
+  documento. El título se localizaba por el **placeholder** del manual
+  (`contains 'título del trabajo'`), lo que daba falsos rojos en documentos
+  reales (el título de Linares es "Taller de dramatización…", sin esa frase) y
+  en las plantillas oficiales. Además `alineacion_caratula_todos_elementos`
+  marcaba roja una tesis correcta por párrafos del cuerpo.
+- **Decisión (en conjunto con el equipo)**: introducir `contexto: caratula`
+  (párrafos top-level anteriores al primer `w:pPr/w:sectPr` del cuerpo) y
+  localizar el título **posicionalmente**, no por texto. Como el título no es
+  el mismo en todos los formatos, se ancla en la línea "para optar" y se toma
+  el párrafo no vacío inmediatamente anterior (saltando etiquetas cortas como
+  "TESIS"/"PROYECTO", sin descartar títulos largos que contengan esas palabras).
+- **Implementación**:
+  - `validator/extractor.py`: `_caratula_paras()` (párrafos top-level antes del
+    primer `w:pPr/w:sectPr`, fallback a todo el cuerpo), campo `_caratula`,
+    método `is_caratula()` y rama `contexto == "caratula"` en `xpath()`.
+  - `reglas_unt.yaml`: `contexto: caratula` en las reglas de párrafos de
+    carátula; nuevo XPath posicional del título (anclado en "para optar") en
+    `caratula_titulo_trabajo_tamano` y `caratula_titulo_negrita_mixta`; la
+    comprobación de "mayúsculas y minúsculas" pasa a `coincidencia: alguno`
+    (el título se parte en runs y algunos son solo espacios).
+  - `caratula_no_se_enumera`, `caratula_logotipo_tamano`,
+    `caratula_linea_investigacion`, `caratula_orcid` y `proyecto_caratula_texto`
+    se mantienen en `contexto: todos` (no son párrafos de carátula o dependen
+    de otros issues).
+- **Tests**: `tests/test_caratula.py` (4 tests) — un párrafo del cuerpo que
+  contiene una palabra clave de la carátula no rompe la localización del
+  título; una carátula desalineada sigue fallando; el título real de Linares
+  (sin placeholder) se detecta; la negrita-mixta pasa con runs de espacios.
+- **Verificación**: suite completa **388 tests pasan** (+4); plantillas
+  oficiales sin regresión (3 errores / 10 warnings); en Linares caen
+  `alineacion_caratula_todos_elementos` y `caratula_titulo_negrita_mixta`
+  (**6 → 2 errores**; quedan `caratula_autores_mayusculas_sin_negrita`, un
+  hallazgo real del estudiante, y `proyecto_caratula_texto`, issue #5).
+  `ruff` + `mypy` limpios; `nix flake check` verde.
+
 ---
 
 ## Evidencias producidas
@@ -143,6 +181,9 @@
   `validator/analizadores.py` (rotación de márgenes en landscape),
   `reglas_unt.yaml` (contexto), `tests/test_margenes_landscape.py`, `docs/DSL.md`
   (documentado `contexto: seccion_cuerpo`).
+- Issue #3/#4: `validator/extractor.py` (`contexto: caratula`,
+  `_caratula_paras`), `reglas_unt.yaml` (XPath posicional del título + contexto),
+  `tests/test_caratula.py`, `docs/DSL.md` (documentado `contexto: caratula`).
 - Todo se agrupa en el **PR #45** (rama `semana7-fix-reglas-estructura`).
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo, en la raíz local y en `docs/pruebas/`).
@@ -181,8 +222,8 @@
 
 ## Plan de la semana siguiente
 
-1. Revisar los siguientes issues del handover/INFORME (uno por uno): XPaths de
-   carátula (#3/#4), `aplicar_si` (#5) y `vals[:3]` (#7).
+1. Revisar los siguientes issues del handover/INFORME (uno por uno):
+   `aplicar_si` (#5) y `vals[:3]` (#7) (los de carátula #3/#4 ya quedaron).
 2. Convertir la tesis de Carrión (PDF) para poder validarla y medir la
    detección con un segundo documento real.
 3. Incorporar las 5 estructuras pendientes (`reglas_unt_pendientes.yaml`) a

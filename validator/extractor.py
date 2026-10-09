@@ -150,6 +150,30 @@ def _secciones_cuerpo(doc) -> set:
     return gobernantes
 
 
+def _caratula_paras(doc) -> set:
+    """Párrafos top-level de la carátula (primera sección del documento).
+
+    La carátula es una unidad estructural que Word delimita con un salto de
+    sección (`w:pPr/w:sectPr`): todos los párrafos del body anteriores al
+    primer salto pertenecen a ella. Limitando las reglas de carátula a este
+    conjunto se evitan falsos positivos por keywords ("universidad",
+    "facultad", "trujillo"...) que aparecen además en el cuerpo (handover
+    issue #3).
+
+    Si el documento no trae ningún salto de sección (una sola sección), no
+    hay forma estructural de delimitar la carátula y se devuelve todo el
+    body como candidato (fallback robusto).
+    """
+    paras = doc.xpath("//w:body/w:p", namespaces=NS)
+    limite = len(paras)
+    for i, p in enumerate(paras):
+        pPr = p.find(W + "pPr")
+        if pPr is not None and pPr.find(W + "sectPr") is not None:
+            limite = i
+            break
+    return set(paras[:limite])
+
+
 def _paginacion_para(document) -> dict[int, int]:
     """Calcula el mapa de paginación real (párrafo -> página física).
 
@@ -197,6 +221,9 @@ class ExtractedDocx:
     footers: list
     footnotes: etree._Element | None
     _cuerpo: set
+    # Párrafos de la carátula (primera sección; issue handover #3): las
+    # reglas de carátula validan SOLO estos, no keywords repetidas en el cuerpo.
+    _caratula: set = field(default_factory=set, repr=False)
     # Secciones que rigen el cuerpo real (issue handover #2): las reglas de
     # márgenes validan solo estas, excluyendo secciones landscape de anexos.
     _secciones_cuerpo: set = field(default_factory=set, repr=False)
@@ -217,6 +244,10 @@ class ExtractedDocx:
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
+
+    def is_caratula(self, node) -> bool:
+        """¿El nodo vive en un párrafo de la carátula (primera sección)?"""
+        return _para_ancestor(node) in self._caratula
 
     def _nodo_seccion(self, node):
         """Ancestro `w:sectPr` del nodo (o el mismo si es un sectPr)."""
@@ -275,7 +306,8 @@ class ExtractedDocx:
         se filtra por los párrafos del cuerpo real del documento; con
         `contexto == "seccion_cuerpo"`, por las secciones que rigen ese
         cuerpo (márgenes, papel), lo que deja fuera las secciones landscape
-        de anexos.
+        de anexos; con `contexto == "caratula"`, por los párrafos de la
+        primera sección (carátula).
         """
         clave = (parte, contexto, xpath_expr)
         if clave in self._cache:
@@ -290,6 +322,8 @@ class ExtractedDocx:
             nodos = [n for n in nodos if self.is_cuerpo(n)]
         if contexto == "seccion_cuerpo":
             nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
+        if contexto == "caratula":
+            nodos = [n for n in nodos if self.is_caratula(n)]
         self._cache[clave] = nodos
         return nodos
 
@@ -326,6 +360,7 @@ def extract(docx_path: str) -> ExtractedDocx:
         footers=footers,
         footnotes=footnotes,
         _cuerpo=_cuerpo_paras(document),
+        _caratula=_caratula_paras(document),
         _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),
     )

@@ -189,7 +189,7 @@ reglas:
   cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'universidad')][1]/w:r[1]/w:rPr/w:sz
     atributo: '@w:val'
@@ -206,7 +206,7 @@ reglas:
     puntos)."'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
@@ -214,6 +214,12 @@ reglas:
     atributo: '@w:val'
     comparacion: eq
     esperado: '26'
+# Título del trabajo (handover issue #4): el XPath buscaba el placeholder
+# "título del trabajo" de las plantillas, que una tesis real no contiene
+# (→ 0 nodos). Ahora se localiza el título como el primer párrafo no vacío
+# tras la línea "ESCUELA PROFESIONAL" que no repite universidad/facultad/
+# escuela/optar/tesis (perfil fijo del manual: Univ→Facultad/Escuela→Título).
+# Se valida solo en la carátula (`contexto: caratula`).
 - id: caratula_titulo_trabajo_tamano
   tipo: atributo_xml
   descripcion: Tamaño de letra del título del trabajo en carátula
@@ -225,10 +231,8 @@ reglas:
     (tamaño de letra, 14 puntos)."'
   atributo_xml:
     parte: document
-    contexto: todos
-    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]/w:r[1]/w:rPr/w:sz
+    contexto: caratula
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]/w:r[1]/w:rPr/w:sz
     atributo: '@w:val'
     comparacion: eq
     esperado: '28'
@@ -244,7 +248,7 @@ reglas:
     (tamaño de letra, 13 puntos)."'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'para optar')][1]/w:r[1]/w:rPr/w:sz
     atributo: '@w:val'
@@ -261,7 +265,7 @@ reglas:
     minúsculas (tamaño de letra, 12 puntos)."'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:sz
     atributo: '@w:val'
@@ -327,7 +331,7 @@ reglas:
     del Trabajo...: Centrado...", etc.'
   atributo_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'universidad') or (contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
@@ -505,13 +509,13 @@ reglas:
   cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
   presencia_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'universidad')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
     comparacion: exists
   patron_texto:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'universidad')][1]//w:t
     patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
@@ -528,7 +532,7 @@ reglas:
     puntos)."'
   presencia_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
@@ -536,7 +540,7 @@ reglas:
     comparacion: exists
   patron_texto:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
@@ -555,20 +559,16 @@ reglas:
     (tamaño de letra, 14 puntos)."'
   presencia_xml:
     parte: document
-    contexto: todos
-    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
+    contexto: caratula
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
     comparacion: exists
   patron_texto:
     parte: document
-    contexto: todos
-    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'título del trabajo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'titulo del trabajo'))][1]//w:t
+    contexto: caratula
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]//w:t
     patron: .*[a-záéíóúñ].*
     comparacion: fullmatch
-    coincidencia: todos
+    coincidencia: alguno
 - id: caratula_autores_mayusculas_sin_negrita
   tipo: presencia_xml
   descripcion: 'Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita'
@@ -579,13 +579,13 @@ reglas:
   cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
   presencia_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
     comparacion: not_exists
   patron_texto:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]//w:t
     patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
@@ -601,7 +601,7 @@ reglas:
   cita: '"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas..."'
   presencia_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'asesor')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
     comparacion: exists
@@ -615,13 +615,13 @@ reglas:
   cita: '"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos)."'
   presencia_xml:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'trujillo')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
     comparacion: exists
   patron_texto:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'trujillo')][1]//w:t
     patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$

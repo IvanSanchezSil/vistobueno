@@ -94,7 +94,7 @@ Verifica atributos de nodos o su presencia vía XPath.
 ```yaml
 atributo_xml:
   parte: document | footer | header     # defecto: document
-  contexto: todos | cuerpo | seccion_cuerpo  # defecto: todos
+  contexto: todos | cuerpo | seccion_cuerpo | caratula  # defecto: todos
   xpath: //w:sectPr[1]/w:pgSz
   atributo: "@w:w"                      # solo para comparaciones de valor
   comparacion: eq | all_eq | contains | exists | not_exists
@@ -105,6 +105,12 @@ atributo_xml:
 - `exists` / `not_exists` operan solo sobre la cantidad de nodos.
 - `eq` compara el primer valor del atributo; `all_eq` todos; `contains`
   subcadena (con `ignore_case`).
+- `contexto: caratula` restringe la consulta a los párrafos de la carátula:
+  los `w:p` de nivel superior anteriores al primer `w:pPr/w:sectPr` del cuerpo
+  (el salto que cierra la portada). Si el documento no declara ese salto, se
+  toman todos los párrafos del cuerpo. Sirve para reglas que en el manual
+  aplican solo a la portada y que, evaluadas sobre todo el documento,
+  producirían falsos positivos.
 
 ### 2. `patron_texto` → `AnalizadorRegex`
 
