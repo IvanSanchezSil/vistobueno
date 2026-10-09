@@ -17,6 +17,9 @@
 2. **Preparar la medición** que pedía el revisor contra documentos reales, no
    solo contra plantillas.
 3. **Documentar** la resolución (DSL, diseño, README, conteos, bitácora).
+4. **Issue #1 del handover**: corregir `_cuerpo_paras()` (el "cuerpo" del DOCX
+   se definía por la última sección, no por la estructura real, generando
+   falsos positivos de interlineado/alineación en tesis reales).
 
 ---
 
@@ -65,6 +68,32 @@
     TINV no lo emite).
 - Suite completa: **381 tests pasan** (+13).
 
+### 2026-10-09 — Issue #1 del handover: `_cuerpo_paras` semántico
+
+- **Diagnóstico**: `_cuerpo_paras()` tomaba todos los párrafos desde la última
+  sección (`sectPr`), lo que en tesis reales (Linares) incluía títulos de
+  capítulo centrados, párrafos vacíos con `line=278` (artefactos de Word) y
+  notas APA de tabla ("Nota."). Por eso `interlineado` y `alineacion_cuerpo`
+  daban falsos rojos.
+- **Decisión (en conjunto con el equipo)**: el cuerpo se define por el **rango
+  semántico** entre el primer heading "Introducción" y el primer heading
+  "Referencias"/"Bibliografía"/"Anexos"; se excluyen headings, párrafos vacíos
+  y captions `Nota.`/`Fuente.`; fallback a todo el documento si no hay
+  "Introducción"; solo `w:body/w:p` de nivel superior (los párrafos de tabla
+  quedan fuera por construcción).
+- **Implementación**: reescrito `_cuerpo_paras()` en `validator/extractor.py`
+  (regex `HEADING_RE` para estilos `Heading*`/`Título*`/`Ttulo*` y
+  `_texto_normalizado`); docstring del módulo y de `xpath()` actualizados.
+- **Ajuste de fixtures**: tanto `tests/_docx_builder.py` (factory) como
+  `tests/test_paridad_formatos.py` construían la prosa del cuerpo DESPUÉS del
+  marcador de sección / de ANEXOS; se movió a justo después del heading
+  "INTRODUCCIÓN" para que coincidan con un cuerpo real.
+- **Verificación**: suite completa **381 tests pasan**; plantillas oficiales
+  sin regresión (3 errores / 10 warnings, como está documentado); en la tesis
+  real de Linares `interlineado` y `alineacion_cuerpo` pasan (8 → 6 errores;
+  quedan márgenes landscape, XPaths de carátula y `sangria_parrafo`, issues
+  #2/#4/#7 del handover).
+
 ---
 
 ## Evidencias producidas
@@ -74,6 +103,8 @@
   estado y warning de tipo sin estructura), `tests/test_tipo_documento.py`,
   `reglas_unt.yaml` (comentarios), `docs/DSL.md`, `docs/diseno/15_tipo_documento_grupos.md`,
   `README.md`, `AGENTS.md`, `docs/diseno/00_indice_diseno.md` y esta bitácora.
+- Issue #1: `validator/extractor.py` (cuerpo semántico) y los fixtures
+  `tests/_docx_builder.py` + `tests/test_paridad_formatos.py`.
 - Todo se agrupa en el **PR #45** (rama `semana7-fix-reglas-estructura`).
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo, en la raíz local y en `docs/pruebas/`).
@@ -93,6 +124,10 @@
 
 ## Dificultades y aprendizajes
 
+- **La "estructura real" no es la última sección**: el doc de paridad y el
+  factory construían el cuerpo DESPUÉS de los anexos; el enfoque semántico los
+  dejaba vacíos y rompía 15 tests. Ajustar los fixtures (prosa tras
+  "Introducción") los realineó sin tocar la lógica del motor.
 - **`find()` de lxml no baja a los nietos**: el `w14:checked` vive dentro de
   `w:sdtPr`, y la primera versión no lo encontraba (solo los tests de
   content-control lo delataron).
@@ -108,8 +143,8 @@
 
 ## Plan de la semana siguiente
 
-1. Revisar los siguientes issues del handover/INFORME (uno por uno): `_cuerpo_paras`,
-   márgenes landscape, XPaths de carátula.
+1. Revisar los siguientes issues del handover/INFORME (uno por uno): márgenes
+   landscape, XPaths de carátula.
 2. Convertir la tesis de Carrión (PDF) para poder validarla y medir la
    detección con un segundo documento real.
 3. Incorporar las 5 estructuras pendientes (`reglas_unt_pendientes.yaml`) a
