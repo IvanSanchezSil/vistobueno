@@ -2,12 +2,14 @@
 
 Encapsula el acceso al paquete OPC (zip) y expone los árboles XML
 necesarios (document.xml, footer1.xml, header1.xml) más el contexto
-"cuerpo": párrafos de la ÚLTIMA sección (los que están después del
-último <w:sectPr> anidado en <w:pPr> — límite real de sección), con
-estilo Normal o sin estilo explícito. Ver unt_format_rules_schema.yaml
-para la convención completa de mecanismo_verificable.
+"cuerpo": los párrafos del cuerpo REAL del documento (desde el heading
+"Introducción" hasta antes de "Referencias"/"Anexos"), excluyendo
+headings, párrafos vacíos y captions de tabla. Ver
+unt_format_rules_schema.yaml para la convención completa de
+mecanismo_verificable.
 """
 
+import re
 import zipfile
 from dataclasses import dataclass, field
 
@@ -28,6 +30,14 @@ def text_of(node) -> str:
     return "".join(t.text or "" for t in node.iter(W + "t"))
 
 
+HEADING_RE = re.compile(r"^(?:Heading|T[ií]tulo|Ttulo)\d*$", re.I)
+
+
+def _texto_normalizado(node) -> str:
+    """Texto de un párrafo normalizado: mayúsculas, whitespace colapsado."""
+    return re.sub(r"\s+", " ", text_of(node)).upper().strip()
+
+
 def _para_ancestor(node):
     cur = node
     while cur is not None and cur.tag != W + "p":
@@ -36,18 +46,63 @@ def _para_ancestor(node):
 
 
 def _cuerpo_paras(doc) -> set:
-    """Párrafos de la última sección del documento (después del último sectPr)."""
+    """Párrafos del cuerpo real del documento (para reglas de formato).
+
+    El cuerpo empieza en el primer heading "Introducción" y termina antes
+    del primer heading "Referencias"/"Bibliografía"/"Anexos". Quedan fuera
+    los headings (los títulos de capítulo van centrados y con su propio
+    tamaño), los párrafos vacíos (separadores) y los captions de tabla
+    "Nota."/"Fuente." (tipografía APA legítima que el manual no prescribe).
+    Si el documento no tiene heading "Introducción", todo el documento es
+    candidato (fallback robusto).
+
+    Solo se consideran párrafos top-level de `w:body`; los que viven dentro
+    de una tabla quedan excluidos por construcción.
+    """
     paras = doc.xpath("//w:body/w:p", namespaces=NS)
-    boundary = -1
-    for idx, p in enumerate(paras):
-        if p.find(f"{W}pPr/{W}sectPr") is not None:
-            boundary = idx
+
+    def _heading_idx(raw):
+        """Índice de los párrafos con estilo de encabezado (Ttulo/Heading)."""
+        res = []
+        for i, p in enumerate(raw):
+            pPr = p.find(W + "pPr")
+            st = pPr.find(W + "pStyle") if pPr is not None else None
+            val = st.get(W + "val") if st is not None else ""
+            if HEADING_RE.match(val or ""):
+                res.append(i)
+        return res
+
+    headings = _heading_idx(paras)
+
+    def _timbre(pat, desde=0):
+        """Primer heading (>= desde) cuyo texto normalizado matchea `pat`."""
+        for i in headings:
+            if i >= desde and pat.search(_texto_normalizado(paras[i])):
+                return i
+        return None
+
+    inicio = _timbre(re.compile(r"^INTRODUCCI"))
+    fin = None
+    for pat in (re.compile(r"^REFERENCIAS"), re.compile(r"^BIBLIOGRAF"), re.compile(r"^ANEXOS")):
+        fin = _timbre(pat, desde=inicio if inicio is not None else 0)
+        if fin is not None:
+            break
+
+    start = inicio + 1 if inicio is not None else 0
+    end = fin if fin is not None else len(paras)
+
     result = set()
-    for p in paras[boundary + 1 :]:
+    for i in range(start, end):
+        p = paras[i]
         pPr = p.find(W + "pPr")
         st = pPr.find(W + "pStyle") if pPr is not None else None
-        if st is None or st.get(W + "val") in (None, "", "Normal"):
-            result.add(p)
+        val = st.get(W + "val") if st is not None else ""
+        if HEADING_RE.match(val or ""):
+            continue
+        texto = _texto_normalizado(p)
+        if not texto or re.match(r"^(NOTA|FUENTE)[.\s]", texto):
+            continue
+        result.add(p)
     return result
 
 
@@ -146,7 +201,7 @@ class ExtractedDocx:
         dos secciones con el mismo XPath comparten el resultado. Para encabe-
         zados/pies consulta TODAS las partes del tipo (`header*.xml`,
         `footer*.xml`) y combina los resultados. Con `contexto == "cuerpo"`
-        se filtra por los párrafos de la última sección.
+        se filtra por los párrafos del cuerpo real del documento.
         """
         clave = (parte, contexto, xpath_expr)
         if clave in self._cache:
