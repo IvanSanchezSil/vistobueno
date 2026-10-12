@@ -99,12 +99,18 @@ atributo_xml:
   atributo: "@w:w"                      # solo para comparaciones de valor
   comparacion: eq | all_eq | contains | exists | not_exists
   esperado: "11906"
+  tolerancia: 12                        # opcional: twips de desvío aceptado
   ignore_case: false                    # opcional (contains)
 ```
 
 - `exists` / `not_exists` operan solo sobre la cantidad de nodos.
 - `eq` compara el primer valor del atributo; `all_eq` todos; `contains`
   subcadena (con `ignore_case`).
+- `tolerancia` (entero, opcional) permite `eq`/`all_eq` numéricos con un
+  desvío máximo: el valor cumple si `|valor - esperado| <= tolerancia`.
+  Se usa p. ej. en `sangria_parrafo` (esperado 720 twips, tolerancia 12) para
+  aceptar los 708/709 twips (~1.25 cm) de las plantillas oficiales. Si el
+  valor o el esperado no son numéricos, se compara por igualdad exacta.
 - `contexto: caratula` restringe la consulta a los párrafos de la carátula:
   los `w:p` de nivel superior anteriores al primer `w:pPr/w:sectPr` del cuerpo
   (el salto que cierra la portada). Si el documento no declara ese salto, se

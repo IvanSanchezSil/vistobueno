@@ -483,8 +483,10 @@ class TestSinCambioDeComportamiento:
     def test_plantilla_oficial_no_reporta_esquemas_imposibles(self):
         """Los errores imposibles de corregir desaparecieron: la plantilla es
         cuantitativa, así que los esquemas cualitativo y de revisión, sus
-        mínimos y la carátula del Proyecto no le aplican. Quedan 2 errores
-        reales (autores sin mayúsculas y palabras clave).
+        mínimos y la carátula del Proyecto no le aplican. Queda 1 error real
+        (palabras clave). Los autores cumplen: la regla valida "altas y bajas"
+        (mayúsculas y minúsculas), patrón que sí usa el placeholder de la
+        plantilla (EVALUADO 2026-10-12).
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
         plantilla no existe y el test se omite.
@@ -496,7 +498,7 @@ class TestSinCambioDeComportamiento:
         assert len(res) == 48
         fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
         assert not fallidos & TIPO_ESPECIFICAS
-        assert len(fallidos) == 2
+        assert len(fallidos) == 1
         assert build_report(res)["semaforo"] == "rojo"
 
 

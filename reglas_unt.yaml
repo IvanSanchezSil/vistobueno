@@ -422,6 +422,8 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27
     cm (½ pulgada) desde el margen izquierdo."'
+  # EVALUADO: el manual pide 1.27 cm (720 twips) pero las 5 plantillas
+  # oficiales usan 708/709 twips (~1.25 cm); tolerancia 12 twips acepta ambos.
   atributo_xml:
     parte: document
     contexto: cuerpo
@@ -429,6 +431,7 @@ reglas:
     atributo: '@w:firstLine'
     comparacion: all_eq
     esperado: '720'
+    tolerancia: 12
 - id: numeracion_posicion
   tipo: presencia_xml
   descripcion: La numeración de página se ubica en el margen inferior derecho
@@ -571,8 +574,11 @@ reglas:
     coincidencia: alguno
 - id: caratula_autores_mayusculas_sin_negrita
   tipo: presencia_xml
-  descripcion: 'Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita'
-  valor_esperado: MAYÚSCULAS, sin negrita
+  # EVALUADO: el manual pide "letras mayúsculas" (párr. 179) pero se valida
+  # "altas y bajas" (mayúsculas y minúsculas): es lo que usan las tesis reales
+  # aprobadas y el placeholder de la plantilla oficial. Decisión 2026-10-12.
+  descripcion: 'Los apellidos y nombres del autor en carátula: altas y bajas, sin negrita'
+  valor_esperado: altas y bajas (mayúsculas y minúsculas), sin negrita
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 179)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
@@ -588,7 +594,7 @@ reglas:
     contexto: caratula
     xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]//w:t
-    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+    patron: '^((.*[a-záéíóúñ].*)|[^A-ZÁÉÍÓÚÑa-záéíóúñ]*)$'
     comparacion: fullmatch
     coincidencia: todos
 - id: caratula_asesor_negrita

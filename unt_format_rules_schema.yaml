@@ -390,7 +390,7 @@ rules:
     ubicacion: 'Sección "Formato general" (párr. 141)'
     cita: '"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo."'
     mecanismo_verificable:
-      nota: 'Parrafos de cuerpo: <w:ind w:firstLine="720"/> (1.27 cm ~ 720 twips). EVALUADO: las 5 plantillas SI aplican sangria, pero con w:firstLine="708" (cuerpo) / "709" (portada) ~ 1.25 cm, no 720 - desvio menor plantilla vs manual, ver ambiguedad amb_sangria_plantillas_708_vs_720.'
+      nota: 'Parrafos de cuerpo: <w:ind w:firstLine="720"/> (1.27 cm ~ 720 twips). EVALUADO: las 5 plantillas SI aplican sangria, pero con w:firstLine="708" (cuerpo) / "709" (portada) ~ 1.25 cm, no 720 - desvio menor plantilla vs manual, ver ambiguedad amb_sangria_plantillas_708_vs_720. EVALUADO (2026-10-12): la comparacion admite `tolerancia: 12` twips, asi que 708/709 (1.25 cm) pasan.'
       checks:
       - tipo: xml_atributo
         parte: document
@@ -399,6 +399,7 @@ rules:
         atributo: '@w:firstLine'
         comparacion: all_eq
         esperado: '720'
+        tolerancia: 12
   # ─── NUMERACIÓN DE PÁGINA ────────────────────────────────
   - id: numeracion_posicion
     tipo: numeracion_pagina
@@ -546,14 +547,14 @@ rules:
         patron: .*[a-záéíóúñ].*
   - id: caratula_autores_mayusculas_sin_negrita
     tipo: formato_texto
-    descripcion: "Los apellidos y nombres del autor en carátula: mayúsculas, sin negrita"
-    valor_esperado: "MAYÚSCULAS, sin negrita"
+    descripcion: "Los apellidos y nombres del autor en carátula: altas y bajas, sin negrita"
+    valor_esperado: "altas y bajas (mayúsculas y minúsculas), sin negrita"
     severidad: error
     fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
     ubicacion: 'Carátula, especificaciones (párr. 179)'
     cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
     mecanismo_verificable:
-      nota: 'Texto en mayusculas en w:t; run SIN <w:b/> (o w:b w:val="0"). EVALUADO: el placeholder de la plantilla es case mixta (falla); el texto real del estudiante deberia cumplir, por eso el check sigue exigiendo mayusculas.'
+      nota: 'Texto en Mayusculas y minusculas (altas y bajas) en w:t; run SIN <w:b/> (o w:b w:val="0"). EVALUADO: el manual pide "letras mayúsculas" (párr. 179) pero se valida "altas y bajas": es lo que usan las tesis reales aprobadas y el placeholder de la plantilla oficial. Los w:t sin letras (puntuacion, espacios) no se penalizan; si el run tiene letras, debe incluir alguna minuscula. Decision 2026-10-12.'
       checks:
       - tipo: xml_presencia
         parte: document
@@ -564,7 +565,7 @@ rules:
         parte: document
         contexto: todos
         xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]//w:t
-        patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+        patron: '^((.*[a-záéíóúñ].*)|[^A-ZÁÉÍÓÚÑa-záéíóúñ]*)$'
   - id: caratula_asesor_negrita
     tipo: formato_texto
     descripcion: "El asesor en carátula: con negrita"

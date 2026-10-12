@@ -133,10 +133,23 @@ class AnalizadorXML(Analizador):
         vals = [v for _, v in pares if v is not None]
         self.valor = vals[0] if vals else None
 
+        # Tolerancia numérica opcional (twips): el valor cumple si su distancia
+        # al esperado no supera `tolerancia`. Misma lógica que el motor legacy
+        # (checks.py) para que la paridad compare el mismo veredicto.
+        tolerancia = self.config.get("tolerancia")
+
+        def _acepta(valor: object) -> bool:
+            if tolerancia is None:
+                return valor == esperado
+            try:
+                return abs(float(str(valor)) - float(str(esperado))) <= float(str(tolerancia))
+            except TypeError, ValueError:
+                return valor == esperado
+
         if comp == "eq":
-            ok = bool(vals) and vals[0] == esperado
+            ok = bool(vals) and _acepta(vals[0])
         elif comp == "all_eq":
-            ok = bool(vals) and all(v == esperado for v in vals)
+            ok = bool(vals) and all(_acepta(v) for v in vals)
         elif comp == "contains":
             ignore_case = self.config.get("ignore_case", False)
             if ignore_case:
@@ -147,7 +160,7 @@ class AnalizadorXML(Analizador):
             return False, f"comparación '{comp}' no soportada"
         detalle = f"{atributo}={vals[:3]} esperado={esperado}"
         if comp == "all_eq" and not ok and vals:
-            incumplen = [(i, v) for i, v in pares if v is not None and v != esperado]
+            incumplen = [(i, v) for i, v in pares if v is not None and not _acepta(v)]
             resumen = ", ".join(f"#{i}={v}" for i, v in incumplen[:3])
             detalle += f"; incumplen=[{resumen}]"
         return ok, detalle

@@ -253,7 +253,7 @@ def configuracion_base() -> dict:
             "sz": 26,
         },
         "autores_label": {"texto": "Autores: ", "negrita": False, "sz": 24},
-        "autores_nombre": {"texto": "ANA MARÍA PÉREZ GARCÍA", "negrita": False, "sz": 24},
+        "autores_nombre": {"texto": "Ana María Pérez García", "negrita": False, "sz": 24},
         "asesor": {
             "texto": "Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA",
             "negrita": True,

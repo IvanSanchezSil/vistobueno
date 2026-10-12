@@ -185,7 +185,7 @@ def _document_xml(conforme: bool, estructura: bool) -> str:
             )
         )
         paras.append(_cover_para("Autores: ", '<w:sz w:val="24"/>'))
-        paras.append(_cover_para("ANA MARÍA PÉREZ GARCÍA", '<w:sz w:val="24"/>'))
+        paras.append(_cover_para("Ana María Pérez García", '<w:sz w:val="24"/>'))
         paras.append(
             _cover_para(
                 "Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA", '<w:b/><w:sz w:val="24"/>'

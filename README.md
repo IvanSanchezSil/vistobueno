@@ -71,18 +71,18 @@ Se generó `unt_format_rules_schema.yaml` a partir de: `MANUAL REVISADO TERCERA 
 
 Cubre: papel/márgenes, fuente y tamaños (cuerpo y carátula), interlineado, alineación, numeración de página (romanos en preliminares, arábigos desde Introducción), sangría, estructura obligatoria de secciones para los tres tipos de trabajo (Cuantitativo, Cualitativo, Revisión de la Literatura) más Proyecto de Investigación y Suficiencia Profesional, y la validación de la línea de investigación de la carátula contra el catálogo oficial del RCU-N°220-2022/UNT.
 
-Las 32 reglas con mecanismo verificable fueron evaluadas end-to-end contra las 5 plantillas oficiales: **25/32 PASS**. Los 7 FAIL restantes son desvíos reales documentados (no bugs del evaluador): tamaños de fuente en carátula, sangría, aplicabilidad de estructura por tipo de trabajo (cuantitativo/cualitativo/revisión), y los 3 índices separados que el manual exige pero ninguna plantilla implementa.
+Las 32 reglas con mecanismo verificable fueron evaluadas end-to-end contra las 5 plantillas oficiales: **27/32 PASS** (idéntico en las 5). Los 5 FAIL restantes son desvíos reales documentados (no bugs del evaluador): tamaños de fuente en carátula, aplicabilidad de estructura por tipo de trabajo (cuantitativo/cualitativo/revisión), y los 3 índices separados que el manual exige pero ninguna plantilla implementa.
 
 ### Fuera de alcance del MVP (decisión explícita, no olvido)
 
 - **Mínimo de referencias bibliográficas según tipo de investigación** (20 para Cuantitativo/Revisión, 30 para Cualitativo): requiere saber el tipo de trabajo, y aún no se definió cómo determinarlo (¿lo declara el usuario al subir?, ¿se detecta por encabezados únicos de sección?). Queda pendiente para después del MVP.
 - **Anexos obligatorios por tipo de trabajo** (matriz de consistencia, consentimiento informado, declaración jurada, etc.): depende de la misma decisión de tipo de investigación que el punto anterior. Fuera del MVP por ahora.
 - **Validación de texto de carátula dependiente del programa** (ej. "AUTORA" vs "AUTOR(A)", línea de "Mención" solo en Tecnología Educativa): detectado en la comparación de plantillas pero sin regla formal aún — necesitaría una tabla programa → texto esperado, no una regla genérica.
-- **Sangría de primera línea (1.27 cm)**: el manual la exige; las plantillas usan 708/709 twips (~1.25 cm), no 720. Ver decisión de severidad abajo.
+- **Sangría de primera línea (1.27 cm)**: el manual la exige; las plantillas usan 708/709 twips (~1.25 cm), no 720. Desde 2026-10-12 la regla admite una `tolerancia: 12` twips (acepta 1.25 cm). Ver decisión de severidad abajo.
 
 ### Decisión tomada (2026-09-01): 3 reglas bajadas de `error` a `warning`
 
-`caratula_titulo_trabajo_tamano` (14pt manual vs 13pt plantillas), `caratula_optar_grado_tamano` (13pt manual vs 12pt plantillas) y `sangria_parrafo` (720 twips manual vs 708/709 twips plantillas): las 5 plantillas oficiales de la universidad se desvían del texto del manual de forma unánime en estos tres puntos. Hasta que la universidad confirme cuál valor es el correcto, el validador no bloquea la entrega por esto — el reporte lo sigue mostrando como advertencia. Cambio aplicado en `unt_format_rules_schema.yaml`.
+`caratula_titulo_trabajo_tamano` (14pt manual vs 13pt plantillas), `caratula_optar_grado_tamano` (13pt manual vs 12pt plantillas) y `sangria_parrafo` (720 twips manual vs 708/709 twips plantillas): las 5 plantillas oficiales de la universidad se desvían del texto del manual de forma unánime en estos tres puntos. Hasta que la universidad confirme cuál valor es el correcto, el validador no bloquea la entrega por esto — el reporte lo sigue mostrando como advertencia. Cambio aplicado en `unt_format_rules_schema.yaml`. (Desde 2026-10-12 `sangria_parrafo` además admite `tolerancia: 12` twips, así que los 708/709 de las plantillas ya no se reportan; sigue en `warning`.)
 
 ### Reglamentos RCU leídos vía OCR (2026-09-02)
 
