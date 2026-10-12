@@ -259,6 +259,7 @@ Petición directa: *«en la sección de preguntar a la IA, crea una sección don
 - `npm run lint` → 0 errores · `npm test` → **16/16** (10 badge + 6 prompt único) · `npm run build` → 166.10 kB / CSS 19.63 kB OK.
 - E2E del flujo con Playwright: validación real (49 reglas), clic en «Copiar todo junto» → botón `¡Copiado!` y **portapapeles con 24.323 caracteres** verificados.
 - 4 capturas (claro con copiado confirmado, con el desplegable abierto, oscuro y móvil) en `resultados_vistobueno/S7_pruebas_usabilidad/capturas/` (`19`–`22`).
+- **CI (Arreglos.txt del 12/10)**: paso **`Test frontend (vitest)`** agregado al job `frontend` de `ci.yml` (`nix develop --command sh -c "cd frontend && npm run test"`), reutilizando `node_modules` del paso de build igual que el lint; aditivo, sin tocar pasos existentes. *El archivo indicaba `--comand` (typo): se usó `--command`, la flag real de nix, consistente con los pasos vecinos.*
 
 ---
 
