@@ -203,6 +203,15 @@ El backend (v1.4 del contrato) ahora llena `notificacion.detalle` también cuand
 - UI en `:5173` (Playwright): badge azul visible con texto + nota de configuración (evidencia en `resultados_vistobueno/S7_pruebas_usabilidad/capturas/14_deshabilitado_nota.png`, local).
 - `npm run lint` → 0 errores/0 warnings · `npm run build` → OK.
 
+#### Revisión del PR #48 — comentarios aplicados (2026-10-09)
+
+El revisor marcó el PR como "Verificado" y dejó 4 comentarios no bloqueantes; se aplicaron los 4:
+
+1. **README** no listaba `sin_observaciones` ni `deshabilitado` → commit `docs: sincronizar estados de notificacion en README` (`2def0f1`, aparte como pidió el revisor).
+2. **Cabecera de `badgeNotificacion()`** decía "v1.3.0" → aclarada como v1.3.0 + `deshabilitado` detalle v1.4 (`3315231`).
+3. **Texto del badge solapado con el detalle del backend** → el texto principal ahora es solo el marco *"Nota para administradores:"* y el `detalle` del backend aporta la frase completa con las variables de entorno (`85296b1`).
+4. **Sin test automatizado de `badgeNotificacion()`** → se exportó la función y se agregó **vitest** como primer runner de tests del frontend (`npm test`): `Report.badgeNotificacion.test.js` con **10 tests** — los 6 estados del contrato, backwards-compatibilidad (`deshabilitado`/`fallo` sin detalle, `sin_observaciones`), payload inválido y trim del detalle (`8b8ddce`). *Pendiente de equipo: agregar `npm test` al job `frontend` de `ci.yml` en un PR aparte (precedente C40).*
+
 ---
 
 ## Evidencias
