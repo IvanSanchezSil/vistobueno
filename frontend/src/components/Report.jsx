@@ -64,7 +64,8 @@ function categoriaDe(ruleId) {
 //  - deshabilitado:         nota de configuración para administradores (si el
 //                           backend envía `detalle`; ver CONTRATO_API.md).
 //  - sin_observaciones:     nada que mostrar.
-function badgeNotificacion(notif) {
+// Exportada para su unit test (vitest): ver Report.badgeNotificacion.test.js.
+export function badgeNotificacion(notif) {
   if (!notif || typeof notif.estado !== 'string') return null
   const detalle = typeof notif.detalle === 'string' && notif.detalle.trim() ? notif.detalle.trim() : null
   switch (notif.estado) {
@@ -88,12 +89,13 @@ function badgeNotificacion(notif) {
       }
     case 'deshabilitado':
       // El backend (contrato v1.4) adjunta `detalle` con la nota de
-      // configuración para administradores. Sin `detalle` (backend anterior
-      // o respuesta incompleta) no se muestra nada, como hasta ahora.
+      // configuración completa (variables de entorno): aquí solo se enmarca
+      // como nota para administradores, sin repetir lo que ya dice el detalle.
+      // Sin `detalle` (backend anterior) no se muestra nada, como hasta ahora.
       if (!detalle) return null
       return {
         clase: 'info',
-        texto: 'El envío de correos no está habilitado en el servidor.',
+        texto: 'Nota para administradores:',
         detalle,
       }
     default:
