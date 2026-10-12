@@ -29,6 +29,8 @@ body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -122,6 +124,10 @@ footer {
   margin-bottom: 1rem;
 }
 
+/* --- Tipografía --- */
+h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
+.card h2 { font-size: 1.15rem; color: #455a64; margin-bottom: .35rem; }
+
 /* --- Semáforo --- */
 .semaforo { display: flex; align-items: center; gap: .8rem; }
 .luz { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; flex-shrink: 0; }
@@ -213,13 +219,13 @@ footer {
 .btn-copiar:hover { background: var(--verde-osc); }
 
 /* --- Upload (responsive) --- */
-.intro { margin-bottom: 1.2rem; }
+.intro { margin-bottom: .9rem; line-height: 1.5; }
 .dropzone {
   border: 2px dashed var(--verde);
   border-radius: 12px;
   background: var(--gris-suave);
-  padding: 2rem 1rem;
-  margin-top: .6rem;
+  padding: 1.1rem 1rem;
+  margin-top: .5rem;
   text-align: center;
   cursor: pointer;
   transition: background .2s, border-color .2s;
@@ -229,9 +235,35 @@ footer {
   border-color: var(--verde-osc);
 }
 .dropzone.loading { opacity: .85; cursor: wait; }
-.dropzone .icono { font-size: 2rem; }
-.dropzone .txt-principal { font-weight: 600; margin-top: .3rem; }
+.dropzone .icono {
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--verde-osc);
+}
+.dropzone .txt-principal { font-weight: 600; margin-top: .3rem; line-height: 1.3; }
 .dropzone .txt-sec { color: var(--gris-texto); font-size: .7rem; margin-top: .2rem; }
+
+/* Estados de la zona de carga (Arreglos.txt v7) */
+.dropzone.estado-seleccionado {
+  border-style: solid;
+  border-color: var(--verde);
+  background: #e8f5e9;
+}
+.dropzone.estado-seleccionado .icono { color: var(--verde); }
+.dropzone.estado-invalido,
+.dropzone.estado-error {
+  border-style: solid;
+  border-color: var(--rojo);
+  background: #fdecea;
+}
+.dropzone.estado-invalido .icono,
+.dropzone.estado-error .icono { color: var(--rojo); }
+.dropzone.estado-invalido .txt-principal,
+.dropzone.estado-error .txt-principal { color: var(--rojo); }
+.dropzone.estado-procesando { cursor: progress; }
+
 .dropzone input[type="file"] {
   position: absolute;
   width: 1px;
@@ -339,13 +371,41 @@ footer {
 }
 .archivo { margin-top: .8rem; border: 1px solid var(--gris-oscuro); border-radius: 8px; padding: .7rem; }
 .archivo .fila { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.archivo .meta { display: flex; align-items: center; gap: .5rem; }
+.archivo .meta { display: flex; align-items: center; gap: .5rem; min-width: 0; }
 .archivo .ext {
   background: var(--verde); color: #fff;
   font-weight: 700; padding: .2rem .4rem; border-radius: 5px; font-size: .7rem;
 }
 .archivo .nombre { font-weight: 600; }
 .archivo .detalle { color: var(--gris-texto); font-size: .7rem; }
+
+/* --- Acción principal: botón «Validar documento» (Arreglos.txt v7) ---
+   Siempre presente y a todo el ancho para que sea la llamada a la acción
+   clara de la pantalla; se deshabilita con una ayuda explicativa. */
+.acciones-form { margin-top: .9rem; display: flex; flex-direction: column; gap: .4rem; }
+.acciones-form .btn-validar {
+  width: 100%;
+  min-height: 48px;
+  padding: .7rem 1.2rem;
+  font-size: 1rem;
+  letter-spacing: .01em;
+  box-shadow: 0 2px 6px rgba(27, 94, 32, .25);
+}
+.acciones-form .btn-validar:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.acciones-form .btn-validar:active:not(:disabled) { transform: translateY(0); }
+.acciones-form .btn-validar:disabled {
+  background: var(--gris-medio);
+  color: var(--gris-texto);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+.ayuda-accion {
+  font-size: .75rem;
+  color: var(--gris-texto);
+  text-align: center;
+  margin: 0;
+}
 .btn-validar {
   background: var(--verde-osc);
   color: #fff; border: none;
@@ -385,7 +445,24 @@ footer {
   vertical-align: -1px;
   margin-right: .3rem;
 }
+.spinner-grande {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-width: 3px;
+  border-color: rgba(46, 125, 50, .25);
+  border-top-color: var(--verde);
+  margin-right: 0;
+  vertical-align: 0;
+}
 @keyframes girar { to { transform: rotate(360deg); } }
+
+/* Respeta la preferencia de movimiento reducido: el spinner deja de girar
+   (el texto «Validando documento…» sigue anunciando el estado). */
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+  .acciones-form .btn-validar:hover:not(:disabled) { transform: none; }
+  .dropzone, .chip, .btn-select, .btn-validar, .flecha { transition: none; }
+}
 
 /* --- Avisos (error / warn) --- */
 .aviso { margin-top: .5rem; padding: .5rem .8rem; border-radius: 6px; font-size: .75rem; }
@@ -499,6 +576,13 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
   .toggle-vista { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
   .semaforo { flex-wrap: wrap; }
   .progreso-txt { font-size: .72rem; }
+  /* Zona de carga compacta y botón a todo el ancho */
+  .dropzone { padding: .9rem .75rem; }
+  .dropzone .icono { font-size: 1.6rem; }
+  .dropzone .icono svg { width: 26px; height: 26px; }
+  .btn-select { width: 100%; justify-content: center; }
+  .acciones-form .btn-validar { min-height: 52px; font-size: 1.05rem; }
+  .card h2 { font-size: 1.05rem; }
 }
 
 /* --- Tablets --- */
@@ -524,14 +608,15 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
   .ia-card .rule { font-size: .75rem; }
   .ia-card pre { font-size: .82rem; padding: .7rem; }
   .btn-copiar { font-size: .85rem; padding: .6rem 1.1rem; }
-  .dropzone { padding: 3rem 1.5rem; }
-  .dropzone .icono { font-size: 2.6rem; }
+  .dropzone { padding: 1.3rem 1.5rem; }
+  .dropzone .icono { font-size: 2.2rem; }
   .dropzone .txt-sec { font-size: .85rem; }
   .btn-select { font-size: .9rem; padding: .65rem 1.4rem; }
   .nota-formatos { font-size: .78rem; }
   .archivo .ext { font-size: .8rem; }
   .archivo .detalle { font-size: .8rem; }
   .btn-validar { font-size: 1rem; padding: .75rem 2rem; }
+  .card h2 { font-size: 1.3rem; }
   footer { font-size: .78rem; padding: 1.2rem; }
   .vista-simple__intro { font-size: .9rem; }
   .vista-simple__empty, .ia-empty { font-size: .9rem; }
@@ -575,6 +660,31 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
 .dark .dropzone:hover{
   background: #2a3d2a;
 }
+/* Estados de la zona de carga en oscuro (contraste AA) */
+.dark .dropzone.estado-seleccionado {
+  background: #1a3d1a;
+  border-color: var(--verde);
+}
+.dark .dropzone.estado-seleccionado .icono { color: #6f6; }
+.dark .spinner-grande {
+  border-color: rgba(111, 255, 111, .2);
+  border-top-color: #6f6;
+}
+.dark .dropzone.estado-invalido,
+.dark .dropzone.estado-error {
+  background: #3a1515;
+  border-color: var(--rojo);
+}
+.dark .dropzone.estado-invalido .icono,
+.dark .dropzone.estado-error .icono { color: #ff8a80; }
+.dark .dropzone.estado-invalido .txt-principal,
+.dark .dropzone.estado-error .txt-principal { color: #ff8a80; }
+.dark .acciones-form .btn-validar:disabled {
+  background: var(--gris-medio);
+  color: var(--gris-texto);
+  border: 1px solid var(--gris-oscuro);
+}
+.dark .card h2 { color: #eceff1; }
 .dark .cat-head{
   background: var(--gris-medio);
 }
