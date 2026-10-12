@@ -280,12 +280,28 @@ class ExtractedDocx:
         Word rota los márgenes en secciones landscape (bottom<->left,
         top<->right): el empaste sigue en el mismo borde físico. Las reglas
         de márgenes normalizan ese valor rotado antes de comparar.
+
+        Detecta landscape por `w:orient="landscape"` y, como fallback, por
+        geometría: una página físicamente más ancha que alta es landscape por
+        definición. El fallback cubre generadores no-Word (conversiones desde
+        PDF) que omiten `w:orient` (revisión PR #45, punto 2).
         """
         s = self._nodo_seccion(node)
         if s is None:
             return False
         sz = s.find(W + "pgSz")
-        return sz is not None and sz.get(W + "orient") == "landscape"
+        if sz is None:
+            return False
+        if sz.get(W + "orient") == "landscape":
+            return True
+        w = sz.get(W + "w")
+        h = sz.get(W + "h")
+        if w is None or h is None:
+            return False
+        try:
+            return int(w) > int(h)
+        except ValueError:
+            return False
 
     def pagina_de(self, node) -> int | None:
         """Número físico de página de un párrafo (None si no es un párrafo

@@ -43,16 +43,25 @@ def _h(texto: str) -> str:
     return _p(texto, '<w:pStyle w:val="Ttulo1"/>')
 
 
-def _sect_break(marg: str, landscape: bool = False) -> str:
-    sz = (
-        '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>'
-        if landscape
-        else '<w:pgSz w:w="11906" w:h="16838"/>'
-    )
+def _sect_break(marg: str, landscape: bool = False, orient: bool = True) -> str:
+    if landscape:
+        sz = (
+            '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>'
+            if orient
+            else '<w:pgSz w:w="16838" w:h="11906"/>'
+        )
+    else:
+        sz = '<w:pgSz w:w="11906" w:h="16838"/>'
     return _p(" ", f"<w:sectPr>{sz}<w:pgMar {marg}/></w:sectPr>")
 
 
-def _docx(cover_marg: str, body_marg: str, body_land_marg: str, final_marg: str) -> str:
+def _docx(
+    cover_marg: str,
+    body_marg: str,
+    body_land_marg: str,
+    final_marg: str,
+    land_orient: bool = True,
+) -> str:
     body = (
         _p("UNIVERSIDAD NACIONAL DE TRUJILLO")
         + _sect_break(cover_marg)
@@ -60,7 +69,7 @@ def _docx(cover_marg: str, body_marg: str, body_land_marg: str, final_marg: str)
         + _p("La motricidad fina se desarrolla con estrategias lúdicas.")
         + _sect_break(body_marg)
         + _p("OPERACIONALIZACIÓN DE LAS VARIABLES")
-        + _sect_break(body_land_marg, landscape=True)
+        + _sect_break(body_land_marg, landscape=True, orient=land_orient)
         + _p("La tabla ocupa una página completa en horizontal.")
         + _h("REFERENCIAS")
         + f'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar {final_marg}/></w:sectPr>'
@@ -129,6 +138,24 @@ def test_seccion_del_cuerpo_con_margen_mal_falla():
     try:
         assert not _margen(path, "margen_inferior").passed, "bottom del cuerpo mal"
         assert _margen(path, "margen_izquierdo").passed, "izquierdo sigue conforme"
+    finally:
+        os.unlink(path)
+
+
+def test_landscape_sin_orient_se_detecta_por_geometria():
+    """Revisión PR #45, punto 2: los generadores no-Word (p. ej. conversión
+    desde PDF) omiten `w:orient="landscape"`. Una página físicamente más
+    ancha que alta (w > h) es landscape por definición y debe normalizarse
+    igual, o la tabla ancha daría falsos rojos de márgenes."""
+    path = _docx(OK, OK, MARG_LAND, OK, land_orient=False)
+    try:
+        ex = extract(path)
+        nodos = ex.xpath("document", "(//w:sectPr)/w:pgMar", "seccion_cuerpo")
+        assert any(ex.es_seccion_landscape(n) for n in nodos), (
+            "w > h sin w:orient debe reconocerse como landscape"
+        )
+        assert _margen(path, "margen_inferior").passed, "bottom rotado (sin orient)"
+        assert _margen(path, "margen_izquierdo").passed, "left rotado (sin orient)"
     finally:
         os.unlink(path)
 
