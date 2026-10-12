@@ -54,8 +54,9 @@ function categoriaDe(ruleId) {
   return CATEGORIA_POR_ID[ruleId] || 'Otros'
 }
 
-// Mapeo de `notificacion.estado` (v1.3.0) a badge visible para el personal
-// del repositorio. Tabla de estados del contrato:
+// Mapeo de `notificacion.estado` a badge visible para el personal
+// del repositorio (estados v1.3.0 + `deshabilitado` con detalle v1.4).
+// Tabla de estados del contrato:
 //  - enviado:               informar que el correo salió.
 //  - fallo:                 mostrar el detalle técnico (reintento manual).
 //  - sin_correo:            pedir el correo en el formulario de carga.
