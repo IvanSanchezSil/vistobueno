@@ -10,7 +10,7 @@ El nombre viene directo del corazón del producto: el semáforo verde ("visto bu
 - El backend analiza el archivo contra un conjunto de reglas de formato (márgenes, tipografía, interlineado, estructura, numeración, etc.).
 - Si todo pasa: luz verde, el usuario puede entregar.
 - Si algo falla: se muestra un cartel simple (si es poco) o un reporte detallado (si hay varios problemas).
-- El operador puede indicar (opcional) el correo del estudiante y solicitar el envío de las observaciones; el reporte informa el estado del envío (`enviado`, `fallo` con detalle técnico, `sin_correo` o `no_solicitado`).
+- El operador puede indicar (opcional) el correo del estudiante y solicitar el envío de las observaciones; el reporte informa el estado del envío (`enviado`, `fallo` con detalle técnico, `sin_correo`, `no_solicitado`, `sin_observaciones` y `deshabilitado` con nota de configuración para administradores; sin badge en los dos últimos cuando no hay detalle).
 - El reporte incluye una sección **"Cómo preguntar a una IA"**: por cada problema detectado, un prompt ya armado que el estudiante puede copiar y pegar en cualquier LLM externo (ChatGPT, Claude, etc.) para corregirlo, incluyendo el fragmento de la directiva relevante como contexto.
 
 ## Restricción de diseño clave
