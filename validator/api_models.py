@@ -55,6 +55,10 @@ class ResultadoReglaAPI(BaseModel):
     )
     fuente: str = Field(default="", description="Archivo fuente del que se extrajo la regla")
     cita: str = Field(default="", description="Cita textual del reglamento")
+    aplicable: bool = Field(
+        True,
+        description="True si la regla se evaluó. False = la regla no aplica a este tipo de documento",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -66,10 +70,23 @@ class ResultadoReglaAPI(BaseModel):
                     "mensaje": "El tamaño del papel debe ser A4",
                     "esperado": "210 x 297 mm",
                     "encontrado": "cumple",
+                    "aplicable": True,
                     "ubicacion": 'Sección "Formato general" (párr. 124-125)',
                     "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
                     "cita": '"Tamaño A4/papel (210x297 cm)"',
-                }
+                },
+                {
+                    "rule_id": "estructura_tinv_cualitativo",
+                    "paso": True,
+                    "severidad": "error",
+                    "mensaje": "Se deben incluir las secciones del diseño cualitativo",
+                    "esperado": "secciones obligatorias del esquema cualitativo",
+                    "encontrado": "no aplica a este documento",
+                    "aplicable": False,
+                    "ubicacion": "Capítulo II — esquemas formales por tipo de título (párr. 75-90)",
+                    "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+                    "cita": '"Cada título profesional exige un esquema formal distinto"',
+                },
             ]
         }
     }
@@ -89,7 +106,11 @@ class PromptIA(BaseModel):
 class ResumenValidacion(BaseModel):
     """Resumen cuantitativo de la validación."""
 
-    total: int = Field(..., description="Total de reglas evaluadas")
+    total: int = Field(..., description="Total de reglas presentes en el YAML")
+    total_evaluadas: int = Field(..., description="Reglas realmente evaluadas sobre el documento")
+    reglas_no_aplicables: int = Field(
+        ..., description="Reglas omitidas porque no aplican a este tipo de documento"
+    )
     fallidos_error: int = Field(..., description="Reglas con severidad error que no pasaron")
     fallidos_warning: int = Field(..., description="Reglas con severidad warning que no pasaron")
 
@@ -103,8 +124,18 @@ class MetadatosValidacion(BaseModel):
 
     archivo_nombre: str = Field(..., description="Nombre original del archivo subido")
     archivo_tamano_bytes: int = Field(..., description="Tamaño en bytes del archivo")
-    reglas_evaluadas: int = Field(..., description="Cantidad de reglas ejecutadas")
+    reglas_evaluadas: int = Field(..., description="Reglas realmente ejecutadas")
+    reglas_totales: int = Field(..., description="Total de reglas presentes en el YAML")
     version_esquema: str = Field(..., description="Versión del esquema YAML de reglas")
+    tipo_documento_declarado: str | None = Field(
+        None, description="Lo que declara el Anexo 10; None si no declaró"
+    )
+    tipo_documento_inferido: str | None = Field(
+        None, description="Lo que se dedujo de las firmas estructurales; None si no pudo inferirse"
+    )
+    tipo_documento_estado: str | None = Field(
+        None, description="Estado de la detección: vigente, sin_determinar o contradictorio"
+    )
 
 
 class NotificacionAPI(BaseModel):
@@ -113,13 +144,17 @@ class NotificacionAPI(BaseModel):
     Exposición para el personal del repositorio: con `estado` "enviado" la
     interfaz puede informar "enviamos las observaciones al correo del
     estudiante"; con "fallo", el `detalle` explica el motivo técnico para
-    reintentar o enviar manualmente.
+    reintentar o enviar manualmente; con "deshabilitado", el `detalle`
+    indica cómo habilitar el servidor (nota de configuración).
     """
 
     estado: EstadoNotificacionAPI = Field(..., description="Veredicto del envío")
     detalle: str | None = Field(
         default=None,
-        description="Motivo técnico cuando el envío falló; None en el resto de casos",
+        description=(
+            "Motivo técnico cuando el envío falló; nota de configuración "
+            "cuando el servidor está deshabilitado; None en el resto de casos"
+        ),
     )
 
 
@@ -158,7 +193,9 @@ class ValidarResponse(BaseModel):
                     "semaforo": "verde",
                     "notificacion": {"estado": "sin_correo", "detalle": None},
                     "resumen": {
-                        "total": 47,
+                        "total": 48,
+                        "total_evaluadas": 46,
+                        "reglas_no_aplicables": 2,
                         "fallidos_error": 0,
                         "fallidos_warning": 2,
                     },
@@ -170,6 +207,7 @@ class ValidarResponse(BaseModel):
                             "mensaje": "El tamaño del papel debe ser A4",
                             "esperado": "210 x 297 mm",
                             "encontrado": "cumple",
+                            "aplicable": True,
                             "ubicacion": 'Sección "Formato general" (párr. 124-125)',
                             "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
                             "cita": '"Tamaño A4/papel (210x297 cm)"',
@@ -179,8 +217,12 @@ class ValidarResponse(BaseModel):
                     "metadatos": {
                         "archivo_nombre": "mi_tesis.docx",
                         "archivo_tamano_bytes": 123456,
-                        "reglas_evaluadas": 47,
+                        "reglas_evaluadas": 46,
+                        "reglas_totales": 48,
                         "version_esquema": "2026-09-01",
+                        "tipo_documento_declarado": None,
+                        "tipo_documento_inferido": None,
+                        "tipo_documento_estado": "vigente",
                     },
                 }
             ]

@@ -3,7 +3,7 @@
   "info": {
     "title": "VistoBueno API",
     "description": "API de validación automática de formato de tesis — UNT FECyC",
-    "version": "1.3.0"
+    "version": "1.5.0"
   },
   "paths": {
     "/validar": {
@@ -128,12 +128,53 @@
           "reglas_evaluadas": {
             "type": "integer",
             "title": "Reglas Evaluadas",
-            "description": "Cantidad de reglas ejecutadas"
+            "description": "Reglas realmente ejecutadas"
+          },
+          "reglas_totales": {
+            "type": "integer",
+            "title": "Reglas Totales",
+            "description": "Total de reglas presentes en el YAML"
           },
           "version_esquema": {
             "type": "string",
             "title": "Version Esquema",
             "description": "Versión del esquema YAML de reglas"
+          },
+          "tipo_documento_declarado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Documento Declarado",
+            "description": "Lo que declara el Anexo 10; None si no declaró"
+          },
+          "tipo_documento_inferido": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Documento Inferido",
+            "description": "Lo que se dedujo de las firmas estructurales; None si no pudo inferirse"
+          },
+          "tipo_documento_estado": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo Documento Estado",
+            "description": "Estado de la detección: vigente, sin_determinar o contradictorio"
           }
         },
         "type": "object",
@@ -141,6 +182,7 @@
           "archivo_nombre",
           "archivo_tamano_bytes",
           "reglas_evaluadas",
+          "reglas_totales",
           "version_esquema"
         ],
         "title": "MetadatosValidacion",
@@ -162,7 +204,7 @@
               }
             ],
             "title": "Detalle",
-            "description": "Motivo técnico cuando el envío falló; None en el resto de casos"
+            "description": "Motivo técnico cuando el envío falló; nota de configuración cuando el servidor está deshabilitado; None en el resto de casos"
           }
         },
         "type": "object",
@@ -170,7 +212,7 @@
           "estado"
         ],
         "title": "NotificacionAPI",
-        "description": "Estado de la notificación por correo de observaciones.\n\nExposición para el personal del repositorio: con `estado` \"enviado\" la\ninterfaz puede informar \"enviamos las observaciones al correo del\nestudiante\"; con \"fallo\", el `detalle` explica el motivo técnico para\nreintentar o enviar manualmente."
+        "description": "Estado de la notificación por correo de observaciones.\n\nExposición para el personal del repositorio: con `estado` \"enviado\" la\ninterfaz puede informar \"enviamos las observaciones al correo del\nestudiante\"; con \"fallo\", el `detalle` explica el motivo técnico para\nreintentar o enviar manualmente; con \"deshabilitado\", el `detalle`\nindica cómo habilitar el servidor (nota de configuración)."
       },
       "PromptIA": {
         "properties": {
@@ -249,6 +291,12 @@
             "title": "Cita",
             "description": "Cita textual del reglamento",
             "default": ""
+          },
+          "aplicable": {
+            "type": "boolean",
+            "title": "Aplicable",
+            "description": "True si la regla se evaluó. False = la regla no aplica a este tipo de documento",
+            "default": true
           }
         },
         "type": "object",
@@ -262,6 +310,7 @@
         "description": "Resultado de una regla individual en la respuesta de la API.\n\nEquivalente al `RuleResult` interno del motor, pero con campos\nrenombrados a español y en formato snake_case para JSON.",
         "examples": [
           {
+            "aplicable": true,
             "cita": "\"Tamaño A4/papel (210x297 cm)\"",
             "encontrado": "cumple",
             "esperado": "210 x 297 mm",
@@ -271,6 +320,18 @@
             "rule_id": "papel_tamano",
             "severidad": "error",
             "ubicacion": "Sección \"Formato general\" (párr. 124-125)"
+          },
+          {
+            "aplicable": false,
+            "cita": "\"Cada título profesional exige un esquema formal distinto\"",
+            "encontrado": "no aplica a este documento",
+            "esperado": "secciones obligatorias del esquema cualitativo",
+            "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+            "mensaje": "Se deben incluir las secciones del diseño cualitativo",
+            "paso": true,
+            "rule_id": "estructura_tinv_cualitativo",
+            "severidad": "error",
+            "ubicacion": "Capítulo II — esquemas formales por tipo de título (párr. 75-90)"
           }
         ]
       },
@@ -279,7 +340,17 @@
           "total": {
             "type": "integer",
             "title": "Total",
-            "description": "Total de reglas evaluadas"
+            "description": "Total de reglas presentes en el YAML"
+          },
+          "total_evaluadas": {
+            "type": "integer",
+            "title": "Total Evaluadas",
+            "description": "Reglas realmente evaluadas sobre el documento"
+          },
+          "reglas_no_aplicables": {
+            "type": "integer",
+            "title": "Reglas No Aplicables",
+            "description": "Reglas omitidas porque no aplican a este tipo de documento"
           },
           "fallidos_error": {
             "type": "integer",
@@ -295,6 +366,8 @@
         "type": "object",
         "required": [
           "total",
+          "total_evaluadas",
+          "reglas_no_aplicables",
           "fallidos_error",
           "fallidos_warning"
         ],
@@ -361,7 +434,9 @@
             "metadatos": {
               "archivo_nombre": "mi_tesis.docx",
               "archivo_tamano_bytes": 123456,
-              "reglas_evaluadas": 47,
+              "reglas_evaluadas": 46,
+              "reglas_totales": 48,
+              "tipo_documento_estado": "vigente",
               "version_esquema": "2026-09-01"
             },
             "notificacion": {
@@ -369,6 +444,7 @@
             },
             "resultados": [
               {
+                "aplicable": true,
                 "cita": "\"Tamaño A4/papel (210x297 cm)\"",
                 "encontrado": "cumple",
                 "esperado": "210 x 297 mm",
@@ -383,7 +459,9 @@
             "resumen": {
               "fallidos_error": 0,
               "fallidos_warning": 2,
-              "total": 47
+              "reglas_no_aplicables": 2,
+              "total": 48,
+              "total_evaluadas": 46
             },
             "semaforo": "verde"
           }

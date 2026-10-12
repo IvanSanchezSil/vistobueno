@@ -1,12 +1,14 @@
 """Utilidades compartidas para la suite de tests de VistoBueno.
 
 Proporciona el cliente de prueba, constantes de validación de contrato,
-la ruta a la plantilla de prueba y un helper para subirla a la API.
+la ruta al DOCX de prueba (plantilla oficial o factory) y un helper para
+subirlo a la API.
 """
 
+from functools import cache
 from pathlib import Path
 
-import pytest
+from docx_factory import compilar_docx, configuracion_base
 from fastapi.testclient import TestClient
 
 from validator.api import app
@@ -42,22 +44,54 @@ CAMPOS_RESULTADO = {
     "ubicacion",
     "fuente",
     "cita",
+    "aplicable",
 }
 
 # Campos del objeto 'resumen'
-CAMPOS_RESUMEN = {"total", "fallidos_error", "fallidos_warning"}
+CAMPOS_RESUMEN = {
+    "total",
+    "total_evaluadas",
+    "reglas_no_aplicables",
+    "fallidos_error",
+    "fallidos_warning",
+}
 
 # Campos del objeto 'metadatos'
 CAMPOS_METADATOS = {
     "archivo_nombre",
     "archivo_tamano_bytes",
     "reglas_evaluadas",
+    "reglas_totales",
     "version_esquema",
+    "tipo_documento_declarado",
+    "tipo_documento_inferido",
+    "tipo_documento_estado",
 }
 
 
 # ---------------------------------------------------------------------------
-# Helper para subir la plantilla
+# Ruta al DOCX de prueba
+# ---------------------------------------------------------------------------
+
+
+@cache
+def ruta_docx_prueba() -> Path:
+    """Ruta del DOCX de prueba para los tests de contrato (hallazgo B1).
+
+    Prefiere la plantilla oficial de recursos/ (salida real de Word).
+    Si no existe — recursos/ está en .gitignore, así que es el caso de la
+    CI — genera el documento bueno del factory: determinista y sin
+    dependencias externas. Sin este fallback, 21 tests de contrato se
+    saltaban SIEMPRE en CI y el POST /validar con un DOCX real quedaba
+    sin probar con el pipeline en verde.
+    """
+    if PLANTILLA.exists():
+        return PLANTILLA
+    return Path(compilar_docx(configuracion_base()))
+
+
+# ---------------------------------------------------------------------------
+# Helper para subir el DOCX de prueba
 # ---------------------------------------------------------------------------
 
 
@@ -67,7 +101,7 @@ def subir_plantilla(
     mime: str = MIME_DOCX,
     data: dict | None = None,
 ):
-    """Envía la plantilla oficial a POST /validar y devuelve la respuesta.
+    """Envía el DOCX de prueba (plantilla o factory) a POST /validar.
 
     Args:
         ruta: URL del endpoint (permite query params, ej. "?incluir_prompts_ia=false").
@@ -76,12 +110,9 @@ def subir_plantilla(
         data: campos form adicionales (ej. {"correo": ...}).
 
     Returns:
-        La respuesta del TestClient. Salta el test si la plantilla no
-        existe en recursos/.
+        La respuesta del TestClient.
     """
-    if not PLANTILLA.exists():
-        pytest.skip("Plantilla de prueba no disponible")
-    with open(PLANTILLA, "rb") as f:
+    with open(ruta_docx_prueba(), "rb") as f:
         kwargs = {"files": {"archivo": (nombre, f, mime)}}
         if data is not None:
             kwargs["data"] = data

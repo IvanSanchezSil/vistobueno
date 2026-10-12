@@ -7,11 +7,15 @@ requires-python = ">=3.14"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--cov=validator --cov-report=term-missing"
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
+# Piso de cobertura (hallazgo C6): se mide sobre la suite completa del
+# entorno de CI (sin recursos/): 93% real, 90% de piso para dar margen
+# ante deriva. Solo aplica cuando coverage corre: nix flake check y CI.
+# El pytest local queda libre del flag --cov (hallazgo C1).
+fail_under = 90
 
 [tool.ruff]
 target-version = "py314"

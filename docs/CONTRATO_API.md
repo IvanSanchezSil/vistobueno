@@ -1,7 +1,7 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.3.0 (Semana 5 — Actividad 6)  
-**Fecha**: 2026-09-30  
+**Versión**: 1.5.0 (Semana 7 — revisión integrada B3/B4)  
+**Fecha**: 2026-10-09  
 **Estado**: Implementado
 
 ---
@@ -62,9 +62,11 @@ El archivo se procesó correctamente y se evaluaron las reglas.
     "detalle": null
   },
   "resumen": {
-    "total": 47,
+    "total": 48,
+    "total_evaluadas": 46,
+    "reglas_no_aplicables": 2,
     "fallidos_error": 0,
-    "fallidos_warning": 0
+    "fallidos_warning": 2
   },
   "resultados": [
     {
@@ -76,7 +78,20 @@ El archivo se procesó correctamente y se evaluaron las reglas.
       "encontrado": "cumple",
       "ubicacion": "Sección \"Formato general\" (párr. 124-125)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-      "cita": "\"Tamaño A4/papel (210x297 cm)\""
+      "cita": "\"Tamaño A4/papel (210x297 cm)\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "estructura_tinv_cualitativo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Estructura obligatoria del Trabajo de Investigación (Cualitativo)",
+      "esperado": "secciones obligatorias del esquema cualitativo",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Esquema del Trabajo de Investigación Cualitativo (párr. 380-420)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Esquema enumerado en párr. 381-420 del manual",
+      "aplicable": false
     }
   ],
   "como_preguntar_a_una_ia": [
@@ -88,11 +103,19 @@ El archivo se procesó correctamente y se evaluaron las reglas.
   "metadatos": {
     "archivo_nombre": "tesis.docx",
     "archivo_tamano_bytes": 123456,
-    "reglas_evaluadas": 47,
-    "version_esquema": "2026-09-01"
+    "reglas_evaluadas": 46,
+    "reglas_totales": 48,
+    "version_esquema": "2026-09-01",
+    "tipo_documento_declarado": null,
+    "tipo_documento_inferido": "tinv_cuantitativo",
+    "tipo_documento_estado": "vigente"
   }
 }
 ```
+
+> **Nota sobre los conteos**: el ejemplo muestra un plan cuantitativo conforme,
+> donde las 2 estructuras de otros tipos de tesis no aplican. Por eso
+> `total` (48) ≠ `total_evaluadas` (46) y `reglas_no_aplicables` = 2.
 
 ### Descripción de campos de respuesta
 
@@ -100,27 +123,34 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 |-------|------|-------------|
 | `semaforo` | `string` | `"verde"` si todas las reglas de severidad `error` pasan; `"rojo"` si alguna falla |
 | `notificacion.estado` | `string` | Veredicto del envío del correo de observaciones (ver sección siguiente) |
-| `notificacion.detalle` | `string?` | Motivo técnico cuando `estado` es `"fallo"`; `null` en el resto de casos |
-| `resumen.total` | `int` | Total de reglas evaluadas |
+| `notificacion.detalle` | `string?` | Motivo técnico cuando `estado` es `"fallo"`; nota de configuración cuando es `"deshabilitado"`; `null` en el resto de casos |
+| `resumen.total` | `int` | Total de reglas presentes en el YAML de reglas |
+| `resumen.total_evaluadas` | `int` | Reglas realmente evaluadas sobre el documento |
+| `resumen.reglas_no_aplicables` | `int` | Reglas omitidas porque no aplican al tipo de documento detectado |
 | `resumen.fallidos_error` | `int` | Reglas con severidad `error` que no pasaron |
 | `resumen.fallidos_warning` | `int` | Reglas con severidad `warning` que no pasaron |
-| `resultados` | `array` | Lista de resultados individuales por regla |
+| `resultados` | `array` | Lista de resultados individuales por regla. Incluye las no aplicables, distinguibles por `aplicable=false` |
 | `resultados[].rule_id` | `string` | Identificador único de la regla |
-| `resultados[].paso` | `bool` | `true` si la regla se cumplió |
+| `resultados[].paso` | `bool` | `true` si la regla se cumplió. En una regla no aplicable vale `true` porque no falló: no se evaluó |
 | `resultados[].severidad` | `string` | `"error"` o `"warning"` |
 | `resultados[].mensaje` | `string` | Descripción de la regla en lenguaje natural |
 | `resultados[].esperado` | `string` | Valor esperado según el reglamento |
-| `resultados[].encontrado` | `string` | Lo que encontró el validador (`"cumple"` si pasó) |
+| `resultados[].encontrado` | `string` | Lo que encontró el validador (`"cumple"` si pasó; `"no aplica a este documento"` si no aplicó) |
 | `resultados[].ubicacion` | `string?` | Referencia al documento del reglamento |
 | `resultados[].fuente` | `string` | Archivo fuente del que se extrajo la regla |
 | `resultados[].cita` | `string` | Cita textual del reglamento |
+| `resultados[].aplicable` | `bool` | `true` si la regla se evaluó. `false` = la regla no aplica al tipo de documento (p. ej. la estructura de otro tipo de tesis) |
 | `como_preguntar_a_una_ia` | `array` | Bloques de prompts listos para copiar/pegar en una IA |
 | `como_preguntar_a_una_ia[].rule_id` | `string` | ID de la regla fallida |
 | `como_preguntar_a_una_ia[].prompt` | `string` | Prompt completo en español |
 | `metadatos.archivo_nombre` | `string` | Nombre original del archivo subido |
 | `metadatos.archivo_tamano_bytes` | `int` | Tamaño en bytes del archivo |
-| `metadatos.reglas_evaluadas` | `int` | Cantidad de reglas ejecutadas |
+| `metadatos.reglas_evaluadas` | `int` | Reglas realmente ejecutadas (= `resumen.total_evaluadas`) |
+| `metadatos.reglas_totales` | `int` | Total de reglas presentes en el YAML (= `resumen.total`) |
 | `metadatos.version_esquema` | `string` | Versión del esquema YAML de reglas |
+| `metadatos.tipo_documento_declarado` | `string?` | Tipo declarado en el Anexo 10 del documento; `null` si no declaró |
+| `metadatos.tipo_documento_inferido` | `string?` | Tipo deducido de las firmas estructurales; `null` si no se pudo inferir |
+| `metadatos.tipo_documento_estado` | `string` | `"vigente"`, `"sin_determinar"` o `"contradictorio"` |
 
 ### 422 Unprocessable Entity — Sin archivo (validación de FastAPI)
 
@@ -278,13 +308,13 @@ es el personal del repositorio.
 | `no_solicitado` | Había correo, pero no se pidió el envío | Ofrecer el checkbox de envío |
 | `sin_correo` | No se envió `correo` (aunque haya `notificar`) | Pedir el correo del estudiante |
 | `sin_observaciones` | Se pidió el envío, pero el semáforo no es `rojo` | Nada que notificar |
-| `deshabilitado` | Se pidió el envío, pero el servidor no tiene la notificación habilitada | Nota de configuración para administradores |
+| `deshabilitado` | Se pidió el envío, pero el servidor no tiene la notificación habilitada | Mostrar `detalle` como nota de configuración para administradores |
 
 ### Configuración del servidor (variables de entorno)
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `VISTOBUENO_NOTIFICACIONES` | (vacío) | `1` habilita el envío |
+| `VISTOBUENO_NOTIFICACIONES` | (vacío) | `1`/`true`/`yes` habilitan el envío (mismo criterio que `VISTOBUENO_SMTP_STARTTLS`) |
 | `VISTOBUENO_SMTP_HOST` | (vacío) | Servidor SMTP institucional |
 | `VISTOBUENO_SMTP_PORT` | `587` | Puerto SMTP |
 | `VISTOBUENO_SMTP_USER` | (vacío) | Usuario SMTP (vacío = sin autenticación) |
@@ -359,15 +389,72 @@ El motor interno (`validator.engine`) devuelve `RuleResult` (dataclass) y `build
 | `RuleResult.location` | `resultados[].ubicacion` | Renombrado a español |
 | `RuleResult.fuente` | `resultados[].fuente` | Sin cambio |
 | `RuleResult.cita` | `resultados[].cita` | Sin cambio |
+| `RuleResult.aplicable` | `resultados[].aplicable` | Sin cambio de nombre; `false` = regla omitida por tipo de documento |
 | `build_report()["semaforo"]` | `semaforo` | Sin cambio |
-| `build_report()["resumen"]` | `resumen` | Renombrado a español |
-| `build_report()["resultados"]` | `resultados` | Mapeado a DTO |
+| `build_report()["resumen"]` | `resumen` | Mapeado campo a campo (incluye `total_evaluadas` y `reglas_no_aplicables`) |
+| `build_report()["resultados"]` | `resultados` | Mapeado a DTO (la API envía TODOS los resultados, también los no aplicables) |
 | `build_ai_help_section()` | `como_preguntar_a_una_ia` | Solo si `incluir_prompts_ia=true` |
-| — | `metadatos` | Agregado por la API (no existe en motor) |
+| regla `deteccion_tipo_documento` (su `found`) | `metadatos.tipo_documento_declarado/inferido/estado` | Derivado por la API de la salida de la regla de detección |
+| — | `metadatos` | Agregado por la API: nombre, tamaño, conteos, tipo de documento y versión del esquema |
 
 ---
 
 ## Changelog
+
+### v1.5.0 (2026-10-09 — Semana 7, revisión integrada, hallazgos B3/B4)
+
+Endurecimiento del flujo de notificación tras la auditoría de la Semana 7.
+Cambio aditivo: ningún campo desaparece ni cambia de tipo.
+
+- **`notificacion.detalle` ahora también se llena con `estado` `"deshabilitado"`**
+  (hallazgo B3): nota de configuración que indica cómo habilitar el
+  servidor (`VISTOBUENO_NOTIFICACIONES=1` y `VISTOBUENO_SMTP_HOST`). Antes
+  el estado `deshabilitado` era el default real del servidor pero la
+  respuesta no traía ningún dato: "casilla marcada → 200 OK → nada" era
+  indistinguible de un envío silencioso.
+- **`VISTOBUENO_NOTIFICACIONES` acepta `1`/`true`/`yes`** (hallazgo B4),
+  igual que `VISTOBUENO_SMTP_STARTTLS`. Antes solo aceptaba el literal
+  `1`: poner `true` dejaba el envío apagado sin error visible.
+- **Best-effort total en el envío** (hallazgo B5, sin cambio de contrato):
+  la plantilla y las cabeceras del correo se arman dentro del manejo de
+  errores; ningún fallo del armado (p. ej. CR/LF en el nombre del archivo)
+  puede romper la respuesta HTTP. El nombre se sanitiza en el Subject
+  para impedir inyección de cabeceras.
+- `docs/openapi_spec.json` regenerado (el CI verifica el drift).
+- Versión del endpoint: `1.4.0` → `1.5.0`.
+
+### v1.4.0 (2026-10-09 — Semana 7, paso 7 del plan de tipo de documento)
+
+Refleja en el contrato los cambios del motor (pasos 1–6 del
+`docs/PLAN_TIPO_DOCUMENTO.md`): aplicabilidad por tipo de documento y
+detección del tipo. Antes de esta versión, una regla no aplicable salía
+con `paso=true`, idéntica a una regla que pasó de verdad, y
+`metadatos.reglas_evaluadas` reportaba el total del YAML (48) aunque solo
+se evaluaran 46.
+
+- **Nuevo campo `resultados[].aplicable`** (`bool`, default `true`):
+  `false` marca reglas que no aplican al tipo de documento detectado
+  (hoy, las estructuras de los otros tipos de tesis). No se excluyen de
+  la respuesta: el frontend puede distinguir "aprobada" de "omitida".
+- **Nuevos campos requeridos en `resumen`**: `total_evaluadas` y
+  `reglas_no_aplicables`. `resumen.total` pasa a significar "reglas
+  presentes en el YAML".
+- **Cambio de semántica en `metadatos.reglas_evaluadas` (breaking)**:
+  ahora vale las reglas realmente ejecutadas (p. ej. 46 para un plan
+  cuantitativo), no el total del YAML. El nuevo campo
+  `metadatos.reglas_totales` conserva el total (48).
+- **Nuevos metadatos de tipo de documento** (derivados de la regla
+  `deteccion_tipo_documento`): `tipo_documento_declarado`,
+  `tipo_documento_inferido` y `tipo_documento_estado`
+  (`vigente | sin_determinar | contradictorio`), para que el frontend no
+  parsee texto libre.
+- `docs/openapi_spec.json` regenerado (el CI verifica el drift).
+- Versión del endpoint: `1.3.0` → `1.4.0`. **No es un cambio puramente
+  aditivo**: `reglas_evaluadas` cambia de valor y `resumen`/`metadatos`
+  ganan campos requeridos. El frontend actual no se rompe (sigue
+  leyendo `resumen.total`, `paso` y `severidad`, que se conservan), pero
+  los clientes que validen la forma del JSON de forma estricta deben
+  actualizarse.
 
 ### v1.3.0 (2026-09-30 — Semana 5, Actividad 6)
 

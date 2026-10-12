@@ -63,7 +63,7 @@
             echo "  nix run .#test -- tests/ -v                    # ejecutar tests"
             echo "  nix run .#serve -- validator.api:app --reload  # iniciar API"
             echo "  nix run .#smtp-dev                              # sink SMTP local (127.0.0.1:8025)"
-            echo "  nix run .#test-local                            # e2e local: API + sink SMTP"
+            echo "  nix run .#test-local                            # e2e local: build + suite + flujo completo"
             echo "  nix flake check                                # tests + verificación"
             echo "  ruff check validator/ scripts/ tests/          # lint Python"
             echo "  mypy validator/ scripts/                       # tipos Python"
@@ -97,28 +97,48 @@
             '');
           };
 
-          # Prueba local end-to-end: levanta la API + el sink SMTP y valida
-          # el flujo de notificación. Ejecutar desde la raíz del repo.
+          # Prueba end-to-end local (Semana 7): build del frontend, suite
+          # backend, servicios en :8000/:5173 y 9 checks del flujo completo
+          # (incluida la notificación). Requiere puertos libres y npm ci
+          # hecho en frontend/. Ver scripts/e2e_flujo_completo.sh.
+          # (Hallazgo C3: antes apuntaba a scripts/servidor_pruebas.py,
+          # que no existe — el comando anunciado daba error.)
           test-local = {
             type = "app";
             program = toString (pkgs.writeShellScript "test-local" ''
-              if [ ! -f "$PWD/scripts/servidor_pruebas.py" ]; then
+              if [ ! -f "$PWD/scripts/e2e_flujo_completo.sh" ]; then
                 echo "Error: ejecutar desde la raíz del repositorio (nix run .#test-local)"
                 exit 1
               fi
-              exec ${pythonEnv}/bin/python3 "$PWD/scripts/servidor_pruebas.py" "$@"
+              exec ${pkgs.bash}/bin/bash "$PWD/scripts/e2e_flujo_completo.sh" "$@"
             '');
           };
         };
 
-        # Verificaciones: pytest via nix flake check
+        # Verificaciones: cada una corre aislada para que un fallo no
+        # oculte el estado de las demás (hallazgo C7: antes, si pytest
+        # fallaba, ruff y mypy ni corrían y no se veía qué más estaba mal).
         checks = {
-          default = pkgs.runCommand "vistobueno-tests" {
-            buildInputs = [ pythonEnv pythonTooling ];
+          tests = pkgs.runCommand "vistobueno-tests" {
+            buildInputs = [ pythonEnv ];
           } ''
             cp -r ${self}/* .
             pytest tests/ -v --cov=validator --cov-report=term
+            touch $out
+          '';
+
+          ruff = pkgs.runCommand "vistobueno-ruff" {
+            buildInputs = [ pythonTooling ];
+          } ''
+            cp -r ${self}/* .
             ruff check validator/ scripts/ tests/
+            touch $out
+          '';
+
+          mypy = pkgs.runCommand "vistobueno-mypy" {
+            buildInputs = [ pythonEnv pythonTooling ];
+          } ''
+            cp -r ${self}/* .
             mypy validator/ scripts/
             touch $out
           '';

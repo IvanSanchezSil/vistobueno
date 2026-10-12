@@ -38,7 +38,7 @@ flowchart TD
     S --> T
     T --> N2{Notificación:<br/>¿notificar + correo<br/>+ semáforo rojo?}
     N2 -->|No aplica| N3[estado: sin_correo /<br/>no_solicitado / sin_observaciones]
-    N2 -->|Sí, pero SMTP deshabilitado| N4[estado: deshabilitado]
+    N2 -->|Sí, pero SMTP deshabilitado| N4[estado: deshabilitado<br/>detalle: nota de configuración]
     N2 -->|Sí y habilitado| N5[enviar_notificacion<br/>best-effort]
     N5 -->|Aceptado| N6[estado: enviado]
     N5 -->|Fallo SMTP| N7[estado: fallo<br/>detalle: motivo técnico]
@@ -127,7 +127,8 @@ flowchart LR
 | `location` | `ubicacion` | Renombrado |
 | `fuente` | `fuente` | Sin cambio |
 | `cita` | `cita` | Sin cambio |
-| — | `metadatos` | Solo en API (nombre, tamaño, reglas, versión) |
+| `aplicable` | `aplicable` | `false` = regla omitida por tipo de documento (Semana 7, paso 7) |
+| — | `metadatos` | Solo en API (nombre, tamaño, reglas evaluadas/totales, tipo de documento, versión) |
 
 ---
 
