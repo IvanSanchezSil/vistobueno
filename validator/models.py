@@ -9,6 +9,19 @@ class Severity(StrEnum):
     WARNING = "warning"
 
 
+# Resultados que NO son reglas del YAML sino la traducción de un estado de la
+# detección de tipo documental (`compilador._con_sentinel`). No describen un
+# defecto corregible en Word, así que quedan fuera de la sección "cómo
+# preguntar a una IA" (revisión PR #45, punto 4).
+RULES_CENTINELA = frozenset(
+    {
+        "tipo_documento_no_determinado",
+        "tipo_documento_contradictorio",
+        "tipo_documento_sin_estructura",
+    }
+)
+
+
 @dataclass
 class RuleResult:
     rule_id: str

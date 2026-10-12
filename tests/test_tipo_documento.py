@@ -24,6 +24,8 @@ import yaml
 from validator.compilador import CompilerDSL
 from validator.dsl_check import DSLValidationError, linter
 from validator.engine import build_report, load_rules, validate_docx
+from validator.models import RuleResult, Severity
+from validator.prompts import build_ai_help_section
 
 sys.path.insert(0, str(Path(__file__).parent))
 from test_dsl import WNS, _make_docx, _para  # noqa: E402
@@ -1887,3 +1889,45 @@ class TestAvisoSinEstructura:
             Path(path).unlink(missing_ok=True)
         ids = {r.rule_id for r in res}
         assert "tipo_documento_sin_estructura" not in ids
+
+
+class TestCentinelasFueraDeLosPromptsIA:
+    """Revisión PR #45, punto 4: los centinelas de la detección no son reglas
+    del YAML ni defectos corregibles en Word, así que no deben ofrecerse como
+    "cómo preguntar a una IA"."""
+
+    def test_el_centinela_no_genera_prompt(self):
+        path = _make_docx(headings=["INTRODUCCION", "RESULTADOS"])
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+        # El documento sí emite el centinela...
+        fallidos = {r.rule_id for r in res if not r.passed}
+        assert "tipo_documento_no_determinado" in fallidos
+        # ...pero no aparece en la sección de ayuda IA, que sí trae las
+        # reglas reales fallidas.
+        prompt_ids = {p["rule_id"] for p in build_ai_help_section(res)}
+        assert "tipo_documento_no_determinado" not in prompt_ids
+        assert prompt_ids
+
+    def test_filtra_cualquier_centinela(self):
+        real = RuleResult(
+            rule_id="margen_superior",
+            passed=False,
+            severity=Severity.ERROR,
+            message="Margen superior incorrecto",
+            expected="3 cm",
+            found="2.5 cm",
+        )
+        centinela = RuleResult(
+            rule_id="tipo_documento_contradictorio",
+            passed=False,
+            severity=Severity.ERROR,
+            message="Anexo 10 y estructura se contradicen",
+            expected="",
+            found="",
+        )
+        ids = [p["rule_id"] for p in build_ai_help_section([real, centinela])]
+        assert ids == ["margen_superior"]
