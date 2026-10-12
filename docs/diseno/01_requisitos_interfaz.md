@@ -56,7 +56,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 
 | ID | Requisito | Prioridad |
 |----|-----------|-----------|
-| RF-09 | El operador debe poder iniciar la validación con un clic en "Validar" | Alta |
+| RF-09 | El operador debe poder iniciar la validación con un clic en "Validar documento" (botón principal a todo el ancho, siempre visible) | Alta |
 | RF-10 | El sistema debe mostrar un indicador de carga durante el proceso | Alta |
 | RF-11 | El sistema debe enviar el archivo al endpoint POST /validar del backend | Alta |
 | RF-12 | El sistema debe enviar el correo del estudiante y la solicitud de envío (`notificar=true`) en la misma petición POST /validar | Alta |
@@ -130,7 +130,8 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | 1 | Carga | Seleccionar archivo | Botón o drag-and-drop para elegir DOCX |
 | 2 | Carga | Validar tipo y tamaño | Rechazo automático de formatos inválidos y archivos grandes |
 | 3 | Carga | Capturar correo estudiante | Campo opcional para notificación por correo |
-| 4 | Carga | Iniciar validación | Botón "Validar" que envía archivo, correo y opt-in `notificar` al backend |
+| 4 | Carga | Iniciar validación | Botón principal "Validar documento" (siempre visible; deshabilitado con ayuda si no hay archivo) que envía archivo, correo y opt-in `notificar` al backend |
+| 4b | Carga | Estados de la zona de carga | Dropzone con estados explícitos: vacío, seleccionado, inválido (tipo/tamaño), procesando y error de servidor |
 | 5 | Reporte | Ver semáforo | Indicador verde/rojo del resultado general |
 | 6 | Reporte | Ver resumen | KPIs: total reglas, errores, advertencias |
 | 7 | Reporte | Filtrar por severidad | Chips para alternar entre todos/errores/advertencias |
