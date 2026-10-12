@@ -161,7 +161,7 @@ REGLAS_ACOPLADAS = {
     # sea "una de las tres", así que la estructura que antes aplicaba
     # (cuantitativo) deja de aplicar, y con ella los mínimos de referencias y
     # anexos del tipo cuantitativo. Las reglas de los otros tipos ya eran no
-    # aplicables y siguen siéndolo. El paso 6 turns el caso contradictorio en
+    # aplicables y siguen siéndolo. El paso 6 convierte el caso contradictorio en
     # un error centinela propio en vez de validar contra las tres.
     # NOTA: el centinela `tipo_documento_contradictorio` aparece en el
     # documento mutado pero no se cuenta aquí porque no es una de las 48
