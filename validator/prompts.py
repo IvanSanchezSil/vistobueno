@@ -5,7 +5,7 @@ consistente y no dependa de que un modelo "recuerde" bien qué falló
 (ver README, sección "Restricción de diseño clave").
 """
 
-from .models import RuleResult
+from .models import RULES_CENTINELA, RuleResult
 
 TEMPLATE = """Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:
 
@@ -29,5 +29,14 @@ def build_prompt(result: RuleResult) -> str:
 def build_ai_help_section(results: list[RuleResult]) -> list[dict]:
     """Devuelve, por cada regla fallida, {rule_id, prompt} para la sección
     "cómo preguntar a una IA" del reporte. Incluye warnings, no solo errores
-    — el estudiante puede querer corregirlos aunque no bloqueen la entrega."""
-    return [{"rule_id": r.rule_id, "prompt": build_prompt(r)} for r in results if not r.passed]
+    — el estudiante puede querer corregirlos aunque no bloqueen la entrega.
+
+    Excluye los resultados centinela (`RULES_CENTINELA`): no son reglas del
+    YAML sino avisos del estado de la detección de tipo documental, y no se
+    corrigen en Word (revisión PR #45, punto 4).
+    """
+    return [
+        {"rule_id": r.rule_id, "prompt": build_prompt(r)}
+        for r in results
+        if not r.passed and r.rule_id not in RULES_CENTINELA
+    ]

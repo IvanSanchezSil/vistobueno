@@ -6,7 +6,7 @@ Migrado y limpiado a partir del prototipo eval_checks2.py.
 
 import re
 
-from .extractor import NS, ExtractedDocx, W, text_of
+from .extractor import NS, ExtractedDocx, W, es_heading, text_of
 
 # Namespaces también usados para resolver prefijos en nombres de atributo
 # (ej. "@w:val" -> {namespace-w}val).
@@ -47,16 +47,38 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
 
     if tipo == "xml_atributo":
         key = _resolve_attr_key(check["atributo"])
-        vals = [n.get(key) for n in nodes]
-        vals = [v for v in vals if v is not None]
+        # pares conserva la posición (1-based) de cada nodo en el resultado
+        # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
+        # incumple. Mismo formato que AnalizadorXML (handover issue #7):
+        # la paridad legacy↔DSL compara el `found` literal.
+        pares = [(i, n.get(key)) for i, n in enumerate(nodes, 1)]
+        vals = [v for _, v in pares if v is not None]
         esperado = check.get("esperado")
+        tolerancia = check.get("tolerancia")
+
+        def _acepta(valor: object) -> bool:
+            # Tolerancia numérica opcional (twips): el valor cumple si su
+            # distancia al esperado no supera `tolerancia`. Si no aplica
+            # (esperado o valor no numérico, sin tolerancia), igualdad exacta.
+            if tolerancia is None:
+                return valor == esperado
+            try:
+                return abs(float(str(valor)) - float(str(esperado))) <= float(str(tolerancia))
+            except TypeError, ValueError:
+                return valor == esperado
+
         if comp == "eq":
-            ok = bool(vals) and vals[0] == esperado
+            ok = bool(vals) and _acepta(vals[0])
         elif comp == "all_eq":
-            ok = bool(vals) and all(v == esperado for v in vals)
+            ok = bool(vals) and all(_acepta(v) for v in vals)
         else:
             return False, f"comparacion '{comp}' no soportada para xml_atributo"
-        return ok, f"{check['atributo']}={vals[:3]} esperado={esperado}"
+        detalle = f"{check['atributo']}={vals[:3]} esperado={esperado}"
+        if comp == "all_eq" and not ok and vals:
+            desvios = [(i, v) for i, v in pares if v is not None and not _acepta(v)]
+            resumen = ", ".join(f"#{i}={v}" for i, v in desvios[:3])
+            detalle += f"; incumplen=[{resumen}]"
+        return ok, detalle
 
     if tipo == "texto_regex":
         patron = re.compile(check["patron"])
@@ -99,7 +121,7 @@ def _check_secuencia(rule: dict, extracted: ExtractedDocx) -> tuple[bool, str]:
         pPr = p.find(W + "pPr")
         st = pPr.find(W + "pStyle") if pPr is not None else None
         val = st.get(W + "val") if st is not None else None
-        if val and ("eading" in val or "tulo" in val):
+        if es_heading(val):
             heading_texts.append(text_of(p).strip())
 
     def norm(s: str) -> str:

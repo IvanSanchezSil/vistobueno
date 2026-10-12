@@ -143,6 +143,25 @@ class TestTokenizer:
             ("Subsección", 2),
         ]
 
+    def test_heading_usa_el_criterio_canonico(self):
+        """Revisión PR #45, punto 3: tokenizer, extractor y el check legacy
+        comparten `es_heading` (estilos Heading/Título con o sin número). Un
+        pStyle que antes colaba por subcadena ("TtuloPersonalizado") ya no
+        cuenta como encabezado."""
+        tokens = self._tokens(
+            [
+                _para("CAPÍTULO I", "Ttulo1"),
+                _para("Sección", "Heading2"),
+                _para("Otro", "Titulo3"),
+                _para("No es heading", "TtuloPersonalizado"),
+            ]
+        )
+        assert [t.texto for t in solo(tokens, [TITULO])] == [
+            "CAPÍTULO I",
+            "Sección",
+            "Otro",
+        ]
+
     def test_parrafo_anidado_en_tabla(self):
         """El tokenizer incluye párrafos dentro de celdas (paridad legacy)."""
         tokens = self._tokens([_tabla()])
