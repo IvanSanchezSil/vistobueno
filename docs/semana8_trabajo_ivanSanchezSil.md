@@ -20,6 +20,10 @@
    negrita.
 3. Mantener la **paridad legacy↔DSL** literal (ambos motores al mismo cambio) y
    la suite completa en verde.
+4. **Módulo de IA (Paso 0 + Funcionalidad 2)**: implementar el cliente LLM local
+   (`validator/llm.py`, con `StubLLM`) y la explicación/priorización advisory de
+   los fallos (`validator/asistente.py`), sin tocar el semáforo y con el
+   contrato de API documentado para I1 (`docs/HANDOVER_API_IA.md`).
 
 ---
 
@@ -89,6 +93,53 @@
   (`incumplen=[#183=567, #196=567, #198=567]`) y `caratula_autores_...` pasa
   (`cumple`).
 
+### 2026-10-12 — Definición del módulo de IA local (discusión + diseño)
+
+- **Contexto**: se abrió la discusión de un **módulo de IA** en el producto. El
+  plan de pasantía original quedó descartado por el usuario; lo relevante es
+  que "debe haber un módulo de IA".
+- **Discusión** (capturada en `docs/discusion_modelo_ia.md`): usuario = **el
+  encargado** (no el estudiante); 7 funcionalidades planteadas y extendidas; el usuario
+  deja en la mesa las funcionalidades **1** (validación semántica), **2** (explicación y
+  priorización), **3** (clasificación asistida) y **5** (redacción de
+  respuesta); descarta **4** (RAG), **6** (auto-fix) y **7** (herramienta
+  interna de desarrollo).
+- **Decisiones tomadas** (v0.4 del doc de discusión): LLM **local**; modelo
+  serie **Qwen2.5** (3B CPU / 7B GPU, Q4_K_M); **Ollama como servicio aparte**;
+  orden **2 → 3 → 5 → 1**; base común `LLMClient` + `StubLLM` para CI; regla de
+  oro: la salida de IA **jamás** toca el semáforo.
+- **Diseño** (`docs/diseno/16_modulo_ia.md`, el segundo doc escrito antes de
+  implementar): arquitectura con el motor determinista intacto, contrato API
+  v1.5.0 aditivo, DTOs advisory, seguridad/privacidad (tesis local, funcionalidades 2/3/5
+  sin leerla), testing con `StubLLM` (CI sigue verde sin GPU), plan por pasos y
+  coordinación con I1 (backend) e I2 (frontend).
+- **Guardado**: se propuso commitear; el usuario confirmó "documentar y diseñar
+  primero", sin implementar aún.
+
+### 2026-10-12 — Implementación del módulo de IA: Paso 0 + Funcionalidad 2 (motor)
+
+- **Decisiones del usuario**: construir **Paso 0 + Funcionalidad 2**; modelo por defecto
+  **`qwen2.5:3b`** (CPU, configurable a 7B); **solo el motor** (la API va en un
+  HANDOVER para I1); **aprobado** levantar la restricción "sin LLM en runtime"
+  de AGENTS/README (queda como módulo local advisory).
+- **`validator/llm.py`** (Paso 0): `LLMConfig.desde_entorno()`, protocolo
+  `LLMClient` (`modelo`, `chat`, `disponible`), `OllamaClient` (httpx async a
+  `/api/chat` con `format="json"`), `StubLLM` (determinista, sin red),
+  `get_llm_client()` (lanza `LLMNoDisponible` sin `OLLAMA_URL`) y `estado_ia()`
+  (nunca lanza). Errores: `ErrorIA` / `LLMNoDisponible` / `LLMError`.
+- **`validator/asistente.py`** (Funcionalidad 2): dataclasses advisory `Explicacion` /
+  `Prioridad` / `ExplicacionYPrioridad`; `construir_prompt_explicar()` (solo el
+  bloque de fallos, **nunca la tesis**); `parse_explicacion()` con validación
+  estricta y descarte de `rule_id` inventados; `explicar_y_priorizar()` con
+  **un reintento** ante JSON no interpretable (`RespuestaIAInvalida`).
+- **Tests** (`tests/test_llm.py`, `tests/test_asistente.py`): 41 tests con
+  `StubLLM`/`httpx.MockTransport`, sin red. La suite pasa de **397 a 438**.
+- **Sin dependencias nuevas**: `httpx` ya estaba en `flake.nix`; `OLLAMA_*` son
+  configuración (no secretos), así que `verificar_secretos.py` no cambia.
+- **HANDOVER** `docs/HANDOVER_API_IA.md`: contrato exacto para I1 (DTOs,
+  endpoints `GET /asistente/estado` y `POST /asistente/explicar`, códigos
+  503/422, inyección del cliente para tests).
+
 ---
 
 ## Evidencias producidas
@@ -101,6 +152,10 @@
 - Tests: `tests/_docx_builder.py`, `tests/test_paridad_formatos.py`,
   `tests/test_tipo_documento.py`.
 - Documentación: `docs/DSL.md` (campo `tolerancia`) y esta bitácora.
+- Módulo de IA (motor): `validator/llm.py`, `validator/asistente.py` y sus
+  tests (`tests/test_llm.py`, `tests/test_asistente.py`); contrato para I1 en
+  `docs/HANDOVER_API_IA.md`; diseño actualizado en `docs/diseno/16_modulo_ia.md`
+  y registrado en `docs/diseno/00_indice_diseno.md`.
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo).
 
@@ -114,6 +169,10 @@
   atributos (`firstLine` en twips) con margen de tolerancia.
 - **Ingeniería de Software I**: documentación del desvío manual vs práctica
   real (`EVALUADO:`) y sincronización de la documentación del DSL.
+- **Inteligencia Artificial II**: LLM local con salida JSON estructurada y
+  validada; el asistente es advisory y no decide el resultado.
+- **Redes de Computadoras I**: cliente HTTP async (`httpx`) contra el servicio
+  Ollama local, con timeouts y manejo de errores de estado.
 
 ---
 
@@ -128,6 +187,13 @@
 - **Paridad literal**: cualquier cambio en `found` obliga a tocar los dos
   motores con el mismo formato; el test de paridad sobre documentos sintéticos
   y la medición sobre la tesis real lo confirman.
+- **La IA no debe inventar reglas**: el parser descarta las entradas cuyo
+  `rule_id` no esté entre los fallos reales, y el prompt solo recibe el reporte
+  (nunca la tesis). Así el asistente ayuda sin abrir la puerta a observaciones
+  que el motor no detectó.
+- **CI sin GPU ni red**: `StubLLM` y `httpx.MockTransport` permiten probar todo
+  el módulo (incluidos errores de servicio y JSON inválido) sin descargar un
+  modelo; el CI sigue verde.
 
 ---
 
@@ -137,3 +203,8 @@
    aparezca con nuevos documentos reales.
 2. Validar el comportamiento con un segundo documento real cuando esté
    disponible.
+3. **Módulo de IA**: el Paso 0 y la Funcionalidad 2 ya están en el motor
+   (`validator/llm.py`, `validator/asistente.py`). Coordinar con I1 el *wiring*
+   de `GET /asistente/estado` y `POST /asistente/explicar`
+   (`docs/HANDOVER_API_IA.md`) y con I2 los botones del frontend; luego seguir
+   con las funcionalidades 3, 5 y 1.

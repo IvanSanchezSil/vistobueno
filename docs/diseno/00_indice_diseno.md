@@ -71,6 +71,10 @@ flowchart LR
         O["15_tipo_documento_grupos.md<br/>Tipo de documento + grupos excluyentes"]
     end
 
+    subgraph IADISENO["Semana 7/8 — diseño previo"]
+        P["16_modulo_ia.md<br/>Módulo IA local (asistente)"]
+    end
+
     subgraph FUTURO["F5 (implementada)"]
         I["09_f5_enlace_api_propuesta.md<br/>F5 (Opción A)"]
     end
@@ -103,6 +107,7 @@ flowchart LR
 | **13** | Notas al pie | `AnalizadorNotaPie`, numeración 1..N consecutiva (ítem 3) | Todo el equipo |
 | **14** | Índice de contenidos | `AnalizadorTocApunta`/`AnalizadorTocNumeracion` (ítems 11-12) | Todo el equipo |
 | **15** | Tipo de documento + grupos excluyentes | DFA de detección (Moore), evaluación en dos fases | LFA / Compiladores |
+| **16** | Módulo de IA local (asistente del encargado) | Cliente LLM (Ollama/Stub), 4 funcionalidades advisory, contrato v1.6.0 | Inteligencia Artificial / Redes |
 
 ## 2.1 Fases de diseño F1–F6 (E)
 
@@ -164,6 +169,11 @@ flowchart LR
    escribió antes de escribir código, porque detecta un defecto de correctitud
    (una tesis conforme se reporta en rojo). Su plan de ejecución por pasos está
    en `docs/PLAN_TIPO_DOCUMENTO.md`.
+7. **16** (módulo de IA) es el segundo documento con diseño **previo**; se
+   deriva de la discusión en `docs/discusion_modelo_ia.md`. El Paso 0 (cliente
+   LLM) y la Funcionalidad 2 (explicar/priorizar) ya están implementados en el motor;
+   falta el *wiring* de la API (`docs/HANDOVER_API_IA.md`) y seguir con las
+   funcionalidades 3 → 5 → 1.
 
 ---
 
@@ -183,3 +193,5 @@ flowchart LR
 | Clasificación de lenguaje (DFA → etiqueta de tipo) | 15 | LFA — clasificación de cadenas |
 | Máquina de Moore (salida por estado) | 15 | LFA — Máquinas de Mealy/Moore |
 | Token en tabla de símbolos y selección de camino | 15 | Compiladores — tabla de símbolos, árbol sintáctico |
+| LLM local, explicaciones y clasificación asistida | 16 | Inteligencia Artificial I/II — representación y razonamiento |
+| HTTP async y contrato REST tipado | 16 | Redes de Computadoras I — HTTP/REST |
