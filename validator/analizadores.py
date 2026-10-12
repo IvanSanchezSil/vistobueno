@@ -27,7 +27,7 @@ import re
 from abc import ABC, abstractmethod
 
 from .extractor import NS, ExtractedDocx, W, text_of
-from .tokenizer import PARRAFO, TITULO, _es_heading, seccion, solo, tokenizar
+from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
 # Prefijos de namespace para resolver names en atributos (ej. "@w:val").
 PREFIX_NS = NS
@@ -568,7 +568,7 @@ def _entradas_indice(extracted: ExtractedDocx, regex_indice: str = REFERENCIA_IN
         st = p.find(f"{W}pPr/{W}pStyle")
         estilo = st.get(W + "val") if st is not None else ""
         texto = text_of(p).strip()
-        if _es_heading(estilo):
+        if es_heading(estilo):
             en_region = bool(rx.search(_sin_acentos(texto)))
             continue
         if en_region and texto:
@@ -585,7 +585,7 @@ def _títulos_cuerpo(extracted: ExtractedDocx) -> set[str]:
     for p in body.findall(W + "p"):
         st = p.find(f"{W}pPr/{W}pStyle")
         estilo = st.get(W + "val") if st is not None else ""
-        if _es_heading(estilo):
+        if es_heading(estilo):
             texto = text_of(p).strip()
             if texto:
                 titulos.add(_norm_indice(texto))

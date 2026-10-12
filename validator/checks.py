@@ -6,7 +6,7 @@ Migrado y limpiado a partir del prototipo eval_checks2.py.
 
 import re
 
-from .extractor import NS, ExtractedDocx, W, text_of
+from .extractor import NS, ExtractedDocx, W, es_heading, text_of
 
 # Namespaces también usados para resolver prefijos en nombres de atributo
 # (ej. "@w:val" -> {namespace-w}val).
@@ -121,7 +121,7 @@ def _check_secuencia(rule: dict, extracted: ExtractedDocx) -> tuple[bool, str]:
         pPr = p.find(W + "pPr")
         st = pPr.find(W + "pStyle") if pPr is not None else None
         val = st.get(W + "val") if st is not None else None
-        if val and ("eading" in val or "tulo" in val):
+        if es_heading(val):
             heading_texts.append(text_of(p).strip())
 
     def norm(s: str) -> str:

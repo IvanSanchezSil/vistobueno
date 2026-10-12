@@ -33,6 +33,20 @@ def text_of(node) -> str:
 HEADING_RE = re.compile(r"^(?:Heading|T[ií]tulo|Ttulo)\d*$", re.I)
 
 
+def es_heading(val: str | None) -> bool:
+    """¿El valor de un `w:pStyle` es un estilo de encabezado?
+
+    Criterio ÚNICO del proyecto para "párrafo de título": estilos `Heading*`
+    y `Título*`/`Titulo*`/`Ttulo*` (con o sin número). Lo comparten el
+    extractor (contextos de cuerpo y carátula), el tokenizer (inferencia de
+    tipo del DSL) y el check legacy `secuencia_titulos`, de modo que todos
+    hablen del mismo criterio (revisión PR #45, punto 3).
+    """
+    if not val:
+        return False
+    return HEADING_RE.match(val) is not None
+
+
 def _texto_normalizado(node) -> str:
     """Texto de un párrafo normalizado: mayúsculas, whitespace colapsado."""
     return re.sub(r"\s+", " ", text_of(node)).upper().strip()
@@ -62,7 +76,7 @@ def _rango_cuerpo(doc) -> tuple[list, int, int]:
             pPr = p.find(W + "pPr")
             st = pPr.find(W + "pStyle") if pPr is not None else None
             val = st.get(W + "val") if st is not None else ""
-            if HEADING_RE.match(val or ""):
+            if es_heading(val):
                 res.append(i)
         return res
 
@@ -108,7 +122,7 @@ def _cuerpo_paras(doc) -> set:
         pPr = p.find(W + "pPr")
         st = pPr.find(W + "pStyle") if pPr is not None else None
         val = st.get(W + "val") if st is not None else ""
-        if HEADING_RE.match(val or ""):
+        if es_heading(val):
             continue
         texto = _texto_normalizado(p)
         if not texto or re.match(r"^(NOTA|FUENTE)[.\s]", texto):

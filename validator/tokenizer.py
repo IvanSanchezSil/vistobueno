@@ -4,7 +4,7 @@ Es el "análisis léxico" del motor (fase F2 del plan): recorre <w:body> en
 orden de documento y emite tokens con tipo, texto y nivel:
 
     TITULO(nivel, texto)     párrafo con estilo de encabezado
-                             (pStyle con "eading"/"tulo", ej. Heading1, Ttulo1)
+                             (estilos Heading/Título; ver extractor.es_heading)
     PARRAFO(texto)           párrafo normal (sin estilo de encabezado)
     TABLA                    bloque w:tbl (incluye las celdas como PARRAFOs)
     IMAGEN                   un blip embebido (w:drawing//a:blip)
@@ -21,7 +21,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .extractor import NS, ExtractedDocx, W, text_of
+from .extractor import NS, ExtractedDocx, W, es_heading, text_of
 
 # Tipos de token emitidos por el tokenizer.
 TITULO = "TITULO"
@@ -49,12 +49,6 @@ def _nivel_heading(estilo: str) -> int:
     """Nivel del encabezado a partir del valor del pStyle (Heading1, Ttulo2…)."""
     m = re.search(r"(\d+)\s*$", estilo)
     return int(m.group(1)) if m else 1
-
-
-def _es_heading(val: str) -> bool:
-    """Misma condición que el motor legacy/`_headings` (paridad).
-    Reconoce estilos con "eading" (Heading1) o "tulo" (Ttulo1, Titulo2)."""
-    return bool(val) and ("eading" in val or "tulo" in val)
 
 
 def _blips_para(p) -> int:
@@ -90,7 +84,7 @@ def tokenizar(extracted: ExtractedDocx) -> list[Token]:
         texto = text_of(el).strip()
         estilo = str(val) if val is not None else ""
 
-        if _es_heading(estilo):
+        if es_heading(estilo):
             tokens.append(Token(TITULO, texto, _nivel_heading(estilo)))
         else:
             tokens.append(Token(PARRAFO, texto))
