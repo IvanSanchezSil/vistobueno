@@ -241,6 +241,27 @@ El revisor marcó el PR como "Verificado" y dejó 4 comentarios no bloqueantes; 
 
 ---
 
+### Décima tanda — Prompt único en «Cómo preguntar a una IA» (2026-10-12)
+
+Petición directa: *«en la sección de preguntar a la IA, crea una sección donde se junten todos los prompts en uno solo listo para copiar y pegar, a parte de los que ya están»*.
+
+- **`Report.jsx`**: función `construirPromptUnico(prompts)` (exportada y testeada) que une los prompts visibles en UNO solo:
+  - marco general (*"… con N problemas de formato. Corrige todos los siguientes problemas en Microsoft Word, sin afectar el resto del formato…"*; singular cuando hay 1),
+  - un bloque numerado por problema (`════ Problema i de N · Categoría ════`) con el prompt individual **íntegro** (sin recortes ni reescritura),
+  - entradas sin texto se ignoran y no cuentan en el total; categoría desconocida → `Otros` (igual que las tarjetas).
+- **UI** (arriba de las tarjetas, dentro de la misma card): título, botón **«Copiar todo junto»** (mismos estados `¡Copiado!`/fallo que los prompts individuales, `aria-live` incluido), recuento de prompts visibles y `<details>` *"Ver el prompt completo"* con vista previa desplegable (`max-height` con scroll). Respeta el **filtro de búsqueda** de la sección (si el operador filtra, el prompt único une solo los visibles).
+- **CSS**: `.ia-unico*` con borde verde, fondo `--gris-claro`, título/summary en verde-oscuro; dark con verde AA `#81c784` (el `#2e7d32` da ~2.3:1 sobre `#242424`); móvil con botón a todo el ancho; tablet con tipografía ampliada.
+- **Docs**: RF-24 + funcionalidad 10b (`01_requisitos_interfaz.md`), wireframe ASCII y bullets (`03_wireframes.md`), README (flujo + estado actual).
+- **Tests**: `Report.promptUnico.test.js` — **6 tests** (listas vacías/inválidas, filtrado de entradas sin prompt, marco singular/plural, integridad y orden de cada prompt, `Otros`).
+
+#### Verificación (2026-10-12)
+
+- `npm run lint` → 0 errores · `npm test` → **16/16** (10 badge + 6 prompt único) · `npm run build` → 166.10 kB / CSS 19.63 kB OK.
+- E2E del flujo con Playwright: validación real (49 reglas), clic en «Copiar todo junto» → botón `¡Copiado!` y **portapapeles con 24.323 caracteres** verificados.
+- 4 capturas (claro con copiado confirmado, con el desplegable abierto, oscuro y móvil) en `resultados_vistobueno/S7_pruebas_usabilidad/capturas/` (`19`–`22`).
+
+---
+
 ## Evidencias
 
 - Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38), `21d0ac3` (script E2E versionado, C39), `abac6b6` (lint en CI, C40, rama `ci-frontend-lint`).
