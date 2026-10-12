@@ -547,14 +547,14 @@ rules:
         patron: .*[a-záéíóúñ].*
   - id: caratula_autores_mayusculas_sin_negrita
     tipo: formato_texto
-    descripcion: "Los apellidos y nombres del autor en carátula: altas y bajas, sin negrita"
-    valor_esperado: "altas y bajas (mayúsculas y minúsculas), sin negrita"
+    descripcion: "Los apellidos y nombres del autor en carátula: no todo en mayúsculas (altas y bajas), sin negrita"
+    valor_esperado: "no todo en mayúsculas, sin negrita"
     severidad: error
     fuente: "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx"
     ubicacion: 'Carátula, especificaciones (párr. 179)'
     cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
     mecanismo_verificable:
-      nota: 'Texto en Mayusculas y minusculas (altas y bajas) en w:t; run SIN <w:b/> (o w:b w:val="0"). EVALUADO: el manual pide "letras mayúsculas" (párr. 179) pero se valida "altas y bajas": es lo que usan las tesis reales aprobadas y el placeholder de la plantilla oficial. Los w:t sin letras (puntuacion, espacios) no se penalizan; si el run tiene letras, debe incluir alguna minuscula. Decision 2026-10-12.'
+      nota: 'Texto en Mayusculas y minusculas (altas y bajas) en w:t; run SIN <w:b/> (o w:b w:val="0"). EVALUADO: el manual pide "letras mayúsculas" (párr. 179) pero se valida "no todo en mayúsculas" (altas y bajas): se rechaza el nombre escrito TODO en mayúsculas, que es lo que usan las tesis reales aprobadas y el placeholder de la plantilla oficial. Los w:t sin letras (puntuacion, espacios) no se penalizan; si el run tiene letras, debe incluir alguna minuscula. Decision 2026-10-12.'
       checks:
       - tipo: xml_presencia
         parte: document

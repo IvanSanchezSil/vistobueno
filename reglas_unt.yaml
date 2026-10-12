@@ -575,10 +575,11 @@ reglas:
 - id: caratula_autores_mayusculas_sin_negrita
   tipo: presencia_xml
   # EVALUADO: el manual pide "letras mayúsculas" (párr. 179) pero se valida
-  # "altas y bajas" (mayúsculas y minúsculas): es lo que usan las tesis reales
-  # aprobadas y el placeholder de la plantilla oficial. Decisión 2026-10-12.
-  descripcion: 'Los apellidos y nombres del autor en carátula: altas y bajas, sin negrita'
-  valor_esperado: altas y bajas (mayúsculas y minúsculas), sin negrita
+  # "no todo en mayúsculas" (altas y bajas): se rechaza el nombre escrito TODO
+  # en mayúsculas, que es lo que usan las tesis reales aprobadas y el
+  # placeholder de la plantilla oficial. Decisión 2026-10-12.
+  descripcion: 'Los apellidos y nombres del autor en carátula: no todo en mayúsculas (altas y bajas), sin negrita'
+  valor_esperado: no todo en mayúsculas, sin negrita
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 179)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx

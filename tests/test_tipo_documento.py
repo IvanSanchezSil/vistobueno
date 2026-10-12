@@ -486,9 +486,9 @@ class TestSinCambioDeComportamiento:
         """Los errores imposibles de corregir desaparecieron: la plantilla es
         cuantitativa, así que los esquemas cualitativo y de revisión, sus
         mínimos y la carátula del Proyecto no le aplican. Queda 1 error real
-        (palabras clave). Los autores cumplen: la regla valida "altas y bajas"
-        (mayúsculas y minúsculas), patrón que sí usa el placeholder de la
-        plantilla (EVALUADO 2026-10-12).
+        (palabras clave). Los autores cumplen: la regla exige que el nombre
+        no esté todo en mayúsculas (altas y bajas), patrón que sí usa el
+        placeholder de la plantilla (EVALUADO 2026-10-12).
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
         plantilla no existe y el test se omite.
