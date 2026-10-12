@@ -277,6 +277,14 @@
 │  │  etc.) para corregir cada problema.                                │   │
 │  │                                                                     │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │  │ Prompt único: todos los problemas en una sola instrucción   │   │   │
+│  │  │ Una sola instrucción con los N prompts de esta lista,       │   │   │
+│  │  │ para pegarla de una vez en cualquier IA.        [Copiar     │   │   │
+│  │  │ todo junto]                                                │   │   │
+│  │  │ Ver el prompt completo ▾                                    │   │   │
+│  │  └─────────────────────────────────────────────────────────────┘   │   │
+│  │                                                                     │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
 │  │  │  margen_derecho                    [Copiar]                 │   │   │
 │  │  │                                                             │   │   │
 │  │  │  Tengo un documento de tesis en Word (Universidad Nacional  │   │   │
@@ -476,6 +484,10 @@ Requisitos:
   - Reglas fallidas muestran: Esperado, Encontrado
 - Sección 4 - Prompts IA:
   - Título "🤖 Cómo preguntar a una IA"
+  - **Prompt único** (arriba, borde verde): título "Prompt único: todos los
+    problemas en una sola instrucción", recuento de prompts visibles,
+    botón "Copiar todo junto" y desplegable "Ver el prompt completo"
+    con la vista previa (marco general + bloques numerados por categoría)
   - Tarjetas con prompt de texto
   - Botón "Copiar" que cambia a "¡Copiado!"
 - Footer y botón "Validar otro archivo"

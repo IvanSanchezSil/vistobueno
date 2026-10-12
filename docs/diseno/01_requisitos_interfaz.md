@@ -81,6 +81,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | RF-21 | El sistema debe generar un prompt por cada regla fallida | Alta |
 | RF-22 | El operador debe poder copiar el prompt al portapapeles con un clic | Alta |
 | RF-23 | El sistema debe confirmar visualmente que el prompt fue copiado | Media |
+| RF-24 | El sistema debe ofrecer, además, un **prompt único** que reúna todos los prompts visibles en una sola instrucción numerada (con la categoría de cada problema), copiable en un clic y con vista previa desplegable | Media |
 
 ### 4.5 Navegación
 
@@ -138,6 +139,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | 8 | Reporte | Ver por categoría | Secciones expandibles agrupadas |
 | 9 | Reporte | Ver estado de notificación | Badge según `notificacion.estado`: enviado / fallo (con detalle) / falta correo / no solicitado / deshabilitado (nota de config. para admins, con detalle) |
 | 10 | Reporte | Copiar prompts IA | Botón para copiar cada prompt al portapapeles |
+| 10b | Reporte | Copiar todo junto | Prompt único con todos los prompts visibles (numerados y con categoría) + botón "Copiar todo junto" y vista previa desplegable |
 | 11 | Navegación | Volver a cargar | Botón para regresar a la pantalla de carga |
 
 ---

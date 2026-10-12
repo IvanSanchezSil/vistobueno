@@ -218,6 +218,14 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
 .btn-copiar { background: var(--verde); color: #fff; border: none; min-height: 44px; min-width: 44px; padding: .5rem .9rem; border-radius: 5px; font-size: .75rem; font-weight: 600; cursor: pointer; }
 .btn-copiar:hover { background: var(--verde-osc); }
 
+/* Prompt único: todos los prompts reunidos en uno solo (copiable de una vez) */
+.ia-unico { border: 1px solid var(--verde); border-radius: 8px; padding: .8rem; margin-top: .8rem; background: var(--gris-claro); }
+.ia-unico-head { display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.ia-unico-titulo { font-size: .9rem; font-weight: 700; color: var(--verde-osc); }
+.ia-unico-desc { font-size: .75rem; color: var(--gris-texto); margin: .35rem 0 .5rem; line-height: 1.45; }
+.ia-unico-detalle summary { cursor: pointer; font-size: .75rem; font-weight: 600; color: var(--verde-osc); min-height: 44px; display: flex; align-items: center; }
+.ia-unico-detalle pre { white-space: pre-wrap; font-family: inherit; font-size: .7rem; color: var(--gris-texto); background: var(--blanco); border: 1px solid var(--gris-oscuro); padding: .6rem; border-radius: 5px; line-height: 1.4; max-height: 320px; overflow: auto; margin-top: .3rem; }
+
 /* --- Upload (responsive) --- */
 .intro { margin-bottom: .9rem; line-height: 1.5; }
 .dropzone {
@@ -583,6 +591,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
   .btn-select { width: 100%; justify-content: center; }
   .acciones-form .btn-validar { min-height: 52px; font-size: 1.05rem; }
   .card h2 { font-size: 1.05rem; }
+  /* Prompt único: apilado y con copiado a todo el ancho */
+  .ia-unico { padding: .7rem; }
+  .ia-unico-head .btn-copiar { width: 100%; }
+  .ia-unico-titulo { font-size: .85rem; }
 }
 
 /* --- Tablets --- */
@@ -622,6 +634,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
   .vista-simple__empty, .ia-empty { font-size: .9rem; }
   .ia-titulo { font-size: 1.1rem; }
   .ia-desc { font-size: .85rem; }
+  .ia-unico-titulo { font-size: 1.05rem; }
+  .ia-unico-desc { font-size: .85rem; }
+  .ia-unico-detalle summary { font-size: .85rem; }
+  .ia-unico-detalle pre { font-size: .82rem; padding: .7rem; }
 }
 
 /* --- Desktops --- */
@@ -714,6 +730,18 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
 }
 .dark .ia-card pre{
   background: var(--gris-medio);
+}
+.dark .ia-unico{
+  background: var(--gris-medio);
+}
+.dark .ia-unico-titulo,
+.dark .ia-unico-detalle summary{
+  /* #2e7d32 da ~2.3:1 sobre #242424: en oscuro se aclara el verde */
+  color: #81c784;
+}
+.dark .ia-unico-detalle pre{
+  background: var(--gris-suave);
+  border-color: var(--gris-oscuro);
 }
 .dark .count.ok{
   background: #1a3d1a;
