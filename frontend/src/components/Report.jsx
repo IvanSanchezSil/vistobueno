@@ -54,15 +54,18 @@ function categoriaDe(ruleId) {
   return CATEGORIA_POR_ID[ruleId] || 'Otros'
 }
 
-// Mapeo de `notificacion.estado` (v1.3.0) a badge visible para el personal
-// del repositorio. Tabla de estados del contrato:
+// Mapeo de `notificacion.estado` a badge visible para el personal
+// del repositorio (estados v1.3.0 + `deshabilitado` con detalle v1.4).
+// Tabla de estados del contrato:
 //  - enviado:               informar que el correo salió.
 //  - fallo:                 mostrar el detalle técnico (reintento manual).
 //  - sin_correo:            pedir el correo en el formulario de carga.
 //  - no_solicitado:         ofrecer la casilla de envío (opt-in) en el formulario.
-//  - sin_observaciones/
-//    deshabilitado:         nada que mostrar.
-function badgeNotificacion(notif) {
+//  - deshabilitado:         nota de configuración para administradores (si el
+//                           backend envía `detalle`; ver CONTRATO_API.md).
+//  - sin_observaciones:     nada que mostrar.
+// Exportada para su unit test (vitest): ver Report.badgeNotificacion.test.js.
+export function badgeNotificacion(notif) {
   if (!notif || typeof notif.estado !== 'string') return null
   const detalle = typeof notif.detalle === 'string' && notif.detalle.trim() ? notif.detalle.trim() : null
   switch (notif.estado) {
@@ -84,8 +87,19 @@ function badgeNotificacion(notif) {
         clase: 'info',
         texto: 'No se solicitó el envío por correo. Active “Enviar observaciones por correo al estudiante” al validar.',
       }
+    case 'deshabilitado':
+      // El backend (contrato v1.4) adjunta `detalle` con la nota de
+      // configuración completa (variables de entorno): aquí solo se enmarca
+      // como nota para administradores, sin repetir lo que ya dice el detalle.
+      // Sin `detalle` (backend anterior) no se muestra nada, como hasta ahora.
+      if (!detalle) return null
+      return {
+        clase: 'info',
+        texto: 'Nota para administradores:',
+        detalle,
+      }
     default:
-      // sin_observaciones | deshabilitado → nada relevante
+      // sin_observaciones → nada relevante
       return null
   }
 }
