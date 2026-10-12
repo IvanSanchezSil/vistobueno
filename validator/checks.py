@@ -47,8 +47,12 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
 
     if tipo == "xml_atributo":
         key = _resolve_attr_key(check["atributo"])
-        vals = [n.get(key) for n in nodes]
-        vals = [v for v in vals if v is not None]
+        # pares conserva la posición (1-based) de cada nodo en el resultado
+        # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
+        # incumple. Mismo formato que AnalizadorXML (handover issue #7):
+        # la paridad legacy↔DSL compara el `found` literal.
+        pares = [(i, n.get(key)) for i, n in enumerate(nodes, 1)]
+        vals = [v for _, v in pares if v is not None]
         esperado = check.get("esperado")
         if comp == "eq":
             ok = bool(vals) and vals[0] == esperado
@@ -56,7 +60,12 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
             ok = bool(vals) and all(v == esperado for v in vals)
         else:
             return False, f"comparacion '{comp}' no soportada para xml_atributo"
-        return ok, f"{check['atributo']}={vals[:3]} esperado={esperado}"
+        detalle = f"{check['atributo']}={vals[:3]} esperado={esperado}"
+        if comp == "all_eq" and not ok and vals:
+            desvios = [(i, v) for i, v in pares if v is not None and v != esperado]
+            resumen = ", ".join(f"#{i}={v}" for i, v in desvios[:3])
+            detalle += f"; incumplen=[{resumen}]"
+        return ok, detalle
 
     if tipo == "texto_regex":
         patron = re.compile(check["patron"])

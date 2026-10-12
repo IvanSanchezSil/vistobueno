@@ -123,8 +123,14 @@ class AnalizadorXML(Analizador):
         if atributo is None:
             return False, "falta 'atributo' para comparación de atributo"
         key = _resolve_attr_key(atributo)
-        vals = [self._valor_margen(extracted, n, atributo, key) for n in nodes]
-        vals = [v for v in vals if v is not None]
+        # pares conserva la posición (1-based) de cada nodo en el resultado
+        # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
+        # incumple, en vez de mostrar solo los primeros 3 (que suelen ser los
+        # conformes y esconden al culpable — handover issue #7).
+        pares = [
+            (i, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
+        ]
+        vals = [v for _, v in pares if v is not None]
         self.valor = vals[0] if vals else None
 
         if comp == "eq":
@@ -139,7 +145,12 @@ class AnalizadorXML(Analizador):
                 ok = bool(vals) and all(esperado in v for v in vals)
         else:
             return False, f"comparación '{comp}' no soportada"
-        return ok, f"{atributo}={vals[:3]} esperado={esperado}"
+        detalle = f"{atributo}={vals[:3]} esperado={esperado}"
+        if comp == "all_eq" and not ok and vals:
+            incumplen = [(i, v) for i, v in pares if v is not None and v != esperado]
+            resumen = ", ".join(f"#{i}={v}" for i, v in incumplen[:3])
+            detalle += f"; incumplen=[{resumen}]"
+        return ok, detalle
 
 
 class AnalizadorRegex(Analizador):

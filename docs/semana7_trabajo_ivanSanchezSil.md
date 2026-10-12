@@ -199,6 +199,33 @@
   3/10). Los falsos positivos tipo-específicos desaparecen como N/A.
   `ruff` + `mypy` limpios; `nix flake check` verde.
 
+### 2026-10-09 — Issue #7 del handover: reporting de `all_eq` esconde al culpable
+
+- **Diagnóstico**: al fallar `all_eq`, el detalle reportaba `vals[:3]` — los
+  primeros 3 valores, que suelen ser los CONFORMES. Fue la causa raíz de que
+  el fallo de márgenes de la Semana 7 pareciera un falso positivo (10
+  secciones a 1418 y 3 landscape a 1701; el mensaje mostraba 1418, 1418,
+  1418). El estudiante no veía qué sección estaba mal.
+- **Fix**: `AnalizadorXML` (DSL) y `run_check` (legacy) ahora conservan la
+  posición de cada nodo del xpath y, al fallar `all_eq`, anexan
+  `; incumplen=[#N=valor, ...]` (hasta 3). El caso insignia:
+  `@w:val=['left', 'center', 'center'] esperado=center; incumplen=[#1=left]`
+  — el culpable señalado aunque `vals[:3]` lo esconda entre conformes.
+- **Paridad**: la paridad legacy↔DSL compara el `found` literal, así que el
+  cambio se aplicó a AMBOS motores con el mismo formato. `eq` y `contains`
+  conservan su mensaje; cuando no hay valores que evaluar tampoco se anexa
+  nada (`@w:val=[] esperado=26` queda como estaba).
+- **Referencia regenerada**: `docs/ejemplo_respuesta_motor.json` estaba vencido
+  desde la semana 5 (47 reglas, resumen viejo pre-PR #44). Regenerado con el
+  CLI `--json` contra el MANUAL: 40 evaluadas / 9 no aplicables (el MANUAL no
+  es una tesis: `sin_determinar`), resumen con `total_evaluadas` y
+  `reglas_no_aplicables`, y los `found` de `all_eq` con `incumplen`.
+- **Verificación**: suite completa **397 tests** (los 9 nuevos del PR #46
+  incluidos tras el merge de master); paridad legacy↔DSL en verde (ambos
+  motores producen el mismo mensaje); en Linares, `sangria_parrafo` ahora
+  reporta `incumplen=[#1=708, #2=708, #3=708]` en vez de solo los primeros 3
+  valores. `ruff` + `mypy` limpios.
+
 ---
 
 ## Evidencias producidas
@@ -222,6 +249,9 @@
   `tests/test_propiedad.py` (centinela `tipo_documento_sin_estructura`),
   `tests/test_tipo_documento.py` (expectativas 42/48 y 6 no aplicables),
   `README.md` + `AGENTS.md` + `docs/diseno/00_indice_diseno.md` (conteos).
+- Issue #7: `validator/analizadores.py` + `validator/checks.py` (reportar los
+  valores no conformes al fallar `all_eq`), `docs/ejemplo_respuesta_motor.json`
+  (regenerado con el CLI `--json`).
 - Todo se agrupa en el **PR #45** (rama `semana7-fix-reglas-estructura`).
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo, en la raíz local y en `docs/pruebas/`).
@@ -260,9 +290,8 @@
 
 ## Plan de la semana siguiente
 
-1. Revisar el último issue del handover/INFORME: `vals[:3]` (#7 — el
-   reporting de `all_eq` esconde los valores no conformes). El `aplicar_si`
-   (#5) y los de carátula (#3/#4) ya quedaron.
+1. Los issues del handover quedaron todos resueltos (#1 cuerpo, #2 márgenes
+   landscape, #3/#4 carátula, #5 `aplicar_si`, #7 reporting de `all_eq`).
 2. Convertir la tesis de Carrión (PDF) para poder validarla y medir la
    detección con un segundo documento real.
 3. Incorporar las 5 estructuras pendientes (`reglas_unt_pendientes.yaml`) a
