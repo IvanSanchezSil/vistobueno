@@ -175,6 +175,23 @@
   evaluadas, `track_changes_sin_resolver` pasa porque no hay cambios con
   seguimiento).
 
+### 2026-10-13 — Explicabilidad de los fallos (tercer trabajo del motor)
+
+- **Traza humanizada** en el `found` de las reglas de autómata fallidas: los
+  `nombre` de máquina se traducen a la etiqueta `original`/`patron` del estado y
+  se omite el estado inicial implícito `__inicio__`
+  (`compilador._etiquetas_estados` + `_detalle_con_traza`). Antes:
+  `... ruta=__inicio__ -> jurado_evaluador -> ... -> el_problema`; ahora:
+  `... reconoció=Jurado evaluador → Índice → … → El Problema`.
+- **Faltantes legibles**: `_faltantes_legacy` recorta la indentación de las
+  etiquetas (`'    Situación problemática'` → `'Situación problemática'`).
+- **Tests** `tests/test_explicabilidad.py` (9 tests): etiquetas (con/sin
+  `original`), traza en fallo, ausencia de traza al pasar, fallback del PDA y la
+  regla real `estructura_tinv_cuantitativo` sobre el doc mutado.
+- **Sin tocar el contrato**: la traza sigue embebida en `encontrado` (decisión
+  F5, Opción A); no se agrega campo a la API.
+- **Verificación**: `pytest tests/ -q` → **454 passed**; ruff y mypy limpios.
+
 ---
 
 ## Evidencias producidas
@@ -188,6 +205,8 @@
   (sección `conteo_nodos`), con mutación en `tests/_mutations.py` y soporte
   `w:ins`/`w:del` en `tests/_docx_builder.py`.
 - Benchmark: `scripts/benchmark_tesis.py` y `tests/test_benchmark.py`.
+- Explicabilidad: `validator/compilador.py` (`_etiquetas_estados`,
+  `_detalle_con_traza`) y `tests/test_explicabilidad.py`.
 - Tests: `tests/_docx_builder.py`, `tests/test_paridad_formatos.py`,
   `tests/test_tipo_documento.py`.
 - Documentación: `docs/DSL.md` (campo `tolerancia`) y esta bitácora.
@@ -248,8 +267,9 @@ oficial. Cada uno se implementa en su **commit atómico**:
    `track_changes_sin_resolver` (warning) — `conteo_nodos` con
    `xpath: //w:ins | //w:del` y `cantidad_maxima: 0`; mutación y builder de
    tests sincronizados.
-3. **Explicabilidad de los fallos**: explicar por qué falla cada regla usando la
-   traza `ruta_estados`, sin IA.
+3. **Explicabilidad de los fallos** ✅ (2026-10-13): la traza `ruta_estados`
+   se humaniza en el `found` (etiquetas `original`/`patron`, sin `__inicio__`),
+   sin IA y sin cambiar el contrato.
 4. **Ubicación de NotaPie por página**: enriquecer el `location` del fallo con
    "página N".
 
