@@ -37,7 +37,7 @@ Dar contexto al estudiante de **por qué** falla cada regla, sin usar LLM.
 
 | # | Línea de trabajo | Dónde vive |
 |---|---|---|
-| 6 | **Explicación determinista** con la traza `ruta_estados` (F4): `"reconoció CARÁTULA→INTRODUCCIÓN, falta RESULTADOS"` por regla. | `compilador.py` / `engine.py` |
+| 6 | **Explicación determinista** ✅ (2026-10-13): la traza `ruta_estados` (F5) se humaniza en el `found` de cada regla de autómata fallida — `"reconoció Jurado evaluador → Índice → … → El Problema"` — traduciendo los `nombre` de máquina a `original`/`patron` y omitiendo `__inicio__` (`compilador._etiquetas_estados` + `_detalle_con_traza`). | `compilador.py` |
 | 7 | **Corrección sugerida por template** a partir de `(expected, found)` → `"cambiar margen superior a 2,5 cm en Formato→Párrafo"`. Template puro, sin IA. | `prompts.py` o módulo nuevo |
 
 ---
