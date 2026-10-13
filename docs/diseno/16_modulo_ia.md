@@ -1,8 +1,8 @@
 # 16. Módulo de IA local (asistente del encargado)
 
 - **Fecha**: 2026-10-12
-- **Estado**: base (Paso 0) y **Funcionalidad 2** implementadas en el motor; API/frontend
-  pendientes (ver `docs/HANDOVER_API_IA.md`)
+- **Estado**: base (Paso 0), y **Funcionalidades 2, 3 y 5** (motor)
+  implementadas; API/frontend pendientes (ver `docs/HANDOVER_API_IA.md`)
 - **Commits**: — (Semana 8 — rama `semana8-modulo-ia`)
 - **Alcance**: fundamento (cliente LLM local) + funcionalidades 2, 3, 5 y 1
 
@@ -262,7 +262,7 @@ class StubLLM:
 ## 9. Testing y CI
 
 - **`StubLLM`**: respuestas JSON fijas por feature → tests de contrato y unit
-  sin GPU ni descargas. La suite actual (397 tests) debe seguir en verde.
+  sin GPU ni descargas. La suite actual (490 tests) debe seguir en verde.
 - Marco de pruebas: tests de **prompt building** (sin red), tests de **parsing
   JSON→DTO** (torturas: llaves rotas, arrays vacíos, campos de más), tests de
   **contrato de endpoint** (Con `StubLLM` inyectado vía `app.dependency_overrides`).
@@ -276,8 +276,8 @@ class StubLLM:
 |------|-----------|------------|
 | 0 ✅ | `validator/llm.py` (protocol + Ollama + Stub) + config + `estado_ia()` (endpoint `GET /asistente/estado` pendiente de I1) | — |
 | 1 ✅ (motor) | Funcionalidad 2: `explicar_y_priorizar()`; endpoint + frontend pendientes de I1/I2 | Paso 0 |
-| 2 | Funcionalidad 3: `proponer_clasificacion()` + endpoint + `tipo_confirmado` | Paso 0, coord. I1 |
-| 3 | Funcionalidad 5: `redactar_respuesta()` + endpoint | Paso 0, coord. I1 (SMTP) |
+| 2 ✅ (motor) | Funcionalidad 3: `proponer_clasificacion()`; endpoint + `tipo_confirmado` pendientes de I1 | Paso 0, coord. I1 |
+| 3 ✅ (motor) | Funcionalidad 5: `redactar_respuesta()`; endpoint pendiente de I1 (coord. SMTP) | Paso 0, coord. I1 (SMTP) |
 | 4 | Funcionalidad 1: `revision_semantica()` + fragmentos + endpoint | Pasos 0–3 |
 
 Cada paso termina con: DTO validado, tests stub/contrato verdes, `ruff`+`mypy`

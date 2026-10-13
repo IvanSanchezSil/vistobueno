@@ -1,11 +1,11 @@
-# HANDOVER API ↔ Motor — Módulo de IA (Paso 0 + Funcionalidad 2)
+# HANDOVER API ↔ Motor — Módulo de IA (Paso 0 + Funcionalidades 2, 3 y 5)
 
 > **Para**: Integrante 1 (Backend/API)
 > **De**: Integrante 3 (Motor de reglas / DSL)
 > **Rama**: `semana8-modulo-ia`
 > **Diseño**: `docs/diseno/16_modulo_ia.md`, `docs/discusion_modelo_ia.md`
-> **Estado**: el **motor** está implementado y probado; falta el **wiring** de
-> la API y el frontend.
+> **Estado**: el **motor** (Paso 0, Func 2, Func 3 y Func 5) está implementado y
+> probado; falta el **wiring** de la API y el frontend.
 
 Este documento fija el contrato exacto para que I1 exponga el módulo de IA sin
 tocar el motor. Nada de lo de aquí cambia `POST /validar` ni `incluir_prompts_ia`.
@@ -18,7 +18,9 @@ tocar el motor. Nada de lo de aquí cambia `POST /validar` ni `incluir_prompts_i
 |---------|-----------|
 | `validator/llm.py` | `LLMConfig`, `LLMClient` (Protocol), `OllamaClient`, `StubLLM`, `get_llm_client()`, `estado_ia()`, errores `ErrorIA` / `LLMNoDisponible` / `LLMError` |
 | `validator/asistente.py` | `explicar_y_priorizar()`, `Explicacion` / `Prioridad` / `ExplicacionYPrioridad` (dataclasses advisory), `RespuestaIAInvalida`, `construir_prompt_explicar()`, `parse_explicacion()`, `ESQUEMA_EXPLICACION` |
-| `tests/test_llm.py`, `tests/test_asistente.py` | 41 tests, todos con `StubLLM`/`MockTransport` (sin red, sin GPU) |
+| `validator/asistente.py` (Func 3) | `proponer_clasificacion()`, `EvidenciaClasificacion` / `ClasificacionPropuesta` (dataclasses advisory), `construir_prompt_clasificar()`, `parse_clasificacion()` |
+| `validator/asistente.py` (Func 5) | `redactar_respuesta()`, `RedaccionRespuesta` (dataclass advisory), `construir_prompt_redactar()`, `parse_redaccion()`, `ESQUEMA_REDACCION` |
+| `tests/test_llm.py`, `tests/test_asistente.py`, `tests/test_asistente_clasificacion.py`, `tests/test_asistente_redaccion.py` | tests, todos con `StubLLM`/`MockTransport` (sin red, sin GPU) |
 
 **No hay dependencias nuevas**: `httpx` ya está en `flake.nix`. **No hay
 secretos**: `OLLAMA_URL`/`OLLAMA_MODEL`/`OLLAMA_TIMEOUT` son configuración.
@@ -57,6 +59,80 @@ Errores a mapear:
 | `LLMNoDisponible` | falta `OLLAMA_URL` | `503` |
 | `LLMError` | servicio LLM caído / respuesta HTTP no-200 | `503` |
 | `RespuestaIAInvalida` | JSON no interpretable (tras reintento) | `422` |
+
+### 1.2 Firma del motor — Funcionalidad 3 (clasificación asistida)
+
+```python
+# validator/asistente.py
+@dataclass(frozen=True)
+class EvidenciaClasificacion:
+    estado: str                       # "sin_determinar" | "contradictorio" | "sin_estructura"
+    tipos_candidatos: list[str]       # catálogo de tipos válidos (obligatorio)
+    tipo_detectado: str | None = None
+    detalle: str = ""                 # el `found` de `deteccion_tipo_documento`
+    titulos: list[str] = field(default_factory=list)
+
+@dataclass(frozen=True)
+class ClasificacionPropuesta:
+    tipo_propuesto: str
+    confianza: float                  # 0.0–1.0
+    justificacion: str
+    evidencia: list[str]
+    alternativas: list[str]
+    modelo: str = ""
+
+async def proponer_clasificacion(
+    evidencia: EvidenciaClasificacion,
+    *,
+    client: LLMClient,
+) -> ClasificacionPropuesta: ...
+```
+
+**Cómo armar la `EvidenciaClasificacion`** (I1, desde el reporte determinista):
+
+- `estado`: del `_extraer_metadata_tipo_documento(...)` que ya existe en `api.py`
+  (`sin_determinar` / `contradictorio`), o `"sin_estructura"` si el centinela
+  `tipo_documento_sin_estructura` está presente.
+- `tipo_detectado`: `tipo_documento` efectivo (o `None`).
+- `detalle`: el `found` del `RuleResult` de `deteccion_tipo_documento`.
+- `titulos`: opcional; los títulos detectados (el motor ya los usa en la
+  heurística). Si no se tienen a mano, se puede dejar vacío.
+- `tipos_candidatos`: el catálogo de 8 tipos del `valor_esperado` de la regla
+  `deteccion_tipo_documento` (`tinv_cuantitativo`, `tinv_cualitativo`,
+  `tinv_revision_literatura`, `proyecto_cuantitativo`, `proyecto_cualitativo`,
+  `informe_cuantitativo`, `informe_cualitativo`, `tsp`).
+
+Errores a mapear: igual que la Func 2 (`LLMNoDisponible`/`LLMError` → `503`,
+`RespuestaIAInvalida` → `422`). Además, `ValueError` si `tipos_candidatos` viene
+vacío (error de uso, no de la IA): no debería llegar al endpoint si el catálogo
+se arma bien.
+
+### 1.3 Firma del motor — Funcionalidad 5 (redacción de la respuesta)
+
+```python
+# validator/asistente.py
+@dataclass(frozen=True)
+class RedaccionRespuesta:
+    texto: str
+    asunto: str
+    modelo: str = ""
+
+async def redactar_respuesta(
+    resultados: list[RuleResult],
+    *,
+    client: LLMClient,
+    tipo_documento: str | None = None,
+) -> RedaccionRespuesta: ...
+```
+
+- Recibe el **mismo `resultados`** que la Func 2 (`validate_docx`); el motor
+  ordena los fallos por severidad (errores primero) dentro del prompt.
+- Si no hay fallos, **no llama a la IA** y devuelve `texto=""`, `asunto=""`
+  (nada que comunicar); el endpoint puede devolver eso o un `204`/`200` vacío.
+- Errores: igual que las Func 2/3 (`503`/`422`).
+- El texto es **editable**: el encargado lo revisa/edita antes de enviarlo. El
+  envío sigue siendo el flujo SMTP de `notificacion.py` (I1); este endpoint **no
+  envía** nada.
 
 ---
 
@@ -158,18 +234,44 @@ del modelo y arranque del servicio: ver `docs/diseno/16_modulo_ia.md` §5.
 
 Los tests existentes de `/validar` **no deben cambiar**.
 
+Para la Func 3 (`POST /asistente/clasificar`), en el mismo archivo:
+7. `POST /asistente/clasificar` con un DOCX limítrofe + `StubLLM` → `200` con
+   `tipo_propuesto`/`confianza`/`justificacion`/`evidencia`/`alternativas`.
+8. `POST /asistente/clasificar` sin `OLLAMA_URL` (`LLMNoDisponible`) → `503`.
+9. `StubLLM` devolviendo un tipo fuera del catálogo o basura → `422`.
+10. `POST /asistente/clasificar` sin archivo / archivo no-docx → `400`/`415`.
+
+Para la Func 5 (`POST /asistente/redactar`), en el mismo archivo:
+11. `POST /asistente/redactar` con docx del factory + `StubLLM` → `200` con
+    `texto`/`asunto`.
+12. `POST /asistente/redactar` sin `OLLAMA_URL` (`LLMNoDisponible`) → `503`.
+13. `StubLLM` devolviendo basura (sin `texto`/`asunto`) → `422`.
+14. `POST /asistente/redactar` sin archivo / archivo no-docx → `400`/`415`.
+
 ---
 
 ## 5. Reglas de oro (recordatorio)
 
 - La salida de IA **jamás** toca el semáforo ni produce `RuleResult`.
-- La IA **no lee la tesis**: el prompt de la Funcionalidad 2 usa solo el bloque de fallos.
+- La IA **no lee la tesis**: el prompt de la Func 2 y de la Func 5 usa solo el
+  bloque de fallos; el de la Func 3, solo la evidencia que la heurística extrajo.
+- La Func 3 es **human-in-the-loop**: la IA propone el tipo, el encargado lo
+  confirma; la IA nunca cambia el tipo por sí sola.
+- La Func 5 produce un **borrador editable**: la IA no envía nada (el envío es el
+  flujo SMTP de `notificacion.py`).
 - El módulo es **opt-in**: sin `OLLAMA_URL`, todo sigue funcionando con 503.
 
 ---
 
 ## 6. Pendiente (fuera de este handover)
 
-Funcionalidades 3 (clasificar + `tipo_confirmado`), 5 (redactar) y 1 (semántico) quedan
-para pasos posteriores (`docs/diseno/16_modulo_ia.md` §10). El frontend (I2)
-necesita el estado y los dos endpoints de aquí antes de sus botones.
+- **Motor (I3)**: Funcionalidad 1 (semántico) — paso 4 de
+  `docs/diseno/16_modulo_ia.md` §10. Las **Func 3 y 5 ya están listas en el
+  motor** (`proponer_clasificacion` §1.2, `redactar_respuesta` §1.3); falta su
+  endpoint.
+- **API (I1)**: los endpoints `POST /asistente/clasificar` y
+  `POST /asistente/redactar` (§2.2/§4) y el `POST /validar?tipo_confirmado=`
+  para la re-validación human-in-the-loop (toque acotado en el flujo de
+  compilación: `sobreescribir_tipo`).
+- **Frontend (I2)**: necesita el estado (`GET /asistente/estado`) y los
+  endpoints de las Func 2, 3 y 5 antes de sus botones.

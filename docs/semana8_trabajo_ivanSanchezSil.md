@@ -20,10 +20,11 @@
    negrita.
 3. Mantener la **paridad legacy↔DSL** literal (ambos motores al mismo cambio) y
    la suite completa en verde.
-4. **Módulo de IA (Paso 0 + Funcionalidad 2)**: implementar el cliente LLM local
-   (`validator/llm.py`, con `StubLLM`) y la explicación/priorización advisory de
-   los fallos (`validator/asistente.py`), sin tocar el semáforo y con el
-   contrato de API documentado para I1 (`docs/HANDOVER_API_IA.md`).
+4. **Módulo de IA (Paso 0 + Funcionalidades 2 y 3)**: implementar el cliente LLM
+   local (`validator/llm.py`, con `StubLLM`), la explicación/priorización advisory
+   de los fallos (`validator/asistente.py`) y la clasificación asistida del tipo
+   documental, sin tocar el semáforo y con el contrato de API documentado para I1
+   (`docs/HANDOVER_API_IA.md`).
 
 ---
 
@@ -204,6 +205,53 @@
   el sufijo `; página N` con regex, y se añadió `test_notas_que_pasan_no_llevan_pagina`.
 - **Verificación**: `pytest tests/ -q` → **455 passed**; ruff y mypy limpios.
 
+### 2026-10-13 — Funcionalidad 3 del módulo de IA: clasificación asistida (motor)
+
+- **Contexto**: siguiente paso del orden **2 → 3 → 5 → 1**
+  (`docs/diseno/16_modulo_ia.md` §10). La Func 2 ya estaba en el motor; se
+  implementa el motor de la Func 3 con el mismo patrón (advisory, `StubLLM`,
+  sin red).
+- **`validator/asistente.py`**: `EvidenciaClasificacion` (estado, catálogo de
+  tipos, tipo detectado, detalle de la heurística, títulos) y
+  `ClasificacionPropuesta` (tipo propuesto, confianza, justificación,
+  evidencia, alternativas); `construir_prompt_clasificar()` (solo evidencia
+  determinista, **nunca la tesis**), `parse_clasificacion()` estricto (rechaza
+  tipos fuera del catálogo, acota la confianza a [0,1], filtra evidencia y
+  alternativas) y `proponer_clasificacion()` con un reintento ante JSON no
+  interpretable. El esquema JSON usa el catálogo como `enum`.
+- **Human-in-the-loop**: la IA **propone** el tipo; el encargado confirma o
+  corrige y re-valida (`POST /validar?tipo_confirmado=`, endpoint pendiente de
+  I1). La propuesta nunca cambia el tipo por sí sola.
+- **Tests** `tests/test_asistente_clasificacion.py` (19 tests): prompt/sin
+  fuga de texto, torturas de parseo (tipo inventado, confianza inválida,
+  filtrado de alternativas/evidencia), e2e con `StubLLM`, reintento, error de
+  servicio sin reintentar, vallas Markdown y ausencia de catálogo. La suite pasa
+  de **455 a 474**.
+- **HANDOVER** `docs/HANDOVER_API_IA.md`: añadida la firma del motor (§1.2),
+  cómo armar la evidencia desde el reporte, los tests del endpoint
+  `POST /asistente/clasificar` (§4) y el pendiente actualizado (§6). El diseño
+  (`docs/diseno/16_modulo_ia.md` §10) marca el paso 2 como hecho en el motor.
+
+### 2026-10-13 — Funcionalidad 5 del módulo de IA: redacción de la respuesta (motor)
+
+- **Contexto**: tercer paso del orden **2 → 3 → 5 → 1**. Se implementa el motor
+  de la Func 5 con el mismo patrón advisory (sin red, `StubLLM`).
+- **`validator/asistente.py`**: `RedaccionRespuesta` (texto, asunto);
+  `construir_prompt_redactar()` (solo el bloque de fallos, **nunca la tesis**,
+  ordenado por severidad con `_orden_para_redaccion`: errores antes que avisos),
+  `parse_redaccion()` estricto (texto y asunto no vacíos) y `redactar_respuesta()`
+  con un reintento ante JSON no interpretable. Sin fallos, no llama a la IA
+  (no hay nada que comunicar).
+- **Regla dura**: la IA solo usa los fallos del reporte (prohibido inventar
+  observaciones) y produce un **borrador editable**; el envío sigue siendo el
+  flujo SMTP de `notificacion.py` (I1), no se automatiza aquí.
+- **Tests** `tests/test_asistente_redaccion.py` (16 tests): orden por severidad,
+  ausencia de texto de tesis, torturas de parseo, e2e con `StubLLM`, reintento,
+  error de servicio sin reintentar, vallas Markdown y caso sin fallos. La suite
+  pasa de **474 a 490**.
+- **HANDOVER** `docs/HANDOVER_API_IA.md`: firma del motor (§1.3) y tests del
+  endpoint `POST /asistente/redactar` (§4); diseño e índice actualizados.
+
 ---
 
 ## Evidencias producidas
@@ -224,10 +272,11 @@
 - Tests: `tests/_docx_builder.py`, `tests/test_paridad_formatos.py`,
   `tests/test_tipo_documento.py`.
 - Documentación: `docs/DSL.md` (campo `tolerancia`) y esta bitácora.
-- Módulo de IA (motor): `validator/llm.py`, `validator/asistente.py` y sus
-  tests (`tests/test_llm.py`, `tests/test_asistente.py`); contrato para I1 en
-  `docs/HANDOVER_API_IA.md`; diseño actualizado en `docs/diseno/16_modulo_ia.md`
-  y registrado en `docs/diseno/00_indice_diseno.md`.
+- Módulo de IA (motor): `validator/llm.py`, `validator/asistente.py` (Func 2,
+  Func 3 y Func 5) y sus tests (`tests/test_llm.py`, `tests/test_asistente.py`,
+  `tests/test_asistente_clasificacion.py`, `tests/test_asistente_redaccion.py`);
+  contrato para I1 en `docs/HANDOVER_API_IA.md`; diseño actualizado en
+  `docs/diseno/16_modulo_ia.md` y registrado en `docs/diseno/00_indice_diseno.md`.
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
   quedan fuera del repo).
 
@@ -296,8 +345,9 @@ oficial. Cada uno se implementa en su **commit atómico**:
    aparezca con nuevos documentos reales.
 2. Validar el comportamiento con un segundo documento real cuando esté
    disponible.
-3. **Módulo de IA**: el Paso 0 y la Funcionalidad 2 ya están en el motor
+3. **Módulo de IA**: el Paso 0 y las Funcionalidades 2, 3 y 5 (motor) ya están
    (`validator/llm.py`, `validator/asistente.py`). Coordinar con I1 el *wiring*
-   de `GET /asistente/estado` y `POST /asistente/explicar`
+   de `GET /asistente/estado`, `POST /asistente/explicar`,
+   `POST /asistente/clasificar` y `POST /asistente/redactar`
    (`docs/HANDOVER_API_IA.md`) y con I2 los botones del frontend; luego seguir
-   con las funcionalidades 3, 5 y 1.
+   con la funcionalidad 1 (validación semántica).
