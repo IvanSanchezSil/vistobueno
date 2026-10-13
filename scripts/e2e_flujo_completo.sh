@@ -62,13 +62,13 @@ open('$DOCX','wb').write(build_large_docx(1024))
 print('  ✅ DOCX generado:', __import__('os').path.getsize('$DOCX'), 'bytes')
 "
 
-# 5. Test válido -> 200 + 47 reglas
+# 5. Test válido -> 200 + reglas (>= 47: el PR #46 del backend amplió la suite)
 echo "[5/9] POST /validar con DOCX válido (proxy :5173)..."
 HTTP=$(curl -s -m 15 -o /tmp/ok.json -w "%{http_code}" -X POST http://127.0.0.1:5173/validar -F "archivo=@$DOCX")
 python3 -c "
 import json
 d=json.load(open('/tmp/ok.json'))
-assert d['resumen']['total']==47, 'reglas!=47'
+assert d['resumen']['total']>=47, 'reglas<47'
 assert d['semaforo'] in ('rojo','verde'), 'semaforo invalido'
 print('  ✅ HTTP', '$HTTP', '| total:', d['resumen']['total'], '| semaforo:', d['semaforo'])
 " || { echo "  ❌ Falló validación"; exit 1; }

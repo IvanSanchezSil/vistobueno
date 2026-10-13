@@ -277,6 +277,14 @@
 │  │  etc.) para corregir cada problema.                                │   │
 │  │                                                                     │   │
 │  │  ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │  │ Prompt único: todos los problemas en una sola instrucción   │   │   │
+│  │  │ Una sola instrucción con los N prompts de esta lista,       │   │   │
+│  │  │ para pegarla de una vez en cualquier IA.        [Copiar     │   │   │
+│  │  │ todo junto]                                                │   │   │
+│  │  │ Ver el prompt completo ▾                                    │   │   │
+│  │  └─────────────────────────────────────────────────────────────┘   │   │
+│  │                                                                     │   │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │   │
 │  │  │  margen_derecho                    [Copiar]                 │   │   │
 │  │  │                                                             │   │   │
 │  │  │  Tengo un documento de tesis en Word (Universidad Nacional  │   │   │
@@ -429,18 +437,24 @@ Requisitos:
 - Tarjeta blanca redondeada con:
   - Título "Validar documento de tesis"
   - Texto explicativo sobre formato DOCX/PDF
-  - Dropzone con borde punteado verde:
-    - Icono de documento 📄
-    - Texto "Arrastre el archivo aquí"
-    - Texto "o selecciónelo desde la computadora"
-    - Botón verde "Seleccionar archivo"
-    - Nota: "Formato permitido: .docx · Tamaño máximo: 10 MB"
+  - Dropzone con borde punteado verde (compacta), con estados:
+    - **Vacío**: icono SVG de documento, "Arrastre aquí su documento .docx",
+      "o selecciónelo desde su equipo", botón verde "Examinar archivos",
+      nota "Formato .docx · Tamaño máximo: 10 MB"
+    - **Seleccionado**: borde sólido verde + fondo verde claro, icono de
+      check, "Archivo listo para validar", botón "Cambiar archivo"
+    - **Inválido**: borde sólido rojo + fondo rojo claro, icono de cruz,
+      motivo del rechazo (tipo/tamaño)
+    - **Procesando**: spinner grande, "Validando documento…"
+    - **Error**: borde rojo, "No se pudo validar el documento" (el detalle
+      HTTP va en el aviso rojo debajo del botón)
   - Panel de info del archivo (después de selección):
     - Badge con extensión (DOCX)
     - Nombre del archivo
     - Tamaño en MB
-    - Botón verde "Validar ✦"
-  - Mensaje de error (rojo): "No se pudo procesar el archivo"
+    - Botón ✕ para quitar
+  - **Botón principal "Validar documento"** a todo el ancho, siempre visible
+    (deshabilitado con ayuda contextual si no hay archivo)
 - Footer: "Sistema VistoBueno — Practicante · Biblioteca FECyC · UNT"
 
 Estilo: mobile-first, responsive, minimalista, colores verde (#2e7d32) y gris.
@@ -470,6 +484,10 @@ Requisitos:
   - Reglas fallidas muestran: Esperado, Encontrado
 - Sección 4 - Prompts IA:
   - Título "🤖 Cómo preguntar a una IA"
+  - **Prompt único** (arriba, borde verde): título "Prompt único: todos los
+    problemas en una sola instrucción", recuento de prompts visibles,
+    botón "Copiar todo junto" y desplegable "Ver el prompt completo"
+    con la vista previa (marco general + bloques numerados por categoría)
   - Tarjetas con prompt de texto
   - Botón "Copiar" que cambia a "¡Copiado!"
 - Footer y botón "Validar otro archivo"

@@ -54,6 +54,29 @@ function categoriaDe(ruleId) {
   return CATEGORIA_POR_ID[ruleId] || 'Otros'
 }
 
+// Une TODOS los prompts de la sección en UNO solo, listo para copiar y pegar
+// en una sola interacción con la IA. Cada prompt individual se conserva íntegro
+// (son autónomos y ya vienen probados): aquí solo se añade el marco general y
+// un separador numerado con la categoría de cada problema.
+// Exportada para su unit test (vitest): ver Report.promptUnico.test.js.
+export function construirPromptUnico(prompts) {
+  const lista = (Array.isArray(prompts) ? prompts : []).filter(
+    (p) => p && typeof p.prompt === 'string' && p.prompt.trim()
+  )
+  if (lista.length === 0) return ''
+  const n = lista.length
+  const encabezado =
+    `Tengo un documento de tesis en Word (Universidad Nacional de Trujillo) con ` +
+    `${n === 1 ? 'un problema de formato' : `${n} problemas de formato`}. ` +
+    `Corrige ${n === 1 ? 'este problema' : 'todos los siguientes problemas'} en Microsoft Word, ` +
+    `sin afectar el resto del formato del documento, y dame instrucciones paso a paso ` +
+    `para cada uno, en el orden indicado:`
+  const bloques = lista.map(
+    (p, i) => `════ Problema ${i + 1} de ${n} · ${categoriaDe(p.rule_id)} ════\n${p.prompt.trim()}`
+  )
+  return [encabezado, ...bloques].join('\n\n')
+}
+
 // Mapeo de `notificacion.estado` a badge visible para el personal
 // del repositorio (estados v1.3.0 + `deshabilitado` con detalle v1.4).
 // Tabla de estados del contrato:
@@ -181,6 +204,10 @@ function Report({ data, onBack }) {
       ),
     [prompts, q]
   )
+
+  // Prompt único: los prompts visibles reunidos en uno solo (memorizado para
+  // que cada pulsación de tecla en la búsqueda no lo reconstruya).
+  const promptUnico = useMemo(() => construirPromptUnico(promptsVisibles), [promptsVisibles])
 
   // Cuenta lo que REALMENTE se pinta en la vista actual: la vista simple solo
   // lista pendientes, así que anunciar el total de coincidencias sería mentira.
@@ -467,6 +494,34 @@ function Report({ data, onBack }) {
         <p className="ia-desc">
           Copie y pegue estos prompts en cualquier IA (ChatGPT, Claude, etc.) para corregir cada problema.
         </p>
+        {promptsVisibles.length > 0 && (
+          <section className="ia-unico" aria-labelledby="ia-unico-titulo">
+            <div className="ia-unico-head">
+              <h3 className="ia-unico-titulo" id="ia-unico-titulo">
+                Prompt único: todos los problemas en una sola instrucción
+              </h3>
+              <button
+                className={`btn-copiar ${copiado === 'error:__unico__' ? 'fail' : ''}`}
+                onClick={() => copiar('__unico__', promptUnico)}
+              >
+                {copiado === '__unico__'
+                  ? '¡Copiado!'
+                  : copiado === 'error:__unico__'
+                    ? 'No se pudo copiar'
+                    : 'Copiar todo junto'}
+              </button>
+            </div>
+            <p className="ia-unico-desc">
+              Una sola instrucción con los {promptsVisibles.length} prompts{' '}
+              {textoBusqueda ? 'visibles con la búsqueda actual' : 'de esta lista'}, para pegarla
+              de una vez en cualquier IA.
+            </p>
+            <details className="ia-unico-detalle">
+              <summary>Ver el prompt completo</summary>
+              <pre>{promptUnico}</pre>
+            </details>
+          </section>
+        )}
         <div className="ia-cards">
           {promptsVisibles.length === 0 ? (
             <p className="ia-empty">
