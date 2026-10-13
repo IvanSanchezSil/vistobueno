@@ -7,6 +7,9 @@
   (`proponer_clasificacion`): cuando la heurística no pudo fijar el tipo
   (`sin_determinar`/`contradictorio`/sin estructura), el LLM propone uno y el
   encargado confirma o corrige (human-in-the-loop).
+- **Funcionalidad 5** — Redacción de la respuesta al estudiante
+  (`redactar_respuesta`): genera el borrador editable de la observación a
+  partir del reporte.
 
 Todo es **advisory**: nunca produce un `RuleResult` ni toca el semáforo
 (principio P1 del diseño). La IA **no lee la tesis**: solo recibe el bloque de
@@ -21,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .llm import LLMClient
-from .models import RuleResult
+from .models import RuleResult, Severity
 
 # Número máximo de intentos ante una respuesta no interpretable (1 reintento).
 MAX_INTENTOS = 2
@@ -454,6 +457,126 @@ async def proponer_clasificacion(
         try:
             data = _extraer_json(crudo)
             return parse_clasificacion(data, evidencia.tipos_candidatos, modelo=client.modelo)
+        except RespuestaIAInvalida as e:
+            ultimo_error = e
+
+    raise RespuestaIAInvalida(f"la IA no devolvió un formato interpretable: {ultimo_error}")
+
+
+# ---------------------------------------------------------------------------
+# Funcionalidad 5 — Redacción de la respuesta al estudiante (diseño 16, §6.3)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RedaccionRespuesta:
+    """Borrador advisory de la observación que el encargado enviará (Func 5).
+
+    El texto es **editable**: el encargado lo revisa antes de enviar. La IA solo
+    lo redacta; no envía nada (el envío sigue siendo el flujo SMTP de
+    `notificacion.py`, área de I1).
+    """
+
+    texto: str
+    asunto: str
+    modelo: str = ""
+
+
+ESQUEMA_REDACCION: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "texto": {"type": "string"},
+        "asunto": {"type": "string"},
+    },
+    "required": ["texto", "asunto"],
+}
+
+_SYSTEM_PROMPT_REDACTAR = """\
+Eres un asistente técnico del personal del repositorio de tesis de la FECyC \
+(Universidad Nacional de Trujillo). Debes redactar, en nombre del encargado, \
+la observación formal que se enviará al estudiante sobre los incumplimientos de \
+formato de su tesis.
+
+Reglas estrictas:
+- Usa EXCLUSIVAMENTE los fallos de la lista; no inventes observaciones, \
+secciones ni reglas que no aparezcan.
+- No decides la aprobación: el semáforo es determinista y ajeno a ti; solo \
+comunicas lo que el motor ya detectó.
+- Ordena las correcciones por prioridad: primero los errores (bloquean la \
+entrega), después las advertencias.
+- Tono institucional, respetuoso y claro, en español.
+- El encargado revisará y editará tu texto antes de enviarlo.
+- Responde SOLO con un objeto JSON válido, sin texto adicional.
+- Formato exacto: {"texto": "...", "asunto": "..."}
+- "asunto": línea de asunto breve del correo.
+- "texto": cuerpo del correo (saludo, resumen de lo accionable, lista de \
+correcciones por prioridad y cierre institucional).\
+"""
+
+
+def _orden_para_redaccion(fallidos: list[RuleResult]) -> list[RuleResult]:
+    """Errores primero, después advertencias; dentro de cada grupo, el orden
+    original del reporte. Es el orden en que el estudiante debe corregir."""
+    return sorted(fallidos, key=lambda r: 0 if r.severity is Severity.ERROR else 1)
+
+
+def construir_prompt_redactar(
+    fallidos: list[RuleResult],
+    tipo_documento: str | None = None,
+) -> tuple[str, str, dict[str, Any]]:
+    """Arma (system, user, json_schema) para la Funcionalidad 5.
+
+    El `user` es solo el bloque de fallos ordenado por severidad (nunca el
+    texto de la tesis).
+    """
+    ordenados = _orden_para_redaccion(fallidos)
+    contenido = {
+        "tipo_documento": tipo_documento,
+        "fallos": [_fallo_a_dict(fallo) for fallo in ordenados],
+    }
+    user = json.dumps(contenido, ensure_ascii=False, indent=2)
+    return _SYSTEM_PROMPT_REDACTAR, user, ESQUEMA_REDACCION
+
+
+def parse_redaccion(data: dict[str, Any], modelo: str = "") -> RedaccionRespuesta:
+    """Valida la respuesta del modelo al borrador advisory.
+
+    Lanza `RespuestaIAInvalida` si falta el `texto` o el `asunto`, o si no son
+    cadenas no vacías.
+    """
+    texto = data.get("texto")
+    asunto = data.get("asunto")
+    if not isinstance(texto, str) or not texto.strip():
+        raise RespuestaIAInvalida("la redacción no trae un 'texto' válido")
+    if not isinstance(asunto, str) or not asunto.strip():
+        raise RespuestaIAInvalida("la redacción no trae un 'asunto' válido")
+    return RedaccionRespuesta(texto=texto.strip(), asunto=asunto.strip(), modelo=modelo)
+
+
+async def redactar_respuesta(
+    resultados: list[RuleResult],
+    *,
+    client: LLMClient,
+    tipo_documento: str | None = None,
+) -> RedaccionRespuesta:
+    """Redacta la observación al estudiante a partir de los fallos del reporte.
+
+    - Si no hay fallos, no llama a la IA (no hay nada que comunicar).
+    - Ante una respuesta no interpretable, reintenta una vez (MAX_INTENTOS).
+    - `LLMError` (servicio caído) se propaga sin consumir el reintento.
+    """
+    fallidos = [r for r in resultados if not r.passed]
+    if not fallidos:
+        return RedaccionRespuesta(texto="", asunto="", modelo=client.modelo)
+
+    system, user, esquema = construir_prompt_redactar(fallidos, tipo_documento)
+
+    ultimo_error: RespuestaIAInvalida | None = None
+    for _ in range(MAX_INTENTOS):
+        crudo = await client.chat(system, user, json_schema=esquema)
+        try:
+            data = _extraer_json(crudo)
+            return parse_redaccion(data, modelo=client.modelo)
         except RespuestaIAInvalida as e:
             ultimo_error = e
 
