@@ -164,7 +164,12 @@ function Report({ data, onBack }) {
   // Al montar el reporte: mover scroll Y foco al semáforo.
   // El foco real (no solo scroll) es lo que un lector de pantalla percibe.
   useEffect(() => {
-    semaforoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // prefers-reduced-motion también aplica al scroll en JS (el CSS reducido
+    // no cubre la API scrollIntoView).
+    const comportamiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth'
+    semaforoRef.current?.scrollIntoView({ behavior: comportamiento, block: 'start' })
     semaforoRef.current?.focus({ preventScroll: true })
     const e = resumen.fallidos_error || 0
     const w = resumen.fallidos_warning || 0
@@ -512,9 +517,14 @@ function Report({ data, onBack }) {
               </button>
             </div>
             <p className="ia-unico-desc">
-              Una sola instrucción con los {promptsVisibles.length} prompts{' '}
-              {textoBusqueda ? 'visibles con la búsqueda actual' : 'de esta lista'}, para pegarla
-              de una vez en cualquier IA.
+              Una sola instrucción con {promptsVisibles.length}{' '}
+              {promptsVisibles.length === 1 ? 'prompt' : 'prompts'}{' '}
+              {textoBusqueda
+                ? promptsVisibles.length === 1
+                  ? 'visible con la búsqueda actual'
+                  : 'visibles con la búsqueda actual'
+                : 'de esta lista'}
+              , para pegarla de una vez en cualquier IA.
             </p>
             <details className="ia-unico-detalle">
               <summary>Ver el prompt completo</summary>
