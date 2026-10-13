@@ -192,6 +192,18 @@
   F5, Opción A); no se agrega campo a la API.
 - **Verificación**: `pytest tests/ -q` → **454 passed**; ruff y mypy limpios.
 
+### 2026-10-13 — Ubicación de NotaPie por página (cuarto trabajo del motor)
+
+- **Enriquecimiento real**: `AnalizadorNotaPie` ahora consulta los nodos
+  `w:footnoteReference` (no solo sus `@w:id`) y fija `ultimo_nodo` en la
+  primera referencia, de modo que `compilador.ejecutar()` anexa `; página N` a
+  la `location` del fallo. Ej.: `Notas al pie (pies de página del cuerpo);
+  página 4`. Sin fallo no se enriquece.
+- **Corrección de un test vacuo**: `test_fallo_de_notas_enriquece_ubicacion_con_pagina`
+  pasaba por la palabra "página" del texto fijo de la ubicación; ahora verifica
+  el sufijo `; página N` con regex, y se añadió `test_notas_que_pasan_no_llevan_pagina`.
+- **Verificación**: `pytest tests/ -q` → **455 passed**; ruff y mypy limpios.
+
 ---
 
 ## Evidencias producidas
@@ -207,6 +219,8 @@
 - Benchmark: `scripts/benchmark_tesis.py` y `tests/test_benchmark.py`.
 - Explicabilidad: `validator/compilador.py` (`_etiquetas_estados`,
   `_detalle_con_traza`) y `tests/test_explicabilidad.py`.
+- Ubicación de NotaPie por página: `validator/analizadores.py`
+  (`AnalizadorNotaPie.ultimo_nodo`) y `tests/test_f2_notaspie.py`.
 - Tests: `tests/_docx_builder.py`, `tests/test_paridad_formatos.py`,
   `tests/test_tipo_documento.py`.
 - Documentación: `docs/DSL.md` (campo `tolerancia`) y esta bitácora.
@@ -270,8 +284,9 @@ oficial. Cada uno se implementa en su **commit atómico**:
 3. **Explicabilidad de los fallos** ✅ (2026-10-13): la traza `ruta_estados`
    se humaniza en el `found` (etiquetas `original`/`patron`, sin `__inicio__`),
    sin IA y sin cambiar el contrato.
-4. **Ubicación de NotaPie por página**: enriquecer el `location` del fallo con
-   "página N".
+4. **Ubicación de NotaPie por página** ✅ (2026-10-13): `AnalizadorNotaPie`
+   fija `ultimo_nodo` en la primera `w:footnoteReference` y el motor anexa
+   "; página N" a la `location` del fallo; test vacuo corregido.
 
 ---
 
