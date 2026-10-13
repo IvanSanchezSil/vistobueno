@@ -89,7 +89,11 @@ ESTADOS = [
 
 class TestEtiquetasEstados:
     def test_prefiere_original_y_la_recorta(self):
-        cfg = {"estados": [{"nombre": "el_problema", "patron": "EL PROBLEMA", "original": "  El Problema"}]}
+        cfg = {
+            "estados": [
+                {"nombre": "el_problema", "patron": "EL PROBLEMA", "original": "  El Problema"}
+            ]
+        }
         assert _etiquetas_estados(cfg) == {"el_problema": "El Problema"}
 
     def test_cae_a_patron_sin_original(self):

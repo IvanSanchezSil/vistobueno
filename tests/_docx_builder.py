@@ -177,7 +177,7 @@ def _track_change_para(cfg: dict) -> str:
     )
     ins = (
         '<w:ins w:id="1" w:author="Autor" w:date="2026-01-01T00:00:00Z">'
-        f'{_run("Texto insertado con seguimiento.", rpr)}</w:ins>'
+        f"{_run('Texto insertado con seguimiento.', rpr)}</w:ins>"
     )
     dele = (
         '<w:del w:id="2" w:author="Autor" w:date="2026-01-01T00:00:00Z">'
