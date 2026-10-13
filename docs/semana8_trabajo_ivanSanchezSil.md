@@ -142,6 +142,23 @@
 
 ---
 
+### 2026-10-13 — Benchmark con tesis reales (primer trabajo del motor)
+
+- **Script** `scripts/benchmark_tesis.py`: corre el motor de producción sobre
+  una carpeta de `.docx` y reporta (a) semáforo y fallos por documento, y
+  (b) agregado por regla ("reglas que pasan en la práctica"); opción `--json`
+  para volcar la medición.
+- **Corpus**: `recursos/tesis/` (gitignored) con la tesis real de Linares.
+- **Resultado sobre la tesis real** (42 evaluadas): semáforo **rojo** —
+  1 `error` (`estructura_tinv_cuantitativo`) y 5 `warning`
+  (`anexos_minimos_cuantitativo`, `caratula_optar_grado_tamano`,
+  `caratula_titulo_trabajo_tamano`, `indice_apunta_secciones`,
+  `sangria_parrafo`). Los fallos quedan listados para revisión manual, para
+  distinguir defectos reales de posibles falsos positivos.
+- **Tests** `tests/test_benchmark.py` (2 tests, con el doc bueno del factory).
+
+---
+
 ## Evidencias producidas
 
 - Motor: `validator/checks.py` y `validator/analizadores.py` (campo
@@ -194,6 +211,23 @@
 - **CI sin GPU ni red**: `StubLLM` y `httpx.MockTransport` permiten probar todo
   el módulo (incluidos errores de servicio y JSON inválido) sin descargar un
   modelo; el CI sigue verde.
+
+---
+
+## Próximos trabajos del motor
+
+Acordados con el usuario tras contrastar los ítems pendientes con el manual
+oficial. Cada uno se implementa en su **commit atómico**:
+
+1. **Benchmark con tesis reales** ✅ (2026-10-13): `scripts/benchmark_tesis.py`
+   + `tests/test_benchmark.py`; corpus en `recursos/tesis/` (gitignored) con la
+   tesis de Linares; medición con `--json`.
+2. **Detección de track changes**: avisar cuando el documento trae cambios sin
+   aceptar (`w:ins`/`w:del`).
+3. **Explicabilidad de los fallos**: explicar por qué falla cada regla usando la
+   traza `ruta_estados`, sin IA.
+4. **Ubicación de NotaPie por página**: enriquecer el `location` del fallo con
+   "página N".
 
 ---
 
