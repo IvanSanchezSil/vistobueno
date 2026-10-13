@@ -263,6 +263,30 @@ Petición directa: *«en la sección de preguntar a la IA, crea una sección don
 
 ---
 
+### Undécima tanda — Revisión de código propia: edge-cases de robustez (2026-10-13)
+
+Diagnóstico pedido sobre el área (Upload/Report/App/CSS/E2E): sin errores graves; se implementaron los edge-cases acordados (lote «bugs + quick wins»):
+
+- **`Upload.jsx`**:
+  - drop/cambio de archivo **ignorado durante «procesando»** (`cargandoRef`): la selección ya no cambia bajo un resultado que corresponde al archivo anterior;
+  - **guard síncrono anti doble clic** en `validate` (el estado `loading` llegaba tarde para dos clics en el mismo tick);
+  - **timeout de 30 s** con `AbortController` → banner *El servidor tardó demasiado* (tipo servidor; **no** cae al mock: el servidor puede estar vivo pero colgado);
+  - input file oculto con `tabIndex={-1}` + `aria-hidden="true"` (desaparece la parada de tabulación invisible que dejaba la técnica `clip`);
+  - `role="alert"` del texto principal de la dropzone **solo** para error de archivo (el error de servidor ya tiene su banner `role=alert`: se anunciaba dos veces).
+- **`Report.jsx`**:
+  - concordancia singular/plural en el contador del prompt único («con 1 prompt visible…»);
+  - `scrollIntoView` respeta `prefers-reduced-motion` vía `matchMedia` (el CSS reducido no cubre la API JS).
+- **`scripts/e2e_flujo_completo.sh`**: mensaje de aserción honesto del paso 9 (`esperaba 500, vino …`, antes imprimía el valor recibido como si fuera el esperado) y texto del paso 1/9 sin el «0 skipped» falso.
+
+#### Verificación (2026-10-13)
+
+- `npm run lint` → 0 errores · `npm test` → **16/16** · `npm run build` → 166.69 kB / CSS 19.63 kB.
+- E2E completo → **11/11** (pytest 399 passed, 49 reglas, 415/422, deshabilitado/no_solicitado, 500→mock).
+
+Commits: `8296055` (Upload), `9b406dd` (Report), `817507b` (script E2E) → rama `s7-fixes-review`.
+
+---
+
 ## Evidencias
 
 - Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38), `21d0ac3` (script E2E versionado, C39), `abac6b6` (lint en CI, C40, rama `ci-frontend-lint`).
