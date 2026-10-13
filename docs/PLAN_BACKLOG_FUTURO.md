@@ -26,7 +26,7 @@ Nuevas reglas para zonas del DOCX que hoy el motor no toca.
 | 1 | **Paginación real + ubicación por página** ✅: `location` se enriquece con "página N" desde la **heurística actual** (`w:lastRenderedPageBreak`/`w:br page`; decisión del 2026-09-21: sin LibreOffice). Hecho: mapa párrafo→página, `pagina_de()`, `AnalizadorPaginacion`, `indice_paginas_separadas`, enriquecimiento en `compilador.ejecutar()` (`base Analizador.ultimo_nodo`). Nota: `caratula_no_se_enumera` (carátula sin enumerar) ya estaba mecanizada vía `w:titlePg`. | extractor + compilador |
 | 2 | **Encabezados y pies de página** ✅: el extractor lee TODAS las partes `header*.xml`/`footer*.xml`; reglas `encabezado_membrete` (logo = `w:drawing`) y `encabezado_formato` (TNR), ambas `warning` (estándar institucional, el manual no las define). | extractor + reglas nuevas |
 | 3 | **Notas al pie** ✅: regla `notas_al_pie_consistencia` (warning) — ids `1..N` consecutivos, sin duplicados y definidos en `footnotes.xml`; sin notas → pasa (n/a). Sección DSL `nota_pie` + `AnalizadorNotaPie`. | extractor + analizador nuevo |
-| 4 | **Track changes**: detectar `w:ins`/`w:del` pendientes de aceptar/rechazar → advertencia de "documento con cambios sin resolver". | extractor + regla nueva |
+| 4 | **Track changes** ✅ (2026-10-13): detectar `w:ins`/`w:del` pendientes de aceptar/rechazar → advertencia de "documento con cambios sin resolver". Regla `track_changes_sin_resolver` (warning, sección DSL `conteo_nodos` con `xpath: //w:ins \| //w:del`, `cantidad_maxima: 0`). | extractor + regla nueva |
 | 5 | **Metadatos del DOCX** (`core.xml`): autor, título, fechas; regla de consistencia con carátula. | extractor + regla nueva |
 
 ---
@@ -69,16 +69,16 @@ Mejoras que no tocan reglas pero sí el ecosistema del motor.
 
 | # | Línea de trabajo | Dónde vive |
 |---|---|---|
-| 13 | **Benchmark real**: repositorio de tesis anonimizadas (más allá de las 5 plantillas) + métricas (reglas que pasan en la práctica, precisión). | carpeta nueva + tests |
+| 13 | **Benchmark real** ✅ parcial (2026-10-13): `scripts/benchmark_tesis.py` + `tests/test_benchmark.py` + corpus `recursos/tesis/`; métricas por documento y por regla ("reglas que pasan en la práctica"). Falta ampliar el corpus (más tesis anonimizadas) para precisión. | carpeta nueva + tests |
 | 14 | **Rendimiento**: perfilado con tesis de 150+ páginas, cache a nivel de regla (no solo XPath). | `engine.py` / benchmark |
 | 15 | **Calidad de ingeniería**: mypy, lint, coverage, pre-commit, CI (hoy no hay). | config nueva + GitHub Actions |
 | 16 | **Exportación de reporte** a Markdown/PDF además de JSON. | `engine.py` / módulo nuevo |
 
-> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 48 reglas**
-> (Semana 5, ítems 1-3 y 11-12 de la F2). Coordinar para:
+> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 49 reglas**
+> (Semana 5, ítems 1-3 y 11-12 de la F2; Semana 8, ítem 4 track changes). Coordinar para:
 > 1. Exponer `formato` en `POST /validar` (exportación, ítem 16, `CONTRATO_API.md` v1.2.0).
 > 2. Changelog de `docs/CONTRATO_API.md`: la entrada v1.1.0 (Semana 4, nota F5)
->    quedó actualizada con las 48 reglas; conviene reetiquetarla como **v1.2.0**
+>    quedó actualizada con las 49 reglas; conviene reetiquetarla como **v1.2.0**
 >    (Sería entrada nueva de Semana 5). No se editó aquí por ser archivo del área backend.
 
 ---

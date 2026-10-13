@@ -384,7 +384,7 @@ class TestDosFases:
         assert resumen["total_evaluadas"] == 2
         assert resumen["reglas_no_aplicables"] == 1
 
-    def test_el_documento_bueno_cuenta_42_de_48(self):
+    def test_el_documento_bueno_cuenta_43_de_49(self):
         """Guarda sobre el YAML real: el documento bueno es un plan
         cuantitativo, así que no se evalúan las 6 reglas de otros tipos (los
         2 esquemas alternativos, los mínimos de referencias/anexos de
@@ -397,9 +397,9 @@ class TestDosFases:
         finally:
             Path(path).unlink(missing_ok=True)
         rep = build_report(res)
-        assert rep["resumen"]["total_evaluadas"] == 42
+        assert rep["resumen"]["total_evaluadas"] == 43
         assert rep["resumen"]["reglas_no_aplicables"] == 6
-        assert len(rep["resultados"]) == 42
+        assert len(rep["resultados"]) == 43
         assert rep["semaforo"] == "verde"
 
     def test_orden_del_yaml_se_conserva(self):
@@ -441,7 +441,7 @@ class TestSinCambioDeComportamiento:
     """Con el YAML real, la regla nueva informa y las 3 estructuras se
     condicionan a ella sin romper nada más.
 
-    Lo que este bloque fijaba en el paso 3 (48 reglas, todas aplicables) lo
+    Lo que este bloque fijaba en el paso 3 (49 reglas, todas aplicables) lo
     invalida el paso 4 a propósito: ahora 2 reglas son no aplicables en un
     documento cuantitativo. Lo que se conserva es la garantía de que el
     semáforo solo lo mueven las reglas que de verdad aplican.
@@ -475,7 +475,7 @@ class TestSinCambioDeComportamiento:
             res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
         finally:
             Path(path).unlink(missing_ok=True)
-        assert len(res) == 48
+        assert len(res) == 49
         assert {r.rule_id for r in res if not r.aplicable} == TIPO_ESPECIFICAS - {
             "estructura_tinv_cuantitativo",
             "referencias_minimo_cuantitativo",
@@ -497,7 +497,7 @@ class TestSinCambioDeComportamiento:
         if not base.exists():
             pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
-        assert len(res) == 48
+        assert len(res) == 49
         fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
         assert not fallidos & TIPO_ESPECIFICAS
         assert len(fallidos) == 1
@@ -1330,7 +1330,7 @@ class TestReglaDeteccionEnElYaml:
         assert reglas["reglas"][0]["id"] == "deteccion_tipo_documento"
 
     def test_total_de_reglas(self):
-        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 48
+        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 49
 
     def test_severidad_warning(self):
         assert _regla_deteccion()["severidad"] == "warning"
