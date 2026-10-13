@@ -2,7 +2,7 @@
 
 > **Estado**: backlog de trabajo — parcialmente ejecutado.
 > **Fecha de creación**: 2026-09-15.
-> **Alcance**: motor de validación DSL, extractor y API. El módulo de IA queda fuera hasta que el integrante lo indique.
+> **Alcance**: motor de validación DSL, extractor y API. El módulo de IA **local y advisory** ya existe (Semana 8: `validator/llm.py` + `validator/asistente.py`, opt-in vía `OLLAMA_URL`); nunca toca el semáforo ni produce `RuleResult`.
 >
 > **Ejecutado 2026-09-15/16 (Fase 1 parcial)**:
 > - **15 — Calidad de ingeniería** ✅: *ruff + mypy + coverage + pre-commit* agregados a `flake.nix`; config en `pyproject.toml`; `.pre-commit-config.yaml`; CI `.github/workflows/ci.yml` (Nix); `nix flake check` verde. Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
@@ -74,11 +74,11 @@ Mejoras que no tocan reglas pero sí el ecosistema del motor.
 | 15 | **Calidad de ingeniería**: mypy, lint, coverage, pre-commit, CI (hoy no hay). | config nueva + GitHub Actions |
 | 16 | **Exportación de reporte** a Markdown/PDF además de JSON. | `engine.py` / módulo nuevo |
 
-> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 47 reglas**
+> **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 48 reglas**
 > (Semana 5, ítems 1-3 y 11-12 de la F2). Coordinar para:
 > 1. Exponer `formato` en `POST /validar` (exportación, ítem 16, `CONTRATO_API.md` v1.2.0).
 > 2. Changelog de `docs/CONTRATO_API.md`: la entrada v1.1.0 (Semana 4, nota F5)
->    quedó actualizada con las 47 reglas; conviene reetiquetarla como **v1.2.0**
+>    quedó actualizada con las 48 reglas; conviene reetiquetarla como **v1.2.0**
 >    (Sería entrada nueva de Semana 5). No se editó aquí por ser archivo del área backend.
 
 ---
