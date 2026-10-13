@@ -54,7 +54,7 @@ Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semá
 | **Tests IA** | `tests/test_llm.py`, `tests/test_asistente.py` | Cliente LLM y asistente, con `StubLLM` (sin red ni GPU) |
 | **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP y DSpace en commits (pre-commit + CI) |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
-| **Reglas DSL (producción)** | `reglas_unt.yaml` | 48 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
+| **Reglas DSL (producción)** | `reglas_unt.yaml` | 49 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
 | **Reglas DSL pendientes** | `reglas_unt_pendientes.yaml` | 5 estructuras implementadas y sin probar; no lo carga la API |
 
 ---
@@ -304,13 +304,15 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - **Reglas legacy** en `unt_format_rules_schema.yaml`: 44 definidas; **32 con
   mecanismo verificable** (ejecutables sobre XML del DOCX); **12 sin mecanismo**
   (requieren análisis semántico, fuera del MVP). Fuente de referencia histórica.
-- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **48 reglas verificables**,
+- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **49 reglas verificables**,
   que incluyen las 32 migradas, las 9 mecanizadas a mano (F3), los ítems de la
   Semana 5 (`indice_paginas_separadas`, `encabezado_membrete`,
   `encabezado_formato`, `notas_al_pie_consistencia`, `indice_apunta_secciones`,
-  `indice_numeracion_jerarquica`) y la regla discriminadora
+  `indice_numeracion_jerarquica`), la regla discriminadora
   `deteccion_tipo_documento` (Semana 6, Paso 3: identifica a qué tipo de
-  documento pertenece la tesis y publica `tipo_documento` en el contexto).
+  documento pertenece la tesis y publica `tipo_documento` en el contexto) y
+  `track_changes_sin_resolver` (Semana 8: advierte si quedan cambios con
+  seguimiento `w:ins`/`w:del` sin aceptar/rechazar).
 - **Estructuras pendientes** en `reglas_unt_pendientes.yaml`: las 5 que el
   manual define y el motor no cubría (proyecto e informe, cuantitativo y
   cualitativo, más trabajo de suficiencia profesional). **La API no lo
@@ -326,9 +328,9 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 442 tests) se
+> Los conteos declarados aquí (49 reglas, doc bueno 0 fallos, suite 445 tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
-> Del doc bueno se evalúan 42 de 48: las 6 reglas de otros tipos de documento
+> Del doc bueno se evalúan 43 de 49: las 6 reglas de otros tipos de documento
 > (las 2 estructuras alternativas, los mínimos de referencias/anexos de
 > cualitativo y revisión, y la carátula del Proyecto) no le aplican porque el
 > documento es un plan cuantitativo.
@@ -404,7 +406,7 @@ vistobueno/
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
-├── reglas_unt.yaml                    # Reglas en formato DSL (48 reglas)
+├── reglas_unt.yaml                    # Reglas en formato DSL (49 reglas)
 ├── reglas_unt_pendientes.yaml         # 5 estructuras pendientes, sin probar
 ├── reglas_dsl_ejemplo.yaml            # Ejemplo de reglas DSL
 ├── validator/

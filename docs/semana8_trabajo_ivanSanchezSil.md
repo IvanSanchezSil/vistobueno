@@ -149,13 +149,31 @@
   (b) agregado por regla ("reglas que pasan en la práctica"); opción `--json`
   para volcar la medición.
 - **Corpus**: `recursos/tesis/` (gitignored) con la tesis real de Linares.
-- **Resultado sobre la tesis real** (42 evaluadas): semáforo **rojo** —
+- **Resultado sobre la tesis real** (43 evaluadas): semáforo **rojo** —
   1 `error` (`estructura_tinv_cuantitativo`) y 5 `warning`
   (`anexos_minimos_cuantitativo`, `caratula_optar_grado_tamano`,
   `caratula_titulo_trabajo_tamano`, `indice_apunta_secciones`,
   `sangria_parrafo`). Los fallos quedan listados para revisión manual, para
   distinguir defectos reales de posibles falsos positivos.
 - **Tests** `tests/test_benchmark.py` (2 tests, con el doc bueno del factory).
+
+### 2026-10-13 — Detección de track changes (segundo trabajo del motor)
+
+- **Regla nueva** `track_changes_sin_resolver` (warning) en `reglas_unt.yaml`:
+  sección DSL `conteo_nodos` con `xpath: //w:ins | //w:del` y
+  `cantidad_maxima: 0`. Advierte si el documento trae cambios con seguimiento
+  sin aceptar/rechazar. El manual no menciona "control de cambios"; es una
+  advertencia de calidad documental (no bloquea el semáforo).
+- **Sincronización de la cadena de tests**: `tests/_mutations.py` (mutación
+  `cambios_seguimiento`), `tests/_docx_builder.py` (inyecta `w:ins`/`w:del` en
+  el cuerpo conservando el formato) y `tests/test_propiedad.py` (49 reglas).
+- **Conteos actualizados** a 49 reglas / 43 evaluadas / 445 tests en `README.md`,
+  `AGENTS.md`, `docs/CONTRATO_API.md`, `docs/DSL.md`, `docs/diseno/*` y
+  `docs/PLAN_BACKLOG_FUTURO.md`; `docs/openapi_spec.json` regenerado.
+- **Verificación**: `pytest tests/ -q` → **445 passed**; ruff y mypy limpios;
+  `generate_openapi.py --check` en sync; benchmark sobre la tesis real (43
+  evaluadas, `track_changes_sin_resolver` pasa porque no hay cambios con
+  seguimiento).
 
 ---
 
@@ -166,6 +184,10 @@
 - Reglas: `reglas_unt.yaml` y `unt_format_rules_schema.yaml`
   (`tolerancia: 12` en `sangria_parrafo`; patrón "altas y bajas" en
   `caratula_autores_mayusculas_sin_negrita`; notas `EVALUADO:`).
+- Regla de track changes: `track_changes_sin_resolver` en `reglas_unt.yaml`
+  (sección `conteo_nodos`), con mutación en `tests/_mutations.py` y soporte
+  `w:ins`/`w:del` en `tests/_docx_builder.py`.
+- Benchmark: `scripts/benchmark_tesis.py` y `tests/test_benchmark.py`.
 - Tests: `tests/_docx_builder.py`, `tests/test_paridad_formatos.py`,
   `tests/test_tipo_documento.py`.
 - Documentación: `docs/DSL.md` (campo `tolerancia`) y esta bitácora.
@@ -222,8 +244,10 @@ oficial. Cada uno se implementa en su **commit atómico**:
 1. **Benchmark con tesis reales** ✅ (2026-10-13): `scripts/benchmark_tesis.py`
    + `tests/test_benchmark.py`; corpus en `recursos/tesis/` (gitignored) con la
    tesis de Linares; medición con `--json`.
-2. **Detección de track changes**: avisar cuando el documento trae cambios sin
-   aceptar (`w:ins`/`w:del`).
+2. **Detección de track changes** ✅ (2026-10-13): regla
+   `track_changes_sin_resolver` (warning) — `conteo_nodos` con
+   `xpath: //w:ins | //w:del` y `cantidad_maxima: 0`; mutación y builder de
+   tests sincronizados.
 3. **Explicabilidad de los fallos**: explicar por qué falla cada regla usando la
    traza `ruta_estados`, sin IA.
 4. **Ubicación de NotaPie por página**: enriquecer el `location` del fallo con
