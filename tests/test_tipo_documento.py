@@ -521,15 +521,15 @@ _ETIQUETA_PENDIENTE = {
 
 
 class TestYamlPendienteOpcional:
-    """`reglas_unt_pendientes.yaml` solo existe a partir del paso 8. Si ya
-    esta, tiene que cargar y pasar el linter: implementadas pero no probadas
-    contra documentos reales."""
+    """`reglas_unt_pendientes.yaml` ya existe (Semana 6, paso 8): debe cargar y
+    pasar el linter — estructuras implementadas pero sin probar contra documentos
+    reales, porque la facultad no tiene plantillas de esos 5 tipos."""
 
     RUTA = Path(__file__).resolve().parents[1] / "reglas_unt_pendientes.yaml"
 
     def test_carga_y_lintea(self):
         if not self.RUTA.exists():
-            pytest.skip("reglas_unt_pendientes.yaml todavia no existe (se crea en el paso 8)")
+            pytest.skip("reglas_unt_pendientes.yaml no está presente")
         datos = yaml.safe_load(self.RUTA.read_text(encoding="utf-8"))
         assert linter(datos) == []
         assert datos["reglas"], "el archivo debe declarar al menos una regla"
