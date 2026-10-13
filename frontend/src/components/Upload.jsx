@@ -31,6 +31,30 @@ const validarArchivo = (selected) => {
   return null
 }
 
+// Iconos SVG inline de la dropzone (sin emoji: se renderizan igual en todos
+// los sistemas y en capturas headless).
+const IconoArchivo = () => (
+  <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+    strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+    <path d="M14 3v5h5" />
+  </svg>
+)
+const IconoCheck = () => (
+  <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8.5 12.5 2.5 2.5 4.5-5.5" />
+  </svg>
+)
+const IconoCruz = () => (
+  <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+    strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="m9 9 6 6M15 9l-6 6" />
+  </svg>
+)
+
 function Upload({ onValidated, apiUrl }) {
   const [file, setFile] = useState(null)
   const [correo, setCorreo] = useState('')
@@ -73,8 +97,11 @@ function Upload({ onValidated, apiUrl }) {
     if (files && files[0]) {
       const err = validarArchivo(files[0])
       if (err) {
-        setError(err)
+        setError({ ...err, tipo: 'archivo' })
         setFile(null)
+        // El error se muestra dentro de la dropzone: el foco va ahí para que
+        // teclado/lector de pantalla queden en la zona que cambió.
+        zonaRef.current?.focus()
       } else {
         setError(null)
         setFile(files[0])
@@ -184,6 +211,7 @@ function Upload({ onValidated, apiUrl }) {
         setError({
           titulo: `El servidor rechazó la validación (HTTP ${res.status}).`,
           texto: detail,
+          tipo: 'servidor',
         })
         return
       }
@@ -196,6 +224,34 @@ function Upload({ onValidated, apiUrl }) {
     }
   }
 
+  // Estado visual de la zona de carga (Arreglos.txt v7):
+  //   vacío → seleccionado → procesando → (inválido | error)
+  const estado = loading
+    ? 'procesando'
+    : error?.tipo === 'archivo'
+      ? 'invalido'
+      : error
+        ? 'error'
+        : file
+          ? 'seleccionado'
+          : 'vacio'
+
+  // Texto principal/secundario de la dropzone según el estado.
+  const estadoTextos = {
+    vacio: ['Arrastre aquí su documento .docx', 'o selecciónelo desde su equipo'],
+    seleccionado: ['Archivo listo para validar', 'Pulse «Validar documento» para continuar'],
+    invalido: [error?.titulo ?? 'Archivo no válido', error?.texto ?? ''],
+    procesando: ['Validando documento…', 'Esto puede tardar unos segundos'],
+    error: ['No se pudo validar el documento', 'Revise el mensaje de detalle a continuación'],
+  }
+  const [estadoPrincipal, estadoSec] = estadoTextos[estado]
+
+  const ayudaValidar = !file
+    ? 'Seleccione un archivo .docx para habilitar la validación.'
+    : correo && correoError
+      ? 'Corrija el correo del estudiante o déjelo vacío.'
+      : null
+
   return (
     <main>
       <div className="card">
@@ -207,14 +263,21 @@ function Upload({ onValidated, apiUrl }) {
 
         <div
           ref={zonaRef}
-          className={`dropzone ${dragActivo ? 'drag' : ''} ${loading ? 'loading' : ''}`}
+          className={`dropzone estado-${estado} ${dragActivo ? 'drag' : ''} ${loading ? 'loading' : ''}`}
           onDrop={onDrop}
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onClick={onDropzoneClick}
           role="button"
           tabIndex={loading ? -1 : 0}
-          aria-label="Seleccionar archivo DOCX: arrastre un archivo o pulse Enter para abrir el selector"
+          aria-busy={loading}
+          aria-label={
+            loading
+              ? 'Validando documento'
+              : estado === 'invalido'
+                ? 'Archivo no válido: seleccione otro documento'
+                : 'Zona de carga: arrastre un documento DOCX o pulse Enter para examinar su equipo'
+          }
           aria-describedby="nota-formatos"
           onKeyDown={(e) => {
             if (loading) return
@@ -224,12 +287,22 @@ function Upload({ onValidated, apiUrl }) {
             }
           }}
         >
-          <div className="icono" aria-hidden="true">📄</div>
-          {/* role=status: anuncia a lectores de pantalla el cambio a "Validando…" */}
-          <div className="txt-principal" role="status">
-            {loading ? 'Validando documento…' : 'Arrastre el archivo aquí'}
+          <div className="icono" aria-hidden="true">
+            {estado === 'procesando' ? (
+              <span className="spinner spinner-grande" />
+            ) : estado === 'seleccionado' ? (
+              <IconoCheck />
+            ) : estado === 'invalido' || estado === 'error' ? (
+              <IconoCruz />
+            ) : (
+              <IconoArchivo />
+            )}
           </div>
-          <div className="txt-sec">o selecciónelo desde la computadora</div>
+          {/* role=status anuncia cambios de estado; role=alert para errores */}
+          <div className="txt-principal" role={error ? 'alert' : 'status'}>
+            {estadoPrincipal}
+          </div>
+          <div className="txt-sec">{estadoSec}</div>
 
           <input
             type="file"
@@ -240,11 +313,11 @@ function Upload({ onValidated, apiUrl }) {
             onChange={(e) => handleFiles(e.target.files)}
           />
           <label htmlFor="file-input" className={`btn-select ${loading ? 'disabled' : ''}`}>
-            {loading ? 'Validando…' : 'Seleccionar archivo'}
+            {loading ? 'Validando…' : file ? 'Cambiar archivo' : 'Examinar archivos'}
           </label>
 
           <div className="nota-formatos" id="nota-formatos">
-            Formato permitido: .docx · Tamaño máximo: 10 MB
+            Formato .docx · Tamaño máximo: 10 MB
           </div>
         </div>
 
@@ -312,24 +385,32 @@ function Upload({ onValidated, apiUrl }) {
                 >
                   ✕
                 </button>
-                <button
-                  className="btn-validar"
-                  onClick={validate}
-                  disabled={loading || !!(correo && correoError)}
-                  title={correo && correoError ? 'Corrija el correo del estudiante o déjelo vacío' : undefined}
-                >
-                  {loading ? (
-                    <><span className="spinner" aria-hidden="true"></span> Validando…</>
-                  ) : (
-                    'Validar ✦'
-                  )}
-                </button>
               </div>
             </div>
           </div>
         )}
 
-        {error && (
+        {/* Acción principal: siempre en el mismo lugar y a todo el ancho
+            (Arreglos.txt v7: «hacer más visible el botón Validar documento»). */}
+        <div className="acciones-form">
+          <button
+            className="btn-validar"
+            onClick={validate}
+            disabled={loading || !file || !!(correo && correoError)}
+            aria-describedby={ayudaValidar ? 'validar-ayuda' : undefined}
+          >
+            {loading ? (
+              <><span className="spinner" aria-hidden="true"></span> Validando…</>
+            ) : (
+              'Validar documento'
+            )}
+          </button>
+          {ayudaValidar && (
+            <p className="ayuda-accion" id="validar-ayuda">{ayudaValidar}</p>
+          )}
+        </div>
+
+        {error && error.tipo === 'servidor' && (
           <div className="aviso error" role="alert">
             <div className="aviso-fila">
               <strong>{error.titulo}</strong>

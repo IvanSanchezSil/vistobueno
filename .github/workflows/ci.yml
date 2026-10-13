@@ -67,3 +67,10 @@ jobs:
       # paso anterior; no toca ni relaja ningún paso existente.
       - name: Lint frontend (eslint)
         run: nix develop --command sh -c "cd frontend && npm run lint"
+
+      # Arreglos.txt (2026-10-12): paso extra en el mismo job. Los tests
+      # del frontend (vitest) pasan a ser puerta de calidad igual que el
+      # lint; reutiliza node_modules del paso de build, igual que hace el
+      # lint. Aditivo: no toca ni relaja ningún paso existente.
+      - name: Test frontend (vitest)
+        run: nix develop --command sh -c "cd frontend && npm run test"

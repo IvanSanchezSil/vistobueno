@@ -214,6 +214,55 @@ El revisor marcó el PR como "Verificado" y dejó 4 comentarios no bloqueantes; 
 
 ---
 
+### Novena tanda — Arreglos.txt v7 (2026-10-12): carga, estados y pulido
+
+`Arreglos.txt` se reemplazó por una lista nueva de 3 puntos (sin numeración de observaciones):
+
+1. **Reducir el área de carga, mejorar las etiquetas y hacer más visible el botón «Validar documento».**
+   - Dropzone compacta: `padding 2rem→1.1rem` (tablet `3rem→1.3rem`, móvil `→.9rem`); icono más pequeño.
+   - Etiquetas reescritas: *"Arrastre aquí su documento .docx"*, *"o selecciónelo desde su equipo"*, *"Examinar archivos"*, nota *"Formato .docx · Tamaño máximo: 10 MB"*.
+   - El botón pasó de estar dentro del chip del archivo (texto `Validar ✦`) a **acción principal `.acciones-form` siempre visible, a todo el ancho y 48 px de alto**, con `box-shadow`; se deshabilita sin archivo/correo inválido con ayuda contextual (`#validar-ayuda`, `aria-describedby`).
+2. **Implementar los estados de archivo seleccionado, inválido, procesamiento y error.**
+   - `Upload.jsx` calcula `estado ∈ {vacio, seleccionado, invalido, procesando, error}` y lo pinta en la dropzone (`estado-*`): check verde, cruz roja, spinner grande o icono de documento.
+   - `error.tipo` separa `archivo` (validación del cliente, mensaje *dentro* de la dropzone con `role=alert` y foco ahí) de `servidor` (aviso rojo cerrable debajo, como antes).
+   - Estados documentados en `docs/diseno/03_wireframes.md` y en la tabla de funcionalidades de `01_requisitos_interfaz.md`.
+3. **Pulir tipografía, modo oscuro, adaptación móvil y accesibilidad.**
+   - `line-height: 1.45` + antialiasing en `body`; `h1–h3` con `letter-spacing -.01em`; `.card h2` con tamaño/tono propio (1.05/1.15/1.3 rem por breakpoint).
+   - Dark: variantes de los 5 estados de la dropzone, botón deshabilitado con borde, `h2` claro y spinner en verde AA.
+   - Móvil: dropzone compacta, `Examinar archivos` y `Validar documento` a todo el ancho (52 px), `h2` más pequeño.
+   - Accesibilidad: `aria-busy` en la dropzone, `role=alert` vs `role=status` según estado, foco al dropzone al rechazar un archivo, `prefers-reduced-motion` (spinner lento, sin transiciones ni desplazamientos), iconos **SVG inline** en lugar de emoji (render igual en todos los SO y en capturas headless).
+
+#### Verificación (2026-10-12)
+
+- `npm run lint` → 0 errores/0 warnings · `npm test` → **10/10** · `npm run build` → 164.62 kB OK.
+- **E2E completo 9/9** (`scripts/e2e_flujo_completo.sh`): 200/49 reglas, 415, 422, `deshabilitado`, `no_solicitado`, mock 500.
+  - Corrección colateral: la aserción `total==47` del script quedó obsoleta tras el PR #46 del backend (hoy 49) → cambiada a `>=47`.
+- 9 capturas de estados (vacío ×3, seleccionado ×2, inválido ×2, procesando, error 413) en `resultados_vistobueno/S7_pruebas_usabilidad/capturas/`.
+
+---
+
+### Décima tanda — Prompt único en «Cómo preguntar a una IA» (2026-10-12)
+
+Petición directa: *«en la sección de preguntar a la IA, crea una sección donde se junten todos los prompts en uno solo listo para copiar y pegar, a parte de los que ya están»*.
+
+- **`Report.jsx`**: función `construirPromptUnico(prompts)` (exportada y testeada) que une los prompts visibles en UNO solo:
+  - marco general (*"… con N problemas de formato. Corrige todos los siguientes problemas en Microsoft Word, sin afectar el resto del formato…"*; singular cuando hay 1),
+  - un bloque numerado por problema (`════ Problema i de N · Categoría ════`) con el prompt individual **íntegro** (sin recortes ni reescritura),
+  - entradas sin texto se ignoran y no cuentan en el total; categoría desconocida → `Otros` (igual que las tarjetas).
+- **UI** (arriba de las tarjetas, dentro de la misma card): título, botón **«Copiar todo junto»** (mismos estados `¡Copiado!`/fallo que los prompts individuales, `aria-live` incluido), recuento de prompts visibles y `<details>` *"Ver el prompt completo"* con vista previa desplegable (`max-height` con scroll). Respeta el **filtro de búsqueda** de la sección (si el operador filtra, el prompt único une solo los visibles).
+- **CSS**: `.ia-unico*` con borde verde, fondo `--gris-claro`, título/summary en verde-oscuro; dark con verde AA `#81c784` (el `#2e7d32` da ~2.3:1 sobre `#242424`); móvil con botón a todo el ancho; tablet con tipografía ampliada.
+- **Docs**: RF-24 + funcionalidad 10b (`01_requisitos_interfaz.md`), wireframe ASCII y bullets (`03_wireframes.md`), README (flujo + estado actual).
+- **Tests**: `Report.promptUnico.test.js` — **6 tests** (listas vacías/inválidas, filtrado de entradas sin prompt, marco singular/plural, integridad y orden de cada prompt, `Otros`).
+
+#### Verificación (2026-10-12)
+
+- `npm run lint` → 0 errores · `npm test` → **16/16** (10 badge + 6 prompt único) · `npm run build` → 166.10 kB / CSS 19.63 kB OK.
+- E2E del flujo con Playwright: validación real (49 reglas), clic en «Copiar todo junto» → botón `¡Copiado!` y **portapapeles con 24.323 caracteres** verificados.
+- 4 capturas (claro con copiado confirmado, con el desplegable abierto, oscuro y móvil) en `resultados_vistobueno/S7_pruebas_usabilidad/capturas/` (`19`–`22`).
+- **CI (Arreglos.txt del 12/10)**: paso **`Test frontend (vitest)`** agregado al job `frontend` de `ci.yml` (`nix develop --command sh -c "cd frontend && npm run test"`), reutilizando `node_modules` del paso de build igual que el lint; aditivo, sin tocar pasos existentes. *El archivo indicaba `--comand` (typo): se usó `--command`, la flag real de nix, consistente con los pasos vecinos.*
+
+---
+
 ## Evidencias
 
 - Commits: `e27e683` (mejoras IHC), `7bd0be4` (Arreglos.txt v1), `5c169ef` (v2), `6c512ec` (v3), `df05bd6` (auditoría UX C17–C29), `d306f36` + `4c9cc55` (Fase A revisión, C30–C38), `21d0ac3` (script E2E versionado, C39), `abac6b6` (lint en CI, C40, rama `ci-frontend-lint`).
