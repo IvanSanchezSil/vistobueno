@@ -171,7 +171,7 @@ todos los pasos (incluido el drift-check de openapi_spec.json).
 - [x] CONTRATO_API v1.3.0 + FLUJO_API v1.2 + openapi_spec regenerada
 - [x] AGENTS.md y 00_indice_diseno.md sincronizados (suite 244)
 - [x] Bitácora semana 5
-- [ ] Merge del PR #37 tras revisión
+- [x] Merge del PR #37 tras revisión (30/09, junto con #38 y #39)
 - [ ] Credenciales SMTP institucionales y buzón definitivo (pendiente del
       área de Repositorio — el módulo queda deshabilitado hasta entonces)
 - [ ] Coordinar con Integrante 2 el formulario con `correo` + `notificar`
