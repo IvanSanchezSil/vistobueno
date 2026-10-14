@@ -21,6 +21,8 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from .api_models import (
+    DepositoAPI,
+    EstadoDepositoAPI,
     EstadoNotificacionAPI,
     MetadatosValidacion,
     NotificacionAPI,
@@ -31,6 +33,7 @@ from .api_models import (
     ValidarResponse,
 )
 from .dsl_check import DSLValidationError
+from .dspace import ConfigDSpace, depositar_documento, metadatos_desde_formulario
 from .engine import build_report, load_rules, validate_docx
 from .models import RuleResult
 from .notificacion import ConfigSMTP, enviar_notificacion
@@ -207,7 +210,7 @@ def _validar_correo(correo: str | None) -> str | None:
 app = FastAPI(
     title="VistoBueno API",
     description="API de validación automática de formato de tesis — UNT FECyC",
-    version="1.5.0",
+    version="1.6.0",
 )
 
 
@@ -247,6 +250,39 @@ async def validar(
             "Solicitar el envío del correo de observaciones al estudiante "
             "(opt-in del operador). Solo aplica con semáforo rojo y un "
             "`correo` válido."
+        ),
+    ),
+    depositar: bool = Form(
+        default=False,
+        description=(
+            "Solicitar el depósito del documento en el repositorio "
+            "institucional DSpace (opt-in del operador, actividad 10). "
+            "Solo aplica con semáforo verde."
+        ),
+    ),
+    titulo: str | None = Form(
+        default=None,
+        description="Título del trabajo: metadato dc.title del depósito (opcional)",
+    ),
+    autores: str | None = Form(
+        default=None,
+        description=(
+            "Autor(es), separados por ';' o saltos de línea: metadato "
+            "dc.contributor.author del depósito (opcional)"
+        ),
+    ),
+    asesor: str | None = Form(
+        default=None,
+        description="Asesor(a): metadato dc.contributor.advisor del depósito (opcional)",
+    ),
+    resumen: str | None = Form(
+        default=None,
+        description="Resumen: metadato dc.description.abstract del depósito (opcional)",
+    ),
+    palabras_clave: str | None = Form(
+        default=None,
+        description=(
+            "Palabras clave, separadas por ';' o ',': metadato dc.subject del depósito (opcional)"
         ),
     ),
 ):
@@ -434,6 +470,53 @@ async def validar(
                         estado = EstadoNotificacionAPI.FALLO
                         detalle = resultado_envio.detalle
         respuesta.notificacion = NotificacionAPI(estado=estado, detalle=detalle)
+
+        # --- Depósito en DSpace (Actividad 10, best-effort) ---
+        # Misma mecánica que la notificación: opt-in del operador
+        # (`depositar`), pero SOLO con semáforo "verde" (documento apto
+        # para el repositorio). El ítem queda en la cola de aprobación de
+        # la sede (workflow de DSpace), nunca se publica directo.
+        # depositar_documento() NUNCA lanza: un fallo de DSpace no debe
+        # romper la respuesta HTTP.
+        estado_dep = EstadoDepositoAPI.SIN_SOLICITUD
+        detalle_dep: str | None = None
+        if depositar:
+            if respuesta.semaforo != "verde":
+                estado_dep = EstadoDepositoAPI.NO_APTO
+                detalle_dep = "solo se depositan documentos con semáforo verde"
+            else:
+                config_dspace = ConfigDSpace.desde_entorno()
+                if not config_dspace.enabled:
+                    estado_dep = EstadoDepositoAPI.DESHABILITADO
+                    # Nota de configuración para el personal del repositorio
+                    # (mismo criterio que el hallazgo B3 de la notificación):
+                    # la respuesta indica exactamente qué falta configurar.
+                    detalle_dep = (
+                        "El servidor no tiene el depósito habilitado: configure "
+                        "VISTOBUENO_DSPACE=1 y " + ", ".join(config_dspace.faltantes) + "."
+                    )
+                else:
+                    metadatos_dep = metadatos_desde_formulario(
+                        titulo=titulo,
+                        autores=autores,
+                        asesor=asesor,
+                        resumen=resumen,
+                        palabras_clave=palabras_clave,
+                    )
+                    # httpx es bloqueante (timeout por solicitud): fuera del
+                    # event loop, o un DSpace caído congela toda la API.
+                    resultado_dep = await run_in_threadpool(
+                        depositar_documento,
+                        tmp_path,
+                        metadatos_dep,
+                        config_dspace,
+                    )
+                    if resultado_dep.enviado:
+                        estado_dep = EstadoDepositoAPI.ENVIADO
+                    else:
+                        estado_dep = EstadoDepositoAPI.FALLO
+                    detalle_dep = resultado_dep.detalle
+        respuesta.deposito = DepositoAPI(estado=estado_dep, detalle=detalle_dep)
 
         return respuesta
 

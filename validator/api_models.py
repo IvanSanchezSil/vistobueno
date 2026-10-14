@@ -37,6 +37,22 @@ class EstadoNotificacionAPI(StrEnum):
     DESHABILITADO = "deshabilitado"
 
 
+class EstadoDepositoAPI(StrEnum):
+    """Estado del depósito del documento en DSpace (Actividad 10).
+
+    El depósito es opt-in por solicitud (campo `depositar`) y solo procede
+    con semáforo verde: el operador decide que el documento está apto para
+    entrar al repositorio institucional. El ítem queda en la cola de
+    aprobación de la sede (workflow de DSpace), no se publica directo.
+    """
+
+    ENVIADO = "enviado"
+    FALLO = "fallo"
+    SIN_SOLICITUD = "sin_solicitud"
+    NO_APTO = "no_apto"
+    DESHABILITADO = "deshabilitado"
+
+
 class ResultadoReglaAPI(BaseModel):
     """Resultado de una regla individual en la respuesta de la API.
 
@@ -158,6 +174,27 @@ class NotificacionAPI(BaseModel):
     )
 
 
+class DepositoAPI(BaseModel):
+    """Estado del depósito del documento en DSpace (Actividad 10).
+
+    Misma forma que NotificacionAPI: `estado` describe qué pasó con el
+    depósito para que el operador pueda informar al estudiante o reintentar.
+    Con "enviado", el `detalle` recuerda que el ítem queda en la cola de
+    aprobación de la sede; con "fallo" o "deshabilitado", el `detalle`
+    trae el motivo técnico o la nota de configuración.
+    """
+
+    estado: EstadoDepositoAPI = Field(..., description="Veredicto del depósito")
+    detalle: str | None = Field(
+        default=None,
+        description=(
+            "Nota de seguimiento cuando se depositó (cola de aprobación); "
+            "motivo técnico cuando falló; nota de configuración cuando el "
+            "servidor está deshabilitado; None en el resto de casos"
+        ),
+    )
+
+
 class ValidarResponse(BaseModel):
     """Respuesta completa del endpoint POST /validar.
 
@@ -178,6 +215,16 @@ class ValidarResponse(BaseModel):
             "válido y la notificación está habilitada en el servidor."
         ),
     )
+    deposito: DepositoAPI = Field(
+        default_factory=lambda: DepositoAPI(estado=EstadoDepositoAPI.SIN_SOLICITUD),
+        description=(
+            "Estado del depósito del documento en el repositorio "
+            "institucional DSpace (actividad 10). Opt-in del operador "
+            "(campo `depositar`): solo se intenta con semáforo verde y "
+            "configuración completa en el servidor. El ítem queda en la "
+            "cola de aprobación de la sede, no se publica directo."
+        ),
+    )
     resumen: ResumenValidacion = Field(..., description="Resumen cuantitativo")
     resultados: list[ResultadoReglaAPI] = Field(..., description="Resultados por regla")
     como_preguntar_a_una_ia: list[PromptIA] = Field(
@@ -192,6 +239,7 @@ class ValidarResponse(BaseModel):
                 {
                     "semaforo": "verde",
                     "notificacion": {"estado": "sin_correo", "detalle": None},
+                    "deposito": {"estado": "sin_solicitud", "detalle": None},
                     "resumen": {
                         "total": 48,
                         "total_evaluadas": 46,
