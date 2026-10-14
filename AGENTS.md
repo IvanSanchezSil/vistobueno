@@ -317,7 +317,7 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 426 tests) se
+> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 429 tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
 > Del doc bueno se evalúan 42 de 48: las 6 reglas de otros tipos de documento
 > (las 2 estructuras alternativas, los mínimos de referencias/anexos de
