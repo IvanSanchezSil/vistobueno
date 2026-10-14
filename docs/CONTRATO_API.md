@@ -1,7 +1,7 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.5.0 (Semana 7 — revisión integrada B3/B4)  
-**Fecha**: 2026-10-09  
+**Versión**: 1.6.0 (Semana 7 — actividad 10, depósito en DSpace)  
+**Fecha**: 2026-10-14  
 **Estado**: Implementado
 
 ---
@@ -21,6 +21,12 @@ Recibe un archivo DOCX de tesis y devuelve un reporte de validación estructurad
 | `archivo` | `file` | Sí | Archivo `.docx` a validar |
 | `correo` | `string` (form) | No | Correo electrónico del estudiante. Si se envía, debe tener formato válido (`usuario@dominio`); es el destinatario del correo de observaciones cuando el operador lo solicita (campo `notificar`). Cadena vacía se trata como ausente. |
 | `notificar` | `bool` (form) | No (default: `false`) | Opt-in del operador para enviar el correo de observaciones al estudiante. El envío solo se intenta si además hay `correo` válido y semáforo `rojo`. |
+| `depositar` | `bool` (form) | No (default: `false`) | Opt-in del operador para depositar el documento en el repositorio institucional DSpace (actividad 10). Solo se intenta con semáforo `verde`; el ítem queda en la cola de aprobación de la sede. |
+| `titulo` | `string` (form) | No | Título del trabajo: metadato `dc.title` del depósito. |
+| `autores` | `string` (form) | No | Autor(es), separados por `;` o saltos de línea: metadato `dc.contributor.author`. |
+| `asesor` | `string` (form) | No | Asesor(a): metadato `dc.contributor.advisor`. |
+| `resumen` | `string` (form) | No | Resumen: metadato `dc.description.abstract`. |
+| `palabras_clave` | `string` (form) | No | Palabras clave, separadas por `;` o `,`: metadato `dc.subject`. |
 | `incluir_prompts_ia` | `bool` (query) | No (default: `true`) | Incluir la sección "Cómo preguntar a una IA" en la respuesta |
 
 ### Content-Type
@@ -59,6 +65,10 @@ El archivo se procesó correctamente y se evaluaron las reglas.
   "semaforo": "verde",
   "notificacion": {
     "estado": "sin_correo",
+    "detalle": null
+  },
+  "deposito": {
+    "estado": "sin_solicitud",
     "detalle": null
   },
   "resumen": {
@@ -124,6 +134,8 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | `semaforo` | `string` | `"verde"` si todas las reglas de severidad `error` pasan; `"rojo"` si alguna falla |
 | `notificacion.estado` | `string` | Veredicto del envío del correo de observaciones (ver sección siguiente) |
 | `notificacion.detalle` | `string?` | Motivo técnico cuando `estado` es `"fallo"`; nota de configuración cuando es `"deshabilitado"`; `null` en el resto de casos |
+| `deposito.estado` | `string` | Veredicto del depósito en DSpace (ver sección "Depósito en DSpace") |
+| `deposito.detalle` | `string?` | Nota de seguimiento cuando se depositó (cola de aprobación); motivo técnico cuando `"fallo"`; nota de configuración cuando `"deshabilitado"`; `null` en el resto de casos |
 | `resumen.total` | `int` | Total de reglas presentes en el YAML de reglas |
 | `resumen.total_evaluadas` | `int` | Reglas realmente evaluadas sobre el documento |
 | `resumen.reglas_no_aplicables` | `int` | Reglas omitidas porque no aplican al tipo de documento detectado |
@@ -329,6 +341,68 @@ los servidores reales.
 
 ---
 
+## Depósito en DSpace (Actividad 10)
+
+El semáforo verde no publica nada por sí solo: el depósito en el
+repositorio institucional DSpace es un **opt-in del operador** (campo
+`depositar`) que solo procede cuando el documento está apto
+(`semaforo: "verde"`). El resultado se expone en `deposito` con la misma
+forma que `notificacion`.
+
+El ítem NO se publica directo: entra al workflow de aprobación de DSpace
+de la colección destino (las colecciones de tesis FECyC tienen flujo de
+revisión), de modo que una persona de la sede queda en el circuito.
+
+### Comportamiento
+
+- El depósito es **opt-in por solicitud**: requiere `depositar=true` y
+  semáforo `verde`. Sin `depositar`, el estado es `sin_solicitud` y jamás
+  se abre una conexión al repositorio.
+- Con semáforo `rojo` el estado es `no_apto`: solo se depositan documentos
+  aptos para el repositorio.
+- Es **best-effort**: un fallo de DSpace (conexión, credenciales,
+  validación del formulario) nunca cambia el código HTTP; el fallo queda
+  expuesto en `deposito.detalle` para que el operador reintente o suba el
+  documento manualmente.
+- Deshabilitado por defecto en el servidor: el depósito exige configuración
+  completa (ver abajo); si falta algo, el estado es `deshabilitado` y el
+  `detalle` lista exactamente qué variables faltan.
+- Los metadatos del depósito (`titulo`, `autores`, `asesor`, `resumen`,
+  `palabras_clave`) son opcionales y los completa el operador; los
+  `422` del formulario de DSpace indican qué campo obligatorio falta y
+  se exponen tal cual en `detalle`.
+
+> **Alcance**: el flujo sigue el contrato REST de DSpace 7/8 (login JWT +
+> par CSRF, workspaceitem, JSON Patch de metadatos, licencia, workflow) y
+> está verificado contra un stub local del contrato. La validación contra
+> la instancia institucional real (incluidos el nombre de la sección del
+> formulario y los metadatos obligatorios) queda pendiente de la gestión
+> ante la sede (ver `docs/DSPACE_API.md` §7).
+
+### Estados de `deposito.estado`
+
+| Estado | Significado | Sugerencia de UI (personal del repositorio) |
+|--------|-------------|---------------------------------------------|
+| `enviado` | DSpace aceptó el ítem; quedó en cola de aprobación de la sede | "El documento quedó en la cola de aprobación del repositorio." |
+| `fallo` | Se intentó depositar y falló | Mostrar `detalle` (motivo técnico, p. ej. `422` del formulario) para corregir y reintentar |
+| `sin_solicitud` | No se pidió el depósito | Ofrecer el checkbox de depósito cuando el semáforo es verde |
+| `no_apto` | Se pidió, pero el semáforo no es verde | Nada que depositar: el documento aún tiene observaciones |
+| `deshabilitado` | Se pidió, pero el servidor no tiene el depósito configurado | Mostrar `detalle` como nota de configuración para administradores |
+
+### Configuración del servidor (variables de entorno)
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `VISTOBUENO_DSPACE` | (vacío) | `1`/`true`/`yes` habilitan el depósito |
+| `VISTOBUENO_DSPACE_URL` | (vacío) | Base de la API REST (p. ej. `https://repositorio.unitru.edu.pe/server/api`) |
+| `VISTOBUENO_DSPACE_USER` | (vacío) | Cuenta de servicio con permiso de envío. **Nunca se commitea** (bloqueada por pre-commit y CI) |
+| `VISTOBUENO_DSPACE_PASSWORD` | (vacío) | Contraseña de la cuenta de servicio. **Nunca se commitea** (bloqueada por pre-commit y CI) |
+| `VISTOBUENO_DSPACE_COLECCION` | (vacío) | UUID de la colección destino (confirmar con la sede) |
+| `VISTOBUENO_DSPACE_SECCION` | `traditionalpageone` | Sección del formulario donde viven los metadatos (configuración por instancia) |
+| `VISTOBUENO_DSPACE_TIMEOUT` | `30` | Timeout por solicitud HTTP, en segundos |
+
+---
+
 ## Ejemplo de solicitud curl
 
 ```bash
@@ -349,6 +423,25 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
 
 Sin `notificar=true` el correo **no** se envía: la respuesta devolvería
 `notificacion.estado = "no_solicitado"`.
+
+---
+
+## Ejemplo con depósito en DSpace
+
+```bash
+curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=true" \
+  -F "archivo=@mi_tesis.docx" \
+  -F "depositar=true" \
+  -F "titulo=Taller de dramatización de títeres" \
+  -F "autores=Linares A, Angie Lizeth; Morales, Víctor" \
+  -F "asesor=Dr. Pérez" \
+  -F "resumen=El resumen del trabajo..." \
+  -F "palabras_clave=títeres; preescolar"
+```
+
+Requiere semáforo `verde` y configuración completa en el servidor; si no,
+la respuesta trae `deposito.estado = "no_apto"` o `"deshabilitado"` con
+el motivo en `detalle`.
 
 ---
 
@@ -400,6 +493,32 @@ El motor interno (`validator.engine`) devuelve `RuleResult` (dataclass) y `build
 ---
 
 ## Changelog
+
+### v1.6.0 (2026-10-14 — Semana 7, actividad 10: depósito en DSpace)
+
+Exposición del depósito en el repositorio institucional como opt-in del
+operador. Cambio aditivo: ningún campo desaparece ni cambia de tipo.
+
+- **Nuevo campo de formulario `depositar`** (`bool`, default `false`):
+  opt-in del operador para depositar el documento validado en DSpace.
+  Solo se intenta con semáforo `verde`; el ítem entra a la cola de
+  aprobación de la sede (workflow de DSpace), nunca se publica directo.
+- **Nuevos campos de formulario opcionales de metadatos**: `titulo`,
+  `autores` (separados por `;` o saltos de línea), `asesor`, `resumen` y
+  `palabras_clave` (separadas por `;` o `,`). Se envían como metadatos
+  Dublin Core del ítem (`dc.title`, `dc.contributor.author`,
+  `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`).
+- **Nuevo objeto `deposito` en la respuesta** (`estado` + `detalle`),
+  misma forma que `notificacion`. Estados: `enviado | fallo |
+  sin_solicitud | no_apto | deshabilitado`, con sugerencias de UI en la
+  sección "Depósito en DSpace".
+- **Best-effort total**: un fallo del depósito (conexión, credenciales,
+  `422` del formulario) nunca cambia el código HTTP; el motivo técnico
+  viaja en `deposito.detalle` para el personal del repositorio.
+- **Escáner de secretos ampliado** (pre-commit + CI): cubre
+  `VISTOBUENO_DSPACE_PASSWORD` y `VISTOBUENO_DSPACE_USER`.
+- `docs/openapi_spec.json` regenerado (el CI verifica el drift).
+- Versión del endpoint: `1.5.0` → `1.6.0`.
 
 ### v1.5.0 (2026-10-09 — Semana 7, revisión integrada, hallazgos B3/B4)
 

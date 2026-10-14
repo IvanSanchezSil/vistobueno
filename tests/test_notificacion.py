@@ -434,6 +434,7 @@ class TestGuardiaContrato:
         assert set(respuesta.json().keys()) == {
             "semaforo",
             "notificacion",
+            "deposito",
             "resumen",
             "resultados",
             "como_preguntar_a_una_ia",
