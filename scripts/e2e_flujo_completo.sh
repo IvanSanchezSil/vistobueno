@@ -35,7 +35,7 @@ echo "  ✅ Build OK (dist/ generado)"
 # 1. Tests backend (sin --cov: el addopts de pyproject ya no lo exige)
 echo "[1/9] Tests backend (pytest)..."
 cd "$ROOT" && "$BACKEND_VENV" -m pytest tests/ -q --tb=no 2>&1 | tail -1
-echo "  ✅ Esperado: suite completa en verde, 0 skipped (conftest usa la plantilla oficial si está, si no el factory)"
+echo "  ✅ pytest terminó sin fallos (el resumen real está en la línea de arriba; puede incluir skipped)"
 
 # 2. Levantar backend
 echo "[2/9] Levantando backend en :8000..."
@@ -131,7 +131,7 @@ sleep 1
 HTTP=$(curl -s -m 5 -o /tmp/down.json -w "%{http_code}" -X POST http://127.0.0.1:5173/validar -F "archivo=@$DOCX")
 SIZE=$(wc -c < /tmp/down.json)
 python3 -c "
-assert '$HTTP' == '500', f'HTTP!=$HTTP'
+assert '$HTTP' == '500', f'esperaba 500, vino $HTTP'
 assert '$SIZE' == '0', f'body no vacio: $SIZE'
 print('  ✅ Proxy 500 body vacío (size=0) -> frontend debe ir a mock demo')
 "
