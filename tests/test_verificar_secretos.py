@@ -47,6 +47,39 @@ def test_detecta_password_con_dos_puntos_y_comillas(tmp_path):
     assert r.returncode == 1
 
 
+def test_detecta_password_dspace_con_valor_real(tmp_path):
+    """La contraseña de la cuenta de servicio de DSpace también se bloquea."""
+    archivo = tmp_path / "deploy_dspace.txt"
+    archivo.write_text("VISTOBUENO_DSPACE_PASSWORD=Clave-Deposito-Real\n", encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+    assert "VISTOBUENO_DSPACE_PASSWORD" in r.stdout
+    # El valor nunca se imprime (no repetir posibles secretos en logs)
+    assert "Clave-Deposito" not in r.stdout
+
+
+def test_detecta_usuario_dspace_con_valor_real(tmp_path):
+    """El usuario de la cuenta de servicio es credencial (DSPACE_API.md §8)."""
+    archivo = tmp_path / "deploy_dspace.txt"
+    archivo.write_text("VISTOBUENO_DSPACE_USER=cuenta-repositorio\n", encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+    assert "VISTOBUENO_DSPACE_USER" in r.stdout
+
+
+def test_permite_configuracion_no_sensible_dspace(tmp_path):
+    """Flag, URL y colección no son credenciales: configuran, no autentican."""
+    archivo = tmp_path / "servidor.md"
+    archivo.write_text(
+        "VISTOBUENO_DSPACE=1\n"
+        "VISTOBUENO_DSPACE_URL=https://repositorio.unitru.edu.pe/server/api\n"
+        "VISTOBUENO_DSPACE_COLECCION=uuid-de-coleccion\n",
+        encoding="utf-8",
+    )
+    r = correr([str(archivo)])
+    assert r.returncode == 0, r.stdout
+
+
 def test_permite_placeholders_dummy(tmp_path):
     """Valores dummy/prueba/test/changeme/<valor> no son secreto."""
     archivo = tmp_path / "ejemplos.txt"

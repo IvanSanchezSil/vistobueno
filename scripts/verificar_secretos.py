@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Verificador de filtración de credenciales SMTP (capa 2 y 3).
+"""Verificador de filtración de credenciales (capa 2 y 3).
 
-Bloquea cualquier asignación con valor REAL de VISTOBUENO_SMTP_PASSWORD y
-cualquier archivo .env / .env.* presente en el árbol. Se usa en dos capas:
+Bloquea cualquier asignación con valor REAL de las credenciales del
+proyecto (SMTP y DSpace) y cualquier archivo .env / .env.* presente en el
+árbol. Se usa en dos capas:
 
 - Hook de pre-commit (``.pre-commit-config.yaml``): recibe los archivos
   staged como argumentos y falla el commit si detecta una violación.
@@ -27,11 +28,20 @@ import re
 import sys
 from pathlib import Path
 
-NOMBRE_SECRETO = "VISTOBUENO_SMTP_PASSWORD"
+# Credenciales cubiertas: la contraseña SMTP (Actividad 6) y el usuario y
+# la contraseña de la cuenta de servicio de DSpace (Actividad 10, ver
+# docs/DSPACE_API.md §8). El resto de variables son configuración no
+# sensible (hosts, puertos, UUIDs de colección).
+NOMBRES_SECRETOS = (
+    "VISTOBUENO_SMTP_PASSWORD",
+    "VISTOBUENO_DSPACE_PASSWORD",
+    "VISTOBUENO_DSPACE_USER",
+)
 
-# Asignación del secret con un valor no vacío: VAR=valor, VAR: valor
+# Asignación del secret con un valor no vacío: VAR=valor, VAR: valor.
+# El grupo 1 captura el nombre (para el mensaje) y el 2 el valor.
 PATRON_ASIGNACION = re.compile(
-    rf"{NOMBRE_SECRETO}\s*[=:]\s*(\S+)",
+    rf"({'|'.join(NOMBRES_SECRETOS)})\s*[=:]\s*(\S+)",
 )
 
 # Valores que NO son secretos reales (placeholders de docs/tests/scripts).
@@ -97,9 +107,9 @@ def verificar_archivo(ruta: Path) -> list[str]:
 
     for n, linea in enumerate(texto.splitlines(), start=1):
         m = PATRON_ASIGNACION.search(linea)
-        if m and not _valor_permitido(m.group(1)):
+        if m and not _valor_permitido(m.group(2)):
             # No se imprime el valor: nunca repetir un posible secreto en logs.
-            violaciones.append(MSG_VIOLACION.format(ruta=ruta, linea=n, var=NOMBRE_SECRETO))
+            violaciones.append(MSG_VIOLACION.format(ruta=ruta, linea=n, var=m.group(1)))
     return violaciones
 
 
