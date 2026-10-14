@@ -3,7 +3,7 @@
   "info": {
     "title": "VistoBueno API",
     "description": "API de validación automática de formato de tesis — UNT FECyC",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "paths": {
     "/validar": {
@@ -92,6 +92,72 @@
             "title": "Notificar",
             "description": "Solicitar el envío del correo de observaciones al estudiante (opt-in del operador). Solo aplica con semáforo rojo y un `correo` válido.",
             "default": false
+          },
+          "depositar": {
+            "type": "boolean",
+            "title": "Depositar",
+            "description": "Solicitar el depósito del documento en el repositorio institucional DSpace (opt-in del operador, actividad 10). Solo aplica con semáforo verde.",
+            "default": false
+          },
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titulo",
+            "description": "Título del trabajo: metadato dc.title del depósito (opcional)"
+          },
+          "autores": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autores",
+            "description": "Autor(es), separados por ';' o saltos de línea: metadato dc.contributor.author del depósito (opcional)"
+          },
+          "asesor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asesor",
+            "description": "Asesor(a): metadato dc.contributor.advisor del depósito (opcional)"
+          },
+          "resumen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resumen",
+            "description": "Resumen: metadato dc.description.abstract del depósito (opcional)"
+          },
+          "palabras_clave": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Palabras Clave",
+            "description": "Palabras clave, separadas por ';' o ',': metadato dc.subject del depósito (opcional)"
           }
         },
         "type": "object",
@@ -99,6 +165,44 @@
           "archivo"
         ],
         "title": "Body_validar_validar_post"
+      },
+      "DepositoAPI": {
+        "properties": {
+          "estado": {
+            "$ref": "#/components/schemas/EstadoDepositoAPI",
+            "description": "Veredicto del depósito"
+          },
+          "detalle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detalle",
+            "description": "Nota de seguimiento cuando se depositó (cola de aprobación); motivo técnico cuando falló; nota de configuración cuando el servidor está deshabilitado; None en el resto de casos"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estado"
+        ],
+        "title": "DepositoAPI",
+        "description": "Estado del depósito del documento en DSpace (Actividad 10).\n\nMisma forma que NotificacionAPI: `estado` describe qué pasó con el\ndepósito para que el operador pueda informar al estudiante o reintentar.\nCon \"enviado\", el `detalle` recuerda que el ítem queda en la cola de\naprobación de la sede; con \"fallo\" o \"deshabilitado\", el `detalle`\ntrae el motivo técnico o la nota de configuración."
+      },
+      "EstadoDepositoAPI": {
+        "type": "string",
+        "enum": [
+          "enviado",
+          "fallo",
+          "sin_solicitud",
+          "no_apto",
+          "deshabilitado"
+        ],
+        "title": "EstadoDepositoAPI",
+        "description": "Estado del depósito del documento en DSpace (Actividad 10).\n\nEl depósito es opt-in por solicitud (campo `depositar`) y solo procede\ncon semáforo verde: el operador decide que el documento está apto para\nentrar al repositorio institucional. El ítem queda en la cola de\naprobación de la sede (workflow de DSpace), no se publica directo."
       },
       "EstadoNotificacionAPI": {
         "type": "string",
@@ -394,6 +498,10 @@
             "$ref": "#/components/schemas/NotificacionAPI",
             "description": "Estado del envío del correo de observaciones al estudiante. El envío es opt-in (campo de formulario `notificar`): solo se intenta cuando el operador lo solicita, hay observaciones bloqueantes (semáforo \"rojo\"), se envió un campo `correo` válido y la notificación está habilitada en el servidor."
           },
+          "deposito": {
+            "$ref": "#/components/schemas/DepositoAPI",
+            "description": "Estado del depósito del documento en el repositorio institucional DSpace (actividad 10). Opt-in del operador (campo `depositar`): solo se intenta con semáforo verde y configuración completa en el servidor. El ítem queda en la cola de aprobación de la sede, no se publica directo."
+          },
           "resumen": {
             "$ref": "#/components/schemas/ResumenValidacion",
             "description": "Resumen cuantitativo"
@@ -431,6 +539,9 @@
         "examples": [
           {
             "como_preguntar_a_una_ia": [],
+            "deposito": {
+              "estado": "sin_solicitud"
+            },
             "metadatos": {
               "archivo_nombre": "mi_tesis.docx",
               "archivo_tamano_bytes": 123456,
