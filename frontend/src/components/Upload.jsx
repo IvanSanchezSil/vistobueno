@@ -9,6 +9,10 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 // Constantes y validación de archivo a nivel de módulo (sin dependencia de
 // estado): así handleFiles puede ser useCallback([]) sin violar exhaustive-deps.
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB, igual que el backend
+// Sin respuesta a los 30 s se aborta la petición y se avisa (fetch no tiene
+// timeout por defecto: sin esto el spinner quedaría girando para siempre si
+// el backend cuelga). Coherente con el `curl -m` del script E2E.
+const TIMEOUT_VALIDACION_MS = 30000
 const acceptedTypes = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ]
@@ -68,6 +72,9 @@ function Upload({ onValidated, apiUrl }) {
   const [dragActivo, setDragActivo] = useState(false)
   const inputRef = useRef(null)
   const zonaRef = useRef(null)
+  // Guard síncrono de validación en curso: `loading` (estado) llega tarde para
+  // un doble clic en el mismo tick y no cubre el drop sobre la zona.
+  const cargandoRef = useRef(false)
 
   // Al volver del reporte ("Validar otro archivo") Upload se remonta de cero:
   // devuelve el foco a la dropzone (no lo pierde en <body>). En la carga inicial
@@ -93,7 +100,10 @@ function Upload({ onValidated, apiUrl }) {
 
   // Limpia el input para que re-elegir el MISMO archivo vuelva a disparar
   // onChange (el File ya guardado en el estado sigue siendo válido).
+  // Ignora drop/cambio de archivo mientras valida: la selección no debe
+  // cambiar bajo un resultado que corresponde al archivo anterior.
   const handleFiles = useCallback((files) => {
+    if (cargandoRef.current) return
     if (files && files[0]) {
       const err = validarArchivo(files[0])
       if (err) {
@@ -159,11 +169,14 @@ function Upload({ onValidated, apiUrl }) {
   }
 
   const validate = async () => {
-    if (!file || loading) return
+    if (!file || cargandoRef.current) return
+    cargandoRef.current = true
     setLoading(true)
     setError(null)
     try {
       let res
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_VALIDACION_MS)
       try {
         const form = new FormData()
         form.append('archivo', file)
@@ -175,11 +188,24 @@ function Upload({ onValidated, apiUrl }) {
         res = await fetch(`${apiUrl}/validar`, {
           method: 'POST',
           body: form,
+          signal: controller.signal,
         })
-      } catch {
+      } catch (e) {
+        if (e?.name === 'AbortError') {
+          // superó el timeout: el servidor puede estar vivo pero colgado.
+          // NO cae al mock (sería mentira decir "no se pudo conectar").
+          setError({
+            titulo: 'El servidor tardó demasiado.',
+            texto: 'La validación superó los 30 segundos sin respuesta. Intente nuevamente o consulte al administrador.',
+            tipo: 'servidor',
+          })
+          return
+        }
         // Error de red (backend caído, sin proxy, etc.) → mock como modo demo
         await cargarMock('No se pudo conectar con el servidor de validación.')
         return
+      } finally {
+        clearTimeout(timeoutId)
       }
 
       if (res.ok) {
@@ -220,6 +246,7 @@ function Upload({ onValidated, apiUrl }) {
       // → fallback a mock como modo demo
       await cargarMock(`El servidor respondió HTTP ${res.status} sin detalle.`)
     } finally {
+      cargandoRef.current = false
       setLoading(false)
     }
   }
@@ -298,8 +325,10 @@ function Upload({ onValidated, apiUrl }) {
               <IconoArchivo />
             )}
           </div>
-          {/* role=status anuncia cambios de estado; role=alert para errores */}
-          <div className="txt-principal" role={error ? 'alert' : 'status'}>
+          {/* role=status anuncia cambios de estado; role=alert SOLO para error
+              de archivo dentro de la zona (el error de servidor ya tiene su
+              propio banner role=alert: con alert aquí se anunciaría dos veces) */}
+          <div className="txt-principal" role={error && error.tipo !== 'servidor' ? 'alert' : 'status'}>
             {estadoPrincipal}
           </div>
           <div className="txt-sec">{estadoSec}</div>
@@ -310,6 +339,10 @@ function Upload({ onValidated, apiUrl }) {
             ref={inputRef}
             accept=".docx"
             disabled={loading}
+            // El dropzone (role=button) ya es el control accesible por teclado:
+            // este input oculto no debe ser una parada de tabulación invisible.
+            tabIndex={-1}
+            aria-hidden="true"
             onChange={(e) => handleFiles(e.target.files)}
           />
           <label htmlFor="file-input" className={`btn-select ${loading ? 'disabled' : ''}`}>
