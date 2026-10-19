@@ -18,6 +18,10 @@ result
 .env.*
 *.eml
 
+# Sesiones de navegador exportadas: los .har traen cookies, tokens y
+# cuerpos POST completos (docs/DSPACE_API.md §11)
+*.har
+
 # IDE
 .vscode/
 .idea/
