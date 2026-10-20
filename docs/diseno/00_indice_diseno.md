@@ -164,17 +164,17 @@ flowchart LR
 3. **05** explica cómo se compila y se valida contra un documento.
 4. **06** (migración), **07** (tests) y **08** (OCR) son procesos transversales.
 5. **09** es la única propuesta a futuro (F5): el resto documenta lo ya
-      implementado y verificado por la suite (490 tests).
+      implementado y verificado por la suite (519 tests).
 6. **15** es el único documento con diseño **previo** a la implementación: se
    escribió antes de escribir código, porque detecta un defecto de correctitud
    (una tesis conforme se reporta en rojo). Su plan de ejecución por pasos está
    en `docs/PLAN_TIPO_DOCUMENTO.md`.
 7. **16** (módulo de IA) es el segundo documento con diseño **previo**; se
    deriva de la discusión en `docs/discusion_modelo_ia.md`. El Paso 0 (cliente
-   LLM), las Funcionalidades 2 (explicar/priorizar), 3 (clasificación asistida)
-   y 5 (redacción de la respuesta) ya están implementadas en el motor; falta el
-   *wiring* de la API (`docs/HANDOVER_API_IA.md`) y seguir con la
-   funcionalidad 1.
+   LLM) y las Funcionalidades 1 (validación semántica), 2 (explicar/priorizar),
+   3 (clasificación asistida) y 5 (redacción de la respuesta) ya están
+   implementadas en el motor; falta el *wiring* de la API
+   (`docs/HANDOVER_API_IA.md`) y el frontend.
 
 ---
 

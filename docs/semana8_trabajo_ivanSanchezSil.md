@@ -252,6 +252,30 @@
 - **HANDOVER** `docs/HANDOVER_API_IA.md`: firma del motor (§1.3) y tests del
   endpoint `POST /asistente/redactar` (§4); diseño e índice actualizados.
 
+### 2026-10-14 — Funcionalidad 1 del módulo de IA: validación semántica (motor)
+
+- **Contexto**: cuarto y último paso del orden **2 → 3 → 5 → 1**. A diferencia
+  de las anteriores, esta funcionalidad **sí lee la tesis**, pero solo
+  fragmentos acotados y locales.
+- **`validator/asistente.py`**: `extraer_fragmentos(doc)` (único punto en que
+  la IA toca el texto: resumen, índice de contenidos, referencias, títulos de
+  capítulo y citas parentéticas del cuerpo, todos capados y sin cruzar de una
+  sección a otra); `CheckSemantico` / `CHECKS_SEMANTICOS` (`coherencia_resumen`,
+  `indice_vs_titulos`, `citas_huerfanas`); `construir_prompt_semantico()` (un
+  prompt por check: **regla textual + sus fragmentos**), `parse_hallazgos()`
+  (rechaza niveles fuera de `{advertencia, informativo}` y descripciones vacías)
+  y `revision_semantica()` (reintento único; omite un check cuyo fragmento
+  falte, sin llamar a la IA; nunca emite `RuleResult`).
+- **Reutiliza el criterio de encabezado del extractor** (`es_heading`/`text_of`)
+  y el idioma del motor (`NS`, `W`), para no tener dos definiciones de "título".
+- **Tests** `tests/test_asistente_semantico.py` (29 tests): extracción
+  (sección específica vs genérica, truncado, citas solo del cuerpo, ausencias),
+  prompt por check sin fuga de fragmentos ajenos, torturas de parseo, e2e con
+  `StubLLM`, omisión por fragmento faltante, reintento y error de servicio. La
+  suite pasa de **490 a 519**.
+- **HANDOVER** `docs/HANDOVER_API_IA.md`: firma del motor (§1.4) y tests del
+  endpoint `POST /asistente/semantico` (§4); el motor del módulo queda completo.
+
 ---
 
 ## Evidencias producidas
@@ -272,9 +296,10 @@
 - Tests: `tests/_docx_builder.py`, `tests/test_paridad_formatos.py`,
   `tests/test_tipo_documento.py`.
 - Documentación: `docs/DSL.md` (campo `tolerancia`) y esta bitácora.
-- Módulo de IA (motor): `validator/llm.py`, `validator/asistente.py` (Func 2,
-  Func 3 y Func 5) y sus tests (`tests/test_llm.py`, `tests/test_asistente.py`,
-  `tests/test_asistente_clasificacion.py`, `tests/test_asistente_redaccion.py`);
+- Módulo de IA (motor): `validator/llm.py`, `validator/asistente.py` (Func 1,
+  Func 2, Func 3 y Func 5) y sus tests (`tests/test_llm.py`,
+  `tests/test_asistente.py`, `tests/test_asistente_clasificacion.py`,
+  `tests/test_asistente_redaccion.py`, `tests/test_asistente_semantico.py`);
   contrato para I1 en `docs/HANDOVER_API_IA.md`; diseño actualizado en
   `docs/diseno/16_modulo_ia.md` y registrado en `docs/diseno/00_indice_diseno.md`.
 - Medición con documento real (no versionada; los DOCX/PDF de estudiantes
@@ -345,9 +370,8 @@ oficial. Cada uno se implementa en su **commit atómico**:
    aparezca con nuevos documentos reales.
 2. Validar el comportamiento con un segundo documento real cuando esté
    disponible.
-3. **Módulo de IA**: el Paso 0 y las Funcionalidades 2, 3 y 5 (motor) ya están
-   (`validator/llm.py`, `validator/asistente.py`). Coordinar con I1 el *wiring*
-   de `GET /asistente/estado`, `POST /asistente/explicar`,
-   `POST /asistente/clasificar` y `POST /asistente/redactar`
-   (`docs/HANDOVER_API_IA.md`) y con I2 los botones del frontend; luego seguir
-   con la funcionalidad 1 (validación semántica).
+3. **Módulo de IA**: el motor está **completo** (Paso 0 + Funcionalidades 1, 2,
+   3 y 5 en `validator/llm.py` y `validator/asistente.py`). Coordinar con I1 el
+   *wiring* de `GET /asistente/estado` y los endpoints
+   `POST /asistente/explicar|clasificar|redactar|semantico`
+   (`docs/HANDOVER_API_IA.md`) y con I2 los botones del frontend.

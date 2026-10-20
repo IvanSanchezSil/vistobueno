@@ -1,7 +1,7 @@
 # 16. Módulo de IA local (asistente del encargado)
 
 - **Fecha**: 2026-10-12
-- **Estado**: base (Paso 0), y **Funcionalidades 2, 3 y 5** (motor)
+- **Estado**: base (Paso 0), y **Funcionalidades 1, 2, 3 y 5** (motor)
   implementadas; API/frontend pendientes (ver `docs/HANDOVER_API_IA.md`)
 - **Commits**: — (Semana 8 — rama `semana8-modulo-ia`)
 - **Alcance**: fundamento (cliente LLM local) + funcionalidades 2, 3, 5 y 1
@@ -208,24 +208,27 @@ class StubLLM:
 ### 6.4 Funcionalidad 1 — Validación semántica advisory (`POST /asistente/semantico`)
 
 - **Entrada**: `.docx` (multipart).
-- **Fragmentos** (los ya extraíbles por el extractor): resumen, tabla de
-  contenidos, lista de referencias, títulos de capítulo. Capa la longitud
-  (p. ej. resumen ≤ 2.000 caracteres; referencias por páginas ¿primera y
-  última).
-- **Checks semánticos** por ahora: coherencia resumen↔contenido; índice↔títulos
-  reales; horfandad/chic de citas (solo presencia de patrón). Cada check es un
-  prompt con **la regla textual + el fragmento**, no el reglamento completo.
+- **Fragmentos** (extraídos por el motor con `extraer_fragmentos`): resumen
+  (≤ 2.000 chars), índice de contenidos, lista de referencias, títulos de
+  capítulo y citas parentéticas del cuerpo. Cada fragmento se capa en longitud.
+- **Checks semánticos** (3): `coherencia_resumen` (resumen↔títulos),
+  `indice_vs_titulos` (índice↔títulos reales) y `citas_huerfanas`
+  (citas del cuerpo↔referencias). Cada check es un prompt con **la regla
+  textual + sus fragmentos**, no el reglamento completo ni la tesis.
 - **Salida `HallazgosSemanticos`**:
 
 ```json
 {
   "hallazgos": [
-    {"check": "indice_vs_titulos", "nivel": "advertencia|informativo",
+    {"check": "indice_vs_titulos", "nivel": "advertencia",
      "descripcion": "...", "ubicacion": "página 12"}
-  ]
+  ],
+  "modelo": "qwen2.5:3b"
 }
 ```
 
+- Un check cuyo fragmento falte **se omite sin llamar a la IA** (si el doc no
+  trae resumen, no se evalúa la coherencia del resumen).
 - Es **advisory**: nunca bloquea la entrega. Los hallazgos no entran al
   semáforo ni al resumen; se muestran en una sección separada "Revisión
   semántica".
@@ -262,7 +265,7 @@ class StubLLM:
 ## 9. Testing y CI
 
 - **`StubLLM`**: respuestas JSON fijas por feature → tests de contrato y unit
-  sin GPU ni descargas. La suite actual (490 tests) debe seguir en verde.
+  sin GPU ni descargas. La suite actual (519 tests) debe seguir en verde.
 - Marco de pruebas: tests de **prompt building** (sin red), tests de **parsing
   JSON→DTO** (torturas: llaves rotas, arrays vacíos, campos de más), tests de
   **contrato de endpoint** (Con `StubLLM` inyectado vía `app.dependency_overrides`).
@@ -278,7 +281,7 @@ class StubLLM:
 | 1 ✅ (motor) | Funcionalidad 2: `explicar_y_priorizar()`; endpoint + frontend pendientes de I1/I2 | Paso 0 |
 | 2 ✅ (motor) | Funcionalidad 3: `proponer_clasificacion()`; endpoint + `tipo_confirmado` pendientes de I1 | Paso 0, coord. I1 |
 | 3 ✅ (motor) | Funcionalidad 5: `redactar_respuesta()`; endpoint pendiente de I1 (coord. SMTP) | Paso 0, coord. I1 (SMTP) |
-| 4 | Funcionalidad 1: `revision_semantica()` + fragmentos + endpoint | Pasos 0–3 |
+| 4 ✅ (motor) | Funcionalidad 1: `revision_semantica()` + `extraer_fragmentos()`; endpoint pendiente de I1 | Pasos 0–3 |
 
 Cada paso termina con: DTO validado, tests stub/contrato verdes, `ruff`+`mypy`
 limpios, bitácora, y (si aplica) actualización de `README.md` y del

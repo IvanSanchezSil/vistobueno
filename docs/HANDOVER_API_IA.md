@@ -1,11 +1,11 @@
-# HANDOVER API ↔ Motor — Módulo de IA (Paso 0 + Funcionalidades 2, 3 y 5)
+# HANDOVER API ↔ Motor — Módulo de IA (Paso 0 + Funcionalidades 1, 2, 3 y 5)
 
 > **Para**: Integrante 1 (Backend/API)
 > **De**: Integrante 3 (Motor de reglas / DSL)
 > **Rama**: `semana8-modulo-ia`
 > **Diseño**: `docs/diseno/16_modulo_ia.md`, `docs/discusion_modelo_ia.md`
-> **Estado**: el **motor** (Paso 0, Func 2, Func 3 y Func 5) está implementado y
-> probado; falta el **wiring** de la API y el frontend.
+> **Estado**: el **motor** (Paso 0, Func 1, Func 2, Func 3 y Func 5) está
+> implementado y probado; falta el **wiring** de la API y el frontend.
 
 Este documento fija el contrato exacto para que I1 exponga el módulo de IA sin
 tocar el motor. Nada de lo de aquí cambia `POST /validar` ni `incluir_prompts_ia`.
@@ -20,7 +20,8 @@ tocar el motor. Nada de lo de aquí cambia `POST /validar` ni `incluir_prompts_i
 | `validator/asistente.py` | `explicar_y_priorizar()`, `Explicacion` / `Prioridad` / `ExplicacionYPrioridad` (dataclasses advisory), `RespuestaIAInvalida`, `construir_prompt_explicar()`, `parse_explicacion()`, `ESQUEMA_EXPLICACION` |
 | `validator/asistente.py` (Func 3) | `proponer_clasificacion()`, `EvidenciaClasificacion` / `ClasificacionPropuesta` (dataclasses advisory), `construir_prompt_clasificar()`, `parse_clasificacion()` |
 | `validator/asistente.py` (Func 5) | `redactar_respuesta()`, `RedaccionRespuesta` (dataclass advisory), `construir_prompt_redactar()`, `parse_redaccion()`, `ESQUEMA_REDACCION` |
-| `tests/test_llm.py`, `tests/test_asistente.py`, `tests/test_asistente_clasificacion.py`, `tests/test_asistente_redaccion.py` | tests, todos con `StubLLM`/`MockTransport` (sin red, sin GPU) |
+| `validator/asistente.py` (Func 1) | `revision_semantica()`, `extraer_fragmentos()`, `HallazgoSemantico` / `HallazgosSemanticos`, `CheckSemantico` / `CHECKS_SEMANTICOS`, `construir_prompt_semantico()`, `parse_hallazgos()` |
+| `tests/test_llm.py`, `tests/test_asistente.py`, `tests/test_asistente_clasificacion.py`, `tests/test_asistente_redaccion.py`, `tests/test_asistente_semantico.py` | tests, todos con `StubLLM`/`MockTransport` (sin red, sin GPU) |
 
 **No hay dependencias nuevas**: `httpx` ya está en `flake.nix`. **No hay
 secretos**: `OLLAMA_URL`/`OLLAMA_MODEL`/`OLLAMA_TIMEOUT` son configuración.
@@ -133,6 +134,46 @@ async def redactar_respuesta(
 - El texto es **editable**: el encargado lo revisa/edita antes de enviarlo. El
   envío sigue siendo el flujo SMTP de `notificacion.py` (I1); este endpoint **no
   envía** nada.
+
+### 1.4 Firma del motor — Funcionalidad 1 (validación semántica advisory)
+
+```python
+# validator/asistente.py
+@dataclass(frozen=True)
+class HallazgoSemantico:
+    check: str        # id del chequeo: coherencia_resumen | indice_vs_titulos | citas_huerfanas
+    nivel: str        # "advertencia" | "informativo"  (NUNCA bloquea)
+    descripcion: str
+    ubicacion: str    # aproximada ("resumen", "índice", ...); puede venir vacía
+
+@dataclass(frozen=True)
+class HallazgosSemanticos:
+    hallazgos: list[HallazgoSemantico]
+    modelo: str = ""
+
+async def revision_semantica(
+    doc: ExtractedDocx,
+    *,
+    client: LLMClient,
+    checks: tuple[CheckSemantico, ...] | None = None,  # default: CHECKS_SEMANTICOS
+) -> HallazgosSemanticos: ...
+```
+
+- A diferencia de las Func 2/3/5, esta **sí recibe el `ExtractedDocx`** (no el
+  reporte): el motor extrae fragmentos acotados y locales con
+  `extraer_fragmentos(doc)` (resumen, índice, referencias, títulos, citas del
+  cuerpo) y arma **un prompt por chequeo** (regla textual + fragmentos), nunca
+  el documento entero (privacidad, P4).
+- **No hay `resultados`**: la Func 1 es independiente del semáforo. El endpoint
+  puede (opcional) exigir que el doc ya pasara el formato para no gastar cómputo
+  — decisión de I1/UX, no del motor.
+- Un chequeo cuyo fragmento falte **se omite sin llamar a la IA** (si el doc no
+  tiene resumen, no se evalúa `coherencia_resumen`). Un doc sin secciones da
+  `hallazgos=[]` y **cero** llamadas.
+- Errores: igual que las Func 2/3/5 (`LLMNoDisponible`/`LLMError` → `503`,
+  `RespuestaIAInvalida` → `422`).
+- El frontend lo publica en una sección **separada** ("Revisión semántica"),
+  desconectada del semáforo.
 
 ---
 
@@ -248,13 +289,28 @@ Para la Func 5 (`POST /asistente/redactar`), en el mismo archivo:
 13. `StubLLM` devolviendo basura (sin `texto`/`asunto`) → `422`.
 14. `POST /asistente/redactar` sin archivo / archivo no-docx → `400`/`415`.
 
+Para la Func 1 (`POST /asistente/semantico`), en el mismo archivo:
+15. `POST /asistente/semantico` con docx del factory + `StubLLM` → `200` con
+    `hallazgos` (uno por chequeo ejecutable) y `modelo`.
+16. `POST /asistente/semantico` sin `OLLAMA_URL` (`LLMNoDisponible`) → `503`.
+17. `StubLLM` devolviendo un `nivel` fuera del catálogo o basura → `422`.
+18. `POST /asistente/semantico` con un docx sin resumen/índice/referencias →
+    `200` con `hallazgos: []` (chequeos omitidos, sin llamar a la IA).
+19. `POST /asistente/semantico` sin archivo / archivo no-docx → `400`/`415`.
+
 ---
 
 ## 5. Reglas de oro (recordatorio)
 
-- La salida de IA **jamás** toca el semáforo ni produce `RuleResult`.
-- La IA **no lee la tesis**: el prompt de la Func 2 y de la Func 5 usa solo el
-  bloque de fallos; el de la Func 3, solo la evidencia que la heurística extrajo.
+- La salida de IA **jamás** toca el semáforo ni produce `RuleResult`. Los
+  hallazgos de la Func 1 (`nivel`: "advertencia"/"informativo") son advisory: no
+  bloquean la entrega ni entran al resumen.
+- La IA de las Func 2, 3 y 5 **no lee la tesis**: los prompts de la Func 2 y 5
+  usan solo el bloque de fallos; el de la Func 3, solo la evidencia que la
+  heurística extrajo.
+- La Func 1 **sí toca el texto**, pero solo **fragmentos acotados y locales**
+  (resumen, índice, referencias, títulos, citas del cuerpo), un prompt por
+  chequeo; nunca el documento entero y nunca sale del servidor.
 - La Func 3 es **human-in-the-loop**: la IA propone el tipo, el encargado lo
   confirma; la IA nunca cambia el tipo por sí sola.
 - La Func 5 produce un **borrador editable**: la IA no envía nada (el envío es el
@@ -265,13 +321,12 @@ Para la Func 5 (`POST /asistente/redactar`), en el mismo archivo:
 
 ## 6. Pendiente (fuera de este handover)
 
-- **Motor (I3)**: Funcionalidad 1 (semántico) — paso 4 de
-  `docs/diseno/16_modulo_ia.md` §10. Las **Func 3 y 5 ya están listas en el
-  motor** (`proponer_clasificacion` §1.2, `redactar_respuesta` §1.3); falta su
-  endpoint.
-- **API (I1)**: los endpoints `POST /asistente/clasificar` y
-  `POST /asistente/redactar` (§2.2/§4) y el `POST /validar?tipo_confirmado=`
-  para la re-validación human-in-the-loop (toque acotado en el flujo de
-  compilación: `sobreescribir_tipo`).
+- **Motor (I3)**: **completo**: Paso 0 + Func 1, 2, 3 y 5 (todos los pasos de
+  `docs/diseno/16_modulo_ia.md` §10 hechos en el motor).
+- **API (I1)**: `GET /asistente/estado` y los endpoints
+  `POST /asistente/explicar`, `POST /asistente/clasificar`,
+  `POST /asistente/redactar` y `POST /asistente/semantico` (§2.2/§4); más el
+  `POST /validar?tipo_confirmado=` para la re-validación human-in-the-loop
+  (toque acotado en el flujo de compilación: `sobreescribir_tipo`).
 - **Frontend (I2)**: necesita el estado (`GET /asistente/estado`) y los
-  endpoints de las Func 2, 3 y 5 antes de sus botones.
+  endpoints de las Func 1, 2, 3 y 5 antes de sus botones.
