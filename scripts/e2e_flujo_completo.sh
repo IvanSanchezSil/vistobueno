@@ -70,7 +70,15 @@ import json
 d=json.load(open('/tmp/ok.json'))
 assert d['resumen']['total']>=47, 'reglas<47'
 assert d['semaforo'] in ('rojo','verde'), 'semaforo invalido'
-print('  ✅ HTTP', '$HTTP', '| total:', d['resumen']['total'], '| semaforo:', d['semaforo'])
+# Contrato v1.5: aplicabilidad por tipo de documento
+r=d['resumen']
+assert 'total_evaluadas' in r, 'falta total_evaluadas'
+assert r['total'] >= r['total_evaluadas'] >= 0, 'total_evaluadas incoherente'
+assert r['total'] - r['total_evaluadas'] == r.get('reglas_no_aplicables', 0), 'reglas_no_aplicables incoherente'
+assert all('aplicable' in x for x in d['resultados']), 'falta aplicable en resultados'
+m=d.get('metadatos', {})
+assert m.get('tipo_documento_estado') in ('vigente','sin_determinar','contradictorio'), f'tipo_documento_estado invalido: {m.get(\"tipo_documento_estado\")!r}'
+print('  ✅ HTTP', '$HTTP', '| total:', r['total'], '| evaluadas:', r['total_evaluadas'], '| semaforo:', d['semaforo'])
 " || { echo "  ❌ Falló validación"; exit 1; }
 
 # 6. Error 415 con detail JSON (NO mock)

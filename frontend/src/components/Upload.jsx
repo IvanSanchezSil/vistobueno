@@ -91,11 +91,15 @@ function Upload({ onValidated, apiUrl }) {
   const onCorreoChange = (e) => {
     const v = e.target.value
     setCorreo(v)
-    const invalido = v && !esCorreoValido(v)
+    // El backend hace strip() antes de validar (api.py): validar el valor
+    // limpio evita rechazar en el cliente correos que el servidor aceptaría
+    // (p. ej. un espacio pegado al copiar/pegar).
+    const limpio = v.trim()
+    const invalido = limpio && !esCorreoValido(limpio)
     setCorreoError(invalido ? 'Formato de correo inválido (ej: correo@ejemplo.com).' : null)
     // Sin correo válido no hay notificación posible: se desmarca el opt-in
     // para que la petición no quede en un estado inconsistente.
-    if (!v || invalido) setNotificar(false)
+    if (!limpio || invalido) setNotificar(false)
   }
 
   // Limpia el input para que re-elegir el MISMO archivo vuelva a disparar
@@ -173,6 +177,8 @@ function Upload({ onValidated, apiUrl }) {
     cargandoRef.current = true
     setLoading(true)
     setError(null)
+    // Igual que el backend: el correo viaja sin espacios extremos.
+    const correoLimpio = (correo || '').trim()
     try {
       let res
       const controller = new AbortController()
@@ -181,10 +187,10 @@ function Upload({ onValidated, apiUrl }) {
         const form = new FormData()
         form.append('archivo', file)
         // Correo del estudiante (opcional): viaja en la MISMA solicitud POST /validar.
-        if (correo && esCorreoValido(correo)) form.append('correo', correo)
+        if (correoLimpio && esCorreoValido(correoLimpio)) form.append('correo', correoLimpio)
         // Opt-in de envío: "true"/"1" solo si el operador marcó la casilla
         // (el backend lo interpreta como default: false).
-        if (notificar && correo && esCorreoValido(correo)) form.append('notificar', 'true')
+        if (notificar && correoLimpio && esCorreoValido(correoLimpio)) form.append('notificar', 'true')
         res = await fetch(`${apiUrl}/validar`, {
           method: 'POST',
           body: form,
