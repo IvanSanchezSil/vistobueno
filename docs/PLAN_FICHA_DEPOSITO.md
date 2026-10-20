@@ -196,9 +196,14 @@ opción deliberada.
   autores ocupan dos filas con el mismo handle). El Modelo B es por
   estudiante ("Presentado por X, con matrícula N° Y"). Por lo tanto:
   N autores → N constancias + N filas.
-- Mergefields del Modelo B: `TESIS__TSP`, `BACHILLER__LICENCIADO`,
+- Endpoints: `POST /constancia` (descarga del Modelo B lleno, una por
+  autor, `indice_autor` 0-based) y `POST /fila-registro` (filas TSV en
+  el orden de columnas). Configuración: `VISTOBUENO_FIRMA` (columna
+  FIRMA) y opcional `VISTOBUENO_PLANTILLA_CONSTANCIA`.
+- Mergefields del Modelo B (11): `TESIS__TSP`, `BACHILLER__LICENCIADO`,
   `N_MATRIC`, `DD`, `MM`, `AA`, `HORA`, `AÑO`, `DIRECCION_URL`,
-  `FECHA_DEL_DOC`.
+  `FECHA_DEL_DOC` y `ESCUELAS` (verificado contra la plantilla oficial:
+  11 campos, ninguno sobrevive al llenado; test de fidelidad local).
 - Columnas del TSV (orden del XLSX): N°, TESIS/TSP, BACHILLER/LICENCIADO,
   N° MATRIC., DD, MM, AA, HORA, DIRECCION URL, FIRMA, FECHA DEL DOC.,
   ESCUELAS, AÑO.

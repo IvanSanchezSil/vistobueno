@@ -167,6 +167,74 @@
           }
         }
       }
+    },
+    "/constancia": {
+      "post": {
+        "summary": "Descargar la constancia de UN autor (Modelo B lleno)",
+        "description": "Genera la constancia de depósito del Modelo B con los MERGEFIELD reemplazados por los valores de la ficha. Una constancia POR AUTOR: la SPA descarga una por cada estudiante iterando `indice_autor`. Devuelve el .docx como descarga binaria.",
+        "operationId": "descargar_constancia_constancia_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConstanciaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Constancia .docx (descarga binaria)",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Timestamp inválido, falta un dato de la ficha o índice fuera de rango"
+          },
+          "500": {
+            "description": "Firma o plantilla sin configurar en el servidor"
+          }
+        }
+      }
+    },
+    "/fila-registro": {
+      "post": {
+        "summary": "Generar las filas del registro (TSV, una por autor)",
+        "description": "Devuelve las filas listas para pegar en el registro oficial de la biblioteca (XLSX): una por autor, en el orden exacto de columnas. La app JAMÁS escribe el registro oficial: el operador pega la fila.",
+        "operationId": "generar_fila_registro_fila_registro_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilaRegistroRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Lista de filas TSV",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilasRegistroResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Timestamp inválido o falta un dato de la ficha"
+          },
+          "500": {
+            "description": "Firma sin configurar en el servidor"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -334,11 +402,17 @@
                 "type": "string"
               },
               {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
                 "type": "null"
               }
             ],
             "title": "Valor",
-            "description": "Valor tecleado por el operador; None hasta que lo llene"
+            "description": "Valor tecleado por el operador; None hasta que lo llene. `matricula` y `renati.author.dni` aceptan una LISTA alineada por posición con los autores (una por estudiante): las tesis con dos autores generan dos constancias y dos filas"
           }
         },
         "type": "object",
@@ -347,6 +421,39 @@
         ],
         "title": "CampoManualFicha",
         "description": "Campo que el operador teclea en la pantalla de ficha (v1.7.0).\n\nMatrícula, DNI del autor/asesor y ORCID no salen del DOCX: el\noperador los escribe UNA vez aquí y fluyen al formulario de DSpace\n(vía userscript), a la constancia y a la fila del registro."
+      },
+      "ConstanciaRequest": {
+        "properties": {
+          "ficha": {
+            "$ref": "#/components/schemas/FichaDeposito",
+            "description": "La ficha completada por el operador (extraídos corregidos + manuales llenos)"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle",
+            "description": "URI del ítem depositado (https://hdl.handle.net/…)"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Momento del clic en Depositar (ISO 8601), reportado por el userscript"
+          },
+          "indice_autor": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Indice Autor",
+            "description": "Índice (0-based) del autor cuya constancia se descarga",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "ficha",
+          "handle",
+          "timestamp"
+        ],
+        "title": "ConstanciaRequest",
+        "description": "Solicitud de UNA constancia (Modelo B) en particular (v1.7.0).\n\nUna constancia por autor: la SPA descarga una por cada estudiante,\niterando `indice_autor` sobre la lista de autores de la ficha."
       },
       "DepositoAPI": {
         "properties": {
@@ -458,6 +565,50 @@
         ],
         "title": "FichaDeposito",
         "description": "Ficha de depósito: valores detectados + campos manuales (v1.7.0).\n\nLa SPA la recibe en la respuesta de POST /validar (solo con semáforo\nverde), el operador la corrige y completa, y viaja intacta por el\nbuzón hasta el userscript que rellena el formulario oficial."
+      },
+      "FilaRegistroRequest": {
+        "properties": {
+          "ficha": {
+            "$ref": "#/components/schemas/FichaDeposito",
+            "description": "La ficha completada por el operador (extraídos corregidos + manuales llenos)"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle",
+            "description": "URI del ítem depositado (https://hdl.handle.net/…)"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Momento del clic en Depositar (ISO 8601), reportado por el userscript"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ficha",
+          "handle",
+          "timestamp"
+        ],
+        "title": "FilaRegistroRequest",
+        "description": "Solicitud de la fila de registro (v1.7.0).\n\nLa SPA la envía cuando el buzón reporta el depósito (handle +\ntimestamp del clic en Depositar). El timestamp alimenta DD/MM/AA,\nHORA, AÑO y la fecha del documento, igual que en el registro\noficial de la biblioteca."
+      },
+      "FilasRegistroResponse": {
+        "properties": {
+          "filas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Filas",
+            "description": "Filas TSV (una por autor) con los valores separados por tabuladores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filas"
+        ],
+        "title": "FilasRegistroResponse",
+        "description": "Filas TSV listas para pegar en el registro oficial (v1.7.0).\n\nUna fila por autor, en el orden exacto de columnas del registro\n(N°, TESIS/TSP, BACHILLER/LICENCIADO, N° MATRIC., DD, MM, AA, HORA,\nDIRECCION URL, FIRMA, FECHA DEL DOC., ESCUELAS, AÑO). La columna N°\nva vacía: la numeración es del registro de la biblioteca."
       },
       "HTTPValidationError": {
         "properties": {

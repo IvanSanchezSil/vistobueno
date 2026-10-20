@@ -571,6 +571,42 @@ pegar, sin sesiones: **una ranura en memoria del proceso, TTL de 1 hora,
 - El buzón es la única pieza de estado del servidor: un reinicio del
   proceso lo vacía (el operador re-valida y re-prepara).
 
+## Constancia de depósito (Semana 8, v1.7.0)
+
+Los dos endpoints que producen el papeleo del registro a partir de la
+ficha completada y del reporte del buzón. Entrada común
+(`FilaRegistroRequest`): la `ficha` (extraídos corregidos + manuales
+llenos), el `handle` del ítem y el `timestamp` del clic en Depositar
+(ISO 8601; alimenta DD/MM/AA, HORA, AÑO y la fecha del documento).
+
+**Convención por autor** (evidencia del registro oficial): una fila y
+una constancia POR ESTUDIANTE. `matricula` y `renati.author.dni`
+aceptan una lista alineada por posición con los autores; las tesis con
+dos autores generan dos constancias y dos filas con el mismo handle.
+
+### `POST /constancia` → descarga binaria
+
+- Cuerpo: `FilaRegistroRequest` + `indice_autor` (`int`, 0-based).
+- Respuesta 200: el `.docx` del Modelo B con los 11 MERGEFIELD
+  reemplazados por texto plano (título, autor, matrícula, fecha, hora,
+  handle, escuela, fecha del documento). La plantilla oficial vive en
+  `recursos/` (ruta configurable por
+  `VISTOBUENO_PLANTILLA_CONSTANCIA`); se llena en copia.
+- 422: timestamp inválido, falta un dato de la ficha (título, autores,
+  matrículas alineadas) o `indice_autor` fuera de rango.
+- 500: configuración del servidor — `VISTOBUENO_FIRMA` (columna FIRMA)
+  o plantilla ausente; el `detail` nombra exactamente qué falta.
+
+### `POST /fila-registro` → `{"filas": […]}`
+
+- Una fila TSV por autor, en el orden exacto de columnas del registro
+  oficial: N°, TESIS/TSP, BACHILLER/LICENCIADO, N° MATRIC., DD, MM, AA,
+  HORA, DIRECCION URL, FIRMA, FECHA DEL DOC., ESCUELAS, AÑO.
+- La columna N° va vacía: la numeración pertenece al registro de la
+  biblioteca. DD y MM llevan barra final ("20/", "01/") y HORA va en
+  24 h, igual que las celdas existentes.
+- La app JAMÁS escribe el XLSX oficial: el operador pega la fila.
+
 ## Changelog
 
 ### v1.7.0 (2026-10-19 — Semana 8: ficha de depósito y buzón)
@@ -581,10 +617,15 @@ existente desaparece ni cambia de tipo.
 
 - **Nuevo objeto `ficha_deposito` en la respuesta** (`null` salvo con
   semáforo `verde`): `extraidos` (8 claves acordadas con el motor) +
-  `manuales` (4 claves que el operador llena en pantalla). Hasta la
+  `manuales` (4 claves que el operador llena en pantalla; `matricula` y
+  `renati.author.dni` aceptan lista alineada por autor). Hasta la
   entrega del motor, los extraídos viajan con `detectado=false`.
 - **Nuevos endpoints del buzón**: `POST/GET /ficha-pendiente` y
   `POST/GET /deposito` (una ranura, TTL de 1 hora, "última gana").
+- **Nuevos endpoints del papeleo**: `POST /constancia` (descarga del
+  Modelo B lleno, una por autor, índice 0-based) y `POST /fila-registro`
+  (filas TSV en el orden de columnas del registro oficial). Configuran
+  `VISTOBUENO_FIRMA` y opcionalmente `VISTOBUENO_PLANTILLA_CONSTANCIA`.
 - **Invariante de seguridad**: el buzón no emite cabeceras CORS (con
   test que lo protege contra regresiones).
 - Contexto y decisiones: `docs/PLAN_FICHA_DEPOSITO.md` (v0.2, congelado);
