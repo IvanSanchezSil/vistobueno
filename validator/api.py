@@ -772,7 +772,9 @@ def _nombre_archivo_constancia(datos: DatosConstancia) -> str:
     ),
     responses={
         200: {"description": "Constancia .docx (descarga binaria)"},
-        422: {"description": "Timestamp inválido, falta un dato de la ficha o índice fuera de rango"},
+        422: {
+            "description": "Timestamp inválido, falta un dato de la ficha o índice fuera de rango"
+        },
         500: {"description": "Firma o plantilla sin configurar en el servidor"},
     },
 )

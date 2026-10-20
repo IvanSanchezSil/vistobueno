@@ -258,7 +258,10 @@ def _ficha(titulo="Tesis de prueba", autores=None, matriculas=None, escuela="Edu
             {"campo": "escuela", "valor": escuela, "pagina": 1, "detectado": True},
         ],
         "manuales": [
-            {"campo": "matricula", "valor": matriculas if matriculas is not None else ["15185003-20"]},
+            {
+                "campo": "matricula",
+                "valor": matriculas if matriculas is not None else ["15185003-20"],
+            },
         ],
     }
 

@@ -211,9 +211,7 @@ class CampoExtraidoFicha(BaseModel):
     pagina: int | None = Field(
         default=None, description="Página de origen en el DOCX, si el motor la conoce"
     )
-    detectado: bool = Field(
-        default=False, description="True si el motor encontró el elemento"
-    )
+    detectado: bool = Field(default=False, description="True si el motor encontró el elemento")
 
 
 class CampoManualFicha(BaseModel):
@@ -319,8 +317,7 @@ class FilasRegistroResponse(BaseModel):
     """
 
     filas: list[str] = Field(
-        ...,
-        description="Filas TSV (una por autor) con los valores separados por tabuladores"
+        ..., description="Filas TSV (una por autor) con los valores separados por tabuladores"
     )
 
 
