@@ -21,9 +21,13 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from .api_models import (
+    CampoExtraidoFicha,
+    CampoManualFicha,
     DepositoAPI,
+    DepositoRecibido,
     EstadoDepositoAPI,
     EstadoNotificacionAPI,
+    FichaDeposito,
     MetadatosValidacion,
     NotificacionAPI,
     PromptIA,
@@ -32,6 +36,7 @@ from .api_models import (
     SeveridadAPI,
     ValidarResponse,
 )
+from .buzon import Buzon
 from .dsl_check import DSLValidationError
 from .dspace import ConfigDSpace, depositar_documento, metadatos_desde_formulario
 from .engine import build_report, load_rules, validate_docx
@@ -58,6 +63,26 @@ TIPOS_ACEPTADOS = {
 }
 
 EXTENSION_ACEPTADA = ".docx"
+
+# Claves acordadas de la ficha de depósito (v1.7.0, PLAN_FICHA §4).
+# Los extraídos los publica el motor en reporte["ficha"] (handover
+# HANDOVER_MOTOR_FICHA_DEPOSITO §4); los manuales los teclea el operador.
+CAMPOS_EXTRAIDOS_FICHA = (
+    "dc.title",
+    "dc.contributor.author",
+    "dc.contributor.advisor",
+    "dc.description.abstract",
+    "dc.subject",
+    "dc.date.issued",
+    "escuela",
+    "renati.juror",
+)
+CAMPOS_MANUALES_FICHA = (
+    "matricula",
+    "renati.author.dni",
+    "renati.advisor.dni",
+    "renati.advisor.orcid",
+)
 
 
 @cache
@@ -137,6 +162,34 @@ def _extraer_metadata_tipo_documento(
     }
 
 
+def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
+    """Construye la ficha de depósito a partir del reporte del motor.
+
+    El motor publicará las extracciones en `reporte["ficha"]` como un
+    dict campo→dato, cada dato con la forma acordada del handover §4:
+    `{"valor": …, "pagina": …, "detectado": …}`. Hasta esa entrega, la
+    ficha viaja completa pero con todos los extraídos en `detectado=false`:
+    el contrato es estable y el frontend puede construirse ya.
+
+    Los manuales siempre viajan vacíos desde el servidor: los llena el
+    operador en la pantalla.
+    """
+    datos_motor = reporte.get("ficha") or {}
+    extraidos = []
+    for campo in CAMPOS_EXTRAIDOS_FICHA:
+        dato = datos_motor.get(campo) or {}
+        extraidos.append(
+            CampoExtraidoFicha(
+                campo=campo,
+                valor=dato.get("valor"),
+                pagina=dato.get("pagina"),
+                detectado=bool(dato.get("detectado")),
+            )
+        )
+    manuales = [CampoManualFicha(campo=c, valor=None) for c in CAMPOS_MANUALES_FICHA]
+    return FichaDeposito(extraidos=extraidos, manuales=manuales)
+
+
 def _construir_respuesta(
     resultados_motor: list,
     reporte: dict,
@@ -148,6 +201,11 @@ def _construir_respuesta(
     """Ensambla la respuesta completa de la API a partir de la salida del motor."""
     resultados_dto = [_rule_result_a_dto(r) for r in resultados_motor]
     resumen_motor = reporte["resumen"]
+
+    # La ficha solo materializa con semáforo verde (invariante del
+    # contrato v1.7.0): un documento con errores bloqueantes no se
+    # deposita, y no hay nada que pre-llenar.
+    ficha = _ficha_desde_reporte(reporte) if reporte["semaforo"] == "verde" else None
 
     return ValidarResponse(
         semaforo=reporte["semaforo"],
@@ -170,6 +228,7 @@ def _construir_respuesta(
             version_esquema=rules_data.get("version", "desconocido"),
             **_extraer_metadata_tipo_documento(resultados_motor),
         ),
+        ficha_deposito=ficha,
     )
 
 
@@ -210,7 +269,7 @@ def _validar_correo(correo: str | None) -> str | None:
 app = FastAPI(
     title="VistoBueno API",
     description="API de validación automática de formato de tesis — UNT FECyC",
-    version="1.6.0",
+    version="1.7.0",
 )
 
 
@@ -530,6 +589,88 @@ async def validar(
     finally:
         if tmp_path:
             Path(tmp_path).unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Buzón de una ranura: comunicación con el userscript de depósito
+# ---------------------------------------------------------------------------
+
+# Instancia única del buzón (una ranura de ficha + una de depósito, TTL 1h).
+# Es la única pieza de estado del servidor: ver docs/PLAN_FICHA_DEPOSITO.md §6.
+_BUZON = Buzon()
+
+
+@app.post(
+    "/ficha-pendiente",
+    status_code=204,
+    summary="Publicar la ficha completada en el buzón",
+    description=(
+        "La SPA publica la ficha (extraídos + manuales) para que el "
+        "userscript de depósito la lea desde el navegador del operador. "
+        "El buzón tiene UNA ranura con TTL de 1 hora: publicar de nuevo "
+        "reemplaza la ficha anterior ('última gana')."
+    ),
+)
+async def publicar_ficha_pendiente(ficha: FichaDeposito) -> None:
+    _BUZON.publicar_ficha(ficha.model_dump())
+
+
+@app.get(
+    "/ficha-pendiente",
+    response_model=FichaDeposito,
+    summary="Leer la ficha pendiente del buzón",
+    description=(
+        "El userscript lee aquí la ficha a rellenar en el formulario "
+        "oficial de DSpace. 404 cuando no hay ficha o la publicada "
+        "expiró (TTL de 1 hora)."
+    ),
+    responses={404: {"description": "Sin ficha pendiente: vacía o expirada"}},
+)
+async def leer_ficha_pendiente() -> FichaDeposito:
+    ficha = _BUZON.leer_ficha()
+    if ficha is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Sin ficha pendiente: vacía o expirada (TTL de 1 hora).",
+        )
+    return FichaDeposito(**ficha)
+
+
+@app.post(
+    "/deposito",
+    status_code=204,
+    summary="Reportar un depósito realizado",
+    description=(
+        "El userscript reporta el depósito desde la página del ítem "
+        "archivado: handle del ítem, título y el timestamp del clic en "
+        "Depositar. La SPA lo recoge sondeando GET /deposito y arma la "
+        "constancia y la fila del registro."
+    ),
+)
+async def reportar_deposito(datos: DepositoRecibido) -> None:
+    _BUZON.reportar_deposito(datos.model_dump())
+
+
+@app.get(
+    "/deposito",
+    response_model=DepositoRecibido,
+    summary="Leer el depósito reportado",
+    description=(
+        "La SPA sondea aquí mientras espera el handle del ítem. 404 "
+        "cuando no hay reporte o expiró (TTL de 1 hora). Por seguridad, "
+        "la SPA debe cotejar el `titulo` reportado con la ficha en vuelo "
+        "antes de usar el handle."
+    ),
+    responses={404: {"description": "Sin depósito reportado: vacío o expirado"}},
+)
+async def leer_deposito_reportado() -> DepositoRecibido:
+    datos = _BUZON.leer_deposito()
+    if datos is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Sin depósito reportado: vacío o expirado (TTL de 1 hora).",
+        )
+    return DepositoRecibido(**datos)
 
 
 # ---------------------------------------------------------------------------

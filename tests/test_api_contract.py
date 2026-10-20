@@ -9,9 +9,11 @@ Uso:
 
 import io
 import zipfile
+from pathlib import Path
 
 import pytest
 from _docx_generator import build_large_docx
+from _mutations import aplicar_mutacion
 from conftest import (
     CAMPOS_METADATOS,
     CAMPOS_RESULTADO,
@@ -21,9 +23,10 @@ from conftest import (
     ruta_docx_prueba,
     subir_plantilla,
 )
+from docx_factory import compilar_docx, configuracion_base
 
 import validator.api
-from validator.api import REGLAS_YAML_PATH
+from validator.api import CAMPOS_EXTRAIDOS_FICHA, CAMPOS_MANUALES_FICHA, REGLAS_YAML_PATH
 from validator.api_models import ResultadoReglaAPI
 from validator.engine import build_report, load_rules, validate_docx
 
@@ -483,3 +486,85 @@ class TestParidadAPICLI:
             metadatos_api["tipo_documento_inferido"] == "tinv_cuantitativo"
         )  # infiere cuantitativo
         assert metadatos_api["tipo_documento_estado"] == "vigente"
+
+
+# ---------------------------------------------------------------------------
+# Tests: ficha de depósito (v1.7.0)
+# ---------------------------------------------------------------------------
+
+
+class TestFichaDeposito:
+    """v1.7.0: la ficha de depósito SOLO materializa con semáforo verde.
+
+    Invariante del contrato (PLAN_FICHA §3, decisión 14): un documento
+    con errores bloqueantes no se deposita, y no hay nada que pre-llenar.
+    Los documentos de prueba salen del factory determinista: el doc bueno
+    (verde) y el doc bueno con la mutación de `papel_tamano` (regla de
+    severidad error → rojo garantizado).
+    """
+
+    @staticmethod
+    def _subir_cfg(cfg: dict):
+        """Compila un DOCX del factory y lo sube a POST /validar."""
+        ruta = Path(compilar_docx(cfg))
+        with open(ruta, "rb") as f:
+            return CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", f, MIME_DOCX)},
+            )
+
+    @staticmethod
+    def _subir_doc_bueno():
+        return TestFichaDeposito._subir_cfg(configuracion_base())
+
+    @staticmethod
+    def _subir_doc_rojo():
+        # papel_tamano es severidad error: mutarla garantiza semáforo rojo.
+        cfg = aplicar_mutacion("papel_tamano", configuracion_base())
+        return TestFichaDeposito._subir_cfg(cfg)
+
+    def test_doc_bueno_es_verde(self):
+        """Precondición del invariante: el doc bueno del factory da verde."""
+        datos = self._subir_doc_bueno().json()
+        assert datos["semaforo"] == "verde"
+
+    def test_doc_mutado_es_rojo(self):
+        """Precondición del invariante: la mutación de papel_tamano da rojo."""
+        datos = self._subir_doc_rojo().json()
+        assert datos["semaforo"] == "rojo"
+
+    def test_ficha_presente_con_todos_los_campos_en_verde(self):
+        """VERDE → ficha con los 8 extraídos acordados y los 4 manuales."""
+        ficha = self._subir_doc_bueno().json()["ficha_deposito"]
+        assert ficha is not None
+
+        extraidos = ficha["extraidos"]
+        assert tuple(c["campo"] for c in extraidos) == CAMPOS_EXTRAIDOS_FICHA
+        for c in extraidos:
+            assert set(c.keys()) == {"campo", "valor", "pagina", "detectado"}
+            assert isinstance(c["detectado"], bool)
+
+        manuales = ficha["manuales"]
+        assert tuple(c["campo"] for c in manuales) == CAMPOS_MANUALES_FICHA
+        for c in manuales:
+            assert set(c.keys()) == {"campo", "valor"}
+
+    def test_ficha_extraidos_vacios_hasta_la_entrega_del_motor(self):
+        """Hasta que el motor publique extracciones, detectado=false y valor=null.
+
+        La forma del contrato es estable ya; la entrega del motor
+        (HANDOVER_MOTOR_FICHA_DEPOSITO) solo cambia los valores.
+        """
+        ficha = self._subir_doc_bueno().json()["ficha_deposito"]
+        assert all(c["detectado"] is False for c in ficha["extraidos"])
+        assert all(c["valor"] is None for c in ficha["extraidos"])
+
+    def test_ficha_manuales_vacios_desde_el_servidor(self):
+        """Los manuales viajan null: los llena el operador en pantalla."""
+        ficha = self._subir_doc_bueno().json()["ficha_deposito"]
+        assert all(c["valor"] is None for c in ficha["manuales"])
+
+    def test_ficha_nula_en_rojo(self):
+        """ROJO → ficha_deposito es null: no hay nada que pre-llenar."""
+        datos = self._subir_doc_rojo().json()
+        assert datos["ficha_deposito"] is None
