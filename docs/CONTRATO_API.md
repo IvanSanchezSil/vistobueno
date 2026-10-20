@@ -1,6 +1,6 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.6.0 (Semana 7 — actividad 10, depósito en DSpace)  
+**Versión**: 1.7.0 (Semana 8 — ficha de depósito y buzón de una ranura)  
 **Fecha**: 2026-10-14  
 **Estado**: Implementado
 
@@ -71,6 +71,19 @@ El archivo se procesó correctamente y se evaluaron las reglas.
     "estado": "sin_solicitud",
     "detalle": null
   },
+  "ficha_deposito": {
+    "extraidos": [
+      {"campo": "dc.title", "valor": "Taller de dramatización de títeres…", "pagina": 1, "detectado": true},
+      {"campo": "dc.contributor.author", "valor": ["Br. Apellido, Nombre"], "pagina": 1, "detectado": true},
+      {"campo": "dc.date.issued", "valor": null, "pagina": null, "detectado": false}
+    ],
+    "manuales": [
+      {"campo": "matricula", "valor": null},
+      {"campo": "renati.author.dni", "valor": null},
+      {"campo": "renati.advisor.dni", "valor": null},
+      {"campo": "renati.advisor.orcid", "valor": null}
+    ]
+  },
   "resumen": {
     "total": 48,
     "total_evaluadas": 46,
@@ -136,6 +149,13 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | `notificacion.detalle` | `string?` | Motivo técnico cuando `estado` es `"fallo"`; nota de configuración cuando es `"deshabilitado"`; `null` en el resto de casos |
 | `deposito.estado` | `string` | Veredicto del depósito en DSpace (ver sección "Depósito en DSpace") |
 | `deposito.detalle` | `string?` | Nota de seguimiento cuando se depositó (cola de aprobación); motivo técnico cuando `"fallo"`; nota de configuración cuando `"deshabilitado"`; `null` en el resto de casos |
+| `ficha_deposito` | `object?` | Ficha de depósito (v1.7.0). **Solo con semáforo `"verde"`; `null` en cualquier otro caso**. Valores detectados del DOCX listos para que el operador los corrija (ver sección "Ficha de depósito") |
+| `ficha_deposito.extraidos[].campo` | `string` | Clave acordada: `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`, `renati.juror` |
+| `ficha_deposito.extraidos[].valor` | `string \| array \| null` | Texto completo o lista de textos (autores, palabras clave); `null` si no detectado |
+| `ficha_deposito.extraidos[].pagina` | `int?` | Página de origen en el DOCX, si el motor la conoce |
+| `ficha_deposito.extraidos[].detectado` | `bool` | `true` si el motor encontró el elemento. Hasta la entrega del motor (handover), todos viajan `false` |
+| `ficha_deposito.manuales[].campo` | `string` | Clave acordada: `matricula`, `renati.author.dni`, `renati.advisor.dni`, `renati.advisor.orcid` |
+| `ficha_deposito.manuales[].valor` | `string?` | Valor tecleado por el operador en pantalla; `null` desde el servidor |
 | `resumen.total` | `int` | Total de reglas presentes en el YAML de reglas |
 | `resumen.total_evaluadas` | `int` | Reglas realmente evaluadas sobre el documento |
 | `resumen.reglas_no_aplicables` | `int` | Reglas omitidas porque no aplican al tipo de documento detectado |
@@ -492,7 +512,84 @@ El motor interno (`validator.engine`) devuelve `RuleResult` (dataclass) y `build
 
 ---
 
+## Ficha de depósito (Semana 8, v1.7.0)
+
+Objeto `ficha_deposito` en la respuesta de `POST /validar`, **solo con
+semáforo `"verde"`** (invariante: con `"rojo"` el campo es `null` — un
+documento con errores bloqueantes no se deposita y no hay nada que
+pre-llenar).
+
+### Comportamiento
+
+- Contiene los valores que el operador necesita para el depósito:
+  **extraídos** del DOCX por el motor (título, autores, asesor, resumen,
+  palabras clave, año de emisión, escuela y jurado opcional) y
+  **manuales** (matrícula, DNI del autor, DNI del asesor, ORCID), que
+  viajan vacíos y el operador llena en pantalla.
+- Los extraídos se publican con texto completo y página de origen; hasta
+  la entrega del motor (`docs/HANDOVER_MOTOR_FICHA_DEPOSITO.md`) todos
+  viajan con `detectado=false`. La forma del contrato es estable desde ya.
+- 16 campos del formulario oficial de DSpace no viajan en la ficha: el
+  servidor de DSpace los pre-llena según la colección destino
+  (`docs/DSPACE_API.md` §11 y `docs/PLAN_FICHA_DEPOSITO.md` §4.1).
+- La SPA edita la ficha y la publica al buzón (endpoint
+  `POST /ficha-pendiente`) para que el userscript la lea y rellene el
+  formulario oficial. Ver la sección siguiente.
+
+## Buzón de una ranura (comunicación con el userscript)
+
+Mecanismo de intercambio entre la SPA y el userscript que corre sobre
+las páginas de DSpace en el navegador del operador. Sin archivos, sin
+pegar, sin sesiones: **una ranura en memoria del proceso, TTL de 1 hora,
+"última gana"**. Supuesto documentado: un operador, una tesis en vuelo.
+
+### Endpoints
+
+| Endpoint | Método | Quién llama | Qué hace |
+|----------|--------|-------------|----------|
+| `/ficha-pendiente` | `POST` (204) | la SPA | Publica la ficha completada (reemplaza la anterior) |
+| `/ficha-pendiente` | `GET` → `FichaDeposito` | el userscript | Lee la ficha a rellenar; `404` si vacía o expirada |
+| `/deposito` | `POST` (204) | el userscript | Reporta `{handle, titulo, timestamp}` del ítem archivado |
+| `/deposito` | `GET` → `DepositoRecibido` | la SPA | Sondea el reporte; `404` si vacío o expirado |
+
+- `DepositoRecibido.handle`: URI del ítem (`https://hdl.handle.net/…`).
+- `DepositoRecibido.titulo`: la SPA lo **coteja con la ficha en vuelo**
+  antes de usar el handle (defensa contra un handle ajeno).
+- `DepositoRecibido.timestamp`: momento del clic en "Depositar"
+  capturado por el userscript (ISO 8601); alimenta la columna HORA del
+  registro y la constancia.
+
+### Seguridad
+
+- **El buzón no emite cabeceras CORS** (invariante con test): una página
+  web cualquiera del navegador del operador no puede leer la ficha, que
+  contiene datos personales del estudiante. El userscript lo lee por
+  `GM_xmlhttpRequest`, que corre en el contexto de la extensión.
+- Peor caso de un `POST` ciego desde una página maliciosa: basura
+  visible en el botón/toast del userscript, recuperable publicando de
+  nuevo. No hay ruta de exfiltración.
+- El buzón es la única pieza de estado del servidor: un reinicio del
+  proceso lo vacía (el operador re-valida y re-prepara).
+
 ## Changelog
+
+### v1.7.0 (2026-10-19 — Semana 8: ficha de depósito y buzón)
+
+Ficha de depósito y mecanismo de comunicación con el userscript que
+rellena el formulario oficial de DSpace. Cambio aditivo: ningún campo
+existente desaparece ni cambia de tipo.
+
+- **Nuevo objeto `ficha_deposito` en la respuesta** (`null` salvo con
+  semáforo `verde`): `extraidos` (8 claves acordadas con el motor) +
+  `manuales` (4 claves que el operador llena en pantalla). Hasta la
+  entrega del motor, los extraídos viajan con `detectado=false`.
+- **Nuevos endpoints del buzón**: `POST/GET /ficha-pendiente` y
+  `POST/GET /deposito` (una ranura, TTL de 1 hora, "última gana").
+- **Invariante de seguridad**: el buzón no emite cabeceras CORS (con
+  test que lo protege contra regresiones).
+- Contexto y decisiones: `docs/PLAN_FICHA_DEPOSITO.md` (v0.2, congelado);
+  hallazgos del formulario real en `docs/DSPACE_API.md` §11.
+- `docs/openapi_spec.json` regenerado (el CI verifica el drift).
 
 ### v1.6.0 (2026-10-14 — Semana 7, actividad 10: depósito en DSpace)
 
