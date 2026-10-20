@@ -84,6 +84,20 @@ calcula del nodo capturado (mayoría en carátula → página 1). `detectado` es
 `false` cuando el XPath no encontró el nodo: la ficha publica el campo igual,
 para que la SPA muestre el hueco vacío.
 
+**Fuera del pedido** (handover §2, actualización 2026-10-19): el servidor de
+DSpace pre-llena por colección 16 campos, así que el motor **no** captura:
+
+- **Grado/título al que opta** (`thesis.degree.name`): pre-lleno.
+- **Línea de investigación** (`dc.subject.ocde`): pre-llena. El **mapeo
+  línea→OCDE queda cancelado** para el depósito (no era una fase pendiente, se
+  descarta).
+- DNI del autor/asesor, ORCID, DOI, ISBN: los teclea el operador; el motor no
+  los busca.
+
+Por eso `escuela` no es un campo del formulario de DSpace, sino el dato de la
+columna ESCUELAS del registro de la biblioteca (el operador lo usa fuera de la
+pantalla).
+
 ## 5. Notas de implementación
 
 - El analizador de extracción **nunca falla** la validación: es captura, no
