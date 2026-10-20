@@ -10,6 +10,7 @@ Uso:
     uvicorn validator.api:app --reload
 """
 
+import os
 import re
 import tempfile
 import zipfile
@@ -17,17 +18,20 @@ from functools import cache
 from pathlib import Path
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
 from .api_models import (
     CampoExtraidoFicha,
     CampoManualFicha,
+    ConstanciaRequest,
     DepositoAPI,
     DepositoRecibido,
     EstadoDepositoAPI,
     EstadoNotificacionAPI,
     FichaDeposito,
+    FilaRegistroRequest,
+    FilasRegistroResponse,
     MetadatosValidacion,
     NotificacionAPI,
     PromptIA,
@@ -37,6 +41,16 @@ from .api_models import (
     ValidarResponse,
 )
 from .buzon import Buzon
+from .constancia import (
+    MIME_DOCX as MIME_DOCX_CONSTANCIA,
+)
+from .constancia import (
+    DatosConstancia,
+    ErrorConfiguracionConstancia,
+    ErrorDatosConstancia,
+    constancias_por_autor,
+    llenar_constancia,
+)
 from .dsl_check import DSLValidationError
 from .dspace import ConfigDSpace, depositar_documento, metadatos_desde_formulario
 from .engine import build_report, load_rules, validate_docx
@@ -671,6 +685,139 @@ async def leer_deposito_reportado() -> DepositoRecibido:
             detail="Sin depósito reportado: vacío o expirado (TTL de 1 hora).",
         )
     return DepositoRecibido(**datos)
+
+
+# ---------------------------------------------------------------------------
+# Constancia de depósito (Modelo B) y fila de registro
+# ---------------------------------------------------------------------------
+
+# Plantilla oficial de la constancia. Vive en recursos/ (no versionada:
+# es un artefacto institucional). Ruta sobreescribible por entorno.
+PLANTILLA_CONSTANCIA_POR_DEFECTO = (
+    Path(__file__).resolve().parent.parent / "recursos" / "TESIS DIGITAL MODELO B-2026.docx"
+)
+
+
+def _ruta_plantilla_constancia() -> Path:
+    """Ruta de la plantilla del Modelo B (configurable por entorno)."""
+    return Path(
+        os.environ.get("VISTOBUENO_PLANTILLA_CONSTANCIA", str(PLANTILLA_CONSTANCIA_POR_DEFECTO))
+    )
+
+
+def _firma_operador() -> str:
+    """Firma del responsable (columna FIRMA del registro), por entorno."""
+    return os.environ.get("VISTOBUENO_FIRMA", "").strip()
+
+
+def _constancias_de_solicitud(solicitud: FilaRegistroRequest) -> list[DatosConstancia]:
+    """Valida la solicitud y arma los datos: una constancia por autor.
+
+    Errores:
+
+    - 422: timestamp que no es ISO 8601, o falta un dato de la ficha
+      (título, autores, matrículas alineadas).
+    - 500: configuración del servidor (firma o plantilla).
+    """
+    try:
+        momento = _parsear_timestamp(solicitud.timestamp)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Timestamp inválido: '{solicitud.timestamp}'. Use ISO 8601 (p. ej. 2026-10-19T18:10:00).",
+        ) from e
+
+    firma = _firma_operador()
+    if not firma:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "El servidor no tiene la firma del responsable configurada: "
+                "defina VISTOBUENO_FIRMA (nombre que va en la columna FIRMA del registro)."
+            ),
+        )
+
+    try:
+        return constancias_por_autor(solicitud.ficha.model_dump(), solicitud.handle, momento, firma)
+    except ErrorDatosConstancia as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+def _parsear_timestamp(texto: str):
+    """Parsea el timestamp ISO 8601 reportado por el userscript."""
+    from datetime import datetime
+
+    return datetime.fromisoformat(texto)
+
+
+def _nombre_archivo_constancia(datos: DatosConstancia) -> str:
+    """Nombre de descarga: 'constancia - {autor sanitizado}.docx'.
+
+    Se restringe a ASCII simple: los acentos se pierden en el NOMBRE del
+    archivo (no en el contenido), para que Content-Disposition no dé
+    problemas en ningún navegador.
+    """
+    autor = re.sub(r"[^A-Za-z0-9 _-]", "", datos.autor).strip()[:40] or "autor"
+    return f"constancia - {autor}.docx"
+
+
+@app.post(
+    "/constancia",
+    summary="Descargar la constancia de UN autor (Modelo B lleno)",
+    description=(
+        "Genera la constancia de depósito del Modelo B con los MERGEFIELD "
+        "reemplazados por los valores de la ficha. Una constancia POR "
+        "AUTOR: la SPA descarga una por cada estudiante iterando "
+        "`indice_autor`. Devuelve el .docx como descarga binaria."
+    ),
+    responses={
+        200: {"description": "Constancia .docx (descarga binaria)"},
+        422: {"description": "Timestamp inválido, falta un dato de la ficha o índice fuera de rango"},
+        500: {"description": "Firma o plantilla sin configurar en el servidor"},
+    },
+)
+async def descargar_constancia(solicitud: ConstanciaRequest) -> Response:
+    datos = _constancias_de_solicitud(solicitud)
+    if solicitud.indice_autor >= len(datos):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"indice_autor={solicitud.indice_autor} fuera de rango: "
+                f"la ficha trae {len(datos)} autor(es)."
+            ),
+        )
+    objetivo = datos[solicitud.indice_autor]
+    try:
+        contenido = llenar_constancia(_ruta_plantilla_constancia(), objetivo)
+    except ErrorConfiguracionConstancia as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return Response(
+        content=contenido,
+        media_type=MIME_DOCX_CONSTANCIA,
+        headers={
+            "Content-Disposition": f'attachment; filename="{_nombre_archivo_constancia(objetivo)}"'
+        },
+    )
+
+
+@app.post(
+    "/fila-registro",
+    response_model=FilasRegistroResponse,
+    summary="Generar las filas del registro (TSV, una por autor)",
+    description=(
+        "Devuelve las filas listas para pegar en el registro oficial de la "
+        "biblioteca (XLSX): una por autor, en el orden exacto de columnas. "
+        "La app JAMÁS escribe el registro oficial: el operador pega la fila."
+    ),
+    responses={
+        200: {"description": "Lista de filas TSV"},
+        422: {"description": "Timestamp inválido o falta un dato de la ficha"},
+        500: {"description": "Firma sin configurar en el servidor"},
+    },
+)
+async def generar_fila_registro(solicitud: FilaRegistroRequest) -> FilasRegistroResponse:
+    datos = _constancias_de_solicitud(solicitud)
+    return FilasRegistroResponse(filas=[d.fila_registro() for d in datos])
 
 
 # ---------------------------------------------------------------------------

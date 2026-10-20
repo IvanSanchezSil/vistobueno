@@ -225,8 +225,14 @@ class CampoManualFicha(BaseModel):
     """
 
     campo: str = Field(..., description="Clave acordada (matricula, renati.author.dni, …)")
-    valor: str | None = Field(
-        default=None, description="Valor tecleado por el operador; None hasta que lo llene"
+    valor: str | list[str] | None = Field(
+        default=None,
+        description=(
+            "Valor tecleado por el operador; None hasta que lo llene. "
+            "`matricula` y `renati.author.dni` aceptan una LISTA alineada "
+            "por posición con los autores (una por estudiante): las tesis "
+            "con dos autores generan dos constancias y dos filas"
+        ),
     )
 
 
@@ -266,6 +272,55 @@ class DepositoRecibido(BaseModel):
     timestamp: str = Field(
         ...,
         description="Momento del clic en Depositar (ISO 8601), capturado por el userscript",
+    )
+
+
+class FilaRegistroRequest(BaseModel):
+    """Solicitud de la fila de registro (v1.7.0).
+
+    La SPA la envía cuando el buzón reporta el depósito (handle +
+    timestamp del clic en Depositar). El timestamp alimenta DD/MM/AA,
+    HORA, AÑO y la fecha del documento, igual que en el registro
+    oficial de la biblioteca.
+    """
+
+    ficha: FichaDeposito = Field(
+        ...,
+        description="La ficha completada por el operador (extraídos corregidos + manuales llenos)",
+    )
+    handle: str = Field(..., description="URI del ítem depositado (https://hdl.handle.net/…)")
+    timestamp: str = Field(
+        ...,
+        description="Momento del clic en Depositar (ISO 8601), reportado por el userscript",
+    )
+
+
+class ConstanciaRequest(FilaRegistroRequest):
+    """Solicitud de UNA constancia (Modelo B) en particular (v1.7.0).
+
+    Una constancia por autor: la SPA descarga una por cada estudiante,
+    iterando `indice_autor` sobre la lista de autores de la ficha.
+    """
+
+    indice_autor: int = Field(
+        default=0,
+        ge=0,
+        description="Índice (0-based) del autor cuya constancia se descarga",
+    )
+
+
+class FilasRegistroResponse(BaseModel):
+    """Filas TSV listas para pegar en el registro oficial (v1.7.0).
+
+    Una fila por autor, en el orden exacto de columnas del registro
+    (N°, TESIS/TSP, BACHILLER/LICENCIADO, N° MATRIC., DD, MM, AA, HORA,
+    DIRECCION URL, FIRMA, FECHA DEL DOC., ESCUELAS, AÑO). La columna N°
+    va vacía: la numeración es del registro de la biblioteca.
+    """
+
+    filas: list[str] = Field(
+        ...,
+        description="Filas TSV (una por autor) con los valores separados por tabuladores"
     )
 
 
