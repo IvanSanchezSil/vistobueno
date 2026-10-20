@@ -10,19 +10,25 @@
 - **Funcionalidad 5** — Redacción de la respuesta al estudiante
   (`redactar_respuesta`): genera el borrador editable de la observación a
   partir del reporte.
+- **Funcionalidad 1** — Validación semántica advisory (`revision_semantica`):
+  revisa con IA, bajo demanda, lo que el motor XML no puede capturar
+  (resumen↔contenido, índice↔títulos, citas↔referencias).
 
 Todo es **advisory**: nunca produce un `RuleResult` ni toca el semáforo
-(principio P1 del diseño). La IA **no lee la tesis**: solo recibe el bloque de
-fallos (Func 2) o la evidencia que la heurística ya extrajo (Func 3). Eso
-protege la privacidad y abarata el cómputo.
+(principio P1 del diseño). Las Funcionalidades 2, 3 y 5 **no leen la tesis**:
+solo reciben el bloque de fallos (Func 2 y 5) o la evidencia que la heurística
+ya extrajo (Func 3). La Funcionalidad 1 sí toca el texto, pero solo fragmentos
+acotados y locales (privacidad, P4 del diseño).
 """
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from .extractor import NS, ExtractedDocx, W, es_heading, text_of
 from .llm import LLMClient
 from .models import RuleResult, Severity
 
@@ -581,3 +587,362 @@ async def redactar_respuesta(
             ultimo_error = e
 
     raise RespuestaIAInvalida(f"la IA no devolvió un formato interpretable: {ultimo_error}")
+
+
+# ---------------------------------------------------------------------------
+# Funcionalidad 1 — Validación semántica advisory (diseño 16, §6.4)
+# ---------------------------------------------------------------------------
+
+MAX_RESUMEN = 2000
+MAX_LISTA = 4000
+MAX_TITULOS = 3000
+MAX_CITAS = 4000
+
+NIVELES_VALIDOS = frozenset({"advertencia", "informativo"})
+
+# Patrones de título de sección, en orden de prioridad: primero el específico
+# ("INDICE DE CONTENIDOS"), después el genérico ("ÍNDICE"), para que un doc
+# con ambas cabeceras tome la correcta.
+_PATRONES_SECCION: dict[str, tuple[re.Pattern[str], ...]] = {
+    "resumen": (re.compile(r"^RESUMEN(?:\s+EJECUTIVO)?$", re.I),),
+    "indice": (
+        re.compile(r"^(?:INDICE|ÍNDICE)\s+DE\s+CONTENIDO(?:S)?$", re.I),
+        re.compile(r"^TABLA\s+DE\s+CONTENIDO(?:S)?$", re.I),
+        re.compile(r"^(?:ÍNDICE|INDICE|CONTENIDO)$", re.I),
+    ),
+    "referencias": (re.compile(r"^(?:REFERENCIAS|BIBLIOGRAF[IÍ]A)$", re.I),),
+}
+
+# Cita parentética APA: paréntesis que contienen un año ("(García, 2020)").
+_RE_CITA = re.compile(r"\([^()]{0,80}\b(?:19|20)\d{2}[a-z]?\)")
+
+
+@dataclass(frozen=True)
+class CheckSemantico:
+    """Un chequeo de contenido que la Funcionalidad 1 evalúa con IA.
+
+    Atributos:
+        id: identificador del chequeo (va en cada hallazgo emitido).
+        regla: la regla textual que se le entrega al LLM (no el reglamento
+            completo: solo lo que hay que juzgar en este chequeo).
+        fragmentos: nombres de los fragmentos requeridos; si alguno no existe
+            en el documento, el chequeo se omite (no se inventa información).
+    """
+
+    id: str
+    regla: str
+    fragmentos: tuple[str, ...]
+
+
+CHECKS_SEMANTICOS: tuple[CheckSemantico, ...] = (
+    CheckSemantico(
+        id="coherencia_resumen",
+        regla=(
+            "El resumen debe reflejar fielmente el trabajo: su objetivo, su "
+            "enfoque de investigación y lo que la estructura efectivamente "
+            "desarrolla. No debe afirmar hallazgos ni apartados que los títulos "
+            "del documento no sostienen."
+        ),
+        fragmentos=("resumen", "titulos"),
+    ),
+    CheckSemantico(
+        id="indice_vs_titulos",
+        regla=(
+            "Cada entrada del índice debe corresponder a un título real del "
+            "documento y aparecer en el mismo orden; no deben faltar secciones "
+            "que existan en el documento ni sobrar las que no existan."
+        ),
+        fragmentos=("indice", "titulos"),
+    ),
+    CheckSemantico(
+        id="citas_huerfanas",
+        regla=(
+            "Toda cita parentética con año del texto debe tener su entrada en "
+            "la lista de referencias y toda referencia debe estar citada en el "
+            "texto. Señala las que quedan huérfanas de un lado u otro (APA)."
+        ),
+        fragmentos=("citas_texto", "referencias"),
+    ),
+)
+
+
+@dataclass(frozen=True)
+class HallazgoSemantico:
+    """Una observación de contenido, adscrita a un chequeo (advisory)."""
+
+    check: str
+    nivel: str
+    descripcion: str
+    ubicacion: str
+
+
+@dataclass(frozen=True)
+class HallazgosSemanticos:
+    """Salida advisory de la Funcionalidad 1.
+
+    Los hallazgos **no** entran al semáforo ni al resumen: la frontend los
+    publica en una sección separada ("Revisión semántica").
+    """
+
+    hallazgos: list[HallazgoSemantico]
+    modelo: str = ""
+
+
+ESQUEMA_HALLAZGOS: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "hallazgos": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "nivel": {"type": "string", "enum": ["advertencia", "informativo"]},
+                    "descripcion": {"type": "string"},
+                    "ubicacion": {"type": "string"},
+                },
+                "required": ["nivel", "descripcion", "ubicacion"],
+            },
+        },
+    },
+    "required": ["hallazgos"],
+}
+
+_SYSTEM_PROMPT_SEMANTICO = """\
+Eres un asistente técnico del personal del repositorio de tesis de la FECyC \
+(Universidad Nacional de Trujillo). Evaluarás UN solo chequeo de contenido de \
+una tesis sobre fragmentos concretos: nunca recibes el documento completo.
+
+Reglas estrictas:
+- Emite observaciones que se sustenten EXCLUSIVAMENTE en los fragmentos \
+recibidos; no inventes apartados, objetivos o resultados que no aparezcan.
+- No decides la aprobación: el semáforo es determinista y ajeno a ti; tus \
+hallazgos son solo para el encargado revisar.
+- Si los fragmentos no permiten evaluar el chequeo, devuelve "hallazgos": [].
+- "nivel": "advertencia" si conviene revisarlo a mano, "informativo" si es un \
+dato menor de contexto.
+- "ubicacion": aproximación en el documento (p. ej. "resumen", "índice", \
+"sección Resultados"); cadena vacía si no aplica.
+- Responde en español y SOLO con un objeto JSON válido, sin texto adicional.
+- Formato exacto:
+  {"hallazgos": [{"nivel": "advertencia", "descripcion": "...",
+                  "ubicacion": "..."}]}\
+"""
+
+
+# ---------------------------------------------------------------------------
+# Extracción de fragmentos (único punto en que la IA toca la tesis)
+# ---------------------------------------------------------------------------
+
+
+def _titulo_normalizado(p) -> str:
+    return re.sub(r"\s+", " ", text_of(p)).upper().strip()
+
+
+def _es_encabezado(p) -> bool:
+    """¿El párrafo es un título? Criterio idéntico al del extractor."""
+    pPr = p.find(W + "pPr")
+    st = pPr.find(W + "pStyle") if pPr is not None else None
+    return es_heading(st.get(W + "val") if st is not None else None)
+
+
+def _buscar_seccion(titulos: list[str], encabezados: list[bool], nombre: str) -> int | None:
+    """Posición del primer párrafo que abre la sección `nombre`.
+
+    Un candidato debe ser un título de sección o texto corto (<= 60 chars),
+    para no confundir una palabra del cuerpo con el encabezado buscado.
+    """
+    for patron in _PATRONES_SECCION[nombre]:
+        for i, titulo in enumerate(titulos):
+            if not titulo or not patron.match(titulo):
+                continue
+            if encabezados[i] or len(titulo) <= 60:
+                return i
+    return None
+
+
+def _texto_seccion(
+    crudos: list[str],
+    titulos: list[str],
+    encabezados: list[bool],
+    inicio: int,
+    limite: int,
+) -> str:
+    """Texto de una sección, desde `inicio` hasta el título siguiente."""
+    partes: list[str] = []
+    for j in range(inicio + 1, len(crudos)):
+        if encabezados[j]:
+            break
+        texto = crudos[j]
+        if not texto:
+            continue
+        if len(texto) <= 60 and _es_marcador(titulos[j]):
+            break
+        partes.append(texto)
+        if len(" ".join(partes)) > limite:
+            break
+    return " ".join(partes)[:limite]
+
+
+def _es_marcador(titulo_normalizado: str) -> bool:
+    """¿Este párrafo corto abre otra sección conocida?"""
+    for patrones in _PATRONES_SECCION.values():
+        for patron in patrones:
+            if patron.match(titulo_normalizado):
+                return True
+    return False
+
+
+def extraer_fragmentos(doc: ExtractedDocx) -> dict[str, str]:
+    """Extrae los fragmentos acotados que consume la Funcionalidad 1.
+
+    Devuelve solo las secciones halladas (`{nombre: texto}`); el llamador omite
+    los chequeos cuyo fragmento falte. Las claves posibles: `resumen`,
+    `indice`, `referencias`, `titulos` y `citas_texto`.
+    """
+    paras = doc.document.xpath("//w:body/w:p", namespaces=NS)
+    crudos = [re.sub(r"\s+", " ", text_of(p)).strip() for p in paras]
+    titulos = [_titulo_normalizado(p) for p in paras]
+    encabezados = [_es_encabezado(p) for p in paras]
+
+    fragmentos: dict[str, str] = {}
+    for nombre, limite in (
+        ("resumen", MAX_RESUMEN),
+        ("indice", MAX_LISTA),
+        ("referencias", MAX_LISTA),
+    ):
+        inicio = _buscar_seccion(titulos, encabezados, nombre)
+        if inicio is None:
+            continue
+        texto = _texto_seccion(crudos, titulos, encabezados, inicio, limite)
+        if texto:
+            fragmentos[nombre] = texto
+
+    reales = [t for t, es in zip(titulos, encabezados, strict=True) if es and t]
+    if reales:
+        fragmentos["titulos"] = "\n".join(reales)[:MAX_TITULOS]
+
+    # Las citas parentéticas solo existen en el cuerpo: si se escaneara la
+    # lista de referencias, "Autor, A. (1990)." se confundiría con una cita.
+    fin_citas = _buscar_seccion(titulos, encabezados, "referencias") or len(paras)
+    citas: list[str] = []
+    for i in range(fin_citas):
+        citas.extend(m.group(0) for m in _RE_CITA.finditer(crudos[i]))
+        if len(", ".join(citas)) > MAX_CITAS:
+            break
+    if citas:
+        fragmentos["citas_texto"] = ", ".join(citas)[:MAX_CITAS]
+
+    return fragmentos
+
+
+# ---------------------------------------------------------------------------
+# Construcción del prompt
+# ---------------------------------------------------------------------------
+
+
+def construir_prompt_semantico(
+    check: CheckSemantico,
+    fragmentos: dict[str, str],
+) -> tuple[str, str, dict[str, Any]]:
+    """Arma (system, user, json_schema) para un chequeo de la Funcionalidad 1.
+
+    El `user` lleva **la regla textual del chequeo + sus fragmentos**; nunca el
+    reglamento completo ni el documento entero.
+    """
+    contenido = {
+        "check": check.id,
+        "regla": check.regla,
+        "fragmentos": {nombre: fragmentos[nombre] for nombre in check.fragmentos},
+    }
+    user = json.dumps(contenido, ensure_ascii=False, indent=2)
+    return _SYSTEM_PROMPT_SEMANTICO, user, ESQUEMA_HALLAZGOS
+
+
+# ---------------------------------------------------------------------------
+# Parseo y validación de la respuesta
+# ---------------------------------------------------------------------------
+
+
+def parse_hallazgos(
+    data: dict[str, Any],
+    check_id: str,
+    modelo: str = "",
+) -> list[HallazgoSemantico]:
+    """Valida la respuesta del modelo y la adscribe a `check_id`.
+
+    Lanza `RespuestaIAInvalida` si la estructura no es la esperada, si un nivel
+    no está en el catálogo o si la descripción viene vacía. `ubicacion` puede
+    venir ausente (es una ubicación aproximada, no un requisito): se omite.
+    """
+    crudo = data.get("hallazgos")
+    if not isinstance(crudo, list):
+        raise RespuestaIAInvalida("la revisión no trae la lista 'hallazgos'")
+
+    hallazgos: list[HallazgoSemantico] = []
+    for item in crudo:
+        if not isinstance(item, dict):
+            raise RespuestaIAInvalida("un 'hallazgo' no es un objeto JSON")
+        nivel = item.get("nivel")
+        descripcion = item.get("descripcion")
+        ubicacion = item.get("ubicacion", "")
+        if not isinstance(nivel, str) or nivel not in NIVELES_VALIDOS:
+            raise RespuestaIAInvalida("un 'hallazgo' tiene 'nivel' inválido")
+        if not isinstance(descripcion, str) or not descripcion.strip():
+            raise RespuestaIAInvalida("un 'hallazgo' tiene 'descripcion' inválida")
+        if not isinstance(ubicacion, str):
+            raise RespuestaIAInvalida("un 'hallazgo' tiene 'ubicacion' inválida")
+        hallazgos.append(
+            HallazgoSemantico(
+                check=check_id,
+                nivel=nivel,
+                descripcion=descripcion.strip(),
+                ubicacion=ubicacion.strip(),
+            )
+        )
+    return hallazgos
+
+
+# ---------------------------------------------------------------------------
+# Orquestación
+# ---------------------------------------------------------------------------
+
+
+async def revision_semantica(
+    doc: ExtractedDocx,
+    *,
+    client: LLMClient,
+    checks: tuple[CheckSemantico, ...] | None = None,
+) -> HallazgosSemanticos:
+    """Revisa el contenido de la tesis con IA, bajo demanda (advisory).
+
+    - Extrae una única vez los fragmentos del documento.
+    - Omite los chequeos cuyo fragmento falte (no se inventa información).
+    - Ante una respuesta no interpretable, reintenta una vez (MAX_INTENTOS).
+    - `LLMError` (servicio caído) se propaga sin consumir el reintento.
+    - Nunca emite `RuleResult` ni participa en el semáforo.
+    """
+    seleccion = CHECKS_SEMANTICOS if checks is None else checks
+    fragmentos = extraer_fragmentos(doc)
+
+    hallazgos: list[HallazgoSemantico] = []
+    for check in seleccion:
+        if any(not fragmentos.get(nombre) for nombre in check.fragmentos):
+            continue
+
+        system, user, esquema = construir_prompt_semantico(check, fragmentos)
+
+        ultimo_error: RespuestaIAInvalida | None = None
+        emitidos: list[HallazgoSemantico] | None = None
+        for _ in range(MAX_INTENTOS):
+            crudo = await client.chat(system, user, json_schema=esquema)
+            try:
+                emitidos = parse_hallazgos(_extraer_json(crudo), check.id, modelo=client.modelo)
+                break
+            except RespuestaIAInvalida as e:
+                ultimo_error = e
+
+        if emitidos is None:
+            raise RespuestaIAInvalida(f"la IA no devolvió un formato interpretable: {ultimo_error}")
+        hallazgos.extend(emitidos)
+
+    return HallazgosSemanticos(hallazgos=hallazgos, modelo=client.modelo)
