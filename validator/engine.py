@@ -23,8 +23,27 @@ from .models import RuleResult, Severity
 
 
 def load_rules(yaml_path: str) -> dict:
-    with open(yaml_path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+    """Carga el YAML de reglas con manejo de errores controlado.
+
+    Lanza `ValueError` con un mensaje claro si el archivo no existe, no es un
+    YAML válido o su contenido no es un diccionario (en lugar de una excepción
+    cruda de PyYAML o TypeError).
+    """
+    try:
+        with open(yaml_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except FileNotFoundError as e:
+        raise ValueError(f"No se encontró el archivo de reglas: {yaml_path}") from e
+    except yaml.YAMLError as e:
+        raise ValueError(
+            f"El archivo de reglas {yaml_path} tiene sintaxis YAML inválida: {e}"
+        ) from e
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"El archivo de reglas {yaml_path} no devolvió un diccionario "
+            f"(contenido: {type(data).__name__})"
+        )
+    return data
 
 
 # Reglas de captura de la ficha de depósito (diseño 17). Viven en un archivo
