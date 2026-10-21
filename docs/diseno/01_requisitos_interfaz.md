@@ -81,7 +81,7 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 | RF-21 | El sistema debe generar un prompt por cada regla fallida | Alta |
 | RF-22 | El operador debe poder copiar el prompt al portapapeles con un clic | Alta |
 | RF-23 | El sistema debe confirmar visualmente que el prompt fue copiado | Media |
-| RF-24 | El sistema debe ofrecer, además, un **prompt único** que reúna todos los prompts visibles en una sola instrucción numerada (con la categoría de cada problema), copiable en un clic y con vista previa desplegable | Media |
+| RF-27 | El sistema debe ofrecer, además, un **prompt único** que reúna todos los prompts visibles en una sola instrucción numerada (con la categoría de cada problema), copiable en un clic y con vista previa desplegable | Media |
 
 ### 4.5 Navegación
 
@@ -95,7 +95,8 @@ El sistema está orientado al **personal de la sede (Repositorio FECyC)**, que o
 > - RF-16 antiguo — *búsqueda de reglas por nombre/mensaje* (no existe en la app; sí existen los filtros por severidad).
 >
 > Los ID restantes se renumeraron de forma correlativa (RF-01…RF-25). En S7 se
-> **agregó RF-26** (casilla opt-in de envío por correo) sin renumerar el resto.
+> **agregaron RF-26** (casilla opt-in de envío por correo) **y RF-27**
+> (prompt único de IA) sin renumerar el resto.
 
 ---
 

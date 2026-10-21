@@ -251,7 +251,7 @@ Petición directa: *«en la sección de preguntar a la IA, crea una sección don
   - entradas sin texto se ignoran y no cuentan en el total; categoría desconocida → `Otros` (igual que las tarjetas).
 - **UI** (arriba de las tarjetas, dentro de la misma card): título, botón **«Copiar todo junto»** (mismos estados `¡Copiado!`/fallo que los prompts individuales, `aria-live` incluido), recuento de prompts visibles y `<details>` *"Ver el prompt completo"* con vista previa desplegable (`max-height` con scroll). Respeta el **filtro de búsqueda** de la sección (si el operador filtra, el prompt único une solo los visibles).
 - **CSS**: `.ia-unico*` con borde verde, fondo `--gris-claro`, título/summary en verde-oscuro; dark con verde AA `#81c784` (el `#2e7d32` da ~2.3:1 sobre `#242424`); móvil con botón a todo el ancho; tablet con tipografía ampliada.
-- **Docs**: RF-24 + funcionalidad 10b (`01_requisitos_interfaz.md`), wireframe ASCII y bullets (`03_wireframes.md`), README (flujo + estado actual).
+- **Docs**: RF-27 + funcionalidad 10b (`01_requisitos_interfaz.md`), wireframe ASCII y bullets (`03_wireframes.md`), README (flujo + estado actual).
 - **Tests**: `Report.promptUnico.test.js` — **6 tests** (listas vacías/inválidas, filtrado de entradas sin prompt, marco singular/plural, integridad y orden de cada prompt, `Otros`).
 
 #### Verificación (2026-10-12)
