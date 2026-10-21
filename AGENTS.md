@@ -571,9 +571,9 @@ Al revisar un PR, verificar que:
 
 ## Próximos pasos propuestos
 
-1. **Int1**: R1 (documentar/limitar) y R3 (arreglar el test vacuo).
-2. **Int3**: R4 (cachear DSL compilado) — *descartado vía medición (1.5%); si hay perfilado futuro, atacar la extracción/evaluación (~98.5%)*. **R6 resuelto**: manejo de errores en `load_rules` (PR actual).
-3. **Int2**: R5 (`AbortController`) y R8 (foco/StrictMode).
+1. **Int1**: auth/rate-limit en `POST /validar` (documentar/limitar) y arreglar el test de paridad vacuo.
+2. **Int3**: cachear el DSL compilado — *descartado vía medición (1.5%); si hay perfilado futuro, atacar la extracción/evaluación (~98.5%)*. **`load_rules` con manejo de errores: resuelto** (PR actual).
+3. **Int2**: `AbortController` en el upload y foco del dropzone bajo `StrictMode`.
 
 ---
 

@@ -25,17 +25,17 @@ mecanizables), doc bueno evalúa 43/49, suite = **455 tests**, CI verde,
 
 ## Resumen ejecutivo
 
-| ID | Hallazgo | Prioridad | Área | Integrante |
-|----|----------|-----------|------|------------|
-| R1 | `POST /validar` sin auth ni rate-limit (posible uso como relay de correo si las notificaciones están activas) | Alta\* | API | 1 |
-| R2 | Zip bomb: se descomprimen partes del DOCX sin cota de tamaño descomprimido | Alta | Extractor | 3 | ✅ Resuelto (PR #56) |
-| R3 | Test de paridad vacuo (`assert True` en bucle) | Media | Tests | 1 (coord. 3) |
-| R4 | El DSL se recompila en cada request | Media | Motor | 3 (coord. 1) | ❌ Descartado (1.5% medido) |
-| R5 | `fetch` del upload sin `timeout` ni `AbortController` | Media | Frontend | 2 |
-| R6 | `load_rules` sin manejo de error (YAML inválido → excepción cruda) | Baja | Motor | 3 |
-| R7 | Campos del contrato sin consumidor en el frontend (`total_evaluadas`, `reglas_no_aplicables`, `aplicable`) | Baja | API/Frontend | 1 + 2 |
-| R8 | Restauración de foco del dropzone se altera bajo `StrictMode` (dev) | Baja | Frontend | 2 |
-| R9 | `.gitignore` sin `*.docx` / `*.pdf` (riesgo de versionar tesis reales) | Baja | Transversal | equipo |
+| Hallazgo | Prioridad | Área | Integrante | Estado |
+|----------|-----------|------|------------|--------|
+| `POST /validar` sin auth ni rate-limit (posible uso como relay de correo si las notificaciones están activas) | Alta\* | API | 1 | |
+| Zip bomb: se descomprimen partes del DOCX sin cota de tamaño descomprimido | Alta | Extractor | 3 | ✅ Resuelto (PR #56) |
+| Test de paridad vacuo (`assert True` en bucle) | Media | Tests | 1 (coord. 3) | |
+| El DSL se recompila en cada request | Media | Motor | 3 (coord. 1) | ❌ Descartado (1.5% medido) |
+| `fetch` del upload sin `timeout` ni `AbortController` | Media | Frontend | 2 | |
+| `load_rules` sin manejo de error (YAML inválido → excepción cruda) | Baja | Motor | 3 | ✅ Resuelto |
+| Campos del contrato sin consumidor en el frontend (`total_evaluadas`, `reglas_no_aplicables`, `aplicable`) | Baja | API/Frontend | 1 + 2 | |
+| Restauración de foco del dropzone se altera bajo `StrictMode` (dev) | Baja | Frontend | 2 | |
+| `.gitignore` sin `*.docx` / `*.pdf` (riesgo de versionar tesis reales) | Baja | Transversal | equipo | |
 
 \* Alta solo si se despliega con `VISTOBUENO_NOTIFICACIONES=1` y SMTP configurado;
 en local/CI el envío está desactivado.
@@ -47,14 +47,14 @@ en local/CI el envío está desactivado.
 Área: `api.py`, `api_models.py`, `notificacion.py`, `scripts/verificar_secretos.py`,
 `tests/`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md`.
 
-### R1 — Sin autenticación ni rate-limiting en `POST /validar` — Alta\*
+### Sin autenticación ni rate-limiting en `POST /validar` — Alta\*
 `validator/api.py:214` expone un único endpoint público. Cuando la notificación
 está habilitada (`VISTOBUENO_NOTIFICACIONES=1` + SMTP completo), el mismo
 `POST /validar` con `notificar=true` y un `correo` válido provoca un envío de
 correo (`validator/notificacion.py`, `smtplib`). Sin autenticación ni límite de
 tasa, un tercero podría:
 - usar el servidor como **relay de correo** hacia un destinatario arbitrario;
-- saturar CPU (cada request compila el DSL y analiza un XML; ver R4).
+- saturar CPU (cada request compila el DSL y analiza un XML; ver "El DSL se recompila en cada request").
 
 **Atenuantes**: el MVP excluye auth a propósito (`AGENTS.md`) y el envío está
 gated por la variable de entorno (desactivado por defecto).
@@ -62,7 +62,7 @@ gated por la variable de entorno (desactivado por defecto).
 la red de la facultad, añadir un límite de tasa (p. ej. middleware) y/o restringir
 el `correo` a dominios institucionales.
 
-### R3 — Test de paridad vacuo — Media
+### Test de paridad vacuo — Media
 `tests/test_paridad_formatos.py:412-426` (`test_paridad_estructura_incompleta`):
 el bucle `for _rid in (...): assert True  # la paridad exacta ya se verificó…` no
 comprueba nada; la docstring promete comparar los `faltantes` del DFA con el motor
@@ -71,7 +71,7 @@ legacy, pero no hay aserción sobre ellos.
 `faltantes` coinciden, o eliminar el test. Es del área de `tests/` (Int1) pero
 toca paridad motor↔DSL → **coordinar con Int3**.
 
-### R7 (lado contrato) — Campos DTO sin consumidor — Baja
+### Campos DTO sin consumidor (lado contrato) — Baja
 `total_evaluadas`, `reglas_no_aplicables` (`api_models.py`) y `aplicable`
 (por regla) se emiten en la respuesta pero **no se usan** en `frontend/src/`
 (grep sin resultados). O son superficie muerta del contrato o falta integrarlos
@@ -80,7 +80,7 @@ retiran/documentan.
 
 ### Observación — `notificacion.py` (mejora opcional)
 El módulo ya es best-effort y gateado por entorno; no se hallaron errores. Si en
-R1 se añade límite de tasa, considerar también validar el dominio del `correo`
+el hallazgo de autenticación/rate-limit se añade límite de tasa, considerar también validar el dominio del `correo`
 antes de intentar el envío.
 
 ---
@@ -89,7 +89,7 @@ antes de intentar el envío.
 
 Área: `frontend/` (React) y `docs/`.
 
-### R5 — `fetch` de validación sin `timeout` ni `AbortController` — Media
+### `fetch` de validación sin `timeout` ni `AbortController` — Media
 `frontend/src/components/Upload.jsx:175-178` hace `fetch(...)` sin `signal` de
 cancelación ni timeout. Si el backend acepta la conexión pero nunca responde, la
 UI queda en `loading` indefinidamente (el `finally` de `:222-224` solo corre si
@@ -97,7 +97,7 @@ la promesa se resuelve). El resto del manejo de errores (`:179-221`) es correcto
 **Sugerencia**: `AbortController` con `setTimeout` (p. ej. 60-90 s, por encima
 del costo real del motor) y mensaje de "timeout" reutilizando `cargarMock`.
 
-### R8 — Restauración de foco del dropzone bajo `StrictMode` — Baja (dev)
+### Restauración de foco del dropzone bajo `StrictMode` — Baja (dev)
 `frontend/src/components/Upload.jsx:75-82`: el guard `primeraCarga` es un `ref`
 local; en React 18 `StrictMode` (dev) el efecto de montaje corre dos veces con el
 mismo ref, así que en la **carga inicial** puede ejecutarse `zonaRef.current.focus()`
@@ -106,8 +106,8 @@ y robar el foco. En producción con navegación real (volver de Reporte) funcion
 condicionar a un prop `autoFocus`; o aceptarlo como comportamiento solo-dev y
 documentarlo.
 
-### R7 (lado consumo) — Campos del contrato sin usar — Baja
-Ver R7. Decidir con Int1 si `total_evaluadas` / `reglas_no_aplicables` /
+### Campos del contrato sin usar (lado consumo) — Baja
+Ver el hallazgo "Campos DTO sin consumidor" arriba. Decidir con Int1 si `total_evaluadas` / `reglas_no_aplicables` /
 `aplicable` se muestran en el reporte o se retiran.
 
 ### Sin hallazgos
@@ -122,7 +122,7 @@ problemas relevantes (el manejo de errores de red → modo demo es intencional).
 `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`,
 `llm.py`, `asistente.py`, YAML de reglas.
 
-### R2 — Zip bomb: descompresión sin cota — Alta — ✅ RESUELTO
+### Zip bomb: descompresión sin cota — Alta — ✅ RESUELTO
 `validator/extractor.py` (`extract`): se hacía
 `etree.fromstring(z.read("word/document.xml"))` (y headers/footers/footnotes) sin
 limitar el tamaño **descomprimido**. La validación de `api.py` limita el upload
@@ -135,7 +135,7 @@ limitar el tamaño **descomprimido**. La validación de `api.py` limita el uploa
 `tests/test_extractor_zipbomb.py` (rechazo de la bomba, bomba comprimida
 diminuta, no-regresión de un DOCX normal e integración API→422).
 
-### R4 — El DSL se recompila en cada request — Media — ❌ DESCARTADO (medido)
+### El DSL se recompila en cada request — Media — ❌ DESCARTADO (medido)
 `validator/engine.py`: `validate_docx` instanciaba `CompilerDSL()` y llamaba
 `ejecutar(...)`, que compila analizadores/autómatas **por petición**. `_get_rules`
 cacha el YAML crudo, pero no el resultado compilado.
@@ -152,7 +152,7 @@ Ganar 1.5% a costa de complejidad (y riesgo de concurrencia) no se justifica.
 Si en el futuro se perfila el request, atacar la extracción/evaluación (~98.5%),
 no la compilación. **Coordinar con Int1** antes de tocar el despacho a threadpool.
 
-### R6 — `load_rules` sin manejo de error — Baja — ✅ RESUELTO
+### `load_rules` sin manejo de error — Baja — ✅ RESUELTO
 `validator/engine.py:25-37`: `load_rules()` lanzaba excepciones crudas de
 PyYAML/`TypeError` si el archivo faltaba, tenía sintaxis inválida o su contenido
 no era un diccionario. **Resolución (PR actual)**: se añadió manejo de errores
@@ -173,7 +173,7 @@ explicabilidad, ubicación de NotaPie— están correctos y probados).
 
 ## Transversal — equipo
 
-### R9 — `.gitignore` sin `*.docx` / `*.pdf` — Baja
+### `.gitignore` sin `*.docx` / `*.pdf` — Baja
 `.gitignore` ignora `recursos/` (correcto) pero no patrones globales. Hay tesis
 reales sin trackear en la raíz (`TESIS_LINARES_*.docx`, `TESIS_CARRION*.pdf`,
 `Plan_PPP_*.docx`, `ESTRUCTURA_PORTAFOLIO.md`); un `git add .` accidental las
@@ -206,10 +206,10 @@ Revisados y **no** son problemas (no perder tiempo en ellos):
 
 ## Próximos pasos propuestos
 
-1. **Int1**: R1 (documentar/limitar) y R3 (arreglar el test vacuo).
-2. **Int3**: R4 (cachear DSL compilado) — *descartado vía medición (1.5%); si hay perfilado futuro, atacar la extracción/evaluación (~98.5%)*. **R6 resuelto**: manejo de errores en `load_rules` (PR actual).
-3. **Int2**: R5 (`AbortController`) y R8 (foco/StrictMode).
-4. **Equipo**: R7 (decidir uso/retiro de campos) y R9 (`.gitignore`).
+1. **Int1**: auth/rate-limit en `POST /validar` (documentar/limitar) y arreglar el test de paridad vacuo.
+2. **Int3**: cachear el DSL compilado — *descartado vía medición (1.5%); si hay perfilado futuro, atacar la extracción/evaluación (~98.5%)*. **`load_rules` con manejo de errores: resuelto** (PR actual).
+3. **Int2**: `AbortController` en el upload y foco del dropzone bajo `StrictMode`.
+4. **Equipo**: decidir uso/retiro de campos del contrato y ampliar `.gitignore`.
 
 Ninguno de estos hallazgos rompe el CI actual; son mejoras de robustez,
 seguridad de despliegue y calidad de pruebas.
