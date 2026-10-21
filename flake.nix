@@ -63,6 +63,7 @@
             echo "  nix run .#test -- tests/ -v                    # ejecutar tests"
             echo "  nix run .#serve -- validator.api:app --reload  # iniciar API"
             echo "  nix run .#smtp-dev                              # sink SMTP local (127.0.0.1:8025)"
+            echo "  nix run .#mock-dspace                            # mock de DSpace para el ensayo general (:8080)"
             echo "  nix run .#test-local                            # e2e local: build + suite + flujo completo"
             echo "  nix flake check                                # tests + verificación"
             echo "  ruff check validator/ scripts/ tests/          # lint Python"
@@ -111,6 +112,22 @@
                 exit 1
               fi
               exec ${pkgs.bash}/bin/bash "$PWD/scripts/e2e_flujo_completo.sh" "$@"
+            '');
+          };
+
+          # Ensayo general del flujo de depósito (Semana 8): mock local de
+          # las páginas de DSpace (formulario de envío + ítem archivado)
+          # con proxy same-origin al buzón de la API real. El userscript
+          # corre sobre el shim, sin Tampermonkey y sin tocar la instancia.
+          # Checklist: tools/dspace-fill/dev/mock-dspace/README.md.
+          mock-dspace = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "mock-dspace" ''
+              if [ ! -f "$PWD/tools/dspace-fill/dev/mock-dspace/server.js" ]; then
+                echo "Error: ejecutar desde la raíz del repositorio (nix run .#mock-dspace)"
+                exit 1
+              fi
+              exec ${pkgs.nodejs}/bin/node "$PWD/tools/dspace-fill/dev/mock-dspace/server.js" "$@"
             '');
           };
         };
