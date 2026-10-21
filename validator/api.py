@@ -53,7 +53,7 @@ from .constancia import (
 )
 from .dsl_check import DSLValidationError
 from .dspace import ConfigDSpace, depositar_documento, metadatos_desde_formulario
-from .engine import build_report, load_rules, validate_docx
+from .engine import build_report, load_ficha_rules, load_rules, validate_docx
 from .models import RuleResult
 from .notificacion import ConfigSMTP, enviar_notificacion
 from .prompts import build_ai_help_section
@@ -103,6 +103,16 @@ CAMPOS_MANUALES_FICHA = (
 def _get_rules() -> dict:
     """Carga el YAML de reglas una sola vez (cacheado en memoria)."""
     return load_rules(REGLAS_YAML_PATH)
+
+
+@cache
+def _get_ficha_rules() -> dict:
+    """Carga el ruleset de captura de la ficha (diseño 17), una sola vez.
+
+    Devuelve ``{}`` si el archivo no existe (despliegue sin ficha): la
+    respuesta sigue trayendo los campos acordados con ``detectado=false``.
+    """
+    return load_ficha_rules()
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +223,13 @@ def _construir_respuesta(
     rules_data: dict,
 ) -> ValidarResponse:
     """Ensambla la respuesta completa de la API a partir de la salida del motor."""
-    resultados_dto = [_rule_result_a_dto(r) for r in resultados_motor]
+    resultados_dto = [
+        _rule_result_a_dto(r)
+        for r in resultados_motor
+        # Las reglas de CAPTURA (diseño 17) no son reglas de validación:
+        # no viajan en `resultados`; sus datos van en `ficha_deposito`.
+        if not r.captura
+    ]
     resumen_motor = reporte["resumen"]
 
     # La ficha solo materializa con semáforo verde (invariante del
@@ -446,9 +462,13 @@ async def validar(
         # genérico del bloque exterior.
         # El motor es síncrono y CPU-intenso (recompila el DSL en cada
         # request): se despacha al threadpool para no congelar el event
-        # loop mientras dura la validación.
+        # loop mientras dura la validación. Se pasa el ruleset de captura
+        # de la ficha (diseño 17) en la MISMA pasada: sus capturas viajan
+        # en reporte["ficha"] y no afectan semáforo ni resumen.
         try:
-            resultados_motor = await run_in_threadpool(validate_docx, tmp_path, rules_data)
+            resultados_motor = await run_in_threadpool(
+                validate_docx, tmp_path, rules_data, _get_ficha_rules()
+            )
         except DSLValidationError as e:
             # Reglas rotas = error de configuración del servidor, no del
             # documento del estudiante.

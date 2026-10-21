@@ -549,15 +549,51 @@ class TestFichaDeposito:
         for c in manuales:
             assert set(c.keys()) == {"campo", "valor"}
 
-    def test_ficha_extraidos_vacios_hasta_la_entrega_del_motor(self):
-        """Hasta que el motor publique extracciones, detectado=false y valor=null.
+    def test_ficha_poblada_por_el_motor(self):
+        """El motor (diseño 17) entrega los valores reales: detectado=true.
 
-        La forma del contrato es estable ya; la entrega del motor
-        (HANDOVER_MOTOR_FICHA_DEPOSITO) solo cambia los valores.
+        El doc bueno del factory tiene contenido conocido, así que los
+        extraídos llegan completos — salvo `renati.juror`, cuya captura
+        quedó como no confiable (el operador lo teclea; ver handover).
         """
         ficha = self._subir_doc_bueno().json()["ficha_deposito"]
-        assert all(c["detectado"] is False for c in ficha["extraidos"])
-        assert all(c["valor"] is None for c in ficha["extraidos"])
+        por_campo = {c["campo"]: c for c in ficha["extraidos"]}
+
+        self._assert_extraido(por_campo["dc.title"], True, str)
+        assert "Estrategias lúdicas" in por_campo["dc.title"]["valor"]
+        self._assert_extraido(por_campo["dc.contributor.author"], True, list)
+        assert por_campo["dc.contributor.author"]["valor"] == ["Ana María Pérez García"]
+        self._assert_extraido(por_campo["dc.contributor.advisor"], True, str)
+        self._assert_extraido(por_campo["dc.description.abstract"], True, str)
+        self._assert_extraido(por_campo["dc.subject"], True, list)
+        assert por_campo["dc.subject"]["valor"] == ["clave0", "clave1", "clave2"]
+        self._assert_extraido(por_campo["dc.date.issued"], True, str)
+        assert por_campo["dc.date.issued"]["valor"] == "2026"
+        self._assert_extraido(por_campo["escuela"], True, str)
+        # Jurado: captura no confiable según el handover → sin dato.
+        self._assert_extraido(por_campo["renati.juror"], False, type(None))
+
+    @staticmethod
+    def _assert_extraido(campo, detectado, tipo_valor):
+        assert campo["detectado"] is detectado, campo["campo"]
+        assert isinstance(campo["valor"], tipo_valor), campo["campo"]
+        if detectado:
+            assert campo["pagina"] is None or isinstance(campo["pagina"], int)
+        if not detectado:
+            assert campo["valor"] is None, campo["campo"]
+
+    def test_ficha_vacia_cuando_el_motor_no_publica(self):
+        """Despliegue sin ruleset de ficha: todos los campos en detectado=false.
+
+        La forma del contrato es estable aunque falte la captura (un
+        despliegue sin reglas_ficha.yaml sigue respondiendo la ficha
+        completa, solo que sin datos).
+        """
+        from validator.api import CAMPOS_EXTRAIDOS_FICHA, _ficha_desde_reporte
+
+        ficha = _ficha_desde_reporte({"ficha": {}})
+        assert all(c.detectado is False for c in ficha.extraidos)
+        assert tuple(c.campo for c in ficha.extraidos) == CAMPOS_EXTRAIDOS_FICHA
 
     def test_ficha_manuales_vacios_desde_el_servidor(self):
         """Los manuales viajan null: los llena el operador en pantalla."""
