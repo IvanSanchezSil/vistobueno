@@ -59,6 +59,7 @@ Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semá
 | **Reglas ficha depósito** | `reglas_ficha.yaml` | 7 capturas (diseño 17): `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`; `renati.juror` no se captura fiable. |
 | **Buzón de ficha** | `validator/buzon.py` | Módulo buzón de ficha (una ranura, TTL 1h), `publicar_ficha`/`leer_ficha`; forma parte del handover v1.7.0. |
 | **Constancias** | `validator/constancia.py` | Genera constancias por autor usando plantilla oficial (Modelo B) y MERGEFIELDs a texto plano; forma parte del endpoint `POST /constancia`. |
+| **Userscript de depósito** | `tools/dspace-fill/` | Rellena el formulario oficial de DSpace desde la ficha del buzón (`GM_xmlhttpRequest` con `@connect localhost`, auto-relleno gated con toast, timestamp del clic Depositar, reporte del handle del ítem). Artefacto instalable en `dist/` (commiteado, el CI verifica drift), núcleo puro testeado en node con jsdom; ensayo general con `nix run .#mock-dspace` (checklist en `dev/mock-dspace/README.md`). |
 
 ---
 
@@ -376,7 +377,7 @@ Cada integrante tiene su área para evitar conflictos de merge:
 
 | Integrante | Puede modificar | No debe modificar (sin coordinar) |
 |------------|-----------------|-----------------------------------|
-| Integrante 1 (Backend) | `api.py`, `api_models.py`, `notificacion.py`, `dspace.py`, `scripts/verificar_secretos.py`, `tests/`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
+| Integrante 1 (Backend) | `api.py`, `api_models.py`, `buzon.py`, `constancia.py`, `notificacion.py`, `dspace.py`, `tools/dspace-fill/`, `scripts/verificar_secretos.py`, `tests/`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
 | Integrante 2 (Frontend) | `frontend/` (React), `docs/` | `validator/` (coordina con Int1) |
 | Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`, `llm.py`, `asistente.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
 
@@ -412,6 +413,7 @@ vistobueno/
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
 ├── reglas_unt.yaml                    # Reglas en formato DSL (49 reglas)
 ├── reglas_unt_pendientes.yaml         # 5 estructuras pendientes, sin probar
+├── reglas_ficha.yaml                  # 7 capturas de la ficha de depósito (diseño 17)
 ├── reglas_dsl_ejemplo.yaml            # Ejemplo de reglas DSL
 ├── validator/
 │   ├── __init__.py                    # Docstring del paquete
@@ -425,6 +427,8 @@ vistobueno/
 │   ├── exportador.py                  # Exporta reportes a Markdown y PDF
 │   ├── notificacion.py                # Notificación de observaciones por SMTP (Actividad 6)
 │   ├── dspace.py                       # Depósito del .docx validado en DSpace (Actividad 10)
+│   ├── buzon.py                       # Buzón de una ranura: ficha pendiente + depósito reportado (TTL 1h)
+│   ├── constancia.py                  # Constancia del Modelo B por autor + fila TSV del registro
 │   ├── api.py                         # FastAPI endpoint POST /validar
 │   ├── api_models.py                  # Pydantic DTOs (ValidarResponse, etc.)
 │   ├── cli.py                         # CLI de referencia
@@ -444,6 +448,8 @@ vistobueno/
 │   ├── test_exportador.py             # Tests de exportación a Markdown/PDF
 │   ├── test_notificacion.py           # Tests unitarios + E2E de notificación (sink aiosmtpd)
 │   ├── test_dspace.py                 # Tests del módulo de depósito (stub HAL) + guardia de contrato
+│   ├── test_api_buzon.py              # Tests del buzón: TTL, última-gana, invariante sin CORS
+│   ├── test_constancia.py             # Tests de la constancia: golden files, multi-autor, 422/500
 │   ├── test_llm.py                    # Tests del cliente LLM (Stub + MockTransport)
 │   ├── test_asistente.py              # Tests del asistente IA (Funcionalidad 2)
 │   ├── test_verificar_secretos.py     # Tests del escáner de secretos SMTP
@@ -474,6 +480,8 @@ vistobueno/
 │   ├── ocr_pdfs.py                    # OCR de reglamentos escaneados
 │   ├── verificar_secretos.py          # Escáner de credenciales SMTP (pre-commit + CI)
 │   └── generate_openapi.py            # Regenerar especificación OpenAPI
+├── tools/
+│   └── dspace-fill/                   # Userscript del formulario de depósito (núcleo puro + dist + mock-dspace)
 ├── frontend/                          # React + Vite (en desarrollo)
 │   ├── src/
 │   │   ├── App.jsx
