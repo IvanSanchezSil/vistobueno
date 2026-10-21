@@ -250,6 +250,60 @@ El frontend llama a `POST /validar` con `API_BASE_URL = import.meta.env.VITE_API
 
 Mientras `VITE_API_URL` quede vacío en un despliegue **sin** proxy/reverse proxy, las llamadas a `/validar` fallarán con error de red y el UI entrará en modo demo (reporte mock avisado). Errores HTTP del backend **con** cuerpo JSON (`detail`) se muestran al usuario y **no** se sustituyen por mocks.
 
+## Operación en la biblioteca (flujo de ficha de depósito)
+
+El flujo de depósito corre en la PC del operador contra la API local
+(`uvicorn` hace bind a `127.0.0.1` por defecto: el loopback ES el control
+de acceso del MVP; la frontera de confianza es el usuario del sistema
+operativo). La app nunca escribe a la API de DSpace: el formulario
+oficial construye todas las peticiones; el userscript solo teclea.
+
+### Requisitos
+
+- Plantillas oficiales en `recursos/` (no versionadas): la del Modelo B
+  de la constancia (`TESIS DIGITAL MODELO B-2026.docx`) y las de tesis
+  para las pruebas.
+- Variables de entorno:
+  - `VISTOBUENO_FIRMA` — nombre del responsable (columna FIRMA del
+    registro y la constancia). Obligatoria para el papeleo.
+  - `VISTOBUENO_PLANTILLA_CONSTANCIA` — opcional, si la plantilla vive
+    fuera de `recursos/`.
+- Userscript en Tampermonkey: crear un script nuevo y pegar el contenido
+  de `tools/dspace-fill/dist/vistobueno-dspace-fill.user.js`. El script
+  solo se conecta a `localhost` (`@connect localhost`).
+
+### Ensayo general (sin tocar la instancia real)
+
+`nix run .#serve -- validator.api:app --port 8000` en una terminal,
+`nix run .#mock-dspace` en otra (mock de las páginas de DSpace en
+`http://127.0.0.1:8080`) y seguir el checklist de 10 pasos de
+`tools/dspace-fill/dev/mock-dspace/README.md`. El mock imita el DOM del
+formulario oficial; los comportamientos del Angular real se validan en
+el piloto (borrador descartable, con el operador presente).
+
+### Flujo real (contrato v1.7.0)
+
+1. Validar el DOCX: con semáforo verde, la respuesta trae la ficha
+   (`ficha_deposito`) con los valores detectados.
+2. El operador revisa la ficha, completa los manuales (matrícula, DNIs,
+   ORCID) y la publica al buzón (`POST /ficha-pendiente`; la UI de este
+   paso llega con el slice del frontend).
+3. En DSpace, el userscript pre-llena el formulario (toast con el
+   resumen: lleno / a mano / sin dato) y corrige el nivel de acceso
+   ("Acceso abierto").
+4. El operador arrastra el .docx, marca "Confirmo la licencia" y pulsa
+   Depositar; el clic queda registrado como timestamp.
+5. Al abrir el ítem, el userscript reporta el handle al buzón
+   (`POST /deposito`).
+6. Con la ficha + handle + timestamp: `POST /fila-registro` (filas TSV
+   para pegar en el XLSX oficial — la app JAMÁS escribe el registro) y
+   `POST /constancia` (una descarga por autor).
+
+Nota de seguridad operativa: los `.har` exportados del navegador traen
+cookies, tokens y cuerpos POST completos (incluso con el export
+"sanitized" de Chrome). Se manejan como secretos: canal privado,
+extracción fuera del repo, destrucción posterior.
+
 ## Extensiones futuras (fuera de alcance por ahora)
 
 - Capa de checks semánticos con un LLM local (vía Ollama o llama.cpp server, API compatible OpenAI) para validaciones que las reglas deterministas no pueden capturar: coherencia del resumen, consistencia del estilo de citas, correspondencia entre índice y títulos de capítulo reales.
