@@ -153,7 +153,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | `ficha_deposito.extraidos[].campo` | `string` | Clave acordada: `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`, `renati.juror` |
 | `ficha_deposito.extraidos[].valor` | `string \| array \| null` | Texto completo o lista de textos (autores, palabras clave); `null` si no detectado |
 | `ficha_deposito.extraidos[].pagina` | `int?` | Página de origen en el DOCX, si el motor la conoce |
-| `ficha_deposito.extraidos[].detectado` | `bool` | `true` si el motor encontró el elemento. Hasta la entrega del motor (handover), todos viajan `false` |
+| `ficha_deposito.extraidos[].detectado` | `bool` | `true` si el motor encontró el elemento (publicación vía `reglas_ficha.yaml`, diseño 17; `renati.juror` viaja `false`) |
 | `ficha_deposito.manuales[].campo` | `string` | Clave acordada: `matricula`, `renati.author.dni`, `renati.advisor.dni`, `renati.advisor.orcid` |
 | `ficha_deposito.manuales[].valor` | `string?` | Valor tecleado por el operador en pantalla; `null` desde el servidor |
 | `resumen.total` | `int` | Total de reglas presentes en el YAML de reglas |
@@ -526,9 +526,13 @@ pre-llenar).
   palabras clave, año de emisión, escuela y jurado opcional) y
   **manuales** (matrícula, DNI del autor, DNI del asesor, ORCID), que
   viajan vacíos y el operador llena en pantalla.
-- Los extraídos se publican con texto completo y página de origen; hasta
-  la entrega del motor (`docs/HANDOVER_MOTOR_FICHA_DEPOSITO.md`) todos
-  viajan con `detectado=false`. La forma del contrato es estable desde ya.
+- Los extraídos los publica el motor vía la sección DSL `extraccion`
+  (`reglas_ficha.yaml`, diseño 17): 7 campos capturados sobre el mismo
+  árbol del documento, sin afectar el semáforo ni el resumen.
+  `renati.juror` viaja con `detectado=false` (viabilidad negativa
+  documentada en el diseño 17: la sección de firmas no es confiable);
+  el operador lo teclea. Un despliegue sin `reglas_ficha.yaml` responde
+  la ficha completa con todos los extraídos en `detectado=false`.
 - 16 campos del formulario oficial de DSpace no viajan en la ficha: el
   servidor de DSpace los pre-llena según la colección destino
   (`docs/DSPACE_API.md` §11 y `docs/PLAN_FICHA_DEPOSITO.md` §4.1).
@@ -618,8 +622,10 @@ existente desaparece ni cambia de tipo.
 - **Nuevo objeto `ficha_deposito` en la respuesta** (`null` salvo con
   semáforo `verde`): `extraidos` (8 claves acordadas con el motor) +
   `manuales` (4 claves que el operador llena en pantalla; `matricula` y
-  `renati.author.dni` aceptan lista alineada por autor). Hasta la
-  entrega del motor, los extraídos viajan con `detectado=false`.
+  `renati.author.dni` aceptan lista alineada por autor). Los extraídos
+  los publica el motor (`reglas_ficha.yaml`, diseño 17, entrega de
+  Int3): 7 campos capturados; `renati.juror` viaja `detectado=false`
+  (viabilidad negativa documentada).
 - **Nuevos endpoints del buzón**: `POST/GET /ficha-pendiente` y
   `POST/GET /deposito` (una ranura, TTL de 1 hora, "última gana").
 - **Nuevos endpoints del papeleo**: `POST /constancia` (descarga del
