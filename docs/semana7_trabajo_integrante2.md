@@ -251,7 +251,7 @@ Petición directa: *«en la sección de preguntar a la IA, crea una sección don
   - entradas sin texto se ignoran y no cuentan en el total; categoría desconocida → `Otros` (igual que las tarjetas).
 - **UI** (arriba de las tarjetas, dentro de la misma card): título, botón **«Copiar todo junto»** (mismos estados `¡Copiado!`/fallo que los prompts individuales, `aria-live` incluido), recuento de prompts visibles y `<details>` *"Ver el prompt completo"* con vista previa desplegable (`max-height` con scroll). Respeta el **filtro de búsqueda** de la sección (si el operador filtra, el prompt único une solo los visibles).
 - **CSS**: `.ia-unico*` con borde verde, fondo `--gris-claro`, título/summary en verde-oscuro; dark con verde AA `#81c784` (el `#2e7d32` da ~2.3:1 sobre `#242424`); móvil con botón a todo el ancho; tablet con tipografía ampliada.
-- **Docs**: RF-24 + funcionalidad 10b (`01_requisitos_interfaz.md`), wireframe ASCII y bullets (`03_wireframes.md`), README (flujo + estado actual).
+- **Docs**: RF-27 + funcionalidad 10b (`01_requisitos_interfaz.md`), wireframe ASCII y bullets (`03_wireframes.md`), README (flujo + estado actual).
 - **Tests**: `Report.promptUnico.test.js` — **6 tests** (listas vacías/inválidas, filtrado de entradas sin prompt, marco singular/plural, integridad y orden de cada prompt, `Otros`).
 
 #### Verificación (2026-10-12)
@@ -284,6 +284,27 @@ Diagnóstico pedido sobre el área (Upload/Report/App/CSS/E2E): sin errores grav
 - E2E completo → **11/11** (pytest 399 passed, 49 reglas, 415/422, deshabilitado/no_solicitado, 500→mock).
 
 Commits: `8296055` (Upload), `9b406dd` (Report), `817507b` (script E2E) → rama `s7-fixes-review`.
+
+---
+
+### Duodécima tanda — Incoherencias con el backend (contrato v1.5) (2026-10-13)
+
+Diagnóstico cruzado backend↔frontend (api.py/api_models.py/CONTRATO_API.md contra Upload/Report/mocks): el frontend había quedado consumiendo el contrato v1.4 mientras el backend sirve el v1.5 (aplicabilidad de reglas por tipo de documento). Hallazgos y fixes del lado del frontend:
+
+- **Bug grave — reglas no aplicables pintadas como cumplidas**: las 9 reglas que no aplican al tipo detectado llegan con `paso:true, aplicable:false` y la checklist las mostraba como «✓ Cumple», el KPI decía «Reglas evaluadas: 49» cuando se evaluaban 40, y la barra inflaba el % (caso vivo: 33% mostrado vs 17.5% real) — justo lo que la decisión 5 de `docs/diseno/15_tipo_documento_grupos.md` quería evitar. Fix: helper `filtrarAplicables()` (exportado, testeado) + KPI/barra/anuncios sobre `total_evaluadas` + nota «N reglas no aplican a este tipo de documento».
+- **9 `rule_id` sin categoría** (suite DSL ampliada, PRs #45/#46) caían a «Otros»: mapeadas a Índice (3), Encabezados y pies (2), Notas al pie, Carátula (línea de investigación) y Tipo de documento (2, incluida la sintética `tipo_documento_no_determinado`).
+- **`metadatos` invisible**: el reporte ahora muestra archivo (nombre/tamaño) y tipo de documento detectado (`vigente` / `sin_determinar` honesto / `contradictorio` como aviso ámbar).
+- **`ubicacion` sin uso**: cada regla fallida muestra su referencia al reglamento («Ref.: …») cuando el backend la envía.
+- **Correo**: `strip()` en el cliente antes de validar/enviar (el backend lo hace; un espacio pegado ya no da falso error inline).
+- **Mock alineado al contrato v1.5** (aplicable, total_evaluadas, reglas_no_aplicables, metadatos, un ejemplo no-aplicable) y **E2E con aserciones v1.5** (`aplicable` presente, `total ≥ total_evaluadas`, coherencia de `reglas_no_aplicables`, `tipo_documento_estado` válido).
+
+**Coordinación pendiente con Integrante 1** (notificado en el PR, no tocado `validator/`): (a) `api.py` no tiene `CORSMiddleware` mientras los docs del frontend sugieren `VITE_API_URL` cross-origin — o se agrega CORS o se restringe a same-origin/reverse proxy; (b) decisión sobre el timeout de 30 s del cliente vs peor caso del servidor (validación CPU + SMTP hasta 10 s: el correo podría salir tras el aborto del frontend).
+
+#### Verificación (2026-10-13)
+
+- `npm run lint` → 0 errores · `npm test` → **20/20** (16 + 4 nuevos de `Report.aplicabilidad.test.js`) · `npm run build` → OK.
+- E2E completo → **11/11** con las aserciones v1.5 nuevas (total 49 / evaluadas 40 coherentes).
+- Respuesta viva del backend verificada antes/después: KPI pasa de 49 a 40 evaluadas y la nota informa las 9 no aplicables.
 
 ---
 

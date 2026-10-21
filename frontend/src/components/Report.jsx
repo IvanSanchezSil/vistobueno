@@ -48,10 +48,33 @@ const CATEGORIA_POR_ID = {
   proyecto_formato_general: 'Estructura',
   proyecto_caratula_texto: 'Carátula',
   suficiencia_profesional_formato: 'Estructura',
+  // Reglas de la suite DSL ampliada (PRs #45/#46) + la regla sintética del motor.
+  indice_paginas_separadas: 'Índice',
+  indice_apunta_secciones: 'Índice',
+  indice_numeracion_jerarquica: 'Índice',
+  encabezado_membrete: 'Encabezados y pies',
+  encabezado_formato: 'Encabezados y pies',
+  notas_al_pie_consistencia: 'Notas al pie',
+  caratula_linea_investigacion: 'Carátula',
+  deteccion_tipo_documento: 'Tipo de documento',
+  tipo_documento_no_determinado: 'Tipo de documento',
 }
 
 function categoriaDe(ruleId) {
   return CATEGORIA_POR_ID[ruleId] || 'Otros'
+}
+
+// Contrato v1.5: las reglas que no aplican al tipo de documento detectado
+// llegan con aplicable=false (y paso=true, porque no fallaron: no se
+// evaluaron). Mostrarlas como "cumplidas" es justo lo que la decisión 5 de
+// docs/diseno/15_tipo_documento_grupos.md evita ("listarlas haría creer que
+// se cumplieron"): el reporte trabaja solo con las reglas evaluadas.
+// Tolerante a respuestas sin el campo (contrato v1.4, mocks viejos).
+// Exportada para su unit test (vitest): ver Report.aplicabilidad.test.js.
+export function filtrarAplicables(resultados) {
+  return (Array.isArray(resultados) ? resultados : []).filter(
+    (r) => r && r.aplicable !== false
+  )
 }
 
 // Une TODOS los prompts de la sección en UNO solo, listo para copiar y pegar
@@ -129,6 +152,25 @@ export function badgeNotificacion(notif) {
 
 const ETIQUETA_FILTRO = { todos: 'Todos', error: 'Errores', warning: 'Advertencias' }
 
+// Metadatos del contrato v1.5 (archivo + tipo de documento detectado).
+const humanizaTipo = (t) => (typeof t === 'string' && t ? t.replaceAll('_', ' ') : null)
+
+function textoTipoDocumento(meta) {
+  const estado = meta?.tipo_documento_estado
+  if (!estado) return null
+  if (estado === 'vigente') {
+    const t = humanizaTipo(meta.tipo_documento_inferido || meta.tipo_documento_declarado)
+    return t ? `Tipo de documento: ${t}` : null
+  }
+  if (estado === 'sin_determinar') return 'No se pudo determinar el tipo de documento.'
+  if (estado === 'contradictorio') {
+    const dec = humanizaTipo(meta.tipo_documento_declarado) || '?'
+    const inf = humanizaTipo(meta.tipo_documento_inferido) || '?'
+    return `Aviso: el tipo declarado (${dec}) no coincide con el detectado (${inf}).`
+  }
+  return null
+}
+
 function Report({ data, onBack }) {
   const [filtro, setFiltro] = useState('todos') // 'todos' | 'error' | 'warning'
   const [vista, setVista] = useState('detallada') // 'detallada' | 'simple'
@@ -156,10 +198,32 @@ function Report({ data, onBack }) {
     [data]
   )
   const resumen = data?.resumen || { total: resultados.length, fallidos_error: 0, fallidos_warning: 0 }
+  // Contrato v1.5 (aplicabilidad): el resto del reporte (checklist, KPIs,
+  // barra, anuncios) trabaja SOLO con las reglas realmente evaluadas. Los
+  // números vienen del backend (total_evaluadas/reglas_no_aplicables) con
+  // fallback computado para respuestas que no los traigan.
+  const evaluadas = useMemo(() => filtrarAplicables(resultados), [resultados])
+  const nEvaluadas = resumen.total_evaluadas ?? evaluadas.length
+  const nNoAplicables = resumen.reglas_no_aplicables ?? resultados.length - evaluadas.length
   // Fail-safe: solo "verde" explícito muestra "listo para entregar".
   // Un payload incompleto/inesperado NUNCA debe decir que la tesis está lista.
   const semaforo = data?.semaforo === 'verde' ? 'verde' : 'rojo'
   const notif = badgeNotificacion(data?.notificacion)
+  // Metadatos (archivo y tipo de documento detectado): nunca bloquean nada,
+  // solo informan. El estado "contradictorio" se destaca por su clase.
+  const meta = data?.metadatos
+  const archivoTexto = meta?.archivo_nombre
+    ? `Archivo: ${meta.archivo_nombre}` +
+      (typeof meta.archivo_tamano_bytes === 'number'
+        ? ` · ${
+            meta.archivo_tamano_bytes >= 1048576
+              ? `${(meta.archivo_tamano_bytes / 1048576).toFixed(1)} MB`
+              : `${Math.max(1, Math.round(meta.archivo_tamano_bytes / 1024))} KB`
+          }`
+        : '')
+    : null
+  const tipoDocumentoTexto = textoTipoDocumento(meta)
+  const tipoContradictorio = meta?.tipo_documento_estado === 'contradictorio'
 
   // Al montar el reporte: mover scroll Y foco al semáforo.
   // El foco real (no solo scroll) es lo que un lector de pantalla percibe.
@@ -175,7 +239,8 @@ function Report({ data, onBack }) {
     const w = resumen.fallidos_warning || 0
     setAnuncio(
       `Reporte de validación cargado. Semáforo: ${semaforo}. ` +
-      `${resumen.total} reglas evaluadas, ${e} errores, ${w} advertencias.`
+      `${nEvaluadas} reglas evaluadas, ${e} errores, ${w} advertencias.` +
+      (nNoAplicables > 0 ? ` ${nNoAplicables} reglas no aplican a este tipo de documento.` : '')
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -190,9 +255,9 @@ function Report({ data, onBack }) {
       .some((v) => typeof v === 'string' && v.toLowerCase().includes(q))
 
   const visibles = useMemo(
-    () => resultados.filter((r) => (filtro === 'todos' || r.severidad === filtro) && coincide(r)),
+    () => evaluadas.filter((r) => (filtro === 'todos' || r.severidad === filtro) && coincide(r)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [resultados, filtro, q]
+    [evaluadas, filtro, q]
   )
   const fallidos = useMemo(() => visibles.filter((r) => !r.paso), [visibles])
 
@@ -217,7 +282,7 @@ function Report({ data, onBack }) {
   // Cuenta lo que REALMENTE se pinta en la vista actual: la vista simple solo
   // lista pendientes, así que anunciar el total de coincidencias sería mentira.
   const cuentaVisible = (f, qq) => {
-    const base = resultados.filter(
+    const base = evaluadas.filter(
       (r) =>
         (f === 'todos' || r.severidad === f) &&
         (!qq ||
@@ -239,18 +304,19 @@ function Report({ data, onBack }) {
   }, [visibles])
 
   // Barra de progreso de cumplimiento (wireframe: "Ej: 76%").
-  const total = resumen.total || 0
+  // Contrato v1.5: el % es sobre las reglas EVALUADAS (las no aplicables
+  // no cuentan como cumplidas; antes inflaban el porcentaje).
   const errN = resumen.fallidos_error || 0
   const warnN = resumen.fallidos_warning || 0
-  const okN = Math.max(total - errN - warnN, 0)
-  const pct = (n) => (total > 0 ? (n / total) * 100 : 0)
+  const okN = Math.max(nEvaluadas - errN - warnN, 0)
+  const pct = (n) => (nEvaluadas > 0 ? (n / nEvaluadas) * 100 : 0)
   const pctOk = Math.round(pct(okN))
 
   const cambiarFiltro = (f) => {
     setFiltro(f)
     const n = cuentaVisible(f, q)
     anunciar(
-      `Filtro «${ETIQUETA_FILTRO[f]}»: ${n} de ${resultados.length} ` +
+      `Filtro «${ETIQUETA_FILTRO[f]}»: ${n} de ${evaluadas.length} ` +
         `${vista === 'simple' ? 'pendientes' : 'reglas'} visibles.`
     )
   }
@@ -267,7 +333,7 @@ function Report({ data, onBack }) {
     const n = cuentaVisible(filtro, qq)
     anunciar(
       !qq
-        ? `Búsqueda borrada: ${resultados.length} reglas.`
+        ? `Búsqueda borrada: ${evaluadas.length} reglas.`
         : n === 0
           ? `Ninguna regla coincide con «${v.trim()}».`
           : `${n} ${vista === 'simple' ? 'pendientes coinciden' : 'reglas coinciden'} con «${v.trim()}».`
@@ -325,15 +391,30 @@ function Report({ data, onBack }) {
           </div>
         </div>
 
+        {(archivoTexto || tipoDocumentoTexto) && (
+          <div className="meta-linea">
+            {archivoTexto && <span>{archivoTexto}</span>}
+            {tipoDocumentoTexto && (
+              <span className={tipoContradictorio ? 'meta-aviso' : undefined}>{tipoDocumentoTexto}</span>
+            )}
+          </div>
+        )}
+
         <div className="resumen">
-          <div className="kpi"><div className="num">{resumen.total}</div><div className="lbl">Reglas evaluadas</div></div>
+          <div className="kpi"><div className="num">{nEvaluadas}</div><div className="lbl">Reglas evaluadas</div></div>
           <div className="kpi rojo"><div className="num">{errN}</div><div className="lbl">Errores</div></div>
           <div className="kpi ambar"><div className="num">{warnN}</div><div className="lbl">Advertencias</div></div>
         </div>
+        {nNoAplicables > 0 && (
+          <p className="resumen-nota" role="status">
+            {nNoAplicables} regla{nNoAplicables === 1 ? '' : 's'} no aplica{nNoAplicables === 1 ? '' : 'n'} a este
+            tipo de documento y no se evalu{nNoAplicables === 1 ? 'ó' : 'aron'}.
+          </p>
+        )}
 
         {/* Barra de progreso de cumplimiento (3 segmentos: ok / warn / error).
-            Oculta si no hay total: un "0%" con datos vacío solo confunde. */}
-        {total > 0 && (
+            Oculta si no hay evaluadas: un "0%" con datos vacío solo confunde. */}
+        {nEvaluadas > 0 && (
           <div
             className="progreso"
             role="progressbar"
@@ -478,6 +559,9 @@ function Report({ data, onBack }) {
                                     <span className="etq">Esperado:</span> {r.esperado ?? r.expected}<br />
                                     <span className="etq">Encontrado:</span> {r.encontrado ?? r.found}
                                   </div>
+                                )}
+                                {!r.paso && r.ubicacion && (
+                                  <div className="regla-ref">Ref.: {r.ubicacion}</div>
                                 )}
                               </div>
                             </div>
