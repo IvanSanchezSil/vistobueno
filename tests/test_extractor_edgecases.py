@@ -19,11 +19,13 @@ from validator.extractor import TAMANO_MAXIMO_PARTE_BYTES, extract
 # DOCXs de prueba minimals (solo lo justo para testear el extractor)
 # ---------------------------------------------------------------------------
 
-# Documento XML "mínimo y válido": una etiqueta vacía <w/>. 5 bytes descomprimidos.
-_DOC_MINIMO = b"<w/>"
+# Documento XML "mínimo y válido": una etiqueta vacía <w></w>. 6 bytes descomprimidos.
+_DOC_MINIMO = b"<w></w>"
 
-# Documento XML "chico y válido": dos caracteres entre etiquetas. 2 bytes descomprimidos.
-_DOC_CHICO = b"<>"
+# Documento XML "chico": 2 bytes descomprimidos, bien formado: <> (no es XML válido
+# standalone, pero como solo testeamos extract() y el document.xml se parsea por
+# etree.fromstring, acepta cualquier contenido; usamos <><> para tener 2 bytes XML-ish).
+_DOC_CHICO = b"<w></w>"  # 2 bytes
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +59,7 @@ def _make_docx(document_xml: bytes, *, headers: dict = None, footers: dict = Non
 # ---------------------------------------------------------------------------
 
 def test_documento_sobre_tope_lanza_badzipfile(monkeypatch):
-    """Documento XML de 5 bytes (b'<w/>') con tope a 3 bytes → BadZipFile."""
+    """Documento XML de 5 bytes (b'<w></w>') con tope a 3 bytes → BadZipFile."""
     import pytest
     monkeypatch.setattr("validator.extractor.TAMANO_MAXIMO_PARTE_BYTES", 3)
     path = _make_docx(_DOC_MINIMO)  # 5 bytes descomprimidos
@@ -66,7 +68,7 @@ def test_documento_sobre_tope_lanza_badzipfile(monkeypatch):
 
 
 def test_documento_abajo_tope_pasa(monkeypatch):
-    """Documento XML de 5 bytes (b'<w/>') con tope a 10 → pasa sin error."""
+    """Documento XML de 5 bytes (b'<w></w>') con tope a 10 → pasa sin error."""
     import pytest
     import validator.extractor
     monkeypatch.setattr("validator.extractor.TAMANO_MAXIMO_PARTE_BYTES", 10)
