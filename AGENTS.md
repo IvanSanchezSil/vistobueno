@@ -24,6 +24,12 @@ Frontend (React)
       → notificación por correo (validator/notificacion.py, opt-in + best-effort)
     → respuesta JSON (ValidarResponse)
   ← semáforo + notificación + resumen + resultados + prompts IA + metadatos
+
+Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semáforo):
+  → GET /asistente/estado, POST /asistente/explicar (validator/api.py)
+    → validator/asistente.py (explicar/priorizar; diseño 16, Funcionalidad 2)
+      → validator/llm.py (OllamaClient real | StubLLM para CI)
+    → servicio Ollama local (http://127.0.0.1:11434, opt-in vía OLLAMA_URL)
 ```
 
 ### Componentes existentes
@@ -35,6 +41,8 @@ Frontend (React)
 | **Extractor DOCX** | `validator/extractor.py` | Abre .docx (zip OPC), extrae XML |
 | **Checks** | `validator/checks.py` | Ejecuta checks individuales (xpath, atributos, regex) |
 | **Prompts IA** | `validator/prompts.py` | Genera prompts template para reglas fallidas |
+| **Cliente LLM (IA)** | `validator/llm.py` | `LLMClient` + `OllamaClient` + `StubLLM` (opt-in por `OLLAMA_URL`, sin secretos; diseño 16, Paso 0) |
+| **Asistente IA** | `validator/asistente.py` | Funcionalidad 2 del módulo: explicar y priorizar los fallos (advisory; no toca el semáforo) |
 | **Exportador Markdown/PDF** | `validator/exportador.py` | Exporta reportes a Markdown y PDF |
 | **Notificación por correo** | `validator/notificacion.py` | Envía las observaciones al estudiante por SMTP (opt-in, best-effort; Actividad 6) |
 | **Depósito en DSpace** | `validator/dspace.py` | Deposita el .docx validado en el repositorio institucional (opt-in, solo semáforo verde, best-effort; Actividad 10) |
@@ -43,10 +51,14 @@ Frontend (React)
 | **CLI referencia** | `validator/cli.py` | Validador desde línea de comandos |
 | **Tests exportador** | `tests/test_exportador.py` | Tests de exportación Markdown/PDF |
 | **Tests notificación** | `tests/test_notificacion.py` | Tests unitarios + E2E con sink SMTP (aiosmtpd) |
+| **Tests IA** | `tests/test_llm.py`, `tests/test_asistente.py` | Cliente LLM y asistente, con `StubLLM` (sin red ni GPU) |
 | **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP y DSpace en commits (pre-commit + CI) |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
-| **Reglas DSL (producción)** | `reglas_unt.yaml` | 48 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
+| **Reglas DSL (producción)** | `reglas_unt.yaml` | 49 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
 | **Reglas DSL pendientes** | `reglas_unt_pendientes.yaml` | 5 estructuras implementadas y sin probar; no lo carga la API |
+| **Reglas ficha depósito** | `reglas_ficha.yaml` | 7 capturas (diseño 17): `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`; `renati.juror` no se captura fiable. |
+| **Buzón de ficha** | `validator/buzon.py` | Módulo buzón de ficha (una ranura, TTL 1h), `publicar_ficha`/`leer_ficha`; forma parte del handover v1.7.0. |
+| **Constancias** | `validator/constancia.py` | Genera constancias por autor usando plantilla oficial (Modelo B) y MERGEFIELDs a texto plano; forma parte del endpoint `POST /constancia`. |
 
 ---
 
@@ -295,13 +307,15 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - **Reglas legacy** en `unt_format_rules_schema.yaml`: 44 definidas; **32 con
   mecanismo verificable** (ejecutables sobre XML del DOCX); **12 sin mecanismo**
   (requieren análisis semántico, fuera del MVP). Fuente de referencia histórica.
-- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **48 reglas verificables**,
+- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **49 reglas verificables**,
   que incluyen las 32 migradas, las 9 mecanizadas a mano (F3), los ítems de la
   Semana 5 (`indice_paginas_separadas`, `encabezado_membrete`,
   `encabezado_formato`, `notas_al_pie_consistencia`, `indice_apunta_secciones`,
-  `indice_numeracion_jerarquica`) y la regla discriminadora
+  `indice_numeracion_jerarquica`), la regla discriminadora
   `deteccion_tipo_documento` (Semana 6, Paso 3: identifica a qué tipo de
-  documento pertenece la tesis y publica `tipo_documento` en el contexto).
+  documento pertenece la tesis y publica `tipo_documento` en el contexto) y
+  `track_changes_sin_resolver` (Semana 8: advierte si quedan cambios con
+  seguimiento `w:ins`/`w:del` sin aceptar/rechazar).
 - **Estructuras pendientes** en `reglas_unt_pendientes.yaml`: las 5 que el
   manual define y el motor no cubría (proyecto e informe, cuantitativo y
   cualitativo, más trabajo de suficiencia profesional). **La API no lo
@@ -316,10 +330,11 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `error`: bloquea la entrega (semáforo rojo).
 - `warning`: no bloquea, pero se muestra en el reporte.
 
-3 reglas bajadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales.
-> Los conteos declarados aquí (48 reglas, doc bueno 0 fallos, suite 429 tests) se
+4 reglas ajustadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales (2 de ellas por nuevas capturas de la ficha de depósito que no aplican al doc bueno estándar).
+> Los conteos declarados aquí (49 reglas, doc bueno 0 fallos, suite 600+ tests) se
 > mantienen sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
-> Del doc bueno se evalúan 42 de 48: las 6 reglas de otros tipos de documento
+> Del doc bueno se evalúan 43 de 49: las 6 reglas de otros tipos de documento
+> (2 de ellas por nuevas capturas de la ficha de depósito que no aplican al doc bueno estándar, diseño 17).
 > (las 2 estructuras alternativas, los mínimos de referencias/anexos de
 > cualitativo y revisión, y la carátula del Proyecto) no le aplican porque el
 > documento es un plan cuantitativo.
@@ -363,7 +378,7 @@ Cada integrante tiene su área para evitar conflictos de merge:
 |------------|-----------------|-----------------------------------|
 | Integrante 1 (Backend) | `api.py`, `api_models.py`, `notificacion.py`, `dspace.py`, `scripts/verificar_secretos.py`, `tests/`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md` | `extractor.py`, `checks.py` (coordina con Int3) |
 | Integrante 2 (Frontend) | `frontend/` (React), `docs/` | `validator/` (coordina con Int1) |
-| Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
+| Integrante 3 (Motor) | `engine.py`, `models.py`, `extractor.py`, `checks.py`, `prompts.py`, `tokenizer.py`, `analizadores.py`, `automata.py`, `compilador.py`, `dsl_check.py`, `llm.py`, `asistente.py`, YAML de reglas | `api.py`, `api_models.py` (coordina con Int1) |
 
 Si necesitas modificar un archivo que no es de tu área, **coordina primero** con el integrante responsable.
 
@@ -378,7 +393,12 @@ Si necesitas modificar un archivo que no es de tu área, **coordina primero** co
 - ❌ Soporte PDF (pendiente: extractor con PyMuPDF)
 - ❌ Detección automática de tipo de investigación
 - ❌ OCR de reglamentos escaneados (realizado el 2026-09-02 vía `scripts/ocr_pdfs.py`, salida en `recursos/ocr/*.txt`)
-- ❌ LLM en tiempo de ejecución (solo template para prompts IA)
+- ⚠️ LLM en tiempo de ejecución: **retirado del MVP como restricción absoluta**
+  (aprobado por el equipo). Existe un módulo de IA **local y advisory**
+  (`validator/llm.py`, `validator/asistente.py`) que nunca toca el semáforo ni
+  produce `RuleResult`. Es **opt-in** (`OLLAMA_URL`) y solo consume el reporte
+  ya generado por el motor determinista. Diseño: `docs/diseno/16_modulo_ia.md`;
+  contrato de API: `docs/HANDOVER_API_IA.md`.
 
 ---
 
@@ -390,7 +410,7 @@ vistobueno/
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
-├── reglas_unt.yaml                    # Reglas en formato DSL (48 reglas)
+├── reglas_unt.yaml                    # Reglas en formato DSL (49 reglas)
 ├── reglas_unt_pendientes.yaml         # 5 estructuras pendientes, sin probar
 ├── reglas_dsl_ejemplo.yaml            # Ejemplo de reglas DSL
 ├── validator/
@@ -400,6 +420,8 @@ vistobueno/
 │   ├── extractor.py                   # Abre .docx, extrae XML (ExtractedDocx)
 │   ├── checks.py                      # Checks individuales (xpath, atributos, regex)
 │   ├── prompts.py                     # Generador de prompts "cómo preguntar a una IA"
+│   ├── llm.py                         # Cliente LLM local (OllamaClient + StubLLM)
+│   ├── asistente.py                   # Módulo de IA: explicar/priorizar (advisory)
 │   ├── exportador.py                  # Exporta reportes a Markdown y PDF
 │   ├── notificacion.py                # Notificación de observaciones por SMTP (Actividad 6)
 │   ├── dspace.py                       # Depósito del .docx validado en DSpace (Actividad 10)
@@ -422,6 +444,8 @@ vistobueno/
 │   ├── test_exportador.py             # Tests de exportación a Markdown/PDF
 │   ├── test_notificacion.py           # Tests unitarios + E2E de notificación (sink aiosmtpd)
 │   ├── test_dspace.py                 # Tests del módulo de depósito (stub HAL) + guardia de contrato
+│   ├── test_llm.py                    # Tests del cliente LLM (Stub + MockTransport)
+│   ├── test_asistente.py              # Tests del asistente IA (Funcionalidad 2)
 │   ├── test_verificar_secretos.py     # Tests del escáner de secretos SMTP
 │   ├── conftest.py                    # Cliente de prueba y fixtures compartidos
 │   ├── _docx_generator.py             # Generador de DOCX de tamaño controlado (tests 413)
@@ -545,6 +569,14 @@ Al revisar un PR, verificar que:
 
 ---
 
+## Próximos pasos propuestos
+
+1. **Int1**: auth/rate-limit en `POST /validar` (documentar/limitar) y arreglar el test de paridad vacuo.
+2. **Int3**: cachear el DSL compilado — *descartado vía medición (1.5%); si hay perfilado futuro, atacar la extracción/evaluación (~98.5%)*. **`load_rules` con manejo de errores: resuelto** (PR actual).
+3. **Int2**: `AbortController` en el upload y foco del dropzone bajo `StrictMode`.
+
+---
+
 ## Evidencia para pasantía
 
 Cada integrante debe poder demostrar:
@@ -555,3 +587,14 @@ Cada integrante debe poder demostrar:
 | Estructura de Datos | Modelos de datos, serialización, mapeo motor→API |
 | Redes de Computadoras I | HTTP, REST, multipart, códigos de estado |
 | Ingeniería de Software I | Documentación técnica, contratos de API |
+
+---
+
+### Arquitectura complementaria (después de la Semana 9)
+
+| Módulo | Archivo | Responsabilidad |
+|--------|---------|-----------------|
+| **Reglas ficha depósito** | `reglas_ficha.yaml` | 7 capturas para el formulario de DSpace (diseño 17): `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`. `renati.juror` no se captura fiable. |
+| **Buzón de ficha** | `validator/buzon.py` | Módulo buzón de ficha (una ranura, TTL 1h), `publicar_ficha`/`leer_ficha`; forma parte del handover v1.7.0. |
+| **Constancias** | `validator/constancia.py` | Genera constancias por autor usando plantilla oficial (Modelo B) y MERGEFIELDs a texto plano; forma parte del endpoint `POST /constancia`. |
+
