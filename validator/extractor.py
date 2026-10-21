@@ -449,8 +449,12 @@ def extract(docx_path: str) -> ExtractedDocx:
             etree.fromstring(_leer_parte(z, n))
             for n in sorted(x for x in names if x.startswith("word/footer") and x.endswith(".xml"))
         ]
-        footnotes_xml = _leer_parte(z, "word/footnotes.xml") if "word/footnotes.xml" in names else None
-        footnotes = etree.fromstring(footnotes_xml) if footnotes_xml and len(footnotes_xml) > 0 else None
+        footnotes_xml = (
+            _leer_parte(z, "word/footnotes.xml") if "word/footnotes.xml" in names else None
+        )
+        footnotes = (
+            etree.fromstring(footnotes_xml) if footnotes_xml and len(footnotes_xml) > 0 else None
+        )
 
     return ExtractedDocx(
         document=document,

@@ -1,54 +1,67 @@
 #!/usr/bin/env python3
-"""Script utility: lista las reglas que aplicarían a un DOCX dado.
+"""Script utility: lista las reglas que aplican a un DOCX y resume sus fallos.
 
-Usa el motor de validación para análisis, sin modificar el validador.
-Uso: python scripts/reglas_activas.py /ruta/al/documento.docx
+Usa el motor de validación para el análisis, sin modificar el validador.
+
+Uso:
+    python scripts/reglas_activas.py /ruta/al/documento.docx
 """
 
+import argparse
 import sys
-import os
+from pathlib import Path
 
-from validator.engine import validate_docx, load_rules
-from validator.api import REGLAS_YAML_PATH
+from validator.engine import load_rules, validate_docx
+from validator.models import Severity
 
-def main():
-    if len(sys.argv) < 2:
-        print("Uso: python scripts/reglas_activas.py /ruta/al/documento.docx")
-        sys.exit(1)
+REGLAS_YAML_PATH = "reglas_unt.yaml"
 
-    docx_path = sys.argv[1]
 
-    if not os.path.exists(docx_path):
-        print(f"Error: el archivo {docx_path} no existe")
-        sys.exit(1)
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Lista las reglas activas y los fallos de un DOCX."
+    )
+    parser.add_argument("docx", type=Path, help="Ruta al archivo .docx a validar.")
+    parser.add_argument(
+        "--reglas",
+        type=Path,
+        default=Path(REGLAS_YAML_PATH),
+        help=f"YAML de reglas (por defecto: {REGLAS_YAML_PATH}).",
+    )
+    args = parser.parse_args()
 
-    try:
-        rules_data = load_rules(REGLAS_YAML_PATH)
-        resultados = validate_docx(docx_path, rules_data)
+    if not args.docx.is_file():
+        print(f"Error: el archivo {args.docx} no existe", file=sys.stderr)
+        return 1
 
-        # Contar por severidad
-        error_count = sum(1 for r in resultados if not r.passed and r.severity.name == "ERROR")
-        warning_count = sum(1 for r in resultados if not r.passed and r.severity.name == "WARNING")
-        passed_count = sum(1 for r in resultados if r.passed)
+    reglas_data = load_rules(str(args.reglas))
+    resultados = validate_docx(str(args.docx), reglas_data)
 
-        print(f"=== Reporte de reglas activas para: {os.path.basename(docx_path)} ===")
-        print(f"")
-        print(f"Reglas evaluadas: {len(resultados)}")
-        print(f"  - Errores: {error_count}")
-        print(f"  - Advertencias: {warning_count}")
-        print(f"  - Aprobadas: {passed_count}")
-        print(f"")
+    errores = [r for r in resultados if not r.passed and r.severity is Severity.ERROR]
+    advertencias = [r for r in resultados if not r.passed and r.severity is Severity.WARNING]
+    aprobadas = [r for r in resultados if r.passed]
+
+    print(f"=== Reporte de reglas activas para: {args.docx.name} ===")
+    print()
+    print(f"Reglas evaluadas: {len(resultados)}")
+    print(f"  - Errores: {len(errores)}")
+    print(f"  - Advertencias: {len(advertencias)}")
+    print(f"  - Aprobadas: {len(aprobadas)}")
+
+    if errores:
+        print()
         print("Detalle de reglas Error:")
-        for r in resultados:
-            if not r.passed and r.severity.name == "ERROR":
-                print(f"  - [{r.rule_id}] {r.message}")
+        for r in errores:
+            print(f"  - [{r.rule_id}] {r.message}")
+
+    if advertencias:
         print()
         print("Detalle de reglas Warning:")
-        for r in resultados:
-            if not r.passed and r.severity.name == "WARNING":
-                print(f"  - [{r.rule_id}] {r.message}")
-    except Exception as e:
-        print(f"Error al procesar el documento: {e}")
+        for r in advertencias:
+            print(f"  - [{r.rule_id}] {r.message}")
+
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
