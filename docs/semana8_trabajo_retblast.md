@@ -185,3 +185,36 @@
 3. Relay a Int3: prefijo de `dc.title` en la captura (pulió el diseño
    17).
 4. Merge del PR #55 con el CI en verde.
+
+---
+
+## Apéndice (23/10): revisión del PR #55 — hallazgos 10 y 11
+
+Revisión propia del PR con dos hallazgos, ambos atendidos en la misma
+rama:
+
+- **Hallazgo 11 — registro descargable** (`POST /fila-registro` con
+  `?formato=tsv | csv | xlsx`): el operador ya no depende del
+  copiar-pegar crudo; los tres formatos llegan como archivo (BOM UTF-8
+  para Excel, separador ';' y citas RFC 4180 en csv, libro con
+  encabezado de 13 columnas en xlsx — `openpyxl` entró al flake). 6
+  tests nuevos de formatos.
+- **Hallazgo 10 — ensayo general de un comando**
+  (`nix run .#test-ficha-deposito`): `scripts/e2e_ficha_deposito.sh`
+  levanta API + mock, valida el doc bueno del factory, publica la ficha,
+  corre el userscript real contra el mock con un driver jsdom
+  (`tools/dspace-fill/dev/e2e_ensayo.js`), verifica timestamp del clic
+  en Depositar y handle en el buzón, y descarga constancia + registro.
+  Salida: "✅ FLUJO COMPLETO OK".
+- **Bugs encontrados por el ensayo** (por eso existe):
+  1. El driver hacía clic en Depositar antes de que el wrapper
+     guardara el envío en curso (carrera microtask): el driver ahora
+     espera su precondición.
+  2. El proxy del mock calculaba `Content-Length` en caracteres, no en
+     bytes: los títulos con acentos (UTF-8 multibyte) truncaban el JSON
+     y la API respondía 422. Corregido con `Buffer.byteLength`; el
+     ensayo ahora cruza títulos con acentos de punta a punta.
+- Handovers para el resto del equipo, delimitados:
+  `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` (Int2: pantalla de ficha,
+  panel de espera, descargas) y la nota de seguimiento §8 en el handover
+  del motor (Int3: prefijo de la captura de `dc.title`).

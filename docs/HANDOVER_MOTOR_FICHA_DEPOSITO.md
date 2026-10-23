@@ -125,3 +125,23 @@ inventar heurísticas por regla. Si un dato no aplica, `detectado: false`.
 3. El depósito contra la instancia real no requiere gestión ante la
    sede: se hace con el userscript sobre la sesión del operador
    (PLAN_FICHA §2).
+
+---
+
+## 8. Nota de seguimiento (2026-10-23, tras la entrega del diseño 17)
+
+La entrega está integrada y funcionando de punta a punta (la API activa
+`reglas_ficha.yaml` en `POST /validar`; la ficha viaja con valores
+reales). Un solo pulido quedó en el tintero, sin urgencia:
+
+- **`dc.title` llega con el prefijo de la etiqueta**: la captura trae el
+  párrafo completo ("Título del trabajo de investigación: Estrategias
+  lúdicas…"). Hoy el operador lo recorta en la pantalla de revisión
+  (Int2) y el userscript lo escribe tal cual. Si la captura puede
+  dejar solo el título, mejor — es limpiar el dato en la fuente y no en
+  cada uso. Tu llamada el mecanismo; las reglas de validación no se
+  tocan (la captura es solo lectura, como la firmamos en el §6).
+
+Referencia viva: el ensayo general (`nix run .#test-ficha-deposito`)
+usa tu captura en el flujo completo — cualquier cambio tuyo queda
+verificado ahí de gratis.
