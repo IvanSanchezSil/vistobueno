@@ -145,3 +145,27 @@ reales). Un solo pulido quedó en el tintero, sin urgencia:
 Referencia viva: el ensayo general (`nix run .#test-ficha-deposito`)
 usa tu captura en el flujo completo — cualquier cambio tuyo queda
 verificado ahí de gratis.
+
+### 8.1 Hallazgos verificados contra la plantilla oficial (2026-10-23, revisión del PR #55)
+
+Verificados con `validate_docx` + `load_ficha_rules()` sobre la
+plantilla real de Educación Inicial (reproducción: ver `recursos/`).
+Ambos son de `reglas_ficha.yaml` — área tuya, mecanismo a tu criterio:
+solo los documento para tu cola.
+
+- **`dc.contributor.advisor` viaja `detectado=true` con `valor=""`**:
+  contradictorio para el contrato (la ficha dice "detectado" cuando no
+  hay nada). Sospecha: el `quitar_prefijo` de la regla deja la cadena
+  vacía cuando la línea de la plantilla no tiene el asesor real, y la
+  captura la publica igual. Normalizar a `detectado=false, valor=null`
+  cuando el resultado queda vacío.
+- **`dc.date.issued` captura la línea de lugar** (`"Trujillo - Perú"`),
+  no un año: en la carátula de la plantilla la línea "TRUJILLO –
+  PERÚ … 2026" se captura parcialmente. Hoy el userscript lo resuelve
+  por su cuenta (extrae 4 dígitos; sin año → queda "a mano", fallo
+  visible), pero la captura debería traer el año directo.
+
+Nota menor (ítem 4 de la misma revisión): documentar en el diseño 17
+que el XPath de autores espera **párrafos hermanos** (funciona con
+párrafos separados y con "Autor1, Autor2" en una línea vía separador,
+pero vale dejarlo escrito).
