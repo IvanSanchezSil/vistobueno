@@ -226,3 +226,14 @@ rama:
   handle dentro de la constancia. Suite: 621.
 - **Firma**: los commits de la revisión quedaron re-firmados tras recargar
   la identidad en el agente SSH.
+- **23/10, segunda tanda — revisión completa (items 1-11)**: triage punto
+  por punto publicado en el PR. Hechos: Swagger sin placeholders "string"
+  (`6b4db6b`), plantilla sintética con ESCUELAS como campo complejo
+  (`76f2d91`), realismo del mock (checkbox de licencia, file, título del
+  ítem, `80b8726`). Corregidos con evidencia: el item 8 (POST /deposito
+  NO depende del título del DOM — el e2e lo demuestra) y el 11 (la
+  carrera era otra: microtask del relleno vs clic del driver; localStorage
+  es síncrono). Verificados y RELAYADOS a Int3 sin tocar su área:
+  asesor con valor vacío y detectado=true (reproducido contra la
+  plantilla), año capturado como lugar ("Trujillo - Perú"), nota del
+  XPath de párrafos hermanos (handover §8.1, `3b06560`). Suite: 622.
