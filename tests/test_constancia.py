@@ -147,6 +147,28 @@ def _plantilla_sintetica() -> Path:
     return destino
 
 
+@cache
+def _plantilla_sintetica_escuela_compleja() -> Path:
+    """Variante con ESCUELAS como campo COMPLEJO (como en la plantilla real).
+
+    La variante principal usa fldSimple para cubrir esa rama; esta cubre
+    la forma que el Modelo B oficial realmente usa (hallazgo 6 de la
+    revisión del PR #55: el sintético debe cubrir ambos mecanismos).
+    """
+    doc = Document()
+    doc.add_paragraph("UNIVERSIDAD NACIONAL DE TRUJILLO")
+
+    cuerpo = doc.add_paragraph()
+    _agregar_run_texto(cuerpo, "Escuela: ")
+    _agregar_campo_complejo(cuerpo, "ESCUELAS", "valor viejo")
+
+    destino = (
+        Path(tempfile.mkdtemp(prefix="vistobueno-constancia-")) / "plantilla_escuela_compleja.docx"
+    )
+    doc.save(str(destino))
+    return destino
+
+
 @pytest.fixture(autouse=True)
 def _entorno_constancia(monkeypatch):
     """Firma y plantilla deterministas para toda la suite."""
@@ -385,6 +407,20 @@ class TestLlenadoConstancia:
             "Educación Primaria",
         ):
             assert valor in xml, f"Falta en la constancia real: {valor}"
+
+    def test_escuela_como_campo_complejo_tambien_se_reemplaza(self):
+        """Hallazgo 6: el sintético cubre el mecanismo del Modelo B real.
+
+        La plantilla oficial usa campo complejo para ESCUELAS; la
+        variante sintética original usaba fldSimple. Esta variante
+        asegura que el reemplazador cubre AMBOS mecanismos por separado.
+        """
+        contenido = llenar_constancia(_plantilla_sintetica_escuela_compleja(), _datos())
+        xml = _document_xml(contenido)
+
+        assert "MERGEFIELD" not in xml
+        assert "Educación Primaria" in xml
+        assert "valor viejo" not in xml
 
 
 # ---------------------------------------------------------------------------
