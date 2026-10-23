@@ -56,6 +56,17 @@
 			<input type="text" id="dc_rights" name="dc.rights" autocomplete="off"></label></p>
 		<ul id="combobox_dc_rights_listbox"></ul>
 
+		<!-- Realismo del envío real (hallazgo 7 de la revisión): el
+		     operador arrastra el .docx y marca "Confirmo la licencia"
+		     antes de Depositar. El userscript NO toca ninguno de los
+		     dos — son acciones del operador — pero el ensayo debe
+		     ensayar el gesto completo. -->
+		<p><label>Archivo .docx de la tesis<br><input type="file" id="bitstream" accept=".docx"></label></p>
+		<p>
+			<input type="checkbox" id="granted" name="granted" required>
+			<label for="granted">Confirmo la licencia</label>
+		</p>
+
 		<p>
 			<button type="button" id="deposit">Depositar</button>
 		</p>
