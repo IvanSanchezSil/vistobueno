@@ -19,6 +19,7 @@
           aiosmtpd
           pyyaml
           python-docx
+          openpyxl
           pymupdf
           pytesseract
           pillow
@@ -64,6 +65,7 @@
             echo "  nix run .#serve -- validator.api:app --reload  # iniciar API"
             echo "  nix run .#smtp-dev                              # sink SMTP local (127.0.0.1:8025)"
             echo "  nix run .#mock-dspace                            # mock de DSpace para el ensayo general (:8080)"
+            echo "  nix run .#test-ficha-deposito                   # ensayo general de UN comando (flujo completo S8)"
             echo "  nix run .#test-local                            # e2e local: build + suite + flujo completo"
             echo "  nix flake check                                # tests + verificación"
             echo "  ruff check validator/ scripts/ tests/          # lint Python"
@@ -128,6 +130,23 @@
                 exit 1
               fi
               exec ${pkgs.nodejs}/bin/node "$PWD/tools/dspace-fill/dev/mock-dspace/server.js" "$@"
+            '');
+          };
+
+          # Ensayo general de UN comando (hallazgo 10, revisión PR #55):
+          # valida el doc bueno del factory, publica la ficha, corre el
+          # userscript contra el mock, verifica el handle en el buzón y
+          # genera constancia + registro descargables. Salida esperada:
+          # "✅ FLUJO COMPLETO OK".
+          test-ficha-deposito = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "test-ficha-deposito" ''
+              if [ ! -f "$PWD/scripts/e2e_ficha_deposito.sh" ]; then
+                echo "Error: ejecutar desde la raíz del repositorio (nix run .#test-ficha-deposito)"
+                exit 1
+              fi
+              export PATH="${pythonEnv}/bin:${pkgs.nodejs}/bin:$PATH"
+              exec ${pkgs.bash}/bin/bash "$PWD/scripts/e2e_ficha_deposito.sh" "$@"
             '');
           };
         };

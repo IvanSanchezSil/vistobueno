@@ -33,6 +33,8 @@ Errores:
 """
 
 import copy
+import csv
+import io
 import re
 import zipfile
 from dataclasses import dataclass
@@ -372,6 +374,54 @@ def _aplicar_valor(runs_resultado: list, runs_borrar: list, valor: str) -> None:
 def _copia_xml(elemento):
     """Copia profunda de un elemento lxml (para heredar el estilo del run)."""
     return copy.deepcopy(elemento)
+
+
+# ---------------------------------------------------------------------------
+# Formatos de archivo del registro (hallazgo 11 de la revisión del PR #55)
+# ---------------------------------------------------------------------------
+
+
+def filas_a_tsv(filas: list[str]) -> str:
+    """Filas TSV listas como archivo: BOM UTF-8 + una fila por línea.
+
+    Las filas ya vienen separadas por tabuladores (`fila_registro`); el
+    BOM hace que Excel/LibreOffice detecten UTF-8 al abrir el .tsv.
+    """
+    return "\ufeff" + "\n".join(filas) + "\n"
+
+
+def filas_a_csv(filas: list[str]) -> str:
+    """Filas en CSV con separador ';' y citas RFC 4180, BOM UTF-8.
+
+    El separador ';' es el que Excel espera en configuración regional
+    española; los campos que contienen ';' o comillas van citados. Los
+    saltos y tabuladores ya se limpiaron al armar la fila TSV.
+    """
+    buffer = io.StringIO()
+    escritor = csv.writer(buffer, delimiter=";", lineterminator="\n")
+    for fila in filas:
+        escritor.writerow(fila.split("\t"))
+    return "\ufeff" + buffer.getvalue()
+
+
+def filas_a_xlsx(filas: list[str], columnas: tuple[str, ...] = COLUMNAS_REGISTRO) -> bytes:
+    """Filas como libro .xlsx de una hoja, con la fila de encabezado.
+
+    Encabezado = COLUMNAS_REGISTRO (las 13 columnas del registro
+    oficial). openpyxl se importa aquí a propósito: solo este formato
+    lo necesita.
+    """
+    from openpyxl import Workbook
+
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = "Registro"
+    hoja.append(list(columnas))
+    for fila in filas:
+        hoja.append(fila.split("\t"))
+    buffer = BytesIO()
+    libro.save(buffer)
+    return buffer.getvalue()
 
 
 def llenar_constancia(ruta_plantilla: Path, datos: DatosConstancia) -> bytes:

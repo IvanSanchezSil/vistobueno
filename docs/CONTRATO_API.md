@@ -601,15 +601,26 @@ dos autores generan dos constancias y dos filas con el mismo handle.
 - 500: configuración del servidor — `VISTOBUENO_FIRMA` (columna FIRMA)
   o plantilla ausente; el `detail` nombra exactamente qué falta.
 
-### `POST /fila-registro` → `{"filas": […]}`
+### `POST /fila-registro` → `{"filas": […]}` o archivo descargable
 
-- Una fila TSV por autor, en el orden exacto de columnas del registro
-  oficial: N°, TESIS/TSP, BACHILLER/LICENCIADO, N° MATRIC., DD, MM, AA,
-  HORA, DIRECCION URL, FIRMA, FECHA DEL DOC., ESCUELAS, AÑO.
+- Por defecto (`formato=json`, retrocompatible): una fila TSV por autor,
+  en el orden exacto de columnas del registro oficial: N°, TESIS/TSP,
+  BACHILLER/LICENCIADO, N° MATRIC., DD, MM, AA, HORA, DIRECCION URL,
+  FIRMA, FECHA DEL DOC., ESCUELAS, AÑO.
+- `?formato=tsv|csv|xlsx` (hallazgo 11 de la revisión del PR #55):
+  devuelve un **archivo descargable** listo para abrir en
+  Excel/LibreOffice — elimina los errores de pegado (encoding, tabs
+  perdidos, columnas desalineadas):
+  - `tsv`: `text/tab-separated-values` con BOM UTF-8.
+  - `csv`: `text/csv` con BOM UTF-8, separador `;` (regional español)
+    y citas RFC 4180 para los campos que contienen `;`.
+  - `xlsx`: libro de una hoja con la fila de encabezado
+    (`COLUMNAS_REGISTRO`, 13 columnas).
 - La columna N° va vacía: la numeración pertenece al registro de la
   biblioteca. DD y MM llevan barra final ("20/", "01/") y HORA va en
   24 h, igual que las celdas existentes.
-- La app JAMÁS escribe el XLSX oficial: el operador pega la fila.
+- La app JAMÁS escribe el XLSX oficial: el operador pega la fila o
+  copia las celdas del archivo descargado.
 
 ## Changelog
 
@@ -630,8 +641,13 @@ existente desaparece ni cambia de tipo.
   `POST/GET /deposito` (una ranura, TTL de 1 hora, "última gana").
 - **Nuevos endpoints del papeleo**: `POST /constancia` (descarga del
   Modelo B lleno, una por autor, índice 0-based) y `POST /fila-registro`
-  (filas TSV en el orden de columnas del registro oficial). Configuran
-  `VISTOBUENO_FIRMA` y opcionalmente `VISTOBUENO_PLANTILLA_CONSTANCIA`.
+  (filas TSV en el orden de columnas del registro; con `?formato=tsv |
+  csv | xlsx` devuelve un archivo descargable — revisión del PR #55,
+  hallazgo 11). Configuran `VISTOBUENO_FIRMA` y opcionalmente
+  `VISTOBUENO_PLANTILLA_CONSTANCIA`.
+- **Ensayo general de un comando** (revisión del PR #55, hallazgo 10):
+  `nix run .#test-ficha-deposito` corre el flujo completo contra el mock
+  de DSpace y verifica el papeleo de punta a punta.
 - **Invariante de seguridad**: el buzón no emite cabeceras CORS (con
   test que lo protege contra regresiones).
 - Contexto y decisiones: `docs/PLAN_FICHA_DEPOSITO.md` (v0.2, congelado);

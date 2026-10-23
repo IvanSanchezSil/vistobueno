@@ -16,6 +16,7 @@ import tempfile
 import zipfile
 from functools import cache
 from pathlib import Path
+from typing import Literal
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import FastAPI, File, Form, HTTPException, Query, Response, UploadFile
@@ -49,6 +50,9 @@ from .constancia import (
     ErrorConfiguracionConstancia,
     ErrorDatosConstancia,
     constancias_por_autor,
+    filas_a_csv,
+    filas_a_tsv,
+    filas_a_xlsx,
     llenar_constancia,
 )
 from .dsl_check import DSLValidationError
@@ -829,17 +833,49 @@ async def descargar_constancia(solicitud: ConstanciaRequest) -> Response:
     description=(
         "Devuelve las filas listas para pegar en el registro oficial de la "
         "biblioteca (XLSX): una por autor, en el orden exacto de columnas. "
-        "La app JAMÁS escribe el registro oficial: el operador pega la fila."
+        "La app JAMÁS escribe el registro oficial: el operador pega la fila. "
+        "Con `formato` en `tsv`, `csv` o `xlsx` devuelve en su lugar un "
+        "ARCHIVO descargable listo para abrir en Excel/LibreOffice "
+        "(hallazgo 11 de la revisión del PR #55): elimina los errores de "
+        "pegado (encoding, tabs perdidos, columnas desalineadas)."
     ),
     responses={
-        200: {"description": "Lista de filas TSV"},
-        422: {"description": "Timestamp inválido o falta un dato de la ficha"},
+        200: {"description": "Lista de filas TSV (json) o archivo descargable (tsv/csv/xlsx)"},
+        422: {"description": "Timestamp inválido, falta un dato de la ficha o formato desconocido"},
         500: {"description": "Firma sin configurar en el servidor"},
     },
 )
-async def generar_fila_registro(solicitud: FilaRegistroRequest) -> FilasRegistroResponse:
+async def generar_fila_registro(
+    solicitud: FilaRegistroRequest,
+    formato: Literal["json", "tsv", "csv", "xlsx"] = Query(
+        default="json",
+        description="json: la lista TSV (retrocompatible). tsv/csv/xlsx: archivo descargable",
+    ),
+):
     datos = _constancias_de_solicitud(solicitud)
-    return FilasRegistroResponse(filas=[d.fila_registro() for d in datos])
+    filas = [d.fila_registro() for d in datos]
+
+    if formato == "json":
+        return FilasRegistroResponse(filas=filas)
+
+    if formato == "tsv":
+        return Response(
+            content=filas_a_tsv(filas).encode("utf-8"),
+            media_type="text/tab-separated-values; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="registro_vistobueno.tsv"'},
+        )
+    if formato == "csv":
+        return Response(
+            content=filas_a_csv(filas).encode("utf-8"),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="registro_vistobueno.csv"'},
+        )
+    # formato == "xlsx"
+    return Response(
+        content=filas_a_xlsx(filas),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="registro_vistobueno.xlsx"'},
+    )
 
 
 # ---------------------------------------------------------------------------

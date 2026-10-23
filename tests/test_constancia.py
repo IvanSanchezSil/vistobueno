@@ -504,3 +504,89 @@ class TestEndpointFilaRegistro:
         respuesta = CLIENTE.post("/fila-registro", json=solicitud)
         assert respuesta.status_code == 422
         assert "matrícula" in respuesta.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Formatos descargables del registro (hallazgo 11, revisión PR #55)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatosRegistro:
+    """POST /fila-registro?formato=tsv|csv|xlsx: archivo, no copiar-pegar."""
+
+    @staticmethod
+    def _solicitud_dos_autores():
+        return _solicitud(
+            autores=["Cerna Vidal Kassiel", "Barrueto Escobedo Dora Elizabeth"],
+            matriculas=["15185003-20", "10130005-20"],
+        )
+
+    def test_formato_tsv_descargable(self):
+        """tsv: text/tab-separated-values, BOM UTF-8, adjunto, dos filas."""
+        respuesta = CLIENTE.post("/fila-registro?formato=tsv", json=self._solicitud_dos_autores())
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"].startswith("text/tab-separated-values")
+        assert "attachment" in respuesta.headers["content-disposition"]
+        assert respuesta.headers["content-disposition"].endswith('.tsv"')
+
+        texto = respuesta.content.decode("utf-8")
+        assert texto.startswith("\ufeff")  # BOM: Excel detecta UTF-8
+        # splitlines (no strip): la fila empieza con tabulador (N° vacía)
+        lineas = texto.lstrip("\ufeff").splitlines()
+        assert len(lineas) == 2
+        assert lineas[0].count("\t") == 12
+        assert HANDLE in lineas[0]
+
+    def test_formato_csv_con_punto_y_coma_y_bom(self):
+        """csv: separador ';' (regional español), BOM, citas en campos con ';'."""
+        respuesta = CLIENTE.post("/fila-registro?formato=csv", json=self._solicitud_dos_autores())
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"].startswith("text/csv")
+
+        texto = respuesta.content.decode("utf-8")
+        assert texto.startswith("\ufeff")
+        lineas = texto.lstrip("\ufeff").splitlines()
+        assert len(lineas) == 2
+        # 13 columnas por ';'
+        assert lineas[0].count(";") == 12
+
+    def test_formato_csv_cita_campo_con_separador(self):
+        """Un título con ';' viaja citado: la fila no se descuadra."""
+        solicitud = _solicitud()
+        solicitud["ficha"]["extraidos"][0]["valor"] = "Título; con; punto y coma"
+        respuesta = CLIENTE.post("/fila-registro?formato=csv", json=solicitud)
+        assert respuesta.status_code == 200
+        linea = respuesta.content.decode("utf-8").lstrip("\ufeff").strip()
+        assert '"Título; con; punto y coma"' in linea
+
+    def test_formato_xlsx_con_encabezado(self):
+        """xlsx: libro de una hoja, encabezado = COLUMNAS_REGISTRO, PK."""
+        respuesta = CLIENTE.post("/fila-registro?formato=xlsx", json=self._solicitud_dos_autores())
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"] == (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        assert respuesta.content.startswith(b"PK\x03\x04")
+
+        import io
+
+        from openpyxl import load_workbook
+
+        libro = load_workbook(io.BytesIO(respuesta.content))
+        hoja = libro.active
+        encabezado = [celda.value for celda in hoja[1]]
+        from validator.constancia import COLUMNAS_REGISTRO
+
+        assert tuple(encabezado) == COLUMNAS_REGISTRO
+        assert hoja[2][0].value is None  # N° va vacía (numeración del registro)
+        assert hoja[2][3].value == "15185003-20"  # N° MATRIC., autor 1
+        assert hoja[3][3].value == "10130005-20"  # autor 2
+
+    def test_formato_desconocido_es_422(self):
+        respuesta = CLIENTE.post("/fila-registro?formato=pdf", json=_solicitud())
+        assert respuesta.status_code == 422
+
+    def test_formato_json_por_defecto_retrocompatible(self):
+        respuesta = CLIENTE.post("/fila-registro", json=_solicitud())
+        assert respuesta.status_code == 200
+        assert isinstance(respuesta.json()["filas"], list)

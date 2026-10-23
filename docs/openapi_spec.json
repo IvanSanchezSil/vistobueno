@@ -204,21 +204,41 @@
     "/fila-registro": {
       "post": {
         "summary": "Generar las filas del registro (TSV, una por autor)",
-        "description": "Devuelve las filas listas para pegar en el registro oficial de la biblioteca (XLSX): una por autor, en el orden exacto de columnas. La app JAMÁS escribe el registro oficial: el operador pega la fila.",
+        "description": "Devuelve las filas listas para pegar en el registro oficial de la biblioteca (XLSX): una por autor, en el orden exacto de columnas. La app JAMÁS escribe el registro oficial: el operador pega la fila. Con `formato` en `tsv`, `csv` o `xlsx` devuelve en su lugar un ARCHIVO descargable listo para abrir en Excel/LibreOffice (hallazgo 11 de la revisión del PR #55): elimina los errores de pegado (encoding, tabs perdidos, columnas desalineadas).",
         "operationId": "generar_fila_registro_fila_registro_post",
+        "parameters": [
+          {
+            "name": "formato",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "json",
+                "tsv",
+                "csv",
+                "xlsx"
+              ],
+              "type": "string",
+              "description": "json: la lista TSV (retrocompatible). tsv/csv/xlsx: archivo descargable",
+              "default": "json",
+              "title": "Formato"
+            },
+            "description": "json: la lista TSV (retrocompatible). tsv/csv/xlsx: archivo descargable"
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FilaRegistroRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
-            "description": "Lista de filas TSV",
+            "description": "Lista de filas TSV (json) o archivo descargable (tsv/csv/xlsx)",
             "content": {
               "application/json": {
                 "schema": {
@@ -228,7 +248,7 @@
             }
           },
           "422": {
-            "description": "Timestamp inválido o falta un dato de la ficha"
+            "description": "Timestamp inválido, falta un dato de la ficha o formato desconocido"
           },
           "500": {
             "description": "Firma sin configurar en el servidor"
