@@ -295,7 +295,10 @@
               }
             ],
             "title": "Correo",
-            "description": "Correo electrónico del estudiante (opcional). Destinatario de las observaciones cuando se solicita el envío (campo `notificar`)."
+            "description": "Correo electrónico del estudiante (opcional). Destinatario de las observaciones cuando se solicita el envío (campo `notificar`).",
+            "examples": [
+              ""
+            ]
           },
           "notificar": {
             "type": "boolean",
@@ -319,7 +322,10 @@
               }
             ],
             "title": "Titulo",
-            "description": "Título del trabajo: metadato dc.title del depósito (opcional)"
+            "description": "Título del trabajo: metadato dc.title del depósito (opcional)",
+            "examples": [
+              ""
+            ]
           },
           "autores": {
             "anyOf": [
@@ -331,7 +337,10 @@
               }
             ],
             "title": "Autores",
-            "description": "Autor(es), separados por ';' o saltos de línea: metadato dc.contributor.author del depósito (opcional)"
+            "description": "Autor(es), separados por ';' o saltos de línea: metadato dc.contributor.author del depósito (opcional)",
+            "examples": [
+              ""
+            ]
           },
           "asesor": {
             "anyOf": [
@@ -343,7 +352,10 @@
               }
             ],
             "title": "Asesor",
-            "description": "Asesor(a): metadato dc.contributor.advisor del depósito (opcional)"
+            "description": "Asesor(a): metadato dc.contributor.advisor del depósito (opcional)",
+            "examples": [
+              ""
+            ]
           },
           "resumen": {
             "anyOf": [
@@ -355,7 +367,10 @@
               }
             ],
             "title": "Resumen",
-            "description": "Resumen: metadato dc.description.abstract del depósito (opcional)"
+            "description": "Resumen: metadato dc.description.abstract del depósito (opcional)",
+            "examples": [
+              ""
+            ]
           },
           "palabras_clave": {
             "anyOf": [
@@ -367,7 +382,10 @@
               }
             ],
             "title": "Palabras Clave",
-            "description": "Palabras clave, separadas por ';' o ',': metadato dc.subject del depósito (opcional)"
+            "description": "Palabras clave, separadas por ';' o ',': metadato dc.subject del depósito (opcional)",
+            "examples": [
+              ""
+            ]
           }
         },
         "type": "object",

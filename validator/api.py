@@ -337,6 +337,10 @@ async def validar(
             "Destinatario de las observaciones cuando se solicita el envío "
             "(campo `notificar`)."
         ),
+        # Swagger prellenaba "string" y un Execute sin editar enviaba
+        # basura; con ejemplo vacío el campo se deja en blanco solo
+        # (revisión del PR #55, hallazgo 2).
+        examples=[""],
     ),
     notificar: bool = Form(
         default=False,
@@ -357,6 +361,7 @@ async def validar(
     titulo: str | None = Form(
         default=None,
         description="Título del trabajo: metadato dc.title del depósito (opcional)",
+        examples=[""],
     ),
     autores: str | None = Form(
         default=None,
@@ -364,20 +369,24 @@ async def validar(
             "Autor(es), separados por ';' o saltos de línea: metadato "
             "dc.contributor.author del depósito (opcional)"
         ),
+        examples=[""],
     ),
     asesor: str | None = Form(
         default=None,
         description="Asesor(a): metadato dc.contributor.advisor del depósito (opcional)",
+        examples=[""],
     ),
     resumen: str | None = Form(
         default=None,
         description="Resumen: metadato dc.description.abstract del depósito (opcional)",
+        examples=[""],
     ),
     palabras_clave: str | None = Form(
         default=None,
         description=(
             "Palabras clave, separadas por ';' o ',': metadato dc.subject del depósito (opcional)"
         ),
+        examples=[""],
     ),
 ):
     # --- Validación: ¿hay archivo? ---
