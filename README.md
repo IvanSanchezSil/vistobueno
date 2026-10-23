@@ -293,12 +293,25 @@ oficial construye todas las peticiones; el userscript solo teclea.
 
 ### Ensayo general (sin tocar la instancia real)
 
-`nix run .#serve -- validator.api:app --port 8000` en una terminal,
-`nix run .#mock-dspace` en otra (mock de las páginas de DSpace en
-`http://127.0.0.1:8080`) y seguir el checklist de 10 pasos de
-`tools/dspace-fill/dev/mock-dspace/README.md`. El mock imita el DOM del
-formulario oficial; los comportamientos del Angular real se validan en
-el piloto (borrador descartable, con el operador presente).
+De un solo comando (revisión del PR #55, hallazgo 10):
+
+```
+nix run .#test-ficha-deposito
+```
+
+Valida el doc bueno del factory, publica la ficha, corre el userscript
+real contra el mock de DSpace, verifica el handle en el buzón y genera
+constancia + registro descargables. Salida esperada: "✅ FLUJO COMPLETO
+OK". La evidencia (logs, archivos generados) queda en un tmp que el
+propio comando imprime.
+
+Manual, para recorrerlo con calma: `nix run .#serve --
+validator.api:app --port 8000` en una terminal, `nix run .#mock-dspace`
+en otra (mock de las páginas de DSpace en `http://127.0.0.1:8080`) y el
+checklist de 10 pasos de `tools/dspace-fill/dev/mock-dspace/README.md`.
+El mock imita el DOM del formulario oficial; los comportamientos del
+Angular real se validan en el piloto (borrador descartable, con el
+operador presente).
 
 ### Flujo real (contrato v1.7.0)
 
@@ -316,7 +329,9 @@ el piloto (borrador descartable, con el operador presente).
    (`POST /deposito`).
 6. Con la ficha + handle + timestamp: `POST /fila-registro` (filas TSV
    para pegar en el XLSX oficial — la app JAMÁS escribe el registro) y
-   `POST /constancia` (una descarga por autor).
+   `POST /constancia` (una descarga por autor). Con `?formato=tsv |
+   csv | xlsx`, `/fila-registro` devuelve el archivo descargable
+   directo.
 
 Nota de seguridad operativa: los `.har` exportados del navegador traen
 cookies, tokens y cuerpos POST completos (incluso con el export

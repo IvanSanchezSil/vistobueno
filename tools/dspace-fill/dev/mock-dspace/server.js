@@ -51,7 +51,10 @@ function proxyApi(resp, rutaApi, cuerpo) {
 			path: rutaApi,
 			headers: {
 				"Content-Type": "application/json",
-				"Content-Length": cuerpo ? cuerpo.length : 0,
+				// Longitud en BYTES, no en caracteres: los títulos con
+				// acentos ocupan más de un byte en UTF-8 y una longitud
+				// corta trunca el JSON del otro lado (el API responde 422).
+				"Content-Length": cuerpo ? Buffer.byteLength(cuerpo, "utf8") : 0,
 			},
 		},
 		function (respuesta) {
