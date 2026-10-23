@@ -81,6 +81,9 @@ editables por si el operador quiera corregir).
 - **Constancias**: `POST /constancia` con `{ficha, handle, timestamp,
   indice_autor}` — UNA DESCARGA POR AUTOR (iterar `indice_autor` 0..N-1).
   La respuesta es el `.docx` binario (attachment con el nombre del autor).
+  Con `?formato=zip` devuelve un **paquete por autor** con la constancia
+  .docx y su fila del registro como `registro.csv` — una descarga = todo
+  el papeleo del estudiante (sugerido como opción "Descargar todo").
 - **Registro**: `POST /fila-registro` con `{ficha, handle, timestamp}`:
   - `formato=json` (default): `{"filas": ["\tTesis…", …]}` — para el
     botón "copiar fila" al portapapeles.

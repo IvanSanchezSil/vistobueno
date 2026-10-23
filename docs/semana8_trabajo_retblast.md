@@ -218,3 +218,11 @@ rama:
   `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` (Int2: pantalla de ficha,
   panel de espera, descargas) y la nota de seguimiento §8 en el handover
   del motor (Int3: prefijo de la captura de `dc.title`).
+- **Relectura de la revisión, puntos residuales**: el paréntesis del
+  hallazgo 11 ("`POST /constancia` podría incluirlo") se materializó como
+  `?formato=zip` (constancia .docx + registro.csv del autor en un solo
+  paquete), y el "verifica archivos" del hallazgo 10 pasó de checar
+  tamaños a verificar el CONTENIDO: MERGEFIELD reemplazados, matrícula y
+  handle dentro de la constancia. Suite: 621.
+- **Firma**: los commits de la revisión quedaron re-firmados tras recargar
+  la identidad en el agente SSH.

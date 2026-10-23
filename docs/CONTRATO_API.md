@@ -588,7 +588,7 @@ una constancia POR ESTUDIANTE. `matricula` y `renati.author.dni`
 aceptan una lista alineada por posición con los autores; las tesis con
 dos autores generan dos constancias y dos filas con el mismo handle.
 
-### `POST /constancia` → descarga binaria
+### `POST /constancia` → descarga binaria (o paquete zip)
 
 - Cuerpo: `FilaRegistroRequest` + `indice_autor` (`int`, 0-based).
 - Respuesta 200: el `.docx` del Modelo B con los 11 MERGEFIELD
@@ -596,6 +596,10 @@ dos autores generan dos constancias y dos filas con el mismo handle.
   handle, escuela, fecha del documento). La plantilla oficial vive en
   `recursos/` (ruta configurable por
   `VISTOBUENO_PLANTILLA_CONSTANCIA`); se llena en copia.
+- **`?formato=zip`** (revisión del PR #55: "la constancia podría
+  incluirlo"): un paquete por autor con la constancia .docx y SU fila
+  del registro como `registro.csv` (BOM UTF-8, separador `;`). Una
+  descarga = todo el papeleo del estudiante.
 - 422: timestamp inválido, falta un dato de la ficha (título, autores,
   matrículas alineadas) o `indice_autor` fuera de rango.
 - 500: configuración del servidor — `VISTOBUENO_FIRMA` (columna FIRMA)

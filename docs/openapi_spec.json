@@ -170,22 +170,40 @@
     },
     "/constancia": {
       "post": {
-        "summary": "Descargar la constancia de UN autor (Modelo B lleno)",
-        "description": "Genera la constancia de depósito del Modelo B con los MERGEFIELD reemplazados por los valores de la ficha. Una constancia POR AUTOR: la SPA descarga una por cada estudiante iterando `indice_autor`. Devuelve el .docx como descarga binaria.",
+        "summary": "Descargar la constancia de UN autor (Modelo B lleno, o paquete zip)",
+        "description": "Genera la constancia de depósito del Modelo B con los MERGEFIELD reemplazados por los valores de la ficha. Una constancia POR AUTOR: la SPA descarga una por cada estudiante iterando `indice_autor`. Devuelve el .docx como descarga binaria. Con `formato=zip` devuelve en su lugar un paquete con la constancia .docx y la fila del registro del autor como .csv (hallazgo 11: \"POST /constancia podría incluirlo\").",
         "operationId": "descargar_constancia_constancia_post",
+        "parameters": [
+          {
+            "name": "formato",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "docx",
+                "zip"
+              ],
+              "type": "string",
+              "description": "docx: la constancia (retrocompatible). zip: constancia + registro.csv del autor en un solo paquete (hallazgo 11: 'la constancia podría incluirlo')",
+              "default": "docx",
+              "title": "Formato"
+            },
+            "description": "docx: la constancia (retrocompatible). zip: constancia + registro.csv del autor en un solo paquete (hallazgo 11: 'la constancia podría incluirlo')"
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConstanciaRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
-            "description": "Constancia .docx (descarga binaria)",
+            "description": "Constancia .docx (o paquete .zip con formato=zip)",
             "content": {
               "application/json": {
                 "schema": {}

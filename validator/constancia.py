@@ -424,6 +424,24 @@ def filas_a_xlsx(filas: list[str], columnas: tuple[str, ...] = COLUMNAS_REGISTRO
     return buffer.getvalue()
 
 
+def constancia_en_zip(ruta_plantilla: Path, datos: DatosConstancia) -> bytes:
+    """Constancia + fila del registro del autor en UN solo .zip.
+
+    Variante del hallazgo 11 ("POST /constancia podría incluirlo"):
+    una descarga por estudiante con todo su papeleo — la constancia
+    del Modelo B y su fila de registro como .csv listo para abrir en
+    Excel. El registro oficial sigue sin escribirse nunca desde la app.
+    """
+    docx = llenar_constancia(ruta_plantilla, datos)
+    csv = filas_a_csv([datos.fila_registro()])
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as paquete:
+        paquete.writestr(f"constancia - {datos.autor}.docx", docx)
+        paquete.writestr("registro.csv", csv)
+    return buffer.getvalue()
+
+
 def llenar_constancia(ruta_plantilla: Path, datos: DatosConstancia) -> bytes:
     """Llena la plantilla del Modelo B y devuelve los bytes del .docx.
 

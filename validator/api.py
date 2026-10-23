@@ -49,6 +49,7 @@ from .constancia import (
     DatosConstancia,
     ErrorConfiguracionConstancia,
     ErrorDatosConstancia,
+    constancia_en_zip,
     constancias_por_autor,
     filas_a_csv,
     filas_a_tsv,
@@ -787,22 +788,35 @@ def _nombre_archivo_constancia(datos: DatosConstancia) -> str:
 
 @app.post(
     "/constancia",
-    summary="Descargar la constancia de UN autor (Modelo B lleno)",
+    summary="Descargar la constancia de UN autor (Modelo B lleno, o paquete zip)",
     description=(
         "Genera la constancia de depósito del Modelo B con los MERGEFIELD "
         "reemplazados por los valores de la ficha. Una constancia POR "
         "AUTOR: la SPA descarga una por cada estudiante iterando "
-        "`indice_autor`. Devuelve el .docx como descarga binaria."
+        "`indice_autor`. Devuelve el .docx como descarga binaria. Con "
+        "`formato=zip` devuelve en su lugar un paquete con la constancia "
+        ".docx y la fila del registro del autor como .csv (hallazgo 11: "
+        '"POST /constancia podría incluirlo").'
     ),
     responses={
-        200: {"description": "Constancia .docx (descarga binaria)"},
+        200: {"description": "Constancia .docx (o paquete .zip con formato=zip)"},
         422: {
             "description": "Timestamp inválido, falta un dato de la ficha o índice fuera de rango"
         },
         500: {"description": "Firma o plantilla sin configurar en el servidor"},
     },
 )
-async def descargar_constancia(solicitud: ConstanciaRequest) -> Response:
+async def descargar_constancia(
+    solicitud: ConstanciaRequest,
+    formato: Literal["docx", "zip"] = Query(
+        default="docx",
+        description=(
+            "docx: la constancia (retrocompatible). zip: constancia + "
+            "registro.csv del autor en un solo paquete (hallazgo 11: "
+            "'la constancia podría incluirlo')"
+        ),
+    ),
+) -> Response:
     datos = _constancias_de_solicitud(solicitud)
     if solicitud.indice_autor >= len(datos):
         raise HTTPException(
@@ -814,6 +828,16 @@ async def descargar_constancia(solicitud: ConstanciaRequest) -> Response:
         )
     objetivo = datos[solicitud.indice_autor]
     try:
+        if formato == "zip":
+            return Response(
+                content=constancia_en_zip(_ruta_plantilla_constancia(), objetivo),
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": (
+                        f'attachment; filename="{_nombre_archivo_constancia(objetivo)}.zip"'
+                    )
+                },
+            )
         contenido = llenar_constancia(_ruta_plantilla_constancia(), objetivo)
     except ErrorConfiguracionConstancia as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

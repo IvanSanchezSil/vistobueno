@@ -125,6 +125,8 @@ cd "$ROOT"
 import sys
 sys.path.insert(0, "tests")
 import httpx
+import io
+import zipfile
 
 dep = httpx.get("$API/deposito", timeout=30).json()
 assert "hdl.handle.net" in dep["handle"], dep
@@ -148,9 +150,31 @@ assert r.content.startswith(b"PK")
 with open("$DIR_TMP/constancia.docx", "wb") as f:
     f.write(r.content)
 print("  ✅ constancia.docx (" + str(len(r.content)) + " bytes)")
+
+# Verificación PROFUNDA (hallazgo 10: "verifica archivos"): la constancia
+# lleva adentro la matrícula y el handle, sin MERGEFIELD sobrevivientes.
+with zipfile.ZipFile(io.BytesIO(r.content)) as docx:
+    xml = docx.read("word/document.xml").decode("utf-8")
+assert "MERGEFIELD" not in xml, "la constancia quedó con MERGEFIELD sin reemplazar"
+assert "10584011-18" in xml, "la constancia no lleva la matrícula"
+assert "hdl.handle.net" in xml, "la constancia no lleva el handle"
+print("  ✅ constancia verificada: MERGEFIELD reemplazados, matrícula y handle presentes")
+
+# Paquete zip (hallazgo 11: la constancia incluye el registro del autor).
+r = httpx.post("$API/constancia?formato=zip", json={**cuerpo, "indice_autor": 0}, timeout=30)
+assert r.status_code == 200, r.text
+with zipfile.ZipFile(io.BytesIO(r.content)) as paquete:
+    nombres = paquete.namelist()
+    assert any(n.endswith(".docx") for n in nombres), nombres
+    csv = paquete.read("registro.csv").decode("utf-8")
+    assert "10584011-18" in csv and "hdl.handle.net" in csv
+with open("$DIR_TMP/constancia-registro.zip", "wb") as f:
+    f.write(r.content)
+print("  ✅ paquete zip: constancia + registro.csv del autor (" + str(len(r.content)) + " bytes)")
+
 print("  ✅ handle:", dep["handle"])
 PY
-[ $? -eq 0 ] || fallar "generación de constancia/registro" 7
+[ $? -eq 0 ] || fallar "generación/verificación de constancia y registro" 7
 
 echo
 echo "✅ FLUJO COMPLETO OK — evidencia en $DIR_TMP (api.log, mock.log, registro.*, constancia.docx)"

@@ -590,3 +590,65 @@ class TestFormatosRegistro:
         respuesta = CLIENTE.post("/fila-registro", json=_solicitud())
         assert respuesta.status_code == 200
         assert isinstance(respuesta.json()["filas"], list)
+
+
+class TestFormatoZipConstancia:
+    """POST /constancia?formato=zip: constancia + registro del autor en un paquete."""
+
+    def test_zip_contiene_constancia_y_registro(self):
+        """Un .zip por autor: la constancia .docx y su fila en .csv."""
+        respuesta = CLIENTE.post("/constancia?formato=zip", json=_solicitud())
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"] == "application/zip"
+        assert "attachment" in respuesta.headers["content-disposition"]
+        assert respuesta.headers["content-disposition"].endswith('.zip"')
+        assert respuesta.content.startswith(b"PK\x03\x04")
+
+        with zipfile.ZipFile(io.BytesIO(respuesta.content)) as paquete:
+            nombres = paquete.namelist()
+            assert len(nombres) == 2
+            assert any(n.endswith(".docx") for n in nombres)
+            assert "registro.csv" in nombres
+
+            # La constancia dentro del zip es la del autor pedido.
+            docx_nombre = next(n for n in nombres if n.endswith(".docx"))
+            xml = (
+                paquete.read(docx_nombre).decode("utf-8", "ignore")
+                if docx_nombre.endswith(".xml")
+                else None
+            )
+            # Descomprimir el .docx interno para leer su document.xml:
+            with zipfile.ZipFile(io.BytesIO(paquete.read(docx_nombre))) as docx:
+                xml = docx.read("word/document.xml").decode("utf-8")
+            assert "15185003-20" in xml
+            assert "MERGEFIELD" not in xml
+
+            # El registro del autor, con BOM y sus columnas.
+            csv = paquete.read("registro.csv").decode("utf-8")
+            assert csv.startswith("\ufeff")
+            assert "15185003-20" in csv
+            assert HANDLE in csv
+
+    def test_zip_por_autor_lleva_su_matricula(self):
+        base = _solicitud(
+            autores=["Cerna Vidal Kassiel", "Barrueto Escobedo Dora Elizabeth"],
+            matriculas=["15185003-20", "10130005-20"],
+        )
+        primera = CLIENTE.post("/constancia?formato=zip", json={**base, "indice_autor": 0})
+        segunda = CLIENTE.post("/constancia?formato=zip", json={**base, "indice_autor": 1})
+        assert primera.status_code == segunda.status_code == 200
+
+        with zipfile.ZipFile(io.BytesIO(segunda.content)) as paquete:
+            csv = paquete.read("registro.csv").decode("utf-8")
+        assert "10130005-20" in csv and "15185003-20" not in csv
+
+    def test_formato_desconocido_es_422(self):
+        respuesta = CLIENTE.post("/constancia?formato=pdf", json=_solicitud())
+        assert respuesta.status_code == 422
+
+    def test_docx_por_defecto_retrocompatible(self):
+        respuesta = CLIENTE.post("/constancia?formato=docx", json=_solicitud())
+        assert respuesta.status_code == 200
+        assert respuesta.headers["content-type"].startswith(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
