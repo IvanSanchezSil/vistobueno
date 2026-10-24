@@ -133,7 +133,7 @@ node dev/e2e_ensayo.js || fallar "driver del ensayo (ver salida arriba)" 6
 paso 7 "Papeleo: registro descargable y constancia"
 cd "$ROOT"
 "$BACKEND_PY" - <<PY
-import sys
+import sys, os
 sys.path.insert(0, "tests")
 import httpx
 import io
@@ -155,33 +155,39 @@ for formato, firma in (("csv", b"registro.csv"), ("xlsx", b"registro.xlsx")):
         f.write(r.content)
     print("  ✅ registro." + formato + " (" + str(len(r.content)) + " bytes, descargable)")
 
-r = httpx.post("$API/constancia", json={**cuerpo, "indice_autor": 0}, timeout=30)
-assert r.status_code == 200, r.text
-assert r.content.startswith(b"PK")
-with open("$DIR_TMP/constancia.docx", "wb") as f:
-    f.write(r.content)
-print("  ✅ constancia.docx (" + str(len(r.content)) + " bytes)")
+# La constancia requiere la plantilla del Modelo B (recursos/, no
+# versionado). En CI/clone fresco no existe: se verifica el registro
+# igual y se reporta la constancia como omitida (hallazgo 16a).
+plantilla_resuelta = os.environ.get("VISTOBUENO_PLANTILLA_CONSTANCIA", "")
 
-# Verificación PROFUNDA (hallazgo 10: "verifica archivos"): la constancia
-# lleva adentro la matrícula y el handle, sin MERGEFIELD sobrevivientes.
-with zipfile.ZipFile(io.BytesIO(r.content)) as docx:
-    xml = docx.read("word/document.xml").decode("utf-8")
-assert "MERGEFIELD" not in xml, "la constancia quedó con MERGEFIELD sin reemplazar"
-assert "10584011-18" in xml, "la constancia no lleva la matrícula"
-assert "hdl.handle.net" in xml, "la constancia no lleva el handle"
-print("  ✅ constancia verificada: MERGEFIELD reemplazados, matrícula y handle presentes")
+if plantilla_resuelta and os.path.isfile(plantilla_resuelta):
+    r = httpx.post("$API/constancia", json={**cuerpo, "indice_autor": 0}, timeout=30)
+    assert r.status_code == 200, r.text
+    assert r.content.startswith(b"PK")
+    with open("$DIR_TMP/constancia.docx", "wb") as f:
+        f.write(r.content)
+    print("  ✅ constancia.docx (" + str(len(r.content)) + " bytes)")
 
-# Paquete zip (hallazgo 11: la constancia incluye el registro del autor).
-r = httpx.post("$API/constancia?formato=zip", json={**cuerpo, "indice_autor": 0}, timeout=30)
-assert r.status_code == 200, r.text
-with zipfile.ZipFile(io.BytesIO(r.content)) as paquete:
-    nombres = paquete.namelist()
-    assert any(n.endswith(".docx") for n in nombres), nombres
-    csv = paquete.read("registro.csv").decode("utf-8")
-    assert "10584011-18" in csv and "hdl.handle.net" in csv
-with open("$DIR_TMP/constancia-registro.zip", "wb") as f:
-    f.write(r.content)
-print("  ✅ paquete zip: constancia + registro.csv del autor (" + str(len(r.content)) + " bytes)")
+    with zipfile.ZipFile(io.BytesIO(r.content)) as docx:
+        xml = docx.read("word/document.xml").decode("utf-8")
+    assert "MERGEFIELD" not in xml, "la constancia quedó con MERGEFIELD sin reemplazar"
+    assert "10584011-18" in xml, "la constancia no lleva la matrícula"
+    assert "hdl.handle.net" in xml, "la constancia no lleva el handle"
+    print("  ✅ constancia verificada: MERGEFIELD reemplazados, matrícula y handle presentes")
+
+    r = httpx.post("$API/constancia?formato=zip", json={**cuerpo, "indice_autor": 0}, timeout=30)
+    assert r.status_code == 200, r.text
+    with zipfile.ZipFile(io.BytesIO(r.content)) as paquete:
+        nombres = paquete.namelist()
+        assert any(n.endswith(".docx") for n in nombres), nombres
+        csv = paquete.read("registro.csv").decode("utf-8")
+        assert "10584011-18" in csv and "hdl.handle.net" in csv
+    with open("$DIR_TMP/constancia-registro.zip", "wb") as f:
+        f.write(r.content)
+    print("  ✅ paquete zip: constancia + registro.csv del autor (" + str(len(r.content)) + " bytes)")
+else:
+    print("  ⏭️ constancia omitida: plantilla del Modelo B no disponible (CI/clone fresco)")
+    print("     El registro descargable SÍ se verificó arriba.")
 
 print("  ✅ handle:", dep["handle"])
 PY
