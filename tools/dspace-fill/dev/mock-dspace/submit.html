@@ -202,8 +202,8 @@
 					body: JSON.stringify(FICHA_DEMO),
 				});
 				if (r.status === 204) {
-					estadoFicha.innerHTML = "✅ <strong>Ficha publicada</strong> — el userscript debería rellenar el formulario en un instante. " +
-						"Si no, pulsa el botón verde flotante \"Rellenar\".";
+					estadoFicha.innerHTML = "✅ <strong>Ficha publicada</strong> — pulsa el botón verde flotante " +
+						"<strong>\"Rellenar\"</strong> (arriba a la derecha) para llenar el formulario con esta ficha.";
 				} else if (r.status === 502) {
 					estadoFicha.textContent = "La API no responde en :8000 — ¿corrió nix run .#serve?";
 				} else {

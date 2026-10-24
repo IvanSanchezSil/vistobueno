@@ -20,13 +20,13 @@ instancia real (borrador descartable).
 ## Checklist (10 pasos)
 
 1. Abre `http://127.0.0.1:8080/` — debe mostrar el índice con el flujo.
-2. Entra a `http://127.0.0.1:8080/mock/submit` — el panel azul arriba del
-   formulario dice "Sin ficha en el buzón".
+2. Entra a `http://127.0.0.1:8080/mock/submit` — el botón verde flotante
+   dice "consultar buzón" y el panel dice "Sin ficha en el buzón".
 3. Pulsa **"Publicar ficha de prueba"** (botón azul): publica una ficha
    completa (con manuales) en el buzón de la API real vía el proxy.
-4. El userscript auto-rellena el formulario en un instante; si no,
-   pulsa el botón verde flotante "Rellenar". El toast muestra el
-   resumen (lleno / a mano / sin dato).
+4. Pulsa el botón verde flotante **"Rellenar"**: consulta el buzón y
+   rellena el formulario. El toast muestra el resumen (lleno / a mano /
+   sin dato).
 5. Verifica los campos: título, autores, asesor, resumen, palabras
    clave, año, DNI (tipo + número), ORCID.
 6. Verifica el combobox: "Acceso abierto" debe quedar seleccionado (el
