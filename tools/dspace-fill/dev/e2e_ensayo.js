@@ -33,8 +33,8 @@ const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 async function esperar(condicion, msTotal, mensaje) {
 	const inicio = Date.now();
 	while (Date.now() - inicio < msTotal) {
-		// await: la condición puede ser async (devuelve una promesa que
-		// SIEMPRE es truthy si no se espera).
+		// await: la condición puede ser síncrona o async (sin el await,
+		// una promesa se evaluaría como truthy antes de resolverse).
 		if (await condicion()) return;
 		await dormir(150);
 	}

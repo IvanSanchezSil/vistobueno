@@ -47,7 +47,9 @@ instancia real (borrador descartable).
 
 - El buzón viaja por el proxy `/api-proxy/*` (same-origin): la API real
   mantiene su invariante sin-CORS; solo Tampermonkey (producción) habla
-  directo con `http://localhost:8000`.
+  directo con `http://localhost:8000`. El proxy descarta query strings
+  (`split("?")[0]`): si un endpoint futuro los necesita, actualizar
+  `server.js`.
 - Reiniciar la API vacía el buzón (memoria del proceso): re-publica la
   ficha (paso 3) y repite.
 - Falla visible: si algo no se llena, el toast lo nombra en "a mano" —
