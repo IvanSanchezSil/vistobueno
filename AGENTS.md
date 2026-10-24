@@ -59,7 +59,9 @@ Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semá
 | **Reglas ficha depósito** | `reglas_ficha.yaml` | 7 capturas (diseño 17): `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`; `renati.juror` no se captura fiable. |
 | **Buzón de ficha** | `validator/buzon.py` | Módulo buzón de ficha (una ranura, TTL 1h), `publicar_ficha`/`leer_ficha`; forma parte del handover v1.7.0. |
 | **Constancias** | `validator/constancia.py` | Genera constancias por autor usando plantilla oficial (Modelo B) y MERGEFIELDs a texto plano; forma parte del endpoint `POST /constancia`. |
-| **Userscript de depósito** | `tools/dspace-fill/` | Rellena el formulario oficial de DSpace desde la ficha del buzón (`GM_xmlhttpRequest` con `@connect localhost`, auto-relleno gated con toast, timestamp del clic Depositar, reporte del handle del ítem). Artefacto instalable en `dist/` (commiteado, el CI verifica drift), núcleo puro testeado en node con jsdom; ensayo general con `nix run .#mock-dspace` (checklist en `dev/mock-dspace/README.md`). |
+| **Userscript de depósito** | `tools/dspace-fill/` | Rellena el formulario oficial de DSpace desde la ficha del buzón (`GM_xmlhttpRequest` con `@connect localhost`, auto-relleno gated con toast, timestamp del clic Depositar, reporte del handle del ítem). Artefacto instalable en `dist/` (commiteado, el CI verifica drift), núcleo puro testeado en node con jsdom; ensayo general con `nix run .#mock-dspace` (checklist en `dev/mock-dspace/README.md`) y de un comando con `nix run .#test-ficha-deposito` (driver jsdom en `dev/e2e_ensayo.js`). |
+| **Ensayo general de un comando** | `scripts/e2e_ficha_deposito.sh` | Corre el flujo completo de punta a punta: valida el doc bueno del factory, publica la ficha, corre el userscript contra el mock, verifica el handle en el buzón y genera constancia + registro descargables. Salida esperada: "✅ FLUJO COMPLETO OK". En CI como paso propio (revisión PR #55, hallazgo 16b). |
+| **Handover frontend ficha** | `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` | Pedido a Int2: pantalla de ficha (extraídos + manuales por autor), "Preparar depósito", panel de espera con sondeo del buzón, descargas de constancias y registro. |
 
 ---
 
@@ -479,9 +481,10 @@ vistobueno/
 │   ├── migrar_legacy_a_dsl.py         # Migra YAML legacy → DSL
 │   ├── ocr_pdfs.py                    # OCR de reglamentos escaneados
 │   ├── verificar_secretos.py          # Escáner de credenciales SMTP (pre-commit + CI)
-│   └── generate_openapi.py            # Regenerar especificación OpenAPI
+│   ├── generate_openapi.py            # Regenerar especificación OpenAPI
+│   └── e2e_ficha_deposito.sh          # Ensayo general de un comando (flujo ficha → constancia)
 ├── tools/
-│   └── dspace-fill/                   # Userscript del formulario de depósito (núcleo puro + dist + mock-dspace)
+│   └── dspace-fill/                   # Userscript del formulario de depósito (núcleo puro + dist + mock-dspace + ensayo e2e)
 ├── frontend/                          # React + Vite (en desarrollo)
 │   ├── src/
 │   │   ├── App.jsx
