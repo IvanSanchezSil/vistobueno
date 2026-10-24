@@ -274,3 +274,8 @@ rama:
   shellHook, bitácora al día, pkill con advertencia en el header,
   zip filename consistente con Content-Disposition (_nombre_seguro),
   comentario de esperar() corregido, nota de query strings en el proxy.
+- **24/10, seguimiento del hallazgo 12**: la aserción del driver ya
+  depende del clic (se limpia dc.title antes de pulsar el botón, que
+  antes quedaba enmascarada por el auto-relleno de la ficha en el
+  buzón); la segunda página ahora migra localStorage (estado cross-carga,
+  el hábitat del bug original).

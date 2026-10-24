@@ -168,6 +168,7 @@ function migrarLocalStorage(origen, destino) {
 	// (última gana): el botón debe mostrar el título y rellenar al
 	// pulsarlo — el caso del operador que abre otra pestaña después.
 	const domTarde = await nuevaPagina("/mock/submit");
+	migrarLocalStorage(dom.window.localStorage, domTarde.window.localStorage);
 	ejecutarUserscript(domTarde);
 	const docTarde = domTarde.window.document;
 
@@ -182,7 +183,10 @@ function migrarLocalStorage(origen, destino) {
 	}
 	console.log("  ✅ botón flotante en la segunda página:", textoBoton.slice(0, 60));
 
-	// Pulsar el botón: debe re-consultar el buzón y rellenar.
+	// Pulsar el botón: debe re-consultar el buzón y rellenar. Se limpia
+	// el título antes del clic para que la espera dependa del clic y no
+	// del auto-relleno que ya ocurrió (la ficha sigue en el buzón).
+	docTarde.querySelector('input[name="dc.title"]').value = "";
 	docTarde.getElementById("vb-boton").click();
 	await esperar(
 		() => (docTarde.querySelector('input[name="dc.title"]') || {}).value !== "",
