@@ -237,3 +237,11 @@ rama:
   asesor con valor vacío y detectado=true (reproducido contra la
   plantilla), año capturado como lugar ("Trujillo - Perú"), nota del
   XPath de párrafos hermanos (handover §8.1, `3b06560`). Suite: 622.
+- **23/10, tercera tanda — botones del mock**: Master probó el ensayo
+  manual y pidió botones ("comfy testing"): el índice ahora guía el flujo
+  paso a paso con enlaces grandes; el formulario tiene un panel con
+  "Publicar ficha de prueba" (POST al buzón vía proxy) y "Consultar de
+  nuevo"; el ítem tiene un indicador persistente del handle (el toast
+  dura 6 s, esto queda). El checklist del README ya no requiere curl
+  para los pasos 2-3 y 9. Commit: `18a8895` (sin firma: el agente SSH
+  tiene la clave pero git -S no la encuentra en este momento).
