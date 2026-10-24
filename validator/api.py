@@ -787,12 +787,12 @@ def _parsear_timestamp(texto: str):
 def _nombre_archivo_constancia(datos: DatosConstancia) -> str:
     """Nombre de descarga: 'constancia - {autor sanitizado}.docx'.
 
-    Se restringe a ASCII simple: los acentos se pierden en el NOMBRE del
-    archivo (no en el contenido), para que Content-Disposition no dé
-    problemas en ningún navegador.
+    Delega a _nombre_seguro en constancia.py para que el nombre del
+    zip y el del docx sean consistentes entre sí.
     """
-    autor = re.sub(r"[^A-Za-z0-9 _-]", "", datos.autor).strip()[:40] or "autor"
-    return f"constancia - {autor}.docx"
+    from .constancia import _nombre_seguro
+
+    return f"constancia - {_nombre_seguro(datos.autor)}.docx"
 
 
 @app.post(

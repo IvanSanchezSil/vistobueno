@@ -448,6 +448,17 @@ def filas_a_xlsx(filas: list[str], columnas: tuple[str, ...] = COLUMNAS_REGISTRO
     return buffer.getvalue()
 
 
+def _nombre_seguro(autor: str) -> str:
+    """Nombre de archivo seguro: ASCII simple, sin caracteres especiales.
+
+    Se restringe a alfanuméricos, espacios y guiones: los acentos se
+    pierden en el NOMBRE del archivo (no en el contenido), para que
+    Content-Disposition no dé problemas en ningún navegador ni en el
+    sistema de archivos de la biblioteca.
+    """
+    return re.sub(r"[^A-Za-z0-9 _-]", "", autor).strip()[:40] or "autor"
+
+
 def constancia_en_zip(ruta_plantilla: Path, datos: DatosConstancia) -> bytes:
     """Constancia + fila del registro del autor en UN solo .zip.
 
@@ -458,10 +469,11 @@ def constancia_en_zip(ruta_plantilla: Path, datos: DatosConstancia) -> bytes:
     """
     docx = llenar_constancia(ruta_plantilla, datos)
     csv = filas_a_csv([datos.fila_registro()])
+    nombre_seguro = _nombre_seguro(datos.autor)
 
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as paquete:
-        paquete.writestr(f"constancia - {datos.autor}.docx", docx)
+        paquete.writestr(f"constancia - {nombre_seguro}.docx", docx)
         paquete.writestr("registro.csv", csv)
     return buffer.getvalue()
 
