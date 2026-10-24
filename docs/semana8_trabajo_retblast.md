@@ -264,3 +264,7 @@ rama:
   - **16b** (paso de CI para el ensayo) y **17** (AGENTS.md): pendientes
     de aprobación del equipo — anotados en el PR.
   Suite: 626 backend + 24 node, ensayo general en frío verde.
+- **24/10, aprobación de 16b y 17**: Master aprobó el paso de CI del
+  ensayo general (`e9f0494`) y el sync de AGENTS.md (`fd38a0f`) —
+  comandos del entorno, árbol del repo y handover de Int2 en la tabla
+  de componentes. Conteo de la bitácora corregido (621→622, `6ccb160`).
