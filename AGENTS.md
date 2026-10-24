@@ -242,6 +242,8 @@ Al entrar, el shellHook muestra los comandos disponibles. Herramientas principal
 | `nix run .#test -- tests/ -v` | Ejecuta la suite de tests |
 | `nix run .#serve -- validator.api:app --reload` | Inicia la API en desarrollo |
 | `nix run .#smtp-dev` | Sink SMTP local (aiosmtpd en 127.0.0.1:8025) para probar notificaciones |
+| `nix run .#mock-dspace` | Mock de DSpace para el ensayo general manual (:8080) |
+| `nix run .#test-ficha-deposito` | Ensayo general de UN comando (flujo completo S8: ficha → buzón → userscript → constancia) |
 | `nix flake check` | Verificación completa (tests + lint del flake) |
 | `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
 | `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |

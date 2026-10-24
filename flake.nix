@@ -66,6 +66,7 @@
             echo "  nix run .#smtp-dev                              # sink SMTP local (127.0.0.1:8025)"
             echo "  nix run .#mock-dspace                            # mock de DSpace para el ensayo general (:8080)"
             echo "  nix run .#test-ficha-deposito                   # ensayo general de UN comando (flujo completo S8)"
+            echo "  nix run .#test-local                            # e2e local: build + suite + flujo completo"
             echo "  nix flake check                                # tests + verificación"
             echo "  ruff check validator/ scripts/ tests/          # lint Python"
             echo "  mypy validator/ scripts/                       # tipos Python"
