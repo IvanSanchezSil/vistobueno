@@ -49,6 +49,7 @@ from .constancia import (
     DatosConstancia,
     ErrorConfiguracionConstancia,
     ErrorDatosConstancia,
+    _nombre_seguro,
     constancia_en_zip,
     constancias_por_autor,
     filas_a_csv,
@@ -790,8 +791,6 @@ def _nombre_archivo_constancia(datos: DatosConstancia) -> str:
     Delega a _nombre_seguro en constancia.py para que el nombre del
     zip y el del docx sean consistentes entre sí.
     """
-    from .constancia import _nombre_seguro
-
     return f"constancia - {_nombre_seguro(datos.autor)}.docx"
 
 

@@ -162,6 +162,35 @@ function migrarLocalStorage(origen, destino) {
 	console.log("  ✅ handle en el buzón:", deposito.handle);
 	console.log("  ✅ timestamp reportado:", deposito.timestamp);
 
+	// --- 4. Hallazgo 12: el botón flotante debe ser usable en una
+	// SEGUNDA carga de página (el fail-closed anterior lo ocultaba si
+	// el buzón cambió entre cargas). La ficha sigue en el buzón
+	// (última gana): el botón debe mostrar el título y rellenar al
+	// pulsarlo — el caso del operador que abre otra pestaña después.
+	const domTarde = await nuevaPagina("/mock/submit");
+	ejecutarUserscript(domTarde);
+	const docTarde = domTarde.window.document;
+
+	await esperar(
+		() => docTarde.getElementById("vb-boton") !== null,
+		5000,
+		"el botón flotante no apareció en la segunda página (hallazgo 12)"
+	);
+	const textoBoton = docTarde.getElementById("vb-boton").textContent;
+	if (!textoBoton.includes("Rellenar")) {
+		throw new Error("❌ el botón flotante no dice 'Rellenar': " + textoBoton);
+	}
+	console.log("  ✅ botón flotante en la segunda página:", textoBoton.slice(0, 60));
+
+	// Pulsar el botón: debe re-consultar el buzón y rellenar.
+	docTarde.getElementById("vb-boton").click();
+	await esperar(
+		() => (docTarde.querySelector('input[name="dc.title"]') || {}).value !== "",
+		5000,
+		"el botón flotante no rellenó el formulario al pulsarlo (hallazgo 12)"
+	);
+	console.log("  ✅ relleno tras pulsar el botón en la segunda página (hallazgo 12 cerrado)");
+
 	console.log("OK");
 	process.exit(0);
 })().catch((e) => {
