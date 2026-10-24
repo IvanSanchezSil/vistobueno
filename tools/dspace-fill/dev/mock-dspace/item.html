@@ -14,10 +14,36 @@
 			https://hdl.handle.net/20.500.14414/99999
 		</a>
 	</p>
-	<!-- El userscript detecta el handle y lo reporta al buzón; el toast
-	     verde "Handle enviado a VistoBueno ✓" es el indicador visual de
-	     que el reporte ocurrió (hallazgo 1 y 8 de la revisión). -->
+	<!-- Indicador PERSISTENTE (hallazgo 1): el toast del userscript dura
+	     6 segundos; esto queda fijo para el operador que llega tarde. -->
+	<div id="estado-reporte" style="background:#f0f4f8;border:1px solid #c0d0e0;border-radius:8px;padding:12px 16px;margin-top:16px">
+		<strong>Estado del buzón:</strong>
+		<span id="estado-reporte-texto" style="color:#555">Consultando…</span>
+	</div>
+	<!-- El userscript detecta el handle y lo reporta al buzón. -->
 	<script src="/shim-gm.js"></script>
 	<script src="/userscript.js"></script>
+	<script>
+		// Consulta el buzón para el indicador persistente: el userscript
+		// ya habrá hecho su POST al cargar la página.
+		(async () => {
+			await new Promise((r) => setTimeout(r, 2000));
+			const el = document.getElementById("estado-reporte-texto");
+			try {
+				const r = await fetch("/api-proxy/deposito");
+				if (r.status === 200) {
+					const d = await r.json();
+					el.innerHTML = "✅ Handle reportado: <code>" + d.handle +
+						"</code> · timestamp: <code>" + d.timestamp + "</code>";
+				} else if (r.status === 404) {
+					el.textContent = "Sin depósito en el buzón todavía — espera al userscript o revisa la consola.";
+				} else {
+					el.textContent = "El buzón respondió HTTP " + r.status + ".";
+				}
+			} catch (e) {
+				el.textContent = "No se pudo consultar el buzón (¿está la API en :8000?).";
+			}
+		})();
+	</script>
 </body>
 </html>

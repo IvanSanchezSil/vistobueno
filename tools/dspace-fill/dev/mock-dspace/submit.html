@@ -6,6 +6,27 @@
 </head>
 <body>
 	<h1>Nuevo envío (MOCK)</h1>
+
+	<!-- Realismo del envío real: el operador publica la ficha desde
+	     VistoBueno y el userscript la lee del buzón. Aquí, el botón
+	     hace el "Preparar depósito" completo: publica una ficha de
+	     prueba (con manuales) vía el proxy del buzón. El userscript
+	     la recoge y auto-rellena (o pulsa su botón flotante verde). -->
+	<div id="panel-publicar" style="background:#e8f4fd;border:1px solid #b0d4f1;border-radius:8px;padding:12px 16px;margin-bottom:16px">
+		<strong>Ficha del buzón</strong>
+		<p id="estado-ficha" style="margin:6px 0;font-size:14px;color:#555">
+			Consultando el buzón…
+		</p>
+		<button type="button" id="btn-publicar-ficha"
+			style="background:#0069c0;color:#fff;border:none;padding:10px 20px;border-radius:8px;font:14px sans-serif;cursor:pointer">
+			Publicar ficha de prueba
+		</button>
+		<button type="button" id="btn-recargar"
+			style="background:#6c757d;color:#fff;border:none;padding:10px 20px;border-radius:8px;font:14px sans-serif;cursor:pointer;margin-left:8px">
+			Consultar de nuevo
+		</button>
+	</div>
+
 	<!-- El shim primero: define GM_* para que el userscript corra como
 	     script común y use el proxy same-origin del servidor del mock. -->
 	<script src="/shim-gm.js"></script>
@@ -127,6 +148,74 @@
 		document.getElementById("deposit").addEventListener("click", function () {
 			window.location.href = "/mock/item";
 		});
+
+		// --- Botones de "comfy testing" (hallazgo 1 de la revisión) ---
+		// El operador de ensayo no usa terminal: estos botones hacen el
+		// trabajo que el checklist antes pedía por curl.
+
+		const FICHA_DEMO = {
+			extraidos: [
+				{ campo: "dc.title", valor: "Título del trabajo de investigación: Estrategias lúdicas para el desarrollo de la motricidad fina.", pagina: 1, detectado: true },
+				{ campo: "dc.contributor.author", valor: ["Ana María Pérez García"], pagina: 1, detectado: true },
+				{ campo: "dc.contributor.advisor", valor: "Mag. Carlos Alberto RODRÍGUEZ MIRANDA", pagina: 1, detectado: true },
+				{ campo: "dc.description.abstract", valor: "Resumen del trabajo de investigación para el ensayo general del flujo de ficha de depósito.", pagina: 3, detectado: true },
+				{ campo: "dc.subject", valor: ["motricidad fina", "estrategias lúdicas", "educación inicial"], pagina: 4, detectado: true },
+				{ campo: "dc.date.issued", valor: "2026", pagina: 1, detectado: true },
+				{ campo: "escuela", valor: "ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL", pagina: 1, detectado: true },
+				{ campo: "renati.juror", valor: null, pagina: null, detectado: false },
+			],
+			manuales: [
+				{ campo: "matricula", valor: "10584011-18" },
+				{ campo: "renati.author.dni", valor: "12345678" },
+				{ campo: "renati.advisor.dni", valor: "11222333" },
+				{ campo: "renati.advisor.orcid", valor: "0000-0002-1825-0097" },
+			],
+		};
+
+		const estadoFicha = document.getElementById("estado-ficha");
+
+		async function consultarFicha() {
+			estadoFicha.textContent = "Consultando el buzón…";
+			try {
+				const r = await fetch("/api-proxy/ficha-pendiente");
+				if (r.status === 200) {
+					const ficha = await r.json();
+					const titulo = (ficha.extraidos || []).find(function (e) { return e.campo === "dc.title"; });
+					estadoFicha.innerHTML = "✅ <strong>Ficha en el buzón</strong> — \"" +
+						(titulo ? String(titulo.valor || "").slice(0, 60) : "?") + "…\" — el userscript la usará.";
+				} else if (r.status === 404) {
+					estadoFicha.innerHTML = "Sin ficha en el buzón (vacía o expirada). <strong>Publica una con el botón azul.</strong>";
+				} else {
+					estadoFicha.textContent = "El buzón respondió HTTP " + r.status + ".";
+				}
+			} catch (e) {
+				estadoFicha.textContent = "No se pudo consultar el buzón (¿está la API en :8000?).";
+			}
+		}
+
+		document.getElementById("btn-publicar-ficha").addEventListener("click", async function () {
+			estadoFicha.textContent = "Publicando ficha de prueba…";
+			try {
+				const r = await fetch("/api-proxy/ficha-pendiente", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(FICHA_DEMO),
+				});
+				if (r.status === 204) {
+					estadoFicha.innerHTML = "✅ <strong>Ficha publicada</strong> — el userscript debería rellenar el formulario en un instante. " +
+						"Si no, pulsa el botón verde flotante \"Rellenar\".";
+				} else if (r.status === 502) {
+					estadoFicha.textContent = "La API no responde en :8000 — ¿corrió nix run .#serve?";
+				} else {
+					estadoFicha.textContent = "Error al publicar: HTTP " + r.status + ".";
+				}
+			} catch (e) {
+				estadoFicha.textContent = "No se pudo publicar (¿está la API en :8000?).";
+			}
+		});
+
+		document.getElementById("btn-recargar").addEventListener("click", consultarFicha);
+		consultarFicha();
 	</script>
 </body>
 </html>
