@@ -484,7 +484,11 @@ if (typeof module !== "undefined" && module.exports) {
 		const boton = doc.createElement("button");
 		boton.id = "vb-boton";
 		boton.type = "button";
-		boton.textContent = "Rellenar con ficha de VistoBueno: «" + (tituloFicha || "") + "»";
+		// Sin ficha en el buzón: texto genérico (el click consulta de
+		// nuevo; si la ficha llegó mientras tanto, rellena).
+		boton.textContent = tituloFicha
+			? "Rellenar con ficha de VistoBueno: «" + tituloFicha + "»"
+			: "Rellenar con ficha de VistoBueno (consultar buzón)";
 		boton.style.cssText =
 			"position:fixed;top:16px;right:16px;z-index:99999;background:#28a745;color:#fff;" +
 			"border:none;padding:10px 14px;border-radius:8px;font:13px sans-serif;cursor:pointer;" +
@@ -517,9 +521,17 @@ if (typeof module !== "undefined" && module.exports) {
 
 	function alAbrirFormulario() {
 		obtenerFicha(function (ficha) {
-			if (!ficha) return; // sin ficha: ni toast ni botón (fail-closed)
-			mostrarBoton(VBMapeador.valorExtraido(ficha, "dc.title"));
-			llenar(ficha);
+			if (ficha) {
+				mostrarBoton(VBMapeador.valorExtraido(ficha, "dc.title"));
+				llenar(ficha);
+			} else {
+				// Sin ficha: el botón aparece igual (texto genérico) para
+				// que el operador pueda pulsarlo tras publicar la ficha
+				// desde VistoBueno con la página ya cargada (hallazgo 12:
+				// el auto-relleno solo ocurre si la ficha ya estaba; el
+				// botón manual rescate el caso de publicar después).
+				mostrarBoton(null);
+			}
 		});
 	}
 
