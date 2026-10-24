@@ -24,24 +24,34 @@
 	<script src="/shim-gm.js"></script>
 	<script src="/userscript.js"></script>
 	<script>
-		// Consulta el buzón para el indicador persistente: el userscript
-		// ya habrá hecho su POST al cargar la página.
+		// Indicador persistente con reintentos (hallazgo 15): el POST del
+		// userscript puede llegar después de la primera consulta; sin
+		// reintentos, un "Sin depósito" falso detendría el flujo.
 		(async () => {
-			await new Promise((r) => setTimeout(r, 2000));
 			const el = document.getElementById("estado-reporte-texto");
-			try {
-				const r = await fetch("/api-proxy/deposito");
-				if (r.status === 200) {
-					const d = await r.json();
-					el.innerHTML = "✅ Handle reportado: <code>" + d.handle +
-						"</code> · timestamp: <code>" + d.timestamp + "</code>";
-				} else if (r.status === 404) {
-					el.textContent = "Sin depósito en el buzón todavía — espera al userscript o revisa la consola.";
-				} else {
-					el.textContent = "El buzón respondió HTTP " + r.status + ".";
+			const maximos = 4;
+			for (let i = 0; i < maximos; i++) {
+				await new Promise((r) => setTimeout(r, 2000));
+				try {
+					const r = await fetch("/api-proxy/deposito");
+					if (r.status === 200) {
+						const d = await r.json();
+						el.innerHTML = "✅ Handle reportado: <code>" + d.handle +
+							"</code> · timestamp: <code>" + d.timestamp + "</code>";
+						return;
+					}
+					if (r.status === 404 && i < maximos - 1) {
+						el.textContent = "Esperando al userscript… (intento " + (i + 1) + "/" + maximos + ")";
+						continue;
+					}
+					el.textContent = r.status === 404
+						? "Sin depósito en el buzón tras " + maximos + " intentos — revisa la consola o publica la ficha de nuevo."
+						: "El buzón respondió HTTP " + r.status + ".";
+					return;
+				} catch (e) {
+					el.textContent = "No se pudo consultar el buzón (¿está la API en :8000?).";
+					return;
 				}
-			} catch (e) {
-				el.textContent = "No se pudo consultar el buzón (¿está la API en :8000?).";
 			}
 		})();
 	</script>

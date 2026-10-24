@@ -40,14 +40,16 @@ function servirArchivo(resp, rutaRelativa) {
 	fs.createReadStream(absoluta).pipe(resp);
 }
 
-function proxyApi(resp, rutaApi, cuerpo) {
+function proxyApi(resp, metodo, rutaApi, cuerpo) {
 	// Reenvía la solicitud al buzón de la API real y devuelve tal cual:
 	// el userscript (vía shim) habla same-origin con este servidor.
+	// El method viaja por parámetro (closure): un `req` global se
+	// pisaría entre requests concurrentes (hallazgo 13).
 	const peticion = http.request(
 		{
 			host: "127.0.0.1",
 			port: API_PUERTO,
-			method: req.method,
+			method: metodo,
 			path: rutaApi,
 			headers: {
 				"Content-Type": "application/json",
@@ -80,10 +82,7 @@ const rutas = {
 	"/userscript.js": ["dist/vistobueno-dspace-fill.user.js"],
 };
 
-let req; // proxyApi lo necesita en su scope (definido antes del createServer)
-
 const servidor = http.createServer(function (solicitud, respuesta) {
-	req = solicitud;
 	const pedazos = [];
 	solicitud.on("data", function (p) {
 		pedazos.push(p);
@@ -93,7 +92,7 @@ const servidor = http.createServer(function (solicitud, respuesta) {
 		const url = solicitud.url.split("?")[0];
 
 		if (url.startsWith("/api-proxy/")) {
-			proxyApi(respuesta, "/" + url.slice("/api-proxy/".length), cuerpo);
+			proxyApi(respuesta, solicitud.method, "/" + url.slice("/api-proxy/".length), cuerpo);
 			return;
 		}
 		const ruta = rutas[url];
