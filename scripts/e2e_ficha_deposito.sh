@@ -30,19 +30,21 @@ export VISTOBUENO_FIRMA="${VISTOBUENO_FIRMA:-Lic. Ensayo General}"
 export VISTOBUENO_PLANTILLA_CONSTANCIA="${VISTOBUENO_PLANTILLA_CONSTANCIA:-$ROOT/recursos/TESIS DIGITAL MODELO B-2026.docx}"
 
 limpiar() {
+  # ⚠️ Este pkill mata CUALQUIER uvicorn en el sistema, no solo el del
+  # ensayo. Si tienes otro proceso corriendo, se detendrá también.
   pkill -f "uvicorn validator" 2>/dev/null || true
   pkill -f "[m]ock-dspace/server.js" 2>/dev/null || true
 }
 trap limpiar EXIT
 
 # Pre-flight (hallazgo 16a): la plantilla del Modelo B vive en recursos/
-# (no versionado). Un clone fresco — CI incluido — muere aquí sin
-# mensaje; mejor decirlo claro al principio que fallar en el paso 7.
+# (no versionado). Sin ella, el paso 7 omite la constancia y continúa
+# con el resto de verificaciones (hallazgo 16a, corregido en 5ce1f24).
 if [ ! -f "$VISTOBUENO_PLANTILLA_CONSTANCIA" ]; then
   echo "⚠️  Falta la plantilla del Modelo B: $VISTOBUENO_PLANTILLA_CONSTANCIA"
   echo "   Descargue 'TESIS DIGITAL MODELO B-2026.docx' y colóquelo en recursos/"
   echo "   (o apunte VISTOBUENO_PLANTILLA_CONSTANCIA a su ruta)."
-  echo "   Sin plantilla NO se puede generar la constancia (paso 7 fallará)."
+  echo "   El paso 7 omitirá la constancia pero verificará el registro."
   echo ""
 fi
 
