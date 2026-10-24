@@ -112,6 +112,12 @@ editables por si el operador quiera corregir).
 
 ## 5. Verificación que te pido
 
+- ⚠️ **Proxy de Vite**: las rutas del flujo (`/ficha-pendiente`,
+  `/deposito`, `/constancia`, `/fila-registro`) ya están en
+  `frontend/vite.config.js` junto a `/validar`. En `npm run dev` el
+  proxy las enruta al backend; en build estático o `vite preview` usa
+  `VITE_API_URL` o un reverse proxy (la API no agrega CORS — solo el
+  userscript lo salta con `GM_xmlhttpRequest`).
 - Tests del frontend (vitest) para: ficha solo en verde, manuales por
   autor, sondeo con 404 silencioso, cotejo de título, N descargas.
 - Prueba manual con la API real: `nix run .#test-ficha-deposito`

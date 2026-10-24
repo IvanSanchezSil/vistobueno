@@ -195,11 +195,12 @@ def _extraer_metadata_tipo_documento(
 def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
     """Construye la ficha de depósito a partir del reporte del motor.
 
-    El motor publicará las extracciones en `reporte["ficha"]` como un
+    El motor publica las extracciones en `reporte["ficha"]` como un
     dict campo→dato, cada dato con la forma acordada del handover §4:
-    `{"valor": …, "pagina": …, "detectado": …}`. Hasta esa entrega, la
-    ficha viaja completa pero con todos los extraídos en `detectado=false`:
-    el contrato es estable y el frontend puede construirse ya.
+    `{"valor": …, "pagina": …, "detectado": …}`. Si un campo no fue
+    capturado (p. ej. `renati.juror`, viabilidad negativa del diseño
+    17), viaja con `detectado=false` y `valor=null`: el contrato es
+    estable y el frontend puede construirse ya.
 
     Los manuales siempre viajan vacíos desde el servidor: los llena el
     operador en la pantalla.
