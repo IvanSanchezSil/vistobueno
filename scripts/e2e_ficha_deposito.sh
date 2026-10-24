@@ -35,6 +35,17 @@ limpiar() {
 }
 trap limpiar EXIT
 
+# Pre-flight (hallazgo 16a): la plantilla del Modelo B vive en recursos/
+# (no versionado). Un clone fresco — CI incluido — muere aquí sin
+# mensaje; mejor decirlo claro al principio que fallar en el paso 7.
+if [ ! -f "$VISTOBUENO_PLANTILLA_CONSTANCIA" ]; then
+  echo "⚠️  Falta la plantilla del Modelo B: $VISTOBUENO_PLANTILLA_CONSTANCIA"
+  echo "   Descargue 'TESIS DIGITAL MODELO B-2026.docx' y colóquelo en recursos/"
+  echo "   (o apunte VISTOBUENO_PLANTILLA_CONSTANCIA a su ruta)."
+  echo "   Sin plantilla NO se puede generar la constancia (paso 7 fallará)."
+  echo ""
+fi
+
 paso() { echo; echo "[$1/7] $2"; }
 fallar() { echo "  ❌ $1"; echo "❌ FALLO EN PASO $2"; exit 1; }
 
