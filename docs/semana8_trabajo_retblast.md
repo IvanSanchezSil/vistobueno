@@ -223,7 +223,7 @@ rama:
   `?formato=zip` (constancia .docx + registro.csv del autor en un solo
   paquete), y el "verifica archivos" del hallazgo 10 pasó de checar
   tamaños a verificar el CONTENIDO: MERGEFIELD reemplazados, matrícula y
-  handle dentro de la constancia. Suite: 621.
+  handle dentro de la constancia. Suite: 622.
 - **Firma**: los commits de la revisión quedaron re-firmados tras recargar
   la identidad en el agente SSH.
 - **23/10, segunda tanda — revisión completa (items 1-11)**: triage punto
