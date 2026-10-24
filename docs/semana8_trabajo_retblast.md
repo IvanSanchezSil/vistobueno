@@ -268,3 +268,9 @@ rama:
   ensayo general (`e9f0494`) y el sync de AGENTS.md (`fd38a0f`) —
   comandos del entorno, árbol del repo y handover de Int2 en la tabla
   de componentes. Conteo de la bitácora corregido (621→622, `6ccb160`).
+- **24/10, cierre de nits**: pre-flight actualizado (el paso 7 omite la
+  constancia, no falla), tabla de comandos de AGENTS.md completa
+  (mock-dspace y test-ficha-deposito), test-local re-anunciado en el
+  shellHook, bitácora al día, pkill con advertencia en el header,
+  zip filename consistente con Content-Disposition (_nombre_seguro),
+  comentario de esperar() corregido, nota de query strings en el proxy.
