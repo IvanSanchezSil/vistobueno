@@ -380,14 +380,36 @@ def _copia_xml(elemento):
 # Formatos de archivo del registro (hallazgo 11 de la revisión del PR #55)
 # ---------------------------------------------------------------------------
 
+# Prefijos que Excel/LibreOffice interpretan como fórmula al abrir un
+# archivo (hallazgo 14: inyección desde el DOCX del estudiante). La
+# mitigación estándar es anteponer una comilla simple, que el
+# visualizador muestra como texto plano.
+PREFIJOS_FORMULA = ("=", "+", "-", "@")
+
+
+def _neutralizar_formula(campo: str) -> str:
+    """Antepone ' a los campos que empiezan con un prefijo de fórmula.
+
+    El título, el autor y la escuela salen del DOCX del estudiante
+    (input no confiable). Sin esto, un título "=WEBSERVICE(...)" llega
+    crudo al .csv y al .xlsx y Excel lo evalúa al abrir: la víctima es
+    la PC de la biblioteca. La comilla simple es la mitigación estándar
+    (OWASP CSV Injection cheat sheet): Excel la muestra como texto.
+    """
+    if isinstance(campo, str) and campo.startswith(PREFIJOS_FORMULA):
+        return "'" + campo
+    return campo
+
 
 def filas_a_tsv(filas: list[str]) -> str:
     """Filas TSV listas como archivo: BOM UTF-8 + una fila por línea.
 
     Las filas ya vienen separadas por tabuladores (`fila_registro`); el
     BOM hace que Excel/LibreOffice detecten UTF-8 al abrir el .tsv.
+    Los campos con prefijo de fórmula (=, +, -, @) se neutralizan.
     """
-    return "\ufeff" + "\n".join(filas) + "\n"
+    neutras = ["\t".join(_neutralizar_formula(c) for c in f.split("\t")) for f in filas]
+    return "\ufeff" + "\n".join(neutras) + "\n"
 
 
 def filas_a_csv(filas: list[str]) -> str:
@@ -395,12 +417,13 @@ def filas_a_csv(filas: list[str]) -> str:
 
     El separador ';' es el que Excel espera en configuración regional
     española; los campos que contienen ';' o comillas van citados. Los
-    saltos y tabuladores ya se limpiaron al armar la fila TSV.
+    saltos y tabuladores ya se limpiaron al armar la fila TSV. Los
+    campos con prefijo de fórmula (=, +, -, @) se neutralizan.
     """
     buffer = io.StringIO()
     escritor = csv.writer(buffer, delimiter=";", lineterminator="\n")
     for fila in filas:
-        escritor.writerow(fila.split("\t"))
+        escritor.writerow([_neutralizar_formula(c) for c in fila.split("\t")])
     return "\ufeff" + buffer.getvalue()
 
 
@@ -409,7 +432,8 @@ def filas_a_xlsx(filas: list[str], columnas: tuple[str, ...] = COLUMNAS_REGISTRO
 
     Encabezado = COLUMNAS_REGISTRO (las 13 columnas del registro
     oficial). openpyxl se importa aquí a propósito: solo este formato
-    lo necesita.
+    lo necesita. Los campos con prefijo de fórmula se neutralizan
+    (openpyxl trata '=' como fórmula: data_type 'f').
     """
     from openpyxl import Workbook
 
@@ -418,7 +442,7 @@ def filas_a_xlsx(filas: list[str], columnas: tuple[str, ...] = COLUMNAS_REGISTRO
     hoja.title = "Registro"
     hoja.append(list(columnas))
     for fila in filas:
-        hoja.append(fila.split("\t"))
+        hoja.append([_neutralizar_formula(c) for c in fila.split("\t")])
     buffer = BytesIO()
     libro.save(buffer)
     return buffer.getvalue()

