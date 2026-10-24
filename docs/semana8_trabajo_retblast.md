@@ -245,3 +245,22 @@ rama:
   dura 6 s, esto queda). El checklist del README ya no requiere curl
   para los pasos 2-3 y 9. Commit: `18a8895` (sin firma: el agente SSH
   tiene la clave pero git -S no la encuentra en este momento).
+- **24/10, segunda pasada de revisión (items 12-18)**: hallazgos de
+  calidad notablemente superior a la primera tanda. Todos los válidos
+  atendidos en el orden sugerido:
+  - **14** (inyección de fórmulas, API productiva): neutralización de
+    prefijos `=`, `+`, `-`, `@` con comilla simple en csv/xlsx/tsv
+    (`1a917a5`). El repro fue verificado contra openpyxl: sin el fix,
+    `data_type='f'` (celda de FÓRMULA). Con el fix: texto.
+  - **13** (proxy del mock): method por closure, no global (`16c0018`).
+  - **15** (indicador del ítem): reintentos con backoff, 4 intentos
+    cada 2 s (`16c0018`).
+  - **12** (UX del mock): botón flotante siempre visible, texto
+    genérico sin ficha; panel y checklist actualizados al comportamiento
+    real (`316fad6`).
+  - **16a** (pre-flight de la plantilla): mensaje claro al inicio si
+    falta el Modelo B (`691606d`).
+  - **18** (limpieza): ternario muerto en test del zip, corregido.
+  - **16b** (paso de CI para el ensayo) y **17** (AGENTS.md): pendientes
+    de aprobación del equipo — anotados en el PR.
+  Suite: 626 backend + 24 node, ensayo general en frío verde.
