@@ -2,7 +2,7 @@
 
 **Integrante**: retblast
 **Rol**: Integrante 1 — Backend / API
-**Semana**: 7 de 14 (12/10/2026 – 17/10/2026) — **en curso (parcial al 13/10)**
+**Semana**: 7 de 14 (12/10/2026 – 17/10/2026)
 **Proyecto**: VistoBueno — Validador automático de formato de tesis (UNT FECyC)
 
 ---
@@ -80,12 +80,39 @@ el movimiento elimina el riesgo de un `git add .` descuidado.
 
 ---
 
-### (en progreso) Tarea 4: Módulo de depósito en DSpace — actividad 10
+### Tarea 4: Módulo de depósito en DSpace — actividad 10 (14/10, PR #53)
 
-Diseño ya registrado en `docs/DSPACE_API.md` §8. Implementación prevista
-contra un stub local del contrato HAL (autenticación JWT + CSRF,
-workspaceitems, JSON Patch de metadatos, licencia, depósito), con
-validación contra la instancia real pendiente de la gestión ante la sede.
+Cierre de la actividad 10, ~4 semanas antes de lo previsto (S11–S13 en el
+plan), sobre el diseño registrado en `docs/DSPACE_API.md` §8:
+
+- **`validator/dspace.py`**: modelado del flujo de depósito del contrato
+  HAL de DSpace 8.1 (autenticación JWT, creación del workspaceitem,
+  metadatos vía JSON Patch, licencia y depósito) contra un stub local.
+  La validación contra la instancia real queda pendiente de la cuenta de
+  servicio (gestión ante la sede).
+- **Opt-in `depositar` en `POST /validar`**: el depósito solo procede con
+  semáforo verde y es best-effort, como la notificación: un fallo nunca
+  cambia el código HTTP; el estado queda en `deposito: {estado, detalle}`
+  en la respuesta.
+- **Escáner de credenciales extendido a DSPACE** (`bdc6536`): la barrera
+  anti-filtración (gitignore + pre-commit + CI) cubre además de las SMTP
+  las credenciales del módulo de depósito.
+- **`docs/CONTRATO_API.md` v1.6.0** (`13481c2`): campo `depositar` y
+  objeto `deposito` en la respuesta, con estados y sugerencias de UI.
+- **AGENTS.md**: módulo de depósito en la guía (componentes, flujo de
+  datos y responsabilidades de Int1).
+
+**Verificación**: suite en **429/429** tras los tests del módulo y del
+escáner (`631cb38`). Merge del PR #53 el 14/10.
+
+---
+
+### Tarea 5: Revisión e integración del PR #52 (14/10, actividad 1)
+
+**PR #52** (`renzo`): edge-cases de robustez del frontend (bloqueo del
+drop durante la validación, timeout de fetch y guard anti-doble clic),
+mejoras de accesibilidad y mensajes E2E honestos. Integrado el 14/10 con
+la suite en verde.
 
 ---
 
@@ -97,6 +124,11 @@ validación contra la instancia real pendiente de la gestión ante la sede.
 | Integración de los fixes del motor | PR #45 (7 issues resueltos) | Ing. de Software I |
 | Primera tesis real con semáforo verde | corrida del 12/10 | Ing. de Software II |
 | PRs #48 y #50 integrados | revisión APPROVED + merge | Ing. de Software I |
+| Módulo de depósito en DSpace (actividad 10) | `validator/dspace.py`, `tests/test_dspace.py` (PR #53) | Ing. de Software II |
+| Escáner de credenciales DSPACE | `scripts/verificar_secretos.py` + tests | Ing. de Software I |
+| Contrato v1.6.0 (depósito) | `docs/CONTRATO_API.md` | Ing. de Software I |
+| Suite 429/429 tras la actividad 10 | registro de pruebas | Ing. de Software I |
+| PR #52 integrado | revisión + merge | Ing. de Software I |
 | Higiene del árbol | movimiento documentado, sin commits | Ing. de Software I |
 
 ---
@@ -106,8 +138,10 @@ validación contra la instancia real pendiente de la gestión ante la sede.
 | Competencia | Actividad |
 |-------------|-----------|
 | **Ing. de Software II** — Verificación | Batería de aceptación contra criterios definidos a priori |
-| **Ing. de Software I** — Gestión de la integración | Revisión con comentarios (PR #45, #48), merges con suite verde |
-| **Ing. de Software I** — Seguridad | Retiro de datos personales del árbol de trabajo |
+| **Ing. de Software II** — Construcción e integración; consumo de APIs externas | Módulo de depósito contra el contrato HAL de DSpace, opt-in best-effort |
+| **Redes de Computadoras I** — Protocolos de aplicación | REST HAL de DSpace: autenticación JWT, workspaceitems, JSON Patch |
+| **Ing. de Software I** — Gestión de la integración | Revisión con comentarios (PR #45, #48, #52), merges con suite verde |
+| **Ing. de Software I** — Seguridad | Retiro de datos personales del árbol; escáner extendido a credenciales DSPACE |
 
 ---
 
@@ -116,11 +150,12 @@ validación contra la instancia real pendiente de la gestión ante la sede.
 - [x] PR #45 integrado y verificado con batería
 - [x] PRs #48 y #50 integrados
 - [x] Higiene del árbol de trabajo
-- [ ] Módulo de depósito DSpace (`validator/dspace.py`) + contrato v1.6.0
+- [x] Módulo de depósito DSpace (`validator/dspace.py`) + contrato v1.6.0 (PR #53, 14/10)
+- [x] PR #52 integrado
+- [x] Cierre de la bitácora al final de la semana
 - [ ] Cierre operativo de la actividad 6: credenciales SMTP (sede)
 - [ ] Gestión ante la sede: cuenta de depósito DSpace y excepción de la
       barrera antibot para `/server/api`
-- [ ] Cierre de la bitácora al final de la semana
 
 ---
 
