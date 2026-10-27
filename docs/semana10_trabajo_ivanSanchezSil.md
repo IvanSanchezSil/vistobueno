@@ -15,7 +15,7 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 
 | ID | Severidad | Archivos | Acción prevista | Estado |
 |----|-----|----------|-----------------|--------|
-| AUD-01 | Alta | `validator/analizadores.py` (`_norm_indice`) | Separar normalización entre títulos del cuerpo (sin recorte romano falso) e ítems del índice (mantener lógica actual). Falso positivo con "General" y títulos acabados en i/l/v/x/c. | Pendiente |
+| AUD-01 | Alta | `validator/analizadores.py` (`_norm_indice`) | Separar normalización entre títulos del cuerpo (sin recorte romano falso) e ítems del índice (mantener lógica actual). Falso positivo con "General" y títulos acabados en i/l/v/x/c. | Hecho (b947a27) |
 | AUD-02 | Alta | `validator/tokenizer.py`, `validator/analizadores.py`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: permitir `seccion()` hasta final (`hasta_final: true`), incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes (eliminar `[:8]`). Sincronizar `tests/_mutations.py`. | Pendiente |
 | AUD-03 | Media | `validator/analizadores.py`, `validator/compilador.py` | Hacer `encontrado` legible: culpables primero, página correcta del nodo infractor, sin anteponer valores conformes. Cuidar paridad con `tests/test_paridad_formatos.py`. | Pendiente |
 | AUD-04 | Media | `reglas_unt.yaml` | Añadir notas `EVALUADO:` a `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Pendiente |
@@ -40,7 +40,7 @@ Orden propuesto:
 
 ## Criterios de aceptación
 
-- [ ] AUD-01 corregido con test que falle antes y pase después
+- [x] AUD-01 corregido con test que falle antes y pase después
 - [ ] AUD-02 corregido: detecta anexos con estructura Título1 "Anexos" + "Anexo N.", muestra todos los faltantes
 - [ ] AUD-03: `encontrado` legible, culpables primero, página correcta
 - [ ] AUD-04: notas `EVALUADO:` añadidas
