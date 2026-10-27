@@ -536,20 +536,39 @@ def _sin_acentos(s: str) -> str:
     return s.translate(_MAP_ACENTOS)
 
 
+def _normalizar_base_indice(texto: str) -> str:
+    s = texto.strip()
+    s = re.sub(r"^\s*(?:[IVXLC]+\s*\.|(?:\d+)+(?:\.\d+)*\s*\.?\s*)", "", s)
+    s = re.sub(r"[()\[\],;:¿?¡!.]", " ", s)
+    s = s.translate(_MAP_ACENTOS)
+    return re.sub(r"\s+", " ", s).upper().strip()
+
+
+def _norm_titulo_cuerpo(texto: str) -> str:
+    """Título del cuerpo: sin numeración, pero SIN recortar sufijo romano.
+
+    Los títulos de sección (p.ej. "General") no llevan número de página, así
+    que no deben perder su última letra por el heurístico de páginas romanas.
+    """
+    return _normalizar_base_indice(texto)
+
+
 def _norm_indice(texto: str) -> str:
     """Texto de una entrada de índice normalizado para MATCHING (ítem 11).
 
     Quita el prefijo de numeración (romano "I." o decimal "1.1."), el número
     de página al final (arábigo "10" o romano "ii"), separadores sueltos,
-    tildes y colapsa el whitespace, en mayúsculas.
+    tildes y colapsa el whitespace.
     """
     s = texto.strip()
     s = re.sub(r"^\s*(?:[IVXLC]+\s*\.|(?:\d+)+(?:\.\d+)*\s*\.?\s*)", "", s)
-    s = re.sub(r"\s*[ivxlc]{1,5}\s*$", "", s)
-    s = re.sub(r"\s*\d+\s*$", "", s)
     s = re.sub(r"[()\[\],;:¿?¡!.]", " ", s)
     s = s.translate(_MAP_ACENTOS)
-    return re.sub(r"\s+", " ", s).upper().strip()
+    s = re.sub(r"\s+", " ", s).strip().upper()
+    if re.search(r"\s+[IVXLC]{1,5}$", s) or re.search(r"\s+\d+$", s):
+        s = re.sub(r"\s+[IVXLC]{1,5}\s*$", "", s)
+        s = re.sub(r"\s+\d+\s*$", "", s)
+    return s.strip()
 
 
 def _sigpalabra(s: str) -> str:
@@ -599,7 +618,7 @@ def _títulos_cuerpo(extracted: ExtractedDocx) -> set[str]:
         if es_heading(estilo):
             texto = text_of(p).strip()
             if texto:
-                titulos.add(_norm_indice(texto))
+                titulos.add(_norm_titulo_cuerpo(texto))
     return titulos
 
 
