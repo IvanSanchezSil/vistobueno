@@ -363,8 +363,17 @@ class AnalizadorListaObligatoria(Analizador):
     def _texto(self, extracted: ExtractedDocx) -> str:
         sec = self.config.get("seccion")
         if sec:
-            corte = seccion(tokenizar(extracted), sec["inicio"], sec.get("fin"))
-            return " ".join(t.texto for t in corte if t.tipo == PARRAFO)
+            corte = seccion(
+                tokenizar(extracted),
+                sec["inicio"],
+                sec.get("fin"),
+                hasta_final=bool(sec.get("hasta_final")),
+            )
+            return " ".join(
+                t.texto
+                for t in corte
+                if t.tipo in (PARRAFO, TITULO) and t.texto.strip()
+            )
         nodos = self._nodos(
             extracted,
             self.config.get("parte", "document"),
@@ -385,7 +394,7 @@ class AnalizadorListaObligatoria(Analizador):
         faltan = [it for it in items if _norm(it) not in texto_norm]
         if not faltan:
             return True, f"items_obligatorios={len(items)} completo"
-        return False, f"items_obligatorios={len(items)} faltan={faltan[:8]}"
+        return False, f"items_obligatorios={len(items)} faltan={faltan}"
 
 
 class AnalizadorPaginacion(Analizador):

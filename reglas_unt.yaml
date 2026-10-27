@@ -1187,6 +1187,7 @@ reglas:
   lista_obligatoria:
     seccion:
       inicio: anexo
+      hasta_final: true
     ignore_case: true
     items:
     - Matriz de consistencia
@@ -1220,6 +1221,7 @@ reglas:
   lista_obligatoria:
     seccion:
       inicio: anexo
+      hasta_final: true
     ignore_case: true
     items:
     - Matriz de consistencia
