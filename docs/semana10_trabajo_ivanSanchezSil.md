@@ -16,7 +16,7 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 | ID | Severidad | Archivos | Acción prevista | Estado |
 |----|-----|----------|-----------------|--------|
 | AUD-01 | Alta | `validator/analizadores.py` (`_norm_indice`) | Separar normalización entre títulos del cuerpo (sin recorte romano falso) e ítems del índice (mantener lógica actual). Falso positivo con "General" y títulos acabados en i/l/v/x/c. | Hecho (b947a27) |
-| AUD-02 | Alta | `validator/tokenizer.py`, `validator/analizadores.py`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: permitir `seccion()` hasta final (`hasta_final: true`), incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes (eliminar `[:8]`). Sincronizar `tests/_mutations.py`. | Pendiente |
+| AUD-02 | Alta | `validator/tokenizer.py`, `validator/analizadores.py`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: permitir `seccion()` hasta final (`hasta_final: true`), incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes (eliminar `[:8]`). Sincronizar `tests/_mutations.py`. | Hecho (707960d) |
 | AUD-03 | Media | `validator/analizadores.py`, `validator/compilador.py` | Hacer `encontrado` legible: culpables primero, página correcta del nodo infractor, sin anteponer valores conformes. Cuidar paridad con `tests/test_paridad_formatos.py`. | Pendiente |
 | AUD-04 | Media | `reglas_unt.yaml` | Añadir notas `EVALUADO:` a `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Pendiente |
 | AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Pendiente (decisión) |
@@ -31,7 +31,8 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 Orden propuesto:
 
 1. **Documentación y planificación** (hecho) — crear bitácora semana 10 + plan detallado.
-2. **AUD-01** — Aislado, test de regresión con "General" + entrada con página arábiga.
+2. **AUD-01** — Aislado, test de regresión con "General" + entrada con página arábiga. (Hecho)
+3. **AUD-02** — `seccion(hasta_final)`, incluir TITULO en búsqueda, quitar truncado. (Hecho)
 3. **AUD-02** — Más amplio (tokenizer + analizadores + YAML + mutations). Añadir fixture de estructura de anexos.
 4. **AUD-20** — Blindar 01-02 con fixtures.
 5. **AUD-03** — Cambiar formato de `encontrado`. Revisar `test_paridad_formatos.py` tras el cambio.
