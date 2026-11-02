@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Upload from './components/Upload'
 import Report from './components/Report'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // API base URL:
 // - Default '' = mismo origen (funciona con el proxy de Vite en `npm run dev`).
@@ -42,8 +43,9 @@ function DarkModeToggle() {
 
 function App() {
   const [reportData, setReportData] = useState(null)
+  const volverACarga = () => setReportData(null)
   const currentView = reportData ? (
-    <Report data={reportData} onBack={() => setReportData(null)} />
+    <Report data={reportData} onBack={volverACarga} />
   ) : (
     <Upload onValidated={(data) => setReportData(data)} apiUrl={API_BASE_URL} />
   )
@@ -60,7 +62,11 @@ function App() {
         </div>
         <DarkModeToggle />
       </header>
-      {currentView}
+      {/* Límite de error: un fallo de render (bug propio) muestra un aviso con
+          salida a la carga en vez de dejar la pantalla en blanco. */}
+      <ErrorBoundary onReiniciar={volverACarga}>
+        {currentView}
+      </ErrorBoundary>
       <footer>
         Sistema VistoBueno — Practicante · Biblioteca FECyC · UNT
       </footer>
