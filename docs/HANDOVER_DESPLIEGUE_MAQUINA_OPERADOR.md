@@ -26,7 +26,7 @@ misma máquina. El control se apoya en tres capas:
 | 3 | Un solo worker | no agregar `--workers` |
 | 4 | Firewall: bloquear el puerto 8000 desde la red | `curl` desde otro equipo → conexión rechazada |
 | 5 | Definir `VISTOBUENO_FIRMA` (y `VISTOBUENO_PLANTILLA_CONSTANCIA` si la plantilla no está en `recursos/`) | el papeleo de prueba genera la constancia |
-| 6 | Solo si se expone: `VISTOBUENO_API_TOKEN` + `VISTOBUENO_HOST` | peer remoto sin token → `403`; con token → `200` |
+| 6 | Solo si se expone: `VISTOBUENO_API_TOKEN` + `VISTOBUENO_HOST` + el host del peer en `VISTOBUENO_HOSTS` | peer remoto sin token → `403`; con token y host listado → `200`; con token pero host no listado → `400` |
 
 Verificación local:
 
@@ -38,6 +38,12 @@ curl -s -o /dev/null -w "%{http_code}\n" \
   -H "Host: atacante.example" http://127.0.0.1:8000/docs
 # esperado: 400
 ```
+
+> **Peer remoto**: necesita las dos capas. El `Host` se comprueba antes
+> que el token, así que un token válido con un `Host` no listado recibe
+> `400`, no `200`. Para que entre, define `VISTOBUENO_HOSTS` con la
+> dirección o el dominio del peer (el puerto se ignora) y manda el header
+> `X-VistoBueno-Token` en cada petición.
 
 ## 3. Prueba manual de DNS rebinding
 

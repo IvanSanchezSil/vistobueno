@@ -606,14 +606,17 @@ pegar, sin sesiones: **una ranura en memoria del proceso, TTL de 1 hora,
   petición cuyo `Host` no sea `127.0.0.1`, `localhost` o `::1` (se
   ignora el puerto y se acepta un IPv6 literal). `VISTOBUENO_HOSTS`
   suma dominios propios (lista separada por comas) para un reverse
-  proxy local; `*` desactiva el chequeo (no recomendado).
+  proxy local; `*` desactiva el chequeo (no recomendado). Cada entrada
+  de la lista se normaliza igual que el header: el puerto se ignora.
 - **Token compartido (opt-in)**: si la API se expone fuera de la máquina
   (bind a `0.0.0.0` o un reverse proxy en otro host), se define
   `VISTOBUENO_API_TOKEN` y el cliente remoto debe enviar el header
   `X-VistoBueno-Token` con ese valor (comparación en tiempo constante).
   Sin token configurado, el header no se exige y el remoto recibe `403`.
-  Con token configurado, un peer remoto con el header correcto entra:
-  el token se comprueba **antes** de rechazar al peer no-loopback.
+  El chequeo del `Host` corre **antes** que el del token: un peer
+  remoto necesita **las dos cosas** (token válido y `Host` en
+  `VISTOBUENO_HOSTS`). Con token correcto pero `Host` no listado, la
+  respuesta es `400`, no `200`.
 - **El loopback no necesita el token**: la SPA y el userscript hablan con
   `127.0.0.1` y nunca envían el header, así que el flujo local no se
   rompe cuando se define `VISTOBUENO_API_TOKEN`.
@@ -661,10 +664,19 @@ desactivado.
 |----------|---------|-------------|
 | `VISTOBUENO_RATE_LIMIT_VENTANA_SEG` | `60` | Ventana en segundos (ambos modos). |
 | `VISTOBUENO_RATE_LIMIT_MAX` | — | Si se define, activa la ventana fija por IP. `0` la desactiva. |
+| `VISTOBUENO_RATE_LIMIT_CPU_SEG` | `2.0` | Presupuesto de CPU por ventana del modo adaptativo. `0` lo desactiva. |
+| `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` | `1.0` | Presupuesto de CPU por ventana del papeleo. `0` lo desactiva. |
+
+El coste que se cobra es **CPU del hilo que hizo el trabajo**, no la
+latencia: con varias peticiones a la vez, la espera del GIL no es trabajo
+y no se cobra. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
+cupo de CPU no se cobra: ese modo cuenta peticiones por IP.
 
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo
 adaptativo (`1.0` s por ventana): generar DOCX/XLSX es más caro que
-validar.
+validar. Se sube con `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` y se
+desactiva con `0`: es la salida de emergencia para el operador que
+necesita papelar sin cortes.
 
 El cupo vive en memoria (sin base de datos): se reinicia con el proceso
 y no se comparte entre workers (el despliegue es de uno). Si algún día la

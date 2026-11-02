@@ -327,10 +327,13 @@ El flujo completo es:
     (`0` la desactiva).
   - `VISTOBUENO_HOST` / `VISTOBUENO_HOSTS` — bind y hosts admitidos.
     Por defecto `127.0.0.1` y solo loopback/`localhost`; para exponer la
-    API hay que definir `VISTOBUENO_HOST` y un token.
+    API hay que definir `VISTOBUENO_HOST`, un token y el host del peer.
   - `VISTOBUENO_API_TOKEN` — opcional. Si se define, toda la API exige
     el header `X-VistoBueno-Token` a los peers remotos. Solo hace falta
     si la API se expone fuera de la máquina del operador.
+  - `VISTOBUENO_RATE_LIMIT_CPU_SEG` /
+    `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` — opcionales. Presupuestos de
+    CPU por ventana (validación y papeleo). `0` desactiva el cupo.
 - Userscript en Tampermonkey: crear un script nuevo y pegar el contenido
   de `tools/dspace-fill/dist/vistobueno-dspace-fill.user.js`. El script
   solo se conecta a `localhost` (`@connect localhost`) y **no necesita
@@ -354,11 +357,17 @@ suma dominios propios si la API vive detrás de un reverse proxy local;
 está en `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md`.
 
 Si algún día la API se expone fuera de la máquina (`VISTOBUENO_HOST` con
-un bind no-loopback o un reverse proxy en otro host), define
-`VISTOBUENO_API_TOKEN` y haz que el cliente envíe el header
-`X-VistoBueno-Token`. Con token configurado, un peer remoto entra **solo**
-si el header coincide (comparación en tiempo constante). El loopback no
-necesita el header.
+un bind no-loopback o un reverse proxy en otro host), el peer remoto
+necesita **las dos cosas**:
+
+1. `VISTOBUENO_API_TOKEN` definido, y el header `X-VistoBueno-Token` en
+   cada petición (comparación en tiempo constante).
+2. Su dirección o dominio en `VISTOBUENO_HOSTS`, para que el chequeo del
+   `Host` lo acepte.
+
+El chequeo del `Host` corre antes que el del token: un peer con token
+válido pero `Host` no listado recibe `400`, no `200`. El loopback no
+necesita ni el header ni la lista.
 
 `python -m validator.api` arranca con `proxy_headers=False` y la app
 `nix run .#serve` agrega `--no-proxy-headers`: un `X-Forwarded-For`
@@ -373,18 +382,34 @@ si no, responde `429` con `Retry-After`. El mismo presupuesto rinde ~33
 validaciones seguidas en un equipo de 60 ms y ~8 en uno de 250 ms: se
 ajusta solo, sin calibrar por hardware.
 
+El coste que se cobra es **CPU del hilo que validó**, no la latencia: con
+varias peticiones a la vez, la espera no cuenta como trabajo.
+
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo (1 s por
-minuto), porque generar DOCX/XLSX es más caro que validar.
+minuto), porque generar DOCX/XLSX es más caro que validar. Se sube con
+`VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` y se desactiva con `0`: es la
+salida de emergencia para el operador que necesita papelar sin cortes.
 
 Se puede volver al límite anterior de ventana fija por IP definiendo
 `VISTOBUENO_RATE_LIMIT_MAX` (peticiones por IP y ventana; `0` lo
 desactiva), con `VISTOBUENO_RATE_LIMIT_VENTANA_SEG` para la ventana. En
-el despliegue local **el límite es por máquina, no por persona**: todos
-los clientes locales comparten `127.0.0.1` y, por lo tanto, el mismo
-cupo. Para una sesión de validación por lotes, por ejemplo:
+ese modo el cupo de CPU no se cobra. En el despliegue local **el límite
+es por máquina, no por persona**: todos los clientes locales comparten
+`127.0.0.1` y, por lo tanto, el mismo cupo. Para una sesión de validación
+por lotes, por ejemplo:
 
 ```bash
 VISTOBUENO_RATE_LIMIT_MAX=300 nix run .#serve -- validator.api:app --reload
+```
+
+Ese modo legacy cubre `POST /validar`, no el papeleo: para un lote que
+también genera constancias, sube el cupo de CPU en vez de usar el modo
+legacy:
+
+```bash
+VISTOBUENO_RATE_LIMIT_CPU_SEG=20 \
+VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG=20 \
+  nix run .#serve -- validator.api:app --reload
 ```
 
 El límite real de la red sigue siendo del reverse proxy: este control

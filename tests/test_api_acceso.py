@@ -17,6 +17,7 @@ import pytest
 from conftest import CLIENTE, MIME_DOCX, ruta_docx_prueba
 from fastapi.testclient import TestClient
 
+import validator.api
 from validator.api import CABECERA_TOKEN_BUZON, _host_sin_puerto, app
 
 # Peer remoto con Host de loopback: aísla el control del peer (el Host
@@ -87,6 +88,18 @@ class TestHostConfiable:
         )
         assert cliente.get("/docs").status_code == 200
 
+    def test_el_host_del_entorno_ignora_el_puerto(self, monkeypatch):
+        """`VISTOBUENO_HOSTS=10.0.0.5:8000` sirve para el Host `10.0.0.5:8000`.
+
+        Sin normalizar, el puerto de la lista no coincidía con el Host
+        real de la petición y el peer remoto recibía 400 (revisión PR #71, B3).
+        """
+        monkeypatch.setenv("VISTOBUENO_HOSTS", "10.0.0.5:8000")
+        assert "10.0.0.5" in validator.api._hosts_confiables()
+        assert "10.0.0.5:8000" not in validator.api._hosts_confiables()
+        cliente = TestClient(app, client=("10.0.0.5", 40000), base_url="http://10.0.0.5:8000")
+        assert cliente.get("/docs").status_code == 200
+
     def test_wildcard_desactiva_el_chequeo(self, monkeypatch):
         """`*` es la salida de emergencia documentada (no recomendada)."""
         monkeypatch.setenv("VISTOBUENO_HOSTS", "*")
@@ -142,3 +155,43 @@ class TestAccesoRemoto:
     def test_remoto_no_genera_papeleo(self, ruta):
         respuesta = CLIENTE_FUERA.post(ruta, json=SOLICITUD_PAPEL)
         assert respuesta.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Peer remoto: Host permitido + token compartido (revisión PR #71, B2)
+# ---------------------------------------------------------------------------
+
+
+class TestPeerRemotoConHostYToken:
+    """El peer remoto necesita las DOS cosas: Host permitido y token.
+
+    El chequeo del `Host` corre antes que el del token. Con un token
+    válido pero un Host no listado, la respuesta es 400 (no 200): los dos
+    controles son independientes y el primero que falla corta la
+    petición.
+    """
+
+    @staticmethod
+    def _cliente() -> TestClient:
+        return TestClient(app, client=("10.0.0.5", 40000), base_url="http://10.0.0.5:8000")
+
+    def test_sin_host_listado_el_token_no_alcanza(self, monkeypatch):
+        """Host ajeno + token válido → 400 (el Host se comprueba primero)."""
+        monkeypatch.delenv("VISTOBUENO_HOSTS", raising=False)
+        monkeypatch.setenv("VISTOBUENO_API_TOKEN", TOKEN)
+        assert self._cliente().get("/docs").status_code == 400
+
+    def test_host_listado_sin_token_da_403(self, monkeypatch):
+        """Host permitido pero sin token → 403 (el peer sigue siendo remoto)."""
+        monkeypatch.setenv("VISTOBUENO_HOSTS", "10.0.0.5")
+        monkeypatch.setenv("VISTOBUENO_API_TOKEN", TOKEN)
+        respuesta = self._cliente().get("/ficha-pendiente")
+        assert respuesta.status_code == 403
+
+    def test_host_listado_con_token_pasa(self, monkeypatch):
+        """Host permitido + token válido → la API responde."""
+        monkeypatch.setenv("VISTOBUENO_HOSTS", "10.0.0.5")
+        monkeypatch.setenv("VISTOBUENO_API_TOKEN", TOKEN)
+        cliente = self._cliente()
+        assert cliente.get("/docs").status_code == 200
+        assert _subir(cliente, token=TOKEN).status_code == 200

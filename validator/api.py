@@ -17,11 +17,12 @@ import tempfile
 import threading
 import time
 import zipfile
+from collections.abc import Callable
 from datetime import datetime
 from functools import cache
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 from email_validator import EmailNotValidError, validate_email
@@ -161,16 +162,8 @@ HOSTS_LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
 HOSTS_CONFIABLES_DEFAULT = ("127.0.0.1", "localhost", "::1")
 
 
-def _hosts_confiables() -> frozenset[str]:
-    """Hosts admitidos, leídos del entorno en cada petición."""
-    extra = os.environ.get("VISTOBUENO_HOSTS", "")
-    return frozenset(h.strip().lower() for h in HOSTS_CONFIABLES_DEFAULT if h.strip()) | frozenset(
-        h.strip().lower() for h in extra.split(",") if h.strip()
-    )
-
-
 def _host_sin_puerto(valor: str) -> str:
-    """Normaliza el header Host: minúsculas, sin puerto y sin corchetes IPv6."""
+    """Normaliza un host: minúsculas, sin puerto y sin corchetes IPv6."""
     host = valor.strip().lower()
     if host.startswith("["):
         cierre = host.find("]")
@@ -178,40 +171,18 @@ def _host_sin_puerto(valor: str) -> str:
     return host.split(":", 1)[0]
 
 
-class MiddlewareHostConfiable:
-    """Rechaza peticiones con un header `Host` ajeno (400).
+def _hosts_confiables() -> frozenset[str]:
+    """Hosts admitidos, leídos del entorno en cada petición.
 
-    Cierra el *DNS rebinding*: la página del atacante se sirve desde su
-    dominio (Host: atacante.example) aunque su DNS resuelva a 127.0.0.1.
-    El navegador conserva el Host del dominio en la petición, así que el
-    chequeo corta el ataque en todos los navegadores; no depende de
-    Private Network Access (mitigación solo de Chrome).
-
-    El puerto se ignora y se admite IPv6 literal ("[::1]:8000").
+    Cada entrada se normaliza como el header `Host`: minúsculas, sin
+    puerto y sin corchetes IPv6. Así, `VISTOBUENO_HOSTS=10.0.0.5:8000`
+    sirve para el peer que se anuncia como `10.0.0.5:8000` y también
+    para el que se anuncia como `10.0.0.5` (revisión PR #71, B3).
     """
-
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] not in ("http", "websocket"):
-            await self.app(scope, receive, send)
-            return
-        hosts = _hosts_confiables()
-        if "*" in hosts:
-            await self.app(scope, receive, send)
-            return
-        host = _host_sin_puerto(Headers(scope=scope).get("host", ""))
-        if host in hosts:
-            await self.app(scope, receive, send)
-            return
-        respuesta = PlainTextResponse("Host no permitido", status_code=400)
-        await respuesta(scope, receive, send)
-
-
-def _token_api() -> str:
-    """Token compartido de la API; vacío significa "no se exige token"."""
-    return (os.environ.get("VISTOBUENO_API_TOKEN") or "").strip()
+    extra = os.environ.get("VISTOBUENO_HOSTS", "")
+    return frozenset(
+        _host_sin_puerto(h) for h in HOSTS_CONFIABLES_DEFAULT if h.strip()
+    ) | frozenset(_host_sin_puerto(h) for h in extra.split(",") if h.strip())
 
 
 def _es_loopback(host: str | None) -> bool:
@@ -227,6 +198,45 @@ def _es_loopback(host: str | None) -> bool:
         return ip_address(valor).is_loopback
     except ValueError:
         return False
+
+
+class MiddlewareHostConfiable:
+    """Rechaza peticiones con un header `Host` ajeno (400).
+
+    Cierra el *DNS rebinding*: la página del atacante se sirve desde su
+    dominio (Host: atacante.example) aunque su DNS resuelva a 127.0.0.1.
+    El navegador conserva el Host del dominio en la petición, así que el
+    chequeo corta el ataque en todos los navegadores; no depende de
+    Private Network Access (mitigación solo de Chrome).
+
+    El puerto se ignora y se admite IPv6 literal ("[::1]:8000").
+
+    Todo el rango loopback (127.0.0.0/8) se acepta, igual que el control
+    de acceso por peer: los dos chequeos cuentan la misma frontera.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+        hosts = _hosts_confiables()
+        if "*" in hosts:
+            await self.app(scope, receive, send)
+            return
+        host = _host_sin_puerto(Headers(scope=scope).get("host", ""))
+        if host in hosts or _es_loopback(host):
+            await self.app(scope, receive, send)
+            return
+        respuesta = PlainTextResponse("Host no permitido", status_code=400)
+        await respuesta(scope, receive, send)
+
+
+def _token_api() -> str:
+    """Token compartido de la API; vacío significa "no se exige token"."""
+    return (os.environ.get("VISTOBUENO_API_TOKEN") or "").strip()
 
 
 async def verificar_acceso_local(request: Request) -> None:
@@ -298,6 +308,7 @@ VENTANA_PETICIONES_DEFAULT = 60.0
 # `presupuesto_segundos` por ventana, así que se ajusta solo al hardware
 # sin constantes por modelo de PC.
 PRESUPUESTO_CPU_DEFAULT = 2.0  # segundos de trabajo por ventana
+PRESUPUESTO_CPU_PAPELES_DEFAULT = 1.0  # el papeleo (DOCX/XLSX) pesa más
 COSTE_CPU_MINIMO = 0.01
 COSTE_CPU_MAXIMO = 10.0  # un documento patológico no bloquea media hora
 
@@ -381,12 +392,40 @@ class LimitadorCPU:
         self._ultimo = time.monotonic()
         self._lock = threading.Lock()
 
-    def _fugar(self, ahora: float) -> None:
+    def _fugar_deuda(self, ahora: float) -> None:
         """Descuenta la deuda por el tiempo transcurrido (llamar con el lock)."""
         if ahora <= self._ultimo:
             return
         self._deuda = max(0.0, self._deuda - (ahora - self._ultimo) * self._tasa)
         self._ultimo = ahora
+
+    def fugar(self) -> None:
+        """Deja correr el tiempo: la deuda se descuenta aunque nadie pregunte.
+
+        Se usa en el modo legacy, donde el cupo de CPU no se cobra: la
+        deuda anterior debe seguir decayendo para no bloquear al
+        operador al volver al modo adaptativo (revisión PR #71, M1).
+        """
+        with self._lock:
+            self._fugar_deuda(time.monotonic())
+
+    def ajustar(
+        self,
+        *,
+        presupuesto_segundos: float | None = None,
+        ventana_segundos: float | None = None,
+    ) -> None:
+        """Aplica la configuración leída del entorno (presupuesto y ventana).
+
+        La tasa de fuga depende de la ventana, así que cambiarla recalcula
+        la tasa. La deuda ya acumulada no se toca: se sigue cobrando.
+        """
+        with self._lock:
+            if presupuesto_segundos is not None:
+                self._presupuesto = max(presupuesto_segundos, 0.0)
+            if ventana_segundos is not None:
+                self._ventana = max(ventana_segundos, 0.1)
+            self._tasa = self._presupuesto / self._ventana
 
     def adquirir(self) -> tuple[bool, float]:
         """Consulta si entra una petición más.
@@ -396,7 +435,9 @@ class LimitadorCPU:
             terminar, con el coste real (`registrar_coste`).
         """
         with self._lock:
-            self._fugar(time.monotonic())
+            self._fugar_deuda(time.monotonic())
+            if self._presupuesto <= 0:
+                return True, 0.0  # cupo desactivado
             if self._deuda < self._presupuesto:
                 return True, 0.0
             falta = (
@@ -407,7 +448,27 @@ class LimitadorCPU:
     def registrar_coste(self, segundos: float) -> None:
         """Suma a la deuda el coste real de la operación pesada."""
         with self._lock:
+            if self._presupuesto <= 0:
+                return  # cupo desactivado: no hay nada que cobrar
             self._deuda += min(max(segundos, COSTE_CPU_MINIMO), COSTE_CPU_MAXIMO)
+
+    @property
+    def deuda(self) -> float:
+        """Deuda acumulada en segundos de CPU (diagnóstico y tests)."""
+        with self._lock:
+            return self._deuda
+
+    @property
+    def presupuesto(self) -> float:
+        """Presupuesto vigente, en segundos de CPU por ventana."""
+        with self._lock:
+            return self._presupuesto
+
+    @property
+    def ventana(self) -> float:
+        """Ventana vigente del cupo, en segundos."""
+        with self._lock:
+            return self._ventana
 
     def limpiar(self) -> None:
         """Vacía el estado (tests y reinicio del flujo)."""
@@ -419,7 +480,87 @@ class LimitadorCPU:
 _LIMITADOR_PETICIONES = LimitadorPeticiones()
 _LIMITADOR_CPU_VALIDACION = LimitadorCPU()
 # El papeleo (DOCX/XLSX) pesa más que una validación: menos presupuesto.
-_LIMITADOR_CPU_PAPELES = LimitadorCPU(presupuesto_segundos=1.0)
+_LIMITADOR_CPU_PAPELES = LimitadorCPU(presupuesto_segundos=PRESUPUESTO_CPU_PAPELES_DEFAULT)
+
+
+# ---------------------------------------------------------------------------
+# Medición del coste real (revisión PR #71, B1)
+# ---------------------------------------------------------------------------
+
+
+class _MedidorCPU:
+    """Mide los segundos de CPU del hilo que ejecuta el trabajo pesado.
+
+    `time.thread_time()` cuenta el tiempo de CPU del hilo que llama, no
+    la latencia. Con peticiones concurrentes, la espera del GIL no se
+    cuenta: es exactamente la parte que no es trabajo real. Medir la
+    latencia hacía que el cupo dependiera del equipo y de la carga, no
+    del trabajo (revisión PR #71, B1).
+    """
+
+    def __init__(self) -> None:
+        self.segundos: float = 0.0
+
+    def medir(self, fn: Callable[..., Any], *args: Any) -> Any:
+        """Ejecuta `fn` en este hilo y guarda el coste medido.
+
+        El coste se guarda también si `fn` lanza: un documento corrupto
+        consume CPU igual que uno válido.
+        """
+        inicio = time.thread_time()
+        try:
+            return fn(*args)
+        finally:
+            self.segundos += time.thread_time() - inicio
+
+
+# ---------------------------------------------------------------------------
+# Configuración de los cupos (leída del entorno en cada petición)
+# ---------------------------------------------------------------------------
+
+
+def _modo_adaptativo() -> bool:
+    """True si el cupo vigente es el adaptativo por CPU.
+
+    El modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) usa su propia
+    ventana fija por IP. En ese modo el cupo de CPU no se cobra: su
+    fuga vive dentro de `adquirir()` y nadie lo llama (revisión PR #71,
+    M1).
+    """
+    return "VISTOBUENO_RATE_LIMIT_MAX" not in os.environ
+
+
+def _ventana_peticiones() -> float | None:
+    """Ventana de los cupos en segundos, leída del entorno en cada request.
+
+    Devuelve None si la variable no está definida: manda el valor por
+    defecto del limitador. Rige en los dos modos: el legacy por IP y el
+    adaptativo por CPU (revisión PR #71, M2).
+    """
+    bruto = os.environ.get("VISTOBUENO_RATE_LIMIT_VENTANA_SEG")
+    if bruto is None:
+        return None
+    try:
+        return max(float(bruto), 0.1)
+    except ValueError:
+        return VENTANA_PETICIONES_DEFAULT
+
+
+def _presupuesto_cpu(nombre_var: str, defecto: float) -> float | None:
+    """Presupuesto de CPU por ventana, leído del entorno.
+
+    Devuelve None si la variable no está definida: manda el valor por
+    defecto del limitador. `0` desactiva el cupo: es la salida de
+    emergencia para el operador que necesita papelar sin cortes
+    (revisión PR #71, M3).
+    """
+    bruto = os.environ.get(nombre_var)
+    if bruto is None:
+        return None
+    try:
+        return max(float(bruto), 0.0)
+    except ValueError:
+        return defecto
 
 
 def _config_limite_peticiones() -> tuple[int, float]:
@@ -433,13 +574,8 @@ def _config_limite_peticiones() -> tuple[int, float]:
         maximo = int(os.environ.get("VISTOBUENO_RATE_LIMIT_MAX", MAXIMO_PETICIONES_DEFAULT))
     except ValueError:
         maximo = MAXIMO_PETICIONES_DEFAULT
-    try:
-        ventana = float(
-            os.environ.get("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", VENTANA_PETICIONES_DEFAULT)
-        )
-    except ValueError:
-        ventana = VENTANA_PETICIONES_DEFAULT
-    return max(0, maximo), max(ventana, 0.1)
+    ventana = _ventana_peticiones()
+    return max(0, maximo), VENTANA_PETICIONES_DEFAULT if ventana is None else ventana
 
 
 def _rechazar_por_limite(reintentar: float, recurso: str) -> None:
@@ -461,7 +597,7 @@ async def limitar_validaciones(request: Request) -> None:
     por IP (comportamiento previo; `0` la desactiva). Si no, se usa el
     cupo adaptativo por CPU, que se ajusta a la velocidad del equipo.
     """
-    if "VISTOBUENO_RATE_LIMIT_MAX" in os.environ:
+    if not _modo_adaptativo():
         maximo, ventana = _config_limite_peticiones()
         if maximo <= 0:
             return
@@ -470,16 +606,49 @@ async def limitar_validaciones(request: Request) -> None:
         if not permitido:
             _rechazar_por_limite(reintentar, "validación")
         return
+    _LIMITADOR_CPU_VALIDACION.ajustar(
+        presupuesto_segundos=_presupuesto_cpu(
+            "VISTOBUENO_RATE_LIMIT_CPU_SEG", PRESUPUESTO_CPU_DEFAULT
+        ),
+        ventana_segundos=_ventana_peticiones(),
+    )
     permitido, reintentar = _LIMITADOR_CPU_VALIDACION.adquirir()
     if not permitido:
         _rechazar_por_limite(reintentar, "validación")
 
 
 async def limitar_papeleo() -> None:
-    """Dependency de /constancia y /fila-registro: cupo adaptativo por CPU."""
+    """Dependency de /constancia y /fila-registro: cupo adaptativo por CPU.
+
+    El presupuesto se lee del entorno en cada petición:
+    `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` lo sube y `0` lo desactiva.
+    Es la salida de emergencia para el operador que necesita papelar
+    sin cortes (revisión PR #71, M3).
+    """
+    _LIMITADOR_CPU_PAPELES.ajustar(
+        presupuesto_segundos=_presupuesto_cpu(
+            "VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", PRESUPUESTO_CPU_PAPELES_DEFAULT
+        ),
+        ventana_segundos=_ventana_peticiones(),
+    )
     permitido, reintentar = _LIMITADOR_CPU_PAPELES.adquirir()
     if not permitido:
         _rechazar_por_limite(reintentar, "documentos")
+
+
+def _cobrar_coste_validacion(segundos: float) -> None:
+    """Cobra el coste medido al cupo de validación, si ese cupo rige.
+
+    En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX`) el cupo de CPU no se
+    consulta: cobrar la deuda sin que nadie la fugue dejaría al
+    operador bloqueado al volver al modo adaptativo. En ese modo solo se
+    deja correr el tiempo, para que la deuda anterior se desangre
+    (revisión PR #71, M1).
+    """
+    if _modo_adaptativo():
+        _LIMITADOR_CPU_VALIDACION.registrar_coste(segundos)
+    else:
+        _LIMITADOR_CPU_VALIDACION.fugar()
 
 
 @cache
@@ -924,10 +1093,10 @@ async def validar(
         # loop mientras dura la validación. Se pasa el ruleset de captura
         # de la ficha (diseño 17) en la MISMA pasada: sus capturas viajan
         # en reporte["ficha"] y no afectan semáforo ni resumen.
-        inicio_cpu = time.perf_counter()
+        medidor = _MedidorCPU()
         try:
             resultados_motor = await run_in_threadpool(
-                validate_docx, tmp_path, rules_data, _get_ficha_rules()
+                medidor.medir, validate_docx, tmp_path, rules_data, _get_ficha_rules()
             )
         except DSLValidationError as e:
             # Reglas rotas = error de configuración del servidor, no del
@@ -963,9 +1132,10 @@ async def validar(
                 detail=(f"El archivo no contiene un documento Word válido: {e}."),
             ) from e
         finally:
-            # El cupo adaptativo descuenta lo que tardó de verdad la
-            # operación en ESTE equipo (no un número fijo por petición).
-            _LIMITADOR_CPU_VALIDACION.registrar_coste(time.perf_counter() - inicio_cpu)
+            # El cupo adaptativo descuenta el TRABAJO real (CPU del hilo
+            # que validó), no la latencia: con peticiones concurrentes, la
+            # espera del GIL no es trabajo (revisión PR #71, B1).
+            _cobrar_coste_validacion(medidor.segundos)
 
         reporte = build_report(resultados_motor)
 
@@ -1220,6 +1390,11 @@ def _constancias_de_solicitud(solicitud: FilaRegistroRequest) -> list[DatosConst
         raise HTTPException(status_code=422, detail=str(e)) from e
 
 
+def _filas_de_registro(datos: list[DatosConstancia]) -> list[str]:
+    """Calcula una fila TSV por autor (trabajo CPU, se ejecuta en el threadpool)."""
+    return [d.fila_registro() for d in datos]
+
+
 def _parsear_timestamp(texto: str) -> datetime:
     """Parsea el timestamp ISO 8601 y lo normaliza a la hora del Perú.
 
@@ -1288,11 +1463,14 @@ async def descargar_constancia(
             ),
         )
     objetivo = datos[solicitud.indice_autor]
-    inicio_cpu = time.perf_counter()
+    medidor = _MedidorCPU()
     try:
         if formato == "zip":
+            contenido = await run_in_threadpool(
+                medidor.medir, constancia_en_zip, _ruta_plantilla_constancia(), objetivo
+            )
             return Response(
-                content=constancia_en_zip(_ruta_plantilla_constancia(), objetivo),
+                content=contenido,
                 media_type="application/zip",
                 headers={
                     "Content-Disposition": (
@@ -1300,11 +1478,15 @@ async def descargar_constancia(
                     )
                 },
             )
-        contenido = llenar_constancia(_ruta_plantilla_constancia(), objetivo)
+        contenido = await run_in_threadpool(
+            medidor.medir, llenar_constancia, _ruta_plantilla_constancia(), objetivo
+        )
     except ErrorConfiguracionConstancia as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
-        _LIMITADOR_CPU_PAPELES.registrar_coste(time.perf_counter() - inicio_cpu)
+        # CPU real del hilo que generó el documento, no la latencia
+        # (revisión PR #71, B1).
+        _LIMITADOR_CPU_PAPELES.registrar_coste(medidor.segundos)
     return Response(
         content=contenido,
         media_type=MIME_DOCX_CONSTANCIA,
@@ -1344,33 +1526,38 @@ async def generar_fila_registro(
     ),
 ):
     datos = _constancias_de_solicitud(solicitud)
-    inicio_cpu = time.perf_counter()
+    medidor = _MedidorCPU()
     try:
-        filas = [d.fila_registro() for d in datos]
+        filas = await run_in_threadpool(medidor.medir, _filas_de_registro, datos)
 
         if formato == "json":
             return FilasRegistroResponse(filas=filas)
 
         if formato == "tsv":
+            texto = await run_in_threadpool(medidor.medir, filas_a_tsv, filas)
             return Response(
-                content=filas_a_tsv(filas).encode("utf-8"),
+                content=texto.encode("utf-8"),
                 media_type="text/tab-separated-values; charset=utf-8",
                 headers={"Content-Disposition": 'attachment; filename="registro_vistobueno.tsv"'},
             )
         if formato == "csv":
+            texto = await run_in_threadpool(medidor.medir, filas_a_csv, filas)
             return Response(
-                content=filas_a_csv(filas).encode("utf-8"),
+                content=texto.encode("utf-8"),
                 media_type="text/csv; charset=utf-8",
                 headers={"Content-Disposition": 'attachment; filename="registro_vistobueno.csv"'},
             )
         # formato == "xlsx"
+        contenido = await run_in_threadpool(medidor.medir, filas_a_xlsx, filas)
         return Response(
-            content=filas_a_xlsx(filas),
+            content=contenido,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": 'attachment; filename="registro_vistobueno.xlsx"'},
         )
     finally:
-        _LIMITADOR_CPU_PAPELES.registrar_coste(time.perf_counter() - inicio_cpu)
+        # CPU real del hilo que armó las filas, no la latencia
+        # (revisión PR #71, B1).
+        _LIMITADOR_CPU_PAPELES.registrar_coste(medidor.segundos)
 
 
 # ---------------------------------------------------------------------------

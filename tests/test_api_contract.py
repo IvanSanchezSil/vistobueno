@@ -7,6 +7,7 @@ Uso:
     pytest tests/test_api_contract.py -v
 """
 
+import asyncio
 import io
 import time
 import zipfile
@@ -559,6 +560,100 @@ class TestLimitadorCPU:
         permitido, reintentar = cupo.adquirir()
         assert permitido is False
         assert reintentar > 1.0
+
+    def test_un_presupuesto_de_cero_desactiva_el_cupo(self):
+        """Presupuesto 0 = cupo apagado (salida de emergencia del operador)."""
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.0)
+        cupo.registrar_coste(5.0)
+        assert cupo.adquirir()[0] is True
+        assert cupo.deuda == 0.0
+
+
+class TestMedicionDelCoste:
+    """El cupo cobra CPU, no latencia (revisión PR #71, B1).
+
+    Con varias peticiones a la vez, la latencia incluye la espera del
+    GIL: no es trabajo. Medirlo hacía que el cupo dependiera de la carga
+    del equipo y no del trabajo pesado.
+    """
+
+    def test_el_medidor_ignora_la_espera(self):
+        """Un trabajo que solo espera no consume presupuesto de CPU."""
+        medidor = validator.api._MedidorCPU()
+        medidor.medir(time.sleep, 0.3)
+        assert medidor.segundos < 0.05
+
+    def test_el_medidor_cuenta_el_trabajo_real(self):
+        """Un trabajo que calcula sí consume presupuesto de CPU."""
+        medidor = validator.api._MedidorCPU()
+        medidor.medir(sum, range(2_000_000))
+        assert medidor.segundos > 0.0
+
+    def test_el_costo_se_guarda_tambien_si_el_trabajo_falla(self):
+        """Un documento corrupto consume CPU igual que uno válido."""
+        medidor = validator.api._MedidorCPU()
+
+        def _falla():
+            raise ValueError("documento roto")
+
+        with pytest.raises(ValueError):
+            medidor.medir(_falla)
+        assert medidor.segundos > 0.0
+
+    def test_la_validacion_cobra_el_cpu_medido(self, monkeypatch):
+        """El endpoint cobra el coste medido al cupo de CPU."""
+        monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_MAX", raising=False)
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=10.0)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_VALIDACION", cupo)
+        assert subir_plantilla().status_code == 200
+        assert cupo.deuda > 0.0
+
+
+class TestCupoCpuPorEntorno:
+    """El cupo de CPU se configura desde el entorno (revisión PR #71).
+
+    M1: el modo legacy no carga la deuda del cupo de CPU.
+    M2: la ventana del entorno rige también en el modo adaptativo.
+    M3: el presupuesto del papeleo se puede subir o desactivar.
+    """
+
+    def test_el_modo_legacy_no_carga_la_deuda_de_cpu(self, monkeypatch):
+        """Con VISTOBUENO_RATE_LIMIT_MAX la deuda de CPU no se cobra.
+
+        Antes sí se cobraba, pero nadie fugaba esa deuda: al volver al
+        modo adaptativo, el operador quedaba bloqueado sin saber por qué.
+        """
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_MAX", "100")
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=10.0)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_VALIDACION", cupo)
+        assert subir_plantilla().status_code == 200
+        assert cupo.deuda == 0.0
+
+    def test_la_ventana_del_entorno_aplica_al_modo_adaptativo(self, monkeypatch):
+        """VISTOBUENO_RATE_LIMIT_VENTANA_SEG rige en los dos modos."""
+        monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_MAX", raising=False)
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", "30")
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=10.0)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_VALIDACION", cupo)
+        assert subir_plantilla().status_code == 200
+        assert cupo.ventana == 30.0
+
+    def test_el_presupuesto_de_cpu_del_papeleo_es_configurable(self, monkeypatch):
+        """El papeleo tiene su propio presupuesto, ajustable por entorno."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "5")
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
+        asyncio.run(validator.api.limitar_papeleo())
+        assert cupo.presupuesto == 5.0
+
+    def test_el_papeleo_se_puede_desactivar_con_cero(self, monkeypatch):
+        """Presupuesto 0 en el papeleo = salida de emergencia."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "0")
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
+        asyncio.run(validator.api.limitar_papeleo())
+        assert cupo.presupuesto == 0.0
+        assert cupo.adquirir()[0] is True
 
 
 # ---------------------------------------------------------------------------
