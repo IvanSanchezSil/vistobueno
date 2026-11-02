@@ -21,6 +21,10 @@
 			style="background:#0069c0;color:#fff;border:none;padding:10px 20px;border-radius:8px;font:14px sans-serif;cursor:pointer">
 			Publicar ficha de prueba
 		</button>
+		<button type="button" id="btn-publicar-ficha-dos"
+			style="background:#6f42c1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font:14px sans-serif;cursor:pointer;margin-left:8px">
+			Publicar ficha de prueba (2 autores)
+		</button>
 		<button type="button" id="btn-recargar"
 			style="background:#6c757d;color:#fff;border:none;padding:10px 20px;border-radius:8px;font:14px sans-serif;cursor:pointer;margin-left:8px">
 			Consultar de nuevo
@@ -32,45 +36,151 @@
 	<script src="/shim-gm.js"></script>
 	<script src="/userscript.js"></script>
 
+	<!-- Estructura REAL del formulario de DSpace 8.1 (evidencia: captura
+	     de "Editar envío" en recursos/form dspace/). Cada campo
+	     repetible vive en un contenedor #N_array con su lista de filas
+	     (cdk-drop-list) y su botón "ds-form-add-more". El userscript
+	     busca EXACTAMENTE esa estructura para agregar autores y DNIs:
+	     un mock con otra forma no ejercita ese camino (revisión PR #71,
+	     M5). -->
 	<form id="editSubmissionForm">
-		<p><label>Título<br><input type="text" name="dc.title" id="10_array-0-dc_title"></label></p>
-
-		<div id="grupo-autores">
-			<label>Autores<br><input type="text" name="dc.contributor.author" id="11_array-0-dc_contributor_author"></label>
-			<button type="button" class="add-button" data-grupo="grupo-autores" data-plantilla="input[name='dc.contributor.author']">+ Agregar autor</button>
+		<div id="10_array" class="ng-untouched ng-pristine ng-valid">
+			<div id="cdk-drop-list-0" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>Título<br><input type="text" name="dc.title" id="10_array-0-dc_title" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+				</div>
+			</div>
 		</div>
 
-		<p><label>Asesor<br><input type="text" name="dc.contributor.advisor" id="15_array-0-dc_contributor_advisor"></label></p>
-		<p><label>Resumen<br><textarea name="dc.description.abstract" id="37_array-0-dc_description_abstract"></textarea></label></p>
-
-		<div id="grupo-palabras">
-			<label>Palabras clave<br><input type="text" name="dc.subject" id="43_array-0-dc_subject"></label>
-			<button type="button" class="add-button" data-grupo="grupo-palabras" data-plantilla="input[name='dc.subject']">+ Agregar palabra clave</button>
+		<div id="11_array" class="ng-untouched ng-pristine ng-invalid">
+			<div id="cdk-drop-list-2" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>Autores<br><input type="text" name="dc.contributor.author" id="11_array-0-dc_contributor_author" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+					<div><div>
+						<button type="button" role="button" class="ds-form-add-more btn btn-link" title="Añadir más" aria-label="Añadir más"><i class="fas fa-plus"></i> Añadir</button>
+					</div></div>
+				</div>
+			</div>
 		</div>
 
-		<div id="grupo-dni-autor">
-			<label>DNI autor: tipo<br>
-				<select name="renati.author_QUALDROP_METADATA" id="13_array-0-renati_author_QUALDROP_METADATA">
-					<option value=""></option>
-					<option value="0: renati.author.dni">DNI</option>
-					<option value="1: renati.author.cext">CE-Carné de extranjería</option>
-					<option value="2: renati.author.pasaporte">Pasaporte</option>
-					<option value="3: renati.author.cedula">Cédula de identidad</option>
-				</select>
-			</label>
-			<label>número<br><input type="text" name="renati.author_QUALDROP_VALUE" id="13_array-0-renati_author_QUALDROP_VALUE"></label>
-			<button type="button" class="add-button" data-grupo="grupo-dni-autor" data-plantilla="select[name='renati.author_QUALDROP_METADATA'],input[name='renati.author_QUALDROP_VALUE']">+ Agregar DNI</button>
+		<div id="15_array" class="ng-untouched ng-pristine ng-invalid">
+			<div id="cdk-drop-list-3" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>Asesor<br><input type="text" name="dc.contributor.advisor" id="15_array-0-dc_contributor_advisor" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+				</div>
+			</div>
 		</div>
 
-		<p><label>DNI asesor: tipo<br>
-			<select name="renati.advisor_QUALDROP_METADATA" id="17_array-0-renati_advisor_QUALDROP_METADATA">
-				<option value=""></option>
-				<option value="0: renati.advisor.dni">DNI</option>
-				<option value="1: renati.advisor.cext">CE-Carné de extranjería</option>
-			</select></label>
-			<label>número<br><input type="text" name="renati.advisor_QUALDROP_VALUE" id="17_array-0-renati_advisor_QUALDROP_VALUE"></label>
-		</p>
-		<p><label>ORCID asesor<br><input type="text" name="renati.advisor.orcid" id="19_array-0-renati_advisor_orcid"></label></p>
+		<div id="37_array" class="ng-untouched ng-pristine ng-invalid">
+			<div id="cdk-drop-list-4" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>Resumen<br><textarea name="dc.description.abstract" id="37_array-0-dc_description_abstract" class="form-control"></textarea></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+				</div>
+			</div>
+		</div>
+
+		<div id="43_array" class="ng-untouched ng-pristine ng-invalid">
+			<div id="cdk-drop-list-5" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>Palabras clave<br><input type="text" name="dc.subject" id="43_array-0-dc_subject" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+					<div><div>
+						<button type="button" role="button" class="ds-form-add-more btn btn-link" title="Añadir más" aria-label="Añadir más"><i class="fas fa-plus"></i> Añadir</button>
+					</div></div>
+				</div>
+			</div>
+		</div>
+
+		<div id="13_array" class="ng-untouched ng-pristine ng-valid">
+			<div id="cdk-drop-list-6" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col-sm-4 pr-0">
+						<div><div class="form-row">
+							<label>DNI autor: tipo<br>
+								<select name="renati.author_QUALDROP_METADATA" id="13_array-0-renati_author_QUALDROP_METADATA" class="form-control">
+									<option value=""></option>
+									<option value="0: renati.author.dni">DNI</option>
+									<option value="1: renati.author.cext">CE-Carné de extranjería</option>
+									<option value="2: renati.author.pasaporte">Pasaporte</option>
+									<option value="3: renati.author.cedula">Cédula de identidad</option>
+								</select>
+							</label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>número<br><input type="text" name="renati.author_QUALDROP_VALUE" id="13_array-0-renati_author_QUALDROP_VALUE" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+					<div><div>
+						<button type="button" role="button" class="ds-form-add-more btn btn-link" title="Añadir más" aria-label="Añadir más"><i class="fas fa-plus"></i> Añadir</button>
+					</div></div>
+				</div>
+			</div>
+		</div>
+
+		<div id="17_array" class="ng-untouched ng-pristine ng-valid">
+			<div id="cdk-drop-list-7" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col-sm-4 pr-0">
+						<div><div class="form-row">
+							<label>DNI asesor: tipo<br>
+								<select name="renati.advisor_QUALDROP_METADATA" id="17_array-0-renati_advisor_QUALDROP_METADATA" class="form-control">
+									<option value=""></option>
+									<option value="0: renati.advisor.dni">DNI</option>
+									<option value="1: renati.advisor.cext">CE-Carné de extranjería</option>
+								</select>
+							</label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>número<br><input type="text" name="renati.advisor_QUALDROP_VALUE" id="17_array-0-renati_advisor_QUALDROP_VALUE" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+				</div>
+			</div>
+		</div>
+
+		<div id="19_array" class="ng-untouched ng-pristine ng-valid">
+			<div id="cdk-drop-list-8" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
+				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
+					<ds-dynamic-form-control-container class="col">
+						<div><div class="form-row">
+							<label>ORCID asesor<br><input type="text" name="renati.advisor.orcid" id="19_array-0-renati_advisor_orcid" class="form-control"></label>
+						</div></div>
+					</ds-dynamic-form-control-container>
+				</div>
+			</div>
+		</div>
+
 		<p><label>Año<br><input type="text" id="dc_date_issued_year" maxlength="4" placeholder="Año"></label></p>
 
 		<p><label>Nivel de acceso (combobox simulado)<br>
@@ -97,21 +207,28 @@
 		// JS mínimo del mock (sin Angular): hace crecer las filas, simula
 		// el filtrado del combobox y navega al "ítem archivado".
 
-		// Botones "+": clonan la última fila del grupo y limpian los campos.
-		document.querySelectorAll(".add-button").forEach(function (boton) {
+		// Botones "+" (ds-form-add-more): clonan la última fila del MISMO
+		// array #N_array y la re-etiquetan (#N_array-<índice>-<campo>), como
+		// el formulario real. La fila nueva no repite el botón: el mock
+		// deja uno por array.
+		document.querySelectorAll('[id$="_array"]').forEach(function (array) {
+			const lista = array.querySelector(".cdk-drop-list");
+			const boton = array.querySelector("button.ds-form-add-more");
+			if (!lista || !boton) return;
 			boton.addEventListener("click", function () {
-				const grupo = document.getElementById(boton.dataset.grupo);
-				const ultimo = grupo.querySelector(":scope > label:last-of-type");
-				const clon = ultimo.cloneNode(true);
+				const filas = lista.querySelectorAll(".cdk-drag.form-row");
+				if (!filas.length) return;
+				const indice = filas.length;
+				const clon = filas[filas.length - 1].cloneNode(true);
+				clon.querySelectorAll("[id]").forEach(function (el) {
+					el.id = el.id.replace(/-\d+-/, "-" + indice + "-");
+				});
+				const botonClon = clon.querySelector("button.ds-form-add-more");
+				if (botonClon) botonClon.remove();
 				clon.querySelectorAll("input,select,textarea").forEach(function (el) {
 					if (el.type !== "button") el.value = "";
 				});
-				// Re-etiquetar el id para no duplicar: se deja el name igual
-				// (así querySelectorAll junta todas las filas por name).
-				clon.querySelectorAll("[id]").forEach(function (el) {
-					el.id = el.id + "_" + Date.now();
-				});
-				ultimo.after(clon);
+				lista.appendChild(clon);
 			});
 		});
 
@@ -172,6 +289,24 @@
 			],
 		};
 
+		// Ficha con DOS autores: ejercita el camino de las filas repetidas
+		// (el "+" de ds-form-add-more). La última ficha publicada gana en
+		// el buzón.
+		const FICHA_DEMO_DOS = {
+			extraidos: FICHA_DEMO.extraidos.map(function (e) {
+				if (e.campo !== "dc.contributor.author") return Object.assign({}, e);
+				return Object.assign({}, e, {
+					valor: ["Ana María Pérez García", "Luis Alberto Ramírez Vega"],
+				});
+			}),
+			manuales: [
+				{ campo: "matricula", valor: ["10584011-18", "10584022-19"] },
+				{ campo: "renati.author.dni", valor: ["12345678", "87654321"] },
+				{ campo: "renati.advisor.dni", valor: "11222333" },
+				{ campo: "renati.advisor.orcid", valor: "0000-0002-1825-0097" },
+			],
+		};
+
 		const estadoFicha = document.getElementById("estado-ficha");
 
 		async function consultarFicha() {
@@ -193,13 +328,13 @@
 			}
 		}
 
-		document.getElementById("btn-publicar-ficha").addEventListener("click", async function () {
+		async function publicarFicha(ficha) {
 			estadoFicha.textContent = "Publicando ficha de prueba…";
 			try {
 				const r = await fetch("/api-proxy/ficha-pendiente", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(FICHA_DEMO),
+					body: JSON.stringify(ficha),
 				});
 				if (r.status === 204) {
 					estadoFicha.innerHTML = "✅ <strong>Ficha publicada</strong> — pulsa el botón verde flotante " +
@@ -212,8 +347,14 @@
 			} catch (e) {
 				estadoFicha.textContent = "No se pudo publicar (¿está la API en :8000?).";
 			}
-		});
+		}
 
+		document.getElementById("btn-publicar-ficha").addEventListener("click", function () {
+			publicarFicha(FICHA_DEMO);
+		});
+		document.getElementById("btn-publicar-ficha-dos").addEventListener("click", function () {
+			publicarFicha(FICHA_DEMO_DOS);
+		});
 		document.getElementById("btn-recargar").addEventListener("click", consultarFicha);
 		consultarFicha();
 	</script>

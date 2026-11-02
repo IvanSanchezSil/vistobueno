@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VistoBueno — rellenador del formulario de depósito UNT
 // @namespace    vistobueno
-// @version      1.0.0
+// @version      1.1.0
 // @description  Pre-llena el formulario oficial de depósito de DSpace (repositorio UNT) con la ficha de VistoBueno, captura el momento del depósito y reporta el handle del ítem. Ver docs/PLAN_FICHA_DEPOSITO.md.
 // @match        https://repositorio.unitru.edu.pe/*
 // @run-at       document-idle
@@ -9,6 +9,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @connect      localhost
+// @updateURL    https://raw.githubusercontent.com/retblast/vistobueno/master/tools/dspace-fill/dist/vistobueno-dspace-fill.user.js
+// @downloadURL  https://raw.githubusercontent.com/retblast/vistobueno/master/tools/dspace-fill/dist/vistobueno-dspace-fill.user.js
 // ==/UserScript==
 
 
@@ -249,6 +251,12 @@ const VBEjecutor = (() => {
 	const SELECTOR_ARRAY = '[id$="_array"]';
 	const SELECTOR_AGREGAR = "button.ds-form-add-more";
 
+	// Al pulsar "+", Angular re-renderiza el formulario de forma
+	// asíncrona: la fila no existe en el mismo tick del clic. Se espera
+	// a que el conteo crezca antes de seguir (revisión PR #71, M4).
+	const INTENTOS_AGREGAR = 8;
+	const ESPERA_AGREGAR_MS = 120;
+
 	function _evento(doc, el, tipo) {
 		const vista = el.ownerDocument.defaultView;
 		el.dispatchEvent(new vista.Event(tipo, { bubbles: true }));
@@ -295,12 +303,12 @@ const VBEjecutor = (() => {
 		return _aplicarTexto(doc, { selector: op.selector, valor: anho[0] });
 	}
 
-	function _aplicarFilas(doc, op) {
+	async function _aplicarFilas(doc, op, dormir) {
 		const existentes = Array.from(doc.querySelectorAll(op.selector));
 		if (!existentes.length) return false;
 		const necesarios = op.valores.length;
 		for (let i = existentes.length; i < necesarios; i++) {
-			_agregarFila(doc, op.selector);
+			await _agregarFila(doc, op.selector, dormir);
 		}
 		const filas = Array.from(doc.querySelectorAll(op.selector));
 		let aplicadas = 0;
@@ -315,7 +323,7 @@ const VBEjecutor = (() => {
 		return aplicadas === necesarios && filas.length >= necesarios;
 	}
 
-	function _agregarFila(doc, selectorCercano) {
+	async function _agregarFila(doc, selectorCercano, dormir) {
 		// El botón se busca SOLO dentro del contenedor del campo: pulsar
 		// un "+" global agregaría la fila de otro campo y desalinearía los
 		// índices. Si el campo no existe o no hay botón, no se insiste: el
@@ -326,18 +334,23 @@ const VBEjecutor = (() => {
 		if (!boton) return false;
 		const antes = doc.querySelectorAll(selectorCercano).length;
 		boton.click();
-		// Angular agrega la fila en el mismo tick del clic; si no lo hizo,
-		// no se insiste (la siguiente iteración no vería el cambio).
+		// El render de Angular es asíncrono: se espera a que la fila
+		// exista. Antes se contaba en el mismo tick y la fila nunca
+		// alcanzaba a crearse (revisión PR #71, M4).
+		for (let i = 0; i < INTENTOS_AGREGAR; i++) {
+			if (doc.querySelectorAll(selectorCercano).length > antes) return true;
+			await dormir(ESPERA_AGREGAR_MS);
+		}
 		return doc.querySelectorAll(selectorCercano).length > antes;
 	}
 
-	function _aplicarQualdrop(doc, op) {
+	async function _aplicarQualdrop(doc, op, dormir) {
 		const metas = Array.from(doc.querySelectorAll(op.selectorMeta));
 		const valores = Array.from(doc.querySelectorAll(op.selectorValor));
 		if (!metas.length || !valores.length) return false;
 		const necesarios = op.valores.length;
 		for (let i = metas.length; i < necesarios; i++) {
-			_agregarFila(doc, op.selectorMeta);
+			await _agregarFila(doc, op.selectorMeta, dormir);
 		}
 		const metasFinal = Array.from(doc.querySelectorAll(op.selectorMeta));
 		const valoresFinal = Array.from(doc.querySelectorAll(op.selectorValor));
@@ -393,8 +406,8 @@ const VBEjecutor = (() => {
 			let ok = false;
 			if (op.tipo === "texto") ok = _aplicarTexto(doc, op);
 			else if (op.tipo === "anhoDesdeTexto") ok = _aplicarAnhoDesdeTexto(doc, op);
-			else if (op.tipo === "filas") ok = _aplicarFilas(doc, op);
-			else if (op.tipo === "qualdrop") ok = _aplicarQualdrop(doc, op);
+			else if (op.tipo === "filas") ok = await _aplicarFilas(doc, op, dormir);
+			else if (op.tipo === "qualdrop") ok = await _aplicarQualdrop(doc, op, dormir);
 			else if (op.tipo === "combobox") ok = await _aplicarCombobox(doc, op, dormir);
 			if (ok) exitosos.push(op.tipo);
 			else fallidos.push(op.tipo);
@@ -586,7 +599,32 @@ if (typeof module !== "undefined" && module.exports) {
 
 	// --- Flujo principal ---
 
+	function _tituloDelFormulario() {
+		const el = doc.querySelector(VBCompuertas.SELECTORES.titulo);
+		return el ? (el.value || "").trim() : "";
+	}
+
 	function llenar(ficha) {
+		const tituloFicha = (VBMapeador.valorExtraido(ficha, "dc.title") || "").trim();
+		const tituloActual = _tituloDelFormulario();
+		const envio = GM_getValue(CLAVE_ENVIO, null);
+		// Si el userscript YA llenó esta tesis y el formulario sigue
+		// mostrando su título, NO se vuelve a llenar: el operador ya
+		// corrigió lo que quiso y un segundo relleno pisaría sus
+		// cambios (revisión PR #71, b1).
+		//
+		// La condición exige un envío registrado: si el operador escribió
+		// el título a mano (sin relleno previo), el llenado sigue
+		// adelante — si no, el formulario quedaría a medias sin salida.
+		const yaLleno =
+			envio &&
+			envio.titulo &&
+			tituloFicha &&
+			VBCompuertas.titulosCoinciden(envio.titulo, tituloFicha);
+		if (yaLleno && tituloActual && VBCompuertas.titulosCoinciden(tituloActual, tituloFicha)) {
+			mostrarToast("El formulario ya tiene esta tesis: no se volvió a rellenar.");
+			return;
+		}
 		const plan = VBMapeador.construirPlan(ficha, VBCompuertas.SELECTORES);
 		VBEjecutor.aplicarPlan(doc, plan).then(function (resumen) {
 			const partes = ["Rellenado de VistoBueno — revisa antes de continuar."];
@@ -594,9 +632,12 @@ if (typeof module !== "undefined" && module.exports) {
 			if (resumen.fallidos.length) partes.push("A mano: " + resumen.fallidos.join(", ") + ".");
 			if (resumen.omitidos.length) partes.push("Sin dato: " + resumen.omitidos.join(", ") + ".");
 			mostrarToast(partes.join(" "), 12000);
+			// El timestamp del clic en "Depositar" se conserva: un
+			// relleno posterior no puede borrarlo (revisión PR #71, b1).
+			const previo = GM_getValue(CLAVE_ENVIO, null);
 			GM_setValue(CLAVE_ENVIO, {
 				titulo: VBMapeador.valorExtraido(ficha, "dc.title") || null,
-				timestamp: null,
+				timestamp: previo ? previo.timestamp || null : null,
 			});
 		});
 	}

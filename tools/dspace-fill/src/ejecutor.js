@@ -16,6 +16,12 @@ const VBEjecutor = (() => {
 	const SELECTOR_ARRAY = '[id$="_array"]';
 	const SELECTOR_AGREGAR = "button.ds-form-add-more";
 
+	// Al pulsar "+", Angular re-renderiza el formulario de forma
+	// asíncrona: la fila no existe en el mismo tick del clic. Se espera
+	// a que el conteo crezca antes de seguir (revisión PR #71, M4).
+	const INTENTOS_AGREGAR = 8;
+	const ESPERA_AGREGAR_MS = 120;
+
 	function _evento(doc, el, tipo) {
 		const vista = el.ownerDocument.defaultView;
 		el.dispatchEvent(new vista.Event(tipo, { bubbles: true }));
@@ -62,12 +68,12 @@ const VBEjecutor = (() => {
 		return _aplicarTexto(doc, { selector: op.selector, valor: anho[0] });
 	}
 
-	function _aplicarFilas(doc, op) {
+	async function _aplicarFilas(doc, op, dormir) {
 		const existentes = Array.from(doc.querySelectorAll(op.selector));
 		if (!existentes.length) return false;
 		const necesarios = op.valores.length;
 		for (let i = existentes.length; i < necesarios; i++) {
-			_agregarFila(doc, op.selector);
+			await _agregarFila(doc, op.selector, dormir);
 		}
 		const filas = Array.from(doc.querySelectorAll(op.selector));
 		let aplicadas = 0;
@@ -82,7 +88,7 @@ const VBEjecutor = (() => {
 		return aplicadas === necesarios && filas.length >= necesarios;
 	}
 
-	function _agregarFila(doc, selectorCercano) {
+	async function _agregarFila(doc, selectorCercano, dormir) {
 		// El botón se busca SOLO dentro del contenedor del campo: pulsar
 		// un "+" global agregaría la fila de otro campo y desalinearía los
 		// índices. Si el campo no existe o no hay botón, no se insiste: el
@@ -93,18 +99,23 @@ const VBEjecutor = (() => {
 		if (!boton) return false;
 		const antes = doc.querySelectorAll(selectorCercano).length;
 		boton.click();
-		// Angular agrega la fila en el mismo tick del clic; si no lo hizo,
-		// no se insiste (la siguiente iteración no vería el cambio).
+		// El render de Angular es asíncrono: se espera a que la fila
+		// exista. Antes se contaba en el mismo tick y la fila nunca
+		// alcanzaba a crearse (revisión PR #71, M4).
+		for (let i = 0; i < INTENTOS_AGREGAR; i++) {
+			if (doc.querySelectorAll(selectorCercano).length > antes) return true;
+			await dormir(ESPERA_AGREGAR_MS);
+		}
 		return doc.querySelectorAll(selectorCercano).length > antes;
 	}
 
-	function _aplicarQualdrop(doc, op) {
+	async function _aplicarQualdrop(doc, op, dormir) {
 		const metas = Array.from(doc.querySelectorAll(op.selectorMeta));
 		const valores = Array.from(doc.querySelectorAll(op.selectorValor));
 		if (!metas.length || !valores.length) return false;
 		const necesarios = op.valores.length;
 		for (let i = metas.length; i < necesarios; i++) {
-			_agregarFila(doc, op.selectorMeta);
+			await _agregarFila(doc, op.selectorMeta, dormir);
 		}
 		const metasFinal = Array.from(doc.querySelectorAll(op.selectorMeta));
 		const valoresFinal = Array.from(doc.querySelectorAll(op.selectorValor));
@@ -160,8 +171,8 @@ const VBEjecutor = (() => {
 			let ok = false;
 			if (op.tipo === "texto") ok = _aplicarTexto(doc, op);
 			else if (op.tipo === "anhoDesdeTexto") ok = _aplicarAnhoDesdeTexto(doc, op);
-			else if (op.tipo === "filas") ok = _aplicarFilas(doc, op);
-			else if (op.tipo === "qualdrop") ok = _aplicarQualdrop(doc, op);
+			else if (op.tipo === "filas") ok = await _aplicarFilas(doc, op, dormir);
+			else if (op.tipo === "qualdrop") ok = await _aplicarQualdrop(doc, op, dormir);
 			else if (op.tipo === "combobox") ok = await _aplicarCombobox(doc, op, dormir);
 			if (ok) exitosos.push(op.tipo);
 			else fallidos.push(op.tipo);

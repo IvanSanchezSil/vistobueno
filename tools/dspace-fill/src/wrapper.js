@@ -121,7 +121,32 @@
 
 	// --- Flujo principal ---
 
+	function _tituloDelFormulario() {
+		const el = doc.querySelector(VBCompuertas.SELECTORES.titulo);
+		return el ? (el.value || "").trim() : "";
+	}
+
 	function llenar(ficha) {
+		const tituloFicha = (VBMapeador.valorExtraido(ficha, "dc.title") || "").trim();
+		const tituloActual = _tituloDelFormulario();
+		const envio = GM_getValue(CLAVE_ENVIO, null);
+		// Si el userscript YA llenó esta tesis y el formulario sigue
+		// mostrando su título, NO se vuelve a llenar: el operador ya
+		// corrigió lo que quiso y un segundo relleno pisaría sus
+		// cambios (revisión PR #71, b1).
+		//
+		// La condición exige un envío registrado: si el operador escribió
+		// el título a mano (sin relleno previo), el llenado sigue
+		// adelante — si no, el formulario quedaría a medias sin salida.
+		const yaLleno =
+			envio &&
+			envio.titulo &&
+			tituloFicha &&
+			VBCompuertas.titulosCoinciden(envio.titulo, tituloFicha);
+		if (yaLleno && tituloActual && VBCompuertas.titulosCoinciden(tituloActual, tituloFicha)) {
+			mostrarToast("El formulario ya tiene esta tesis: no se volvió a rellenar.");
+			return;
+		}
 		const plan = VBMapeador.construirPlan(ficha, VBCompuertas.SELECTORES);
 		VBEjecutor.aplicarPlan(doc, plan).then(function (resumen) {
 			const partes = ["Rellenado de VistoBueno — revisa antes de continuar."];
@@ -129,9 +154,12 @@
 			if (resumen.fallidos.length) partes.push("A mano: " + resumen.fallidos.join(", ") + ".");
 			if (resumen.omitidos.length) partes.push("Sin dato: " + resumen.omitidos.join(", ") + ".");
 			mostrarToast(partes.join(" "), 12000);
+			// El timestamp del clic en "Depositar" se conserva: un
+			// relleno posterior no puede borrarlo (revisión PR #71, b1).
+			const previo = GM_getValue(CLAVE_ENVIO, null);
 			GM_setValue(CLAVE_ENVIO, {
 				titulo: VBMapeador.valorExtraido(ficha, "dc.title") || null,
-				timestamp: null,
+				timestamp: previo ? previo.timestamp || null : null,
 			});
 		});
 	}

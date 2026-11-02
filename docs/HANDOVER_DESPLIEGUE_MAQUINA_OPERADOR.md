@@ -94,7 +94,22 @@ escape `*` desactiva el control y que el control es lo que lo bloquea.
 > La variable `VISTOBUENO_HOSTS` se lee en cada petición: no hace falta
 > reiniciar el servidor para alternar el control.
 
-## 4. Rollback
+## 4. Actualizar el userscript
+
+El userscript se instala en Tampermonkey desde
+`tools/dspace-fill/dist/vistobueno-dspace-fill.user.js` (el CI verifica
+que el `dist/` no se desvía del código fuente). Desde la versión 1.1.0
+el script declara `@updateURL` y `@downloadURL` al `dist` del repositorio:
+Tampermonkey ofrece la actualización sola. Si el operador tiene la
+versión anterior pegada a mano, tiene que **reemplazar el script** por
+el `dist` actual (copiar de nuevo el contenido en el editor de
+Tampermonkey y guardar).
+
+Para saber qué versión tiene el operador: Tampermonkey muestra la versión
+en la lista de scripts instalados; el `dist` declara la suya en la línea
+`@version`.
+
+## 5. Rollback
 
 - Si una actualización deja la API sin responder, volver al commit
   anterior y reiniciar el proceso. El estado en memoria (buzón) se

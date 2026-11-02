@@ -337,7 +337,10 @@ El flujo completo es:
 - Userscript en Tampermonkey: crear un script nuevo y pegar el contenido
   de `tools/dspace-fill/dist/vistobueno-dspace-fill.user.js`. El script
   solo se conecta a `localhost` (`@connect localhost`) y **no necesita
-  token**: siempre habla con `127.0.0.1`.
+  token**: siempre habla con `127.0.0.1`. Desde la versión 1.1.0 declara
+  `@updateURL`/`@downloadURL`: Tampermonkey ofrece la actualización sola.
+  Si el script se pegó a mano en una versión anterior, hay que pegarlo de
+  nuevo (ver `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md`).
 
 ### Control de acceso (toda la API)
 

@@ -226,3 +226,55 @@ test("autores y DNI crecen en arrays distintas y quedan alineados", async () => 
 	assert.deepStrictEqual(metas, ["0: renati.author.dni", "0: renati.author.dni"]);
 	assert.deepStrictEqual(valores, ["11111111", "22222222"]);
 });
+
+// ---------------------------------------------------------------------------
+// El DOM real: render asíncrono de Angular (revisión PR #71, M4)
+// ---------------------------------------------------------------------------
+
+function domFormularioReal() {
+	// Fixture con la estructura real (#N_array + ds-form-add-more) y el
+	// render asíncrono de Angular: la fila aparece DESPUÉS del clic.
+	const html = fs.readFileSync(path.join(__dirname, "fixtures", "form-array.html"), "utf8");
+	return new JSDOM(html, { runScripts: "dangerously" });
+}
+
+test("el + que renderiza de forma asíncrona igual agrega la fila", async () => {
+	const dom = domFormularioReal();
+	const doc = dom.window.document;
+	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
+
+	// El render del fixture tarda 50 ms: el ejecutor debe esperarlo.
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, {
+		dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
+	});
+
+	assert.ok(resumen.exitosos.includes("filas"), "las filas repetidas no se llenaron");
+	const autores = Array.from(doc.querySelectorAll('input[name="dc.contributor.author"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(autores, ["Cerna Vidal Kassiel", "Varas Vega Cinthya"]);
+	const palabras = Array.from(doc.querySelectorAll('input[name="dc.subject"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(palabras, ["títeres", "lectura"]);
+});
+
+test("con render asíncrono los DNI de los dos autores quedan alineados", async () => {
+	const dom = domFormularioReal();
+	const doc = dom.window.document;
+	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
+
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, {
+		dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
+	});
+
+	assert.ok(resumen.exitosos.includes("qualdrop"), "el QUALDROP no se llenó");
+	const valores = Array.from(doc.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(valores, ["12345678", "87654321"]);
+	const metas = Array.from(
+		doc.querySelectorAll('select[name="renati.author_QUALDROP_METADATA"]')
+	).map((el) => el.value);
+	assert.deepStrictEqual(metas, ["0: renati.author.dni", "0: renati.author.dni"]);
+});
