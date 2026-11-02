@@ -187,7 +187,7 @@ El CI es la barrera de calidad del proyecto y **no se debilita para hacer pasar 
 Antes de hacer commit, siempre:
 
 1. **Tests**: `pytest tests/ -v` — todos deben pasar.
-2. **API manual**: levantar con `uvicorn validator.api:app --reload`, probar con `curl` o desde Swagger (`http://localhost:8000/docs`).
+2. **API manual**: levantar con `uvicorn validator.api:app --reload --no-proxy-headers`, probar con `curl` o desde Swagger (`http://localhost:8000/docs`).
 3. **Sin archivos temporales**: verificar que `git status` no muestre archivos que no deban ir al repo (`__pycache__`, `.pyc`, archivos temporales).
 4. **Revisar el diff**: `git diff` antes de `git add` para asegurarse de que solo cambiaste lo que querías cambiar.
 
@@ -319,7 +319,7 @@ Al entrar, el shellHook muestra los comandos disponibles. Herramientas principal
 | `nix run .#test-ficha-deposito` | Ensayo general de UN comando (flujo completo S8: ficha → buzón → userscript → constancia) |
 | `nix flake check` | Verificación completa (tests + lint del flake) |
 | `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
-| `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |
+| `uvicorn validator.api:app --reload --no-proxy-headers` | API directa (requiere `nix develop` activo) |
 
 Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng), Node.js LTS (build del frontend).
 
@@ -342,9 +342,13 @@ Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMu
 ### Correr la API en desarrollo
 
 ```bash
-uvicorn validator.api:app --reload
+uvicorn validator.api:app --reload --no-proxy-headers
 # Swagger UI: http://localhost:8000/docs
 ```
+
+> `--no-proxy-headers` es obligatorio: `uvicorn` habilita `proxy_headers`
+> por defecto y un `X-Forwarded-For` podría falsificar el peer y saltar el
+> control de loopback (auditoría 2026-10-26, AUD-09 y AUD-28).
 
 ### Ejecutar tests
 

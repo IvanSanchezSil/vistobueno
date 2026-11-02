@@ -107,6 +107,11 @@ cuatro commits atómicos:
   formados solo por puntuación (`"..."`), expresiones que esconden un
   literal (`self.password+"extra"`) y el valor por defecto de una lectura
   del entorno (`os.environ.get("X", "secreto")`).
+- `3cfd57d` y el commit siguiente — **corrección de documentación**: los
+  comandos de `uvicorn` en `AGENTS.md` ahora llevan `--no-proxy-headers`
+  (sin él, un `X-Forwarded-For` puede falsificar el peer y saltar el
+  control de loopback). El cambio se hizo con la aprobación del
+  responsable del repositorio, como exige la cláusula de `AGENTS.md`.
 
 Evidencia: **716 tests** pasan y 6 quedan como `xfail(strict=True)`, los
 32 tests de node del userscript pasan, `scripts/verify_all.sh --full` da
