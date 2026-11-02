@@ -182,15 +182,15 @@ comportamiento por defecto no cambia.
 - E2E del flujo completo → **11/11** · pytest del backend → **623 passed** (los
   2 fallos iniciales eran `openpyxl` ausente en el `.venv` local; la
   dependencia sí está declarada en `flake.nix`, el CI la tiene).
-- **Prueba en vivo con Playwright contra la API real (13/13)**: documento
-  verde → reporte → CTA → ficha → aviso de faltantes → completado de
+- **Prueba en vivo con Playwright contra la API real (11 pasos, 0 errores de
+  consola)**: documento verde → reporte → CTA → ficha → completado de
   matrícula y DNI → «Preparar depósito» → panel de espera → depósito con
-  título **distinto** (aviso de discrepancia) → rechazo → preparación de nuevo
-  → handle recibido → aceptación → **descarga real de la constancia**
-  (36.8 kB, nombre saneado por el servidor) → fila del registro en pantalla →
-  volver al reporte → reentrar a la ficha.
-- Capturas de evidencia en `docs/capturas/`: `28_ficha_espera.png`,
-  `29_ficha_handle.png`, `30_ficha_papeleo.png`.
+  título **distinto** (aviso de discrepancia) → aceptación → **descarga real
+  de la constancia** (36.9 kB, nombre saneado por el servidor) → papeleo en
+  pantalla con la fila del registro.
+- Capturas de evidencia en `docs/capturas/`: `27_ficha_edicion.png`,
+  `28_ficha_espera.png`, `29_ficha_handle.png` (con el aviso de
+  discrepancia) y `30_ficha_papeleo.png`.
 
 #### Coordinación pendiente
 
