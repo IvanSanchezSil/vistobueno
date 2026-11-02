@@ -54,6 +54,10 @@ const borrarResguardo = () => {
 }
 
 function FichaDeposito({ data, apiUrl, onBack }) {
+  // Token compartido del buzón (opcional): el backend lo exige solo si está
+  // definido (VISTOBUENO_API_TOKEN). En el loopback no hace falta, así que
+  // sin VITE_API_TOKEN la SPA sigue hablando sin header.
+  const tokenBuzon = import.meta.env.VITE_API_TOKEN || ''
   const fichaInicial = data?.ficha_deposito
   // La clave del resguardo incluye el archivo: dos tesis no comparten ficha.
   const clave = useMemo(
@@ -103,7 +107,7 @@ function FichaDeposito({ data, apiUrl, onBack }) {
     let vivo = true
     const sondear = async () => {
       try {
-        const resultado = await sondearDeposito(apiUrl)
+        const resultado = await sondearDeposito(apiUrl, tokenBuzon)
         if (!vivo) return
         if (resultado.estado === 'esperando') return
         if (resultado.estado === 'error') {
@@ -132,7 +136,7 @@ function FichaDeposito({ data, apiUrl, onBack }) {
       vivo = false
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [apiUrl, fase])
+  }, [apiUrl, fase, tokenBuzon])
 
   const preparar = async () => {
     if (faltantes.length > 0 || ocupado) return
@@ -140,7 +144,7 @@ function FichaDeposito({ data, apiUrl, onBack }) {
     setError(null)
     setAviso(null)
     try {
-      await publicarFicha(apiUrl, ficha)
+      await publicarFicha(apiUrl, ficha, tokenBuzon)
       setFase('esperando')
       setAviso('Ficha publicada en el buzón. El userscript ya puede leerla.')
     } catch (e) {
@@ -182,7 +186,7 @@ function FichaDeposito({ data, apiUrl, onBack }) {
     setError(null)
     try {
       const cuerpo = construirCuerpoConstancia(ficha, handle, timestamp, indiceAutor)
-      await descargarConstancia(apiUrl, cuerpo, formato)
+      await descargarConstancia(apiUrl, cuerpo, formato, tokenBuzon)
     } catch (e) {
       setError(e.message)
     } finally {
@@ -196,7 +200,7 @@ function FichaDeposito({ data, apiUrl, onBack }) {
     setError(null)
     try {
       const cuerpo = construirCuerpoFilaRegistro(ficha, handle, timestamp)
-      const resultado = await generarFilaRegistro(apiUrl, cuerpo, formato)
+      const resultado = await generarFilaRegistro(apiUrl, cuerpo, formato, tokenBuzon)
       if (formato === 'json') setFilas(resultado)
     } catch (e) {
       setError(e.message)

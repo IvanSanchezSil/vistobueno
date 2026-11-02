@@ -8,6 +8,7 @@ import {
   CAMPO_MATRICULA,
   CAMPO_TITULO,
   autoresDe,
+  cabecerasBuzon,
   construirCuerpoConstancia,
   construirCuerpoFilaRegistro,
   debeMostrarFicha,
@@ -19,6 +20,8 @@ import {
   listaDe,
   normalizar,
   planDeDescargas,
+  publicarFicha,
+  sondearDeposito,
   tituloCoincide,
   tituloDe,
   valorDe,
@@ -211,6 +214,59 @@ describe('generarFilaRegistro (formato json)', () => {
       const filas = await generarFilaRegistro('', { ficha: FICHA_EJEMPLO, handle: 'h', timestamp: 't' }, 'json')
       expect(filas).toHaveLength(1)
       expect(filas[0]).toContain('20201234')
+    } finally {
+      globalThis.fetch = fetchOriginal
+    }
+  })
+})
+
+// Token compartido del buzón (PR #66): el header solo viaja si hay token.
+describe('cabecerasBuzon', () => {
+  it('sin token no añade ninguna cabecera de autenticación', () => {
+    expect(cabecerasBuzon('')).toEqual({})
+    expect(cabecerasBuzon(undefined)).toEqual({})
+  })
+
+  it('con token envía el header X-VistoBueno-Token', () => {
+    expect(cabecerasBuzon('secreto')).toEqual({ 'X-VistoBueno-Token': 'secreto' })
+  })
+
+  it('conserva las cabeceras propias de la petición', () => {
+    expect(cabecerasBuzon('secreto', { 'Content-Type': 'application/json' })).toEqual({
+      'Content-Type': 'application/json',
+      'X-VistoBueno-Token': 'secreto',
+    })
+  })
+
+  it('las peticiones del buzón envían el token cuando se define', async () => {
+    const fetchOriginal = globalThis.fetch
+    const llamadas = []
+    globalThis.fetch = async (url, opciones) => {
+      llamadas.push({ url, opciones })
+      return { ok: true, status: 204, json: async () => ({}) }
+    }
+    try {
+      await publicarFicha('', { extraidos: {}, manuales: [] }, 'token-de-prueba')
+      await sondearDeposito('', 'token-de-prueba')
+      expect(llamadas[0].opciones.headers['X-VistoBueno-Token']).toBe('token-de-prueba')
+      expect(llamadas[1].opciones.headers['X-VistoBueno-Token']).toBe('token-de-prueba')
+    } finally {
+      globalThis.fetch = fetchOriginal
+    }
+  })
+
+  it('sin token, las peticiones del buzón no llevan el header', async () => {
+    const fetchOriginal = globalThis.fetch
+    const llamadas = []
+    globalThis.fetch = async (url, opciones) => {
+      llamadas.push({ url, opciones })
+      return { ok: true, status: 204, json: async () => ({}) }
+    }
+    try {
+      await publicarFicha('', { extraidos: {}, manuales: [] })
+      await sondearDeposito('')
+      expect(llamadas[0].opciones.headers['X-VistoBueno-Token']).toBeUndefined()
+      expect(llamadas[1].opciones.headers['X-VistoBueno-Token']).toBeUndefined()
     } finally {
       globalThis.fetch = fetchOriginal
     }

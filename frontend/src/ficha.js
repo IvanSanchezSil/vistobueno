@@ -218,11 +218,21 @@ const detalleDe = async (res) => {
   }
 }
 
+// Token compartido del buzón (opcional). El backend (PR #66) admite
+// `VISTOBUENO_API_TOKEN` y, cuando está definido, exige el header
+// `X-VistoBueno-Token` en los endpoints del buzón. El loopback no lo exige
+// (la SPA y el userscript corren en la misma máquina), así que el header solo
+// se envía si hay token configurado en el build (VITE_API_TOKEN).
+export const cabecerasBuzon = (token, extra = {}) => ({
+  ...extra,
+  ...(token ? { 'X-VistoBueno-Token': token } : {}),
+})
+
 // Publica la ficha editada en el buzón (POST /ficha-pendiente, 204).
-export const publicarFicha = async (apiUrl, ficha) => {
+export const publicarFicha = async (apiUrl, ficha, token = '') => {
   const res = await fetch(`${apiUrl}/ficha-pendiente`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: cabecerasBuzon(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(ficha),
   })
   if (!res.ok) {
@@ -233,8 +243,8 @@ export const publicarFicha = async (apiUrl, ficha) => {
 }
 
 // Sondeo del buzón (GET /deposito): 404 = aún no hay depósito.
-export const sondearDeposito = async (apiUrl) => {
-  const res = await fetch(`${apiUrl}/deposito`)
+export const sondearDeposito = async (apiUrl, token = '') => {
+  const res = await fetch(`${apiUrl}/deposito`, { headers: cabecerasBuzon(token) })
   let cuerpo = null
   try {
     cuerpo = await res.json()
@@ -263,10 +273,10 @@ const dispararDescarga = (blob, nombre) => {
 
 // Descarga de la constancia de UN autor (formato=docx) o del paquete por
 // autor (formato=zip: constancia + registro.csv del mismo estudiante).
-export const descargarConstancia = async (apiUrl, cuerpo, formato = 'docx') => {
+export const descargarConstancia = async (apiUrl, cuerpo, formato = 'docx', token = '') => {
   const res = await fetch(`${apiUrl}/constancia?formato=${formato}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: cabecerasBuzon(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(cuerpo),
   })
   if (!res.ok) {
@@ -281,10 +291,10 @@ export const descargarConstancia = async (apiUrl, cuerpo, formato = 'docx') => {
 
 // Fila del registro: json (lista TSV para copiar/pegar) o archivo descargable
 // (tsv/csv/xlsx). La app NUNCA escribe el XLSX oficial de la biblioteca.
-export const generarFilaRegistro = async (apiUrl, cuerpo, formato = 'json') => {
+export const generarFilaRegistro = async (apiUrl, cuerpo, formato = 'json', token = '') => {
   const res = await fetch(`${apiUrl}/fila-registro?formato=${formato}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: cabecerasBuzon(token, { 'Content-Type': 'application/json' }),
     body: JSON.stringify(cuerpo),
   })
   if (!res.ok) {
