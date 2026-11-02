@@ -425,3 +425,32 @@ def test_permite_lectura_con_environ_get(tmp_path):
     )
     r = correr([str(archivo)])
     assert r.returncode == 0, r.stdout
+
+
+def test_detecta_literal_en_el_valor_por_defecto(tmp_path):
+    """`os.environ.get("X", "secreto")` no es una lectura: es un secreto.
+
+    El literal va en el valor por defecto: sin revisarlo, la credencial
+    pasaba por completo.
+    """
+    archivo = tmp_path / "config.py"
+    archivo.write_text(
+        "PASSWORD=os.environ.get('VISTOBUENO_SMTP_PASSWORD', 'secreto-real')\n",
+        encoding="utf-8",
+    )
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+    assert "PASSWORD" in r.stdout
+    assert "secreto-real" not in r.stdout
+
+
+def test_permite_default_placeholder_en_la_lectura(tmp_path):
+    """Un default vacío o placeholder en la lectura sigue siendo lectura."""
+    archivo = tmp_path / "config.py"
+    archivo.write_text(
+        "PASSWORD=os.environ.get('VISTOBUENO_SMTP_PASSWORD', '')\n"
+        "TOKEN=os.environ.get('VISTOBUENO_TOKEN', '<valor>')\n",
+        encoding="utf-8",
+    )
+    r = correr([str(archivo)])
+    assert r.returncode == 0, r.stdout

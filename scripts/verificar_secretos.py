@@ -13,8 +13,9 @@ proyecto (SMTP, DSpace y el token del buzón) y cualquier archivo .env /
 Valores permitidos (placeholders documentales/dummy): ``dummy``, ``prueba``,
 ``test``, ``changeme``, ``<valor>``, los valores entre ángulos
 (``<mi-token>``), los que terminan en ``-de-prueba`` (convención de los
-tests del repo) y las referencias al entorno (``$VAR``, ``${VAR}``,
-``os.environ.get(...)``).
+tests del repo), las referencias al entorno (``$VAR``, ``${VAR}``,
+``os.environ.get(...)`` sin literal en el valor por defecto) y la
+referencia a un atributo del propio objeto (``self.password``).
 
 El propio verificador y sus tests están excluidos: contienen el patrón
 deliberadamente (para probarlo) pero nunca un valor real.
@@ -45,6 +46,9 @@ Límites conocidos (declarados a propósito):
   decisión: los secretos reales del proyecto se configuran por variable
   de entorno, y revisar minúsculas produciría falsos positivos en cada
   test y docstring del repo.
+- El valor capturado llega hasta el primer espacio: una expresión con
+  espacios se revisa solo por su primera parte (``self.password + "x"``
+  se ve como ``self.password``).
 - No se revisan **archivos binarios**: se leen con ``errors="replace"``
   y solo se busca texto.
 - No se detectan secretos **partidos** o codificados (base64, cifrado).
@@ -121,6 +125,11 @@ PREFIXOS_REFERENCIA = ("os.environ", "os.getenv", "getenv(", "environ[", "enviro
 # (revisión PR #71, b3).
 REFERENCIA_ATRIBUTO = re.compile(r"^(self|cls)\.[A-Za-z_][A-Za-z0-9_]*$")
 
+# Literal embebido en el valor por defecto de una lectura del entorno:
+# os.environ.get("X", "hunter2") no es una lectura, es un secreto
+# (nota de la revisión del PR #71).
+DEFAULT_ENTORNO = re.compile(r"""environ\.get\(\s*['"][^'"]*['"]\s*,\s*(['"])(?P<valor>[^'"]*)\1""")
+
 # Archivos que contienen el patrón deliberadamente (el verificador y sus
 # tests); comparación por ruta relativa POSIX desde la raíz del repo.
 EXCLUIDOS = {
@@ -154,8 +163,15 @@ MSG_ENV = (
 )
 
 
-def _valor_permitido(valor: str) -> bool:
-    """True si el valor capturado es placeholder o autorreferencia ($VAR)."""
+def _valor_permitido(valor: str, resto: str = "") -> bool:
+    """True si el valor capturado es placeholder o autorreferencia ($VAR).
+
+    Args:
+        valor: el valor capturado por el patrón de asignación.
+        resto: lo que sigue al valor en la línea. Sirve para revisar el
+            literal embebido en el valor por defecto de una lectura del
+            entorno (`os.environ.get("X", "secreto")`).
+    """
     # El valor capturado viene de una línea de texto: puede quedar pegado a
     # comillas, paréntesis o backticks (por ejemplo, un ejemplo citado
     # dentro de una frase). Se quita esa envoltura antes de decidir.
@@ -183,6 +199,10 @@ def _valor_permitido(valor: str) -> bool:
         return True
     if limpio.startswith(PREFIXOS_REFERENCIA):
         # Lectura del entorno, no un valor: os.environ.get("X", "")
+        # Salvo que traiga un literal real como valor por defecto.
+        default = DEFAULT_ENTORNO.search(resto)
+        if default and default.group("valor"):
+            return _valor_permitido(default.group("valor"))
         return True
     if REFERENCIA_ATRIBUTO.match(limpio):
         # Referencia a un atributo (self.password): el valor vive en el
@@ -247,6 +267,10 @@ def verificar_archivo(ruta: Path) -> list[str]:
         m = PATRON_ASIGNACION.search(linea)
         if m:
             valor = m.group(2)
+            # Lo que sigue al valor capturado (incluido el valor): sirve
+            # para revisar el literal embebido en el valor por defecto de
+            # una lectura del entorno (os.environ.get("X", "secreto")).
+            resto = linea[m.start(2) :]
             if valor.strip("\"'") in ("|", ">"):
                 # Bloque YAML multilínea: el valor está en las líneas
                 # indentadas que siguen. Se revisan todas: si una sola
@@ -255,7 +279,7 @@ def verificar_archivo(ruta: Path) -> list[str]:
                 bloque = _lineas_bloque_yaml(lineas, n - 1, sangria)
                 if any(not _valor_permitido(v) for v in bloque):
                     violaciones.append(MSG_VIOLACION.format(ruta=ruta, linea=n, var=m.group(1)))
-            elif not _valor_permitido(valor):
+            elif not _valor_permitido(valor, resto):
                 # No se imprime el valor: nunca repetir un posible secreto en logs.
                 violaciones.append(MSG_VIOLACION.format(ruta=ruta, linea=n, var=m.group(1)))
         if PATRON_URL_CREDENCIALES.search(linea):

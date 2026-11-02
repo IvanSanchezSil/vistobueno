@@ -449,13 +449,13 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | Nuevo: `palabras_clave_minimo` | Int3 | pendiente | — |
 | Nuevo: plantillas no cuantitativas | Int3 | documentar | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
-| AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR pendiente) |
-| AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR pendiente) |
-| AUD-30 | Int1 | **cerrado** (acceso al papeleo) | `8efffd7` (PR pendiente) |
-| AUD-31 | Int1 | **cerrado** (cupo adaptativo por CPU) | `8efffd7` (PR pendiente) |
-| AUD-32 | Int1 | **cerrado** (hora de Perú) | `f0ba1f0` (PR pendiente) |
-| AUD-33 | Int1 | **cerrado** (botón "+" del userscript) | `22e6a19` (PR pendiente) |
-| AUD-34 | Int1 | **cerrado** (claves entre comillas en el escáner) | `efca435` (PR pendiente) |
+| AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
+| AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR #71) |
+| AUD-30 | Int1 | **cerrado** (acceso al papeleo) | `8efffd7` (PR #71) |
+| AUD-31 | Int1 | **cerrado** (cupo adaptativo por CPU) | `8efffd7` (PR #71) |
+| AUD-32 | Int1 | **cerrado** (hora de Perú) | `f0ba1f0` (PR #71) |
+| AUD-33 | Int1 | **cerrado** (botón "+" del userscript) | `22e6a19` (PR #71) |
+| AUD-34 | Int1 | **cerrado** (claves entre comillas en el escáner) | `efca435` (PR #71) |
 | Nuevo: cache compilado por hilo | Int3 | pendiente (propuesta de Int1, §12.3) | — |
 
 ---
