@@ -30,10 +30,18 @@ export default class ErrorBoundary extends Component {
   // Al aparecer el aviso, el foco pasa al encabezado: sin esto, quien navega
   // con teclado o con lector de pantalla se queda en <body> sin enterarse del
   // fallo (mismo patrón que el semáforo del reporte).
+  // Si el fallo ocurre en el primer render, el aviso ya está montado cuando
+  // corre componentDidMount; si ocurre después, lo detecta componentDidUpdate.
+  componentDidMount() {
+    if (this.state.error) this.enfocarTitulo()
+  }
+
   componentDidUpdate(prevProps, prevState) {
-    if (!prevState.error && this.state.error && this.tituloRef) {
-      this.tituloRef.focus({ preventScroll: true })
-    }
+    if (!prevState.error && this.state.error) this.enfocarTitulo()
+  }
+
+  enfocarTitulo = () => {
+    this.tituloRef?.focus({ preventScroll: true })
   }
 
   // «Volver a la pantalla de carga»: se limpia el límite y el App descarta el
