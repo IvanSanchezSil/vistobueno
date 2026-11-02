@@ -367,3 +367,61 @@ def test_sigue_detectando_literal_pegado_a_puntuacion(tmp_path):
     r = correr([str(archivo)])
     assert r.returncode == 1
     assert "DB_PASSWORD" in r.stdout
+
+
+# ---------------------------------------------------------------------------
+# Revisión PR #71 (b3): los atajos que dejaron pasar valores reales
+# ---------------------------------------------------------------------------
+
+
+def test_detecta_valor_de_puntos_suspensivos(tmp_path):
+    """`PASSWORD = "..."` no es un placeholder: se bloquea.
+
+    Antes, al quitar la puntuación y las comillas, el valor quedaba vacío
+    y el escáner lo daba por bueno.
+    """
+    archivo = tmp_path / "config.py"
+    archivo.write_text('DB_PASSWORD = "..."\n', encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+    assert "DB_PASSWORD" in r.stdout
+
+
+def test_detecta_valor_de_solo_puntuacion_sin_comillas(tmp_path):
+    """`DB_PASSWORD = ...` también se bloquea."""
+    archivo = tmp_path / "config.py"
+    archivo.write_text("DB_PASSWORD = ...\n", encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+
+
+def test_permite_valor_vacio_entre_comillas(tmp_path):
+    """`DB_PASSWORD = ""` no filtra nada: se permite."""
+    archivo = tmp_path / "config.py"
+    archivo.write_text('DB_PASSWORD = ""\n', encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 0, r.stdout
+
+
+def test_detecta_atributo_con_concatenacion(tmp_path):
+    """`self.password` es una referencia; `self.password+"extra"` no lo es.
+
+    Solo se acepta un identificador válido detrás del punto: el resto es
+    una expresión que puede traer un literal pegado.
+    """
+    archivo = tmp_path / "config.py"
+    archivo.write_text('DB_PASSWORD = self.password+"extra"\n', encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+    assert "DB_PASSWORD" in r.stdout
+
+
+def test_permite_lectura_con_environ_get(tmp_path):
+    """`environ.get(...)` (sin el prefijo `os.`) es una lectura."""
+    archivo = tmp_path / "config.py"
+    archivo.write_text(
+        "PASSWORD=environ.get('VISTOBUENO_SMTP_PASSWORD', '')\n",
+        encoding="utf-8",
+    )
+    r = correr([str(archivo)])
+    assert r.returncode == 0, r.stdout

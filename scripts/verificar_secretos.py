@@ -113,7 +113,13 @@ PATRON_URL_CREDENCIALES = re.compile(r"://[^\s:/@]+:[^\s/@]+@")
 PLACEHOLDERS = {"dummy", "prueba", "test", "changeme", "<valor>"}
 
 # Prefijos de referencia al entorno: no son un valor, son una lectura.
-PREFIXOS_REFERENCIA = ("os.environ", "os.getenv", "getenv(", "environ[")
+PREFIXOS_REFERENCIA = ("os.environ", "os.getenv", "getenv(", "environ[", "environ.get(")
+
+# Referencia a un atributo del propio objeto: el valor vive en el
+# proceso, no en el archivo. Solo se acepta un identificador válido
+# detrás del punto: `self.password` sí; `self.password+"extra"` no
+# (revisión PR #71, b3).
+REFERENCIA_ATRIBUTO = re.compile(r"^(self|cls)\.[A-Za-z_][A-Za-z0-9_]*$")
 
 # Archivos que contienen el patrón deliberadamente (el verificador y sus
 # tests); comparación por ruta relativa POSIX desde la raíz del repo.
@@ -153,9 +159,22 @@ def _valor_permitido(valor: str) -> bool:
     # El valor capturado viene de una línea de texto: puede quedar pegado a
     # comillas, paréntesis o backticks (por ejemplo, un ejemplo citado
     # dentro de una frase). Se quita esa envoltura antes de decidir.
-    limpio = valor.strip().strip("\"'`()[]{}.,;:!?")
-    if not limpio:
+    crudo = valor.strip()
+    if not crudo:
         return True
+    # Una capa de comillas: lo que va dentro es el valor. `""` es un valor
+    # vacío (no filtra nada); `"..."` NO lo es: son solo puntos y el
+    # escáner no debe dejarlo pasar (revisión PR #71, b3).
+    interno = crudo
+    if len(crudo) >= 2 and crudo[0] == crudo[-1] and crudo[0] in "\"'":
+        interno = crudo[1:-1]
+    if not interno:
+        return True
+    limpio = interno.strip("\"'`()[]{}.,;:!?")
+    if not limpio:
+        # Solo puntuación: no es un valor con sentido ni un placeholder
+        # conocido. Se marca como violación.
+        return False
     if limpio.startswith("$"):
         # Autorreferencia de variable de entorno (${VAR}, $VAR)
         return True
@@ -165,7 +184,7 @@ def _valor_permitido(valor: str) -> bool:
     if limpio.startswith(PREFIXOS_REFERENCIA):
         # Lectura del entorno, no un valor: os.environ.get("X", "")
         return True
-    if limpio.rstrip(",").startswith(("self.", "cls.")):
+    if REFERENCIA_ATRIBUTO.match(limpio):
         # Referencia a un atributo (self.password): el valor vive en el
         # proceso, no en el archivo. Una credencial real es un literal.
         return True
