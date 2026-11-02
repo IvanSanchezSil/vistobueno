@@ -31,12 +31,16 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   contrato de la ficha: **cerrados** (PR #65, #66, #67 y #69; ver la tabla
 >   §11 del handover).
 > - **Int2 — frontend**: AUD-16 (la pantalla de ficha del handover S8 no
->   existe), AUD-17, AUD-18.
+>   existe), AUD-17, AUD-18: **cerrados** (PR #68; ver la tabla §11 del
+>   handover). La pantalla de ficha vive en
+>   `frontend/src/components/FichaDeposito.jsx` (lógica de flujo en
+>   `frontend/src/ficha.js`) y el mock de ejemplo queda **solo en desarrollo**.
 > - **Decisiones de dominio abiertas** (las necesita el equipo, no un
 >   integrante): exención de estilos en la regla de sangría, si "Base de
 >   datos cuantitativa" debe matchear "Base de datos", alcance de las reglas
->   de carátula (AUD-05/06/07), si el mock de reporte se activa en producción
->   (AUD-18) y el estado de `palabras_clave_minimo`.
+>   de carátula (AUD-05/06/07) y el estado de `palabras_clave_minimo`.
+>   (AUD-18 ya está decidido: el mock de reporte **no** se activa en
+>   producción.)
 >
 > **Ojo antes de confiar en la suite**: los tests pasan, pero **no cubren la
 > estructura real de las plantillas** (AUD-20). Un `pytest` en verde **no**
@@ -126,7 +130,7 @@ Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semá
 | **Constancias** | `validator/constancia.py` | Genera constancias por autor usando plantilla oficial (Modelo B) y MERGEFIELDs a texto plano; forma parte del endpoint `POST /constancia`. |
 | **Userscript de depósito** | `tools/dspace-fill/` | Rellena el formulario oficial de DSpace desde la ficha del buzón (`GM_xmlhttpRequest` con `@connect localhost`, auto-relleno gated con toast, timestamp del clic Depositar, reporte del handle del ítem). Artefacto instalable en `dist/` (commiteado, el CI verifica drift), núcleo puro testeado en node con jsdom; ensayo general con `nix run .#mock-dspace` (checklist en `dev/mock-dspace/README.md`) y de un comando con `nix run .#test-ficha-deposito` (driver jsdom en `dev/e2e_ensayo.js`). |
 | **Ensayo general de un comando** | `scripts/e2e_ficha_deposito.sh` | Corre el flujo completo de punta a punta: valida el doc bueno del factory, publica la ficha, corre el userscript contra el mock, verifica el handle en el buzón y genera constancia + registro descargables. Salida esperada: "✅ FLUJO COMPLETO OK". En CI como paso propio (revisión PR #55, hallazgo 16b). |
-| **Handover frontend ficha** | `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` | Pedido a Int2: pantalla de ficha (extraídos + manuales por autor), "Preparar depósito", panel de espera con sondeo del buzón, descargas de constancias y registro. |
+| **Handover frontend ficha** | `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` | Pedido a Int2: pantalla de ficha (extraídos + manuales por autor), "Preparar depósito", panel de espera con sondeo del buzón, descargas de constancias y registro. **Resuelto en el PR #68**: `frontend/src/components/FichaDeposito.jsx` (pantalla) y `frontend/src/ficha.js` (lógica pura, con `X-VistoBueno-Token` opcional vía `VITE_API_TOKEN`). |
 | **Handover de la auditoría 2026-10-26** | `docs/HANDOVER_AUDITORIA_2026-10-26.md` | Hallazgos abiertos del motor (Int3), contrato que Int1 exige, decisiones tomadas y decisiones de dominio pendientes. **Leer antes de tocar el motor.** |
 
 ---
@@ -659,7 +663,10 @@ Al revisar un PR, verificar que:
    la estructura real) y AUD-24 a AUD-27 (capturas de la ficha). Criterios de
    aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
-3. **Int2**: pantalla de ficha de depósito (handover S8, AUD-16).
+3. **Int2**: pantalla de ficha de depósito (handover S8, AUD-16): **resuelto**
+   (PR #68). Queda pendiente solo el ajuste a los cambios de contrato de
+   Int1 (`X-VistoBueno-Token`) y a los criterios de Int3 para AUD-24 a
+   AUD-27.
 4. **Proceso**: `AbortController` en el upload y foco del dropzone bajo
    `StrictMode`: **resuelto** (implementado con timeout de 30 s y manejo de
    foco).
