@@ -72,6 +72,7 @@ function Upload({ onValidated, apiUrl }) {
   const [dragActivo, setDragActivo] = useState(false)
   const inputRef = useRef(null)
   const zonaRef = useRef(null)
+  const correoRef = useRef(null)
   // Guard síncrono de validación en curso: `loading` (estado) llega tarde para
   // un doble clic en el mismo tick y no cubre el drop sobre la zona.
   const cargandoRef = useRef(false)
@@ -285,9 +286,41 @@ function Upload({ onValidated, apiUrl }) {
       ? 'Corrija el correo del estudiante o déjelo vacío.'
       : null
 
+  // Enter-to-submit: el card es un <form>, así Enter en el correo (o en
+  // cualquier campo) dispara el envío implícito del navegador, que este
+  // onSubmit traduce a `validate()`, como espera el operador. `noValidate`
+  // deja la validación en nuestras reglas (con sus mensajes aria-live); la
+  // burbuja nativa del navegador duplicaría el aviso y no sería accesible.
+  // Enter/Space sobre la dropzone no llega aquí: su onKeyDown hace
+  // preventDefault() y abre el selector de archivos.
+  const onFormSubmit = (e) => {
+    e.preventDefault()
+    validate()
+  }
+
+  // El botón «Validar documento» queda deshabilitado mientras falte el
+  // archivo .docx o el correo sea inválido; en ese estado el navegador no
+  // dispara el envío implícito con Enter y la pulsación se perdería. En vez
+  // de eso, Enter en el campo de correo lleva el foco al elemento pendiente
+  // (la dropzone o el propio campo), donde ya está el aviso correspondiente.
+  //
+  // La intercepción se limita al campo de correo a propósito: si se
+  // interceptara cualquier Enter del formulario, se anularía la activación
+  // por defecto de los botones («Quitar archivo», «Cerrar aviso») y de la
+  // casilla «Enviar observaciones» (regresión detectada en la segunda
+  // revisión del PR #62, hallazgo F1).
+  const onFormKeyDown = (e) => {
+    if (e.key !== 'Enter') return
+    if (e.target !== correoRef.current) return
+    if (file && !(correo && correoError)) return
+    e.preventDefault()
+    if (!file) zonaRef.current?.focus()
+    else correoRef.current?.focus()
+  }
+
   return (
     <main>
-      <div className="card">
+      <form className="card" noValidate onSubmit={onFormSubmit} onKeyDown={onFormKeyDown}>
         <h2>Validar documento de tesis</h2>
         <p className="intro">
           Adjunte el documento en formato <strong>DOCX</strong> para
@@ -367,6 +400,7 @@ function Upload({ onValidated, apiUrl }) {
           <input
             type="email"
             id="correo-estudiante"
+            ref={correoRef}
             placeholder="estudiante@correo.unt.edu.pe"
             value={correo}
             onChange={onCorreoChange}
@@ -416,6 +450,7 @@ function Upload({ onValidated, apiUrl }) {
               </div>
               <div className="acciones-archivo">
                 <button
+                  type="button"
                   className="btn-quitar"
                   onClick={quitarArchivo}
                   disabled={loading}
@@ -433,8 +468,8 @@ function Upload({ onValidated, apiUrl }) {
             (Arreglos.txt v7: «hacer más visible el botón Validar documento»). */}
         <div className="acciones-form">
           <button
+            type="submit"
             className="btn-validar"
-            onClick={validate}
             disabled={loading || !file || !!(correo && correoError)}
             aria-describedby={ayudaValidar ? 'validar-ayuda' : undefined}
           >
@@ -453,12 +488,12 @@ function Upload({ onValidated, apiUrl }) {
           <div className="aviso error" role="alert">
             <div className="aviso-fila">
               <strong>{error.titulo}</strong>
-              <button className="aviso-cerrar" onClick={cerrarError} aria-label="Cerrar aviso">✕</button>
+              <button type="button" className="aviso-cerrar" onClick={cerrarError} aria-label="Cerrar aviso">✕</button>
             </div>
             <span className="ejemplos">{error.texto}</span>
           </div>
         )}
-      </div>
+      </form>
     </main>
   )
 }

@@ -398,6 +398,21 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
    Siempre presente y a todo el ancho para que sea la llamada a la acción
    clara de la pantalla; se deshabilita con una ayuda explicativa. */
 .acciones-form { margin-top: .9rem; display: flex; flex-direction: column; gap: .4rem; }
+/* Botón secundario de las acciones (por ejemplo, «Recargar la página» del
+   límite de error): mismo ancho que la acción principal, pero con el
+   estilo de un control terciario, para que no compitan entre sí. */
+.acciones-form .btn-secundario {
+  width: 100%;
+  min-height: 44px;
+  padding: .6rem 1.2rem;
+  font-size: .95rem;
+  background: transparent;
+  border: 1px solid var(--gris-oscuro);
+  color: var(--gris-texto);
+}
+.acciones-form .btn-secundario:hover:not(:disabled) { border-color: var(--verde); color: var(--verde); }
+.acciones-form .btn-secundario:disabled { opacity: .7; cursor: not-allowed; }
+.dark .acciones-form .btn-secundario { border-color: #78909c; color: var(--gris-texto); }
 .acciones-form .btn-validar {
   width: 100%;
   min-height: 48px;
@@ -492,6 +507,20 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
 }
 .aviso-cerrar:hover { opacity: 1; }
 .aviso .ejemplos { display: block; margin-top: .2rem; font-size: .72rem; line-height: 1.4; }
+
+/* --- Límite de error (ErrorBoundary) --- */
+.error-detalle { margin: .6rem 0; border: 1px solid var(--gris-oscuro); border-radius: 6px; padding: .4rem .7rem; }
+/* `display: list-item` (el valor por defecto de <summary>) conserva el
+   triángulo nativo de expandible: con `display: flex` el marcador disappearía
+   y el control dejaría de parecer plegable. El objetivo táctil de 44 px se
+   resuelve con min-height y padding. */
+.error-detalle summary { cursor: pointer; font-size: .8rem; font-weight: 600; min-height: 44px; padding: .65rem 0; }
+.error-detalle pre { white-space: pre-wrap; font-size: .72rem; color: var(--gris-texto); background: var(--gris-suave); border: 1px solid var(--gris-oscuro); border-radius: 5px; padding: .5rem; margin-top: .4rem; line-height: 1.4; }
+/* En oscuro, --gris-oscuro (#2e2e2e) sobre --blanco (#2c2c2c) era invisible:
+   el borde del recuadro no se distinguía. Con este azul grisáceo el contraste
+   supera 3:1 (WCAG 1.4.11, componentes de interfaz). */
+.dark .error-detalle { border-color: #78909c; }
+.dark .error-detalle pre { background: var(--gris-medio); border-color: #78909c; }
 
 /* --- Utilidad solo para lectores de pantalla --- */
 .sr-only {
