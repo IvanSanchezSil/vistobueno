@@ -19,9 +19,9 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 | AUD-02 | Alta | `validator/tokenizer.py`, `validator/analizadores.py`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: permitir `seccion()` hasta final (`hasta_final: true`), incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes (eliminar `[:8]`). Sincronizar `tests/_mutations.py`. | Hecho (707960d) |
 | AUD-03 | Media | `validator/analizadores.py`, `validator/checks.py`, `tests/test_auditoria_motor.py` | `encontrado` legible: culpables primero, valores sin repr crudo, página del nodo infractor. Formato replicado en el motor legacy (paridad literal). | Hecho (166553f) |
 | AUD-04 | Media | `reglas_unt.yaml` | Añadir notas `EVALUADO:` a `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Hecho (feafa82) |
-| AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Pendiente (decisión) |
-| AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Pendiente (decisión) |
-| AUD-07 | Baja | `reglas_unt.yaml` | Decisión: restringir `caratula_optar_grado_tamano` al "grado de Bachiller" o añadir `EVALUADO:`. | Pendiente (decisión) |
+| AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Hecho: documentado y diferido (nota EVALUADO en el bloque de carátula) |
+| AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Hecho: umbral mantenido y documentado en el docstring + test |
+| AUD-07 | Baja | `reglas_unt.yaml` | Decisión: restringir `caratula_optar_grado_tamano` al "grado de Bachiller" o añadir `EVALUADO:`. | Hecho: XPath acotado a "bachiller" + `n_a_si_sin_nodos` |
 | AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", título "GENERAL" con entrada de índice paginada) y tests de regresión para AUD-01/AUD-02. | Hecho (b892478) |
 
 **Coordinar:** AUD-15 (`validator/exportador.py`) — fuera de alcance directo; AUD-21 (paridad) con AUD-03.
@@ -36,7 +36,7 @@ Orden propuesto:
 4. **AUD-20** — Blindar AUD-01/AUD-02 con fixtures de estructura real y tests de regresión. (Hecho)
 5. **AUD-03** — Culpables primero, valores legibles y página del nodo infractor; paridad legacy↔DSL verificada. (Hecho)
 6. **AUD-04** — Notas `EVALUADO:` en los tamaños de carátula, verificadas contra la plantilla oficial. (Hecho)
-7. **AUD-05/AUD-06/AUD-07** — Solo con decisión de dominio.
+7. **AUD-05/AUD-06/AUD-07** — Decisiones tomadas: documentar y diferir los selectores frágiles (AUD-05), mantener el umbral `>= 4` documentado (AUD-06) y acotar la regla de "optar" a "bachiller" (AUD-07). (Hecho)
 
 ## Criterios de aceptación
 
@@ -45,12 +45,15 @@ Orden propuesto:
 - [x] AUD-20: fixtures de estructura real y tests de regresión para AUD-01/AUD-02
 - [x] AUD-03: `encontrado` legible, culpables primero, página correcta
 - [x] AUD-04: notas `EVALUADO:` añadidas
-- [ ] `tests/_mutations.py` sincronizado si aplica
-- [x] `pytest tests/ -v` sin regresiones
+- [x] AUD-05: selectores frágiles documentados (endurecimiento diferido)
+- [x] AUD-06: umbral `>= 4` mantenido y documentado
+- [x] AUD-07: `caratula_optar_grado_tamano` acotada a "bachiller" (n/a en otras titulaciones)
+- [x] `tests/_mutations.py` sin cambios: no se agregaron reglas nuevas
+- [x] `pytest tests/ -v` sin regresiones (**635 passed, 1 skipped**)
 - [x] linter DSL limpio en `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y `reglas_ficha.yaml`
-- [ ] `tests/test_paridad_formatos.py` OK (o actualizado con justificación)
+- [x] `tests/test_paridad_formatos.py` OK
 - [ ] `nix flake check` OK
-- [ ] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` OK
+- [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` OK
 
 ## Riesgos
 
@@ -62,4 +65,4 @@ Orden propuesto:
 
 Plan detallado en `docs/PLAN_SEMANA10_AUDITORIA_MOTOR.md`
 
-Fixtures y regresiones: `tests/test_auditoria_motor.py` (AUD-20, commit `b892478`; AUD-03, commit `166553f`). Suite completa: **632 passed, 1 skipped**. Verificado que los tests nuevos fallan con el comportamiento anterior (AUD-01: `indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`; AUD-03: la página era la del primer nodo, no la del culpable). `docs/ejemplo_respuesta_motor.json` regenerado con el CLI contra el MANUAL. AUD-04: tamaños de la plantilla oficial verificados (`Título` sz 26 = 13 pt; `Para Optar` sz 24 = 12 pt).
+Fixtures y regresiones: `tests/test_auditoria_motor.py` (AUD-20, commit `b892478`; AUD-03, commit `166553f`). Suite completa: **632 passed, 1 skipped**. Verificado que los tests nuevos fallan con el comportamiento anterior (AUD-01: `indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`; AUD-03: la página era la del primer nodo, no la del culpable). `docs/ejemplo_respuesta_motor.json` regenerado con el CLI contra el MANUAL. AUD-04: tamaños de la plantilla oficial verificados (`Título` sz 26 = 13 pt; `Para Optar` sz 24 = 12 pt). AUD-05/AUD-06/AUD-07: decisiones tomadas y documentadas; AUD-07 añade `n_a_si_sin_nodos` al analizador XML para que la regla acotada a "bachiller" no genere un falso "no encontrado" en otras titulaciones (tests `test_aud07_*`). Suite final: **635 passed, 1 skipped**.
