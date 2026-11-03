@@ -398,6 +398,21 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
    Siempre presente y a todo el ancho para que sea la llamada a la acción
    clara de la pantalla; se deshabilita con una ayuda explicativa. */
 .acciones-form { margin-top: .9rem; display: flex; flex-direction: column; gap: .4rem; }
+/* Botón secundario de las acciones (por ejemplo, «Recargar la página» del
+   límite de error): mismo ancho que la acción principal, pero con el
+   estilo de un control terciario, para que no compitan entre sí. */
+.acciones-form .btn-secundario {
+  width: 100%;
+  min-height: 44px;
+  padding: .6rem 1.2rem;
+  font-size: .95rem;
+  background: transparent;
+  border: 1px solid var(--gris-oscuro);
+  color: var(--gris-texto);
+}
+.acciones-form .btn-secundario:hover:not(:disabled) { border-color: var(--verde); color: var(--verde); }
+.acciones-form .btn-secundario:disabled { opacity: .7; cursor: not-allowed; }
+.dark .acciones-form .btn-secundario { border-color: #78909c; color: var(--gris-texto); }
 .acciones-form .btn-validar {
   width: 100%;
   min-height: 48px;

@@ -2,10 +2,10 @@ import { Component, Fragment } from 'react'
 
 // Límite de error de React (React Docs: "Error Boundaries"): si el render de
 // una vista falla por un bug propio, la app no se queda en pantalla blanca:
-// muestra un aviso claro con una salida real («Volver a la pantalla de carga»)
-// y el detalle técnico plegado para el reporte del fallo. Solo captura
-// errores de render de los hijos; los manejadores de eventos y los efectos
-// asíncronos siguen su curso.
+// muestra un aviso claro con dos salidas («Reintentar» y «Recargar la
+// página») y el detalle técnico plegado para el reporte del fallo. Solo
+// captura errores de render de los hijos; los manejadores de eventos y los
+// efectos asíncronos siguen su curso.
 //
 // Nota de alcance: el reporte ya se defiende de un payload malformado del
 // servidor (`Report.jsx` valida `resultados`, `aplicable` y `metadatos`), así
@@ -44,15 +44,28 @@ export default class ErrorBoundary extends Component {
     this.tituloRef?.focus({ preventScroll: true })
   }
 
-  // «Volver a la pantalla de carga»: se limpia el límite y el App descarta el
-  // reporte actual, así el usuario retoma el flujo desde un estado conocido.
-  // El contador `reinicios` cambia la key del fragmento: los hijos se vuelven
-  // a montar desde cero. Sin esto, un fallo en la pantalla de carga (donde no
-  // hay reporte que descartar) se repetiría en el mismo tick y el usuario
-  // quedaría en un bucle sin salida.
-  volverACarga = () => {
+  // «Reintentar»: se limpia el límite y el App descarta el reporte actual,
+  // así el usuario retoma el flujo desde un estado conocido.
+  //
+  // Alcance real (verificado en la segunda revisión del PR #62, hallazgo F2):
+  // React ya remonta el subárbol que falló cuando el límite renderiza el
+  // aviso, así que el contador `reinicios` NO cambia la cantidad de montajes
+  // de los hijos: la key del fragmento es inocua y se conserva solo para
+  // dejar explícito que el límite se reinicia desde cero. Si el fallo es
+  // determinista (un bug que se repite siempre), el aviso vuelve a aparecer
+  // tras reintentar; por eso la segunda salida («Recargar la página») es la
+  // que rompe ese bucle de verdad.
+  reintentar = () => {
     this.setState((estado) => ({ error: null, reinicios: estado.reinicios + 1 }))
     this.props.onReiniciar?.()
+  }
+
+  // «Recargar la página»: recarga la aplicación y descarta todo el estado
+  // en memoria. Es la salida del bucle cuando el fallo se repite siempre.
+  // Se puede inyectar con `onRecargar` (lo usan los tests).
+  recargar = () => {
+    const accion = this.props.onRecargar ?? (() => window.location.reload())
+    accion()
   }
 
   render() {
@@ -66,24 +79,29 @@ export default class ErrorBoundary extends Component {
               Ocurrió un error inesperado
             </h2>
             <p className="intro">
-              La pantalla dejó de responder por un fallo interno. Vuelva a la pantalla de
-              carga e intente nuevamente; si el problema persiste, comparta el detalle
-              técnico con el administrador.
+              La pantalla dejó de responder por un fallo interno. Puede reintentar para
+              volver a la pantalla de carga (el reporte actual se descarta) o recargar la
+              aplicación si el problema persiste. Si se repite, comparta el detalle técnico
+              con el administrador.
             </p>
             <details className="error-detalle">
               <summary>Ver el detalle técnico</summary>
               <pre>{String(this.state.error?.message || this.state.error)}</pre>
             </details>
             <div className="acciones-form">
-              <button type="button" className="btn-validar" onClick={this.volverACarga}>
-                Volver a la pantalla de carga
+              <button type="button" className="btn-validar" onClick={this.reintentar}>
+                Reintentar
+              </button>
+              <button type="button" className="btn-secundario" onClick={this.recargar}>
+                Recargar la página
               </button>
             </div>
           </div>
         </main>
       )
     }
-    // La key remonta los hijos al reiniciar (ver `volverACarga`).
+    // La key cambia al reiniciar el límite; es inocua (React ya remonta el
+    // subárbol que falló) y se conserva por legibilidad del reinicio.
     return <Fragment key={this.state.reinicios}>{this.props.children}</Fragment>
   }
 }
