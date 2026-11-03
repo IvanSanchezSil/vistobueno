@@ -35,32 +35,49 @@ por error del motor.
 - `paginacion` sin xpaths: el error de configuración se muestra como **fallo
   del documento**, no del motor. El estudiante se confunde.
 
-**Plan de implementación:**
+**Plan de implementación (realizado):**
 
-1. En la construcción del analizador (`__init__` o factory), validar:
-   - `items` no vacío → si está vacío, lanzar `ConfigurationError`/`ValueError`
-     con mensaje de config.
-   - `xpaths` con al menos 2 elementos → si no, error de config.
-2. Diferenciar el error de configuración del fallo del documento: un error
-   de config **no** debe parecer un fallo de la regla.
-3. Test: que una regla con config inválida falle al cargar/compilar, no al
-   validar contra un documento.
+1. **`validator/dsl_check.py` (linter)**: nuevas funciones `_lint_lista_obligatoria`
+   y `_lint_paginacion` que detectan la configuración inválida **al cargar el
+   DSL**. El linter corre antes de construir los analizadores, así que el error
+   sale como `DSLValidationError` y la API lo traduce a **500 "configuración de
+   reglas inválida"** (no a un 422 que culpa al documento del estudiante).
 
-**Archivos a tocar:**
+2. **`validator/analizadores.py` (red de seguridad)**: nueva excepción
+   `ConfigurationError` y validación en el `__init__` de
+   `AnalizadorListaObligatoria` (exige `items` no vacío) y
+   `AnalizadorPaginacion` (exige ≥ 2 `xpaths`). Así, aunque se compile con
+   `linter=False`, la configuración inválida se rechaza al construir el
+   analizador y no llega a "evaluar" un documento.
 
-- `validator/analizadores.py` (clases `AnalizadorListaObligatoria` y
-  `AnalizadorPaginacion`)
-- `validator/compilador.py` (opcional: factory de analizadores)
-- `tests/test_f4_ingenieria.py` (tests del linter / analizadores)
+3. **Tests** (`tests/test_f4_ingenieria.py`): 8 tests nuevos que cubren los dos
+   caminos (con y sin linter) y las variantes (`items: []`, `items` ausente,
+   `xpaths: []`, un solo `xpath`).
 
-**Criterios de aceptación:**
+**Por qué el linter y no solo el `__init__`:**
 
-- Una regla `lista_obligatoria` con `items: []` lanza error de configuración
-  al compilar (no pasa como verde).
-- Una regla `paginacion` sin `xpaths` lanza error de configuración al
-  compilar (no se muestra como fallo del documento).
-- Tests existentes siguen pasando.
-- Suite: `pytest tests/ -v` verde.
+`ConfigurationError` hereda de `ValueError`, y en `api.py` el `except ValueError`
+(para partes faltantes del DOCX) responde **422** culpando al archivo del
+estudiante. Con la detección en el linter, el error sale antes como
+`DSLValidationError`, que la API maneja como **500 de configuración del
+servidor**. Es la diferencia entre "tu tesis está mal" y "el motor está mal".
+
+**Archivos tocados:**
+
+- `validator/dsl_check.py` (linter: `_lint_lista_obligatoria`, `_lint_paginacion`)
+- `validator/analizadores.py` (`ConfigurationError`, validación en `__init__`)
+- `tests/test_f4_ingenieria.py` (8 tests nuevos)
+- `docs/semana9.2_trabajo_ivanSanchezSil.md` (esta bitácora)
+
+**Criterios de aceptación (cumplidos):**
+
+- [x] `lista_obligatoria` con `items: []` no puede pasar como verde: el linter
+      lo detecta y el `__init__` lo rechaza.
+- [x] `paginacion` sin `xpaths` (o con < 2) no se muestra como fallo del
+      documento: es error de carga del DSL.
+- [x] Tests existentes siguen pasando.
+- [x] Suite: `pytest tests/ -v` → **499 passed, 1 skipped**.
+- [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
 
@@ -78,4 +95,6 @@ por error del motor.
 
 | Fecha | Commit | Qué |
 |-------|--------|-----|
-| 2026-10-21 | `a3e4f2c` | T3: falsos verdes en `analizadores.py` (ConfigurationError + validación en __init__) |
+| 2026-10-21 | `a89f2d7` | T3: `ConfigurationError` + validación en `__init__` de los dos analizadores |
+| 2026-10-21 | `199ab3b` | T3: tests de configuración inválida (8 casos) |
+| 2026-10-21 | `56bf51f` | T3: detección en el linter (`_lint_lista_obligatoria`, `_lint_paginacion`) |
