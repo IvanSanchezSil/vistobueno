@@ -105,6 +105,101 @@ fallo determinista el aviso vuelve con la salida de recarga disponible.
 
 ---
 
+### 2026-10-28 — Pantalla de ficha de depósito y cierre de la auditoría (PR #68)
+
+El PR #63 de Int1 (auditoría de comportamiento del 2026-10-26, 27 hallazgos)
+asignó a Int2 tres hallazgos: **AUD-16** (alta), **AUD-17** y **AUD-18**. Los
+tres quedan cerrados en este día.
+
+#### AUD-16 — Pantalla de ficha de depósito (la que faltaba en la SPA)
+
+El backend, el buzón, el userscript y el ensayo general ya existían (PR #55),
+pero **los operadores no podían ejecutar el flujo desde la app**: el handover
+`docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` seguía pendiente. Nueva pantalla
+`frontend/src/components/FichaDeposito.jsx`, con la lógica de flujo en
+`frontend/src/ficha.js` (funciones puras, sin React):
+
+- **Ficha editable**: los 8 campos extraídos (título, autores, asesor,
+  resumen, palabras clave, año, escuela, jurado) con marca de «no detectado»;
+  los 4 manuales (matrícula, DNI del autor, DNI y ORCID del asesor). La
+  matrícula y el DNI del autor se alinean **por posición con los autores**
+  (una entrada por estudiante).
+- **Resguardo en `localStorage`**: recargar la página no pierde el trabajo del
+  operador; el resguardo se borra al volver al reporte (no dejar datos
+  personales de más en el navegador).
+- **«Preparar depósito»** → `POST /ficha-pendiente` (204). El aviso recuerda
+  que **el archivo lo adjunta el encargado en el formulario oficial**: la app
+  no escribe en DSpace (el camino REST `depositar=true` está deprecado por
+  decisión del equipo).
+- **Panel de espera** con sondeo de `GET /deposito` cada 3 s: el **404 es
+  silencio** (aún no hay depósito), nunca un error en pantalla.
+- **Cotejo de título**: el título que reporta el userscript se compara con el
+  de la ficha (minúsculas, sin acentos, por inclusión). Si no coincide, el
+  operador **acepta o rechaza**; el handle no se usa nunca a ciegas. Un
+  reporte ya rechazado no se vuelve a proponer en el siguiente sondeo (el
+  buzón es «última gana»).
+- **Papeleo**: una constancia `.docx` por autor, el paquete `.zip` por autor
+  (constancia + su `registro.csv`) y la fila del registro en
+  `.tsv`/`.csv`/`.xlsx` o como texto para copiar. El XLSX oficial de la
+  biblioteca no se escribe desde la app.
+
+La pantalla **solo existe con semáforo verde** (`ficha_deposito` es `null` en
+rojo, invariante v1.7); el reporte ofrece el acceso con el botón «Continuar
+con el depósito».
+
+#### AUD-17 — `mocks.js` regenerado desde una respuesta real
+
+El mock arrastraba valores obsoletos (708/709 twips de sangría presentados
+como margen derecho) y un detalle que ya no existía. Ahora se generó desde una
+respuesta **real** de `POST /validar` (documento «bueno» del factory + 4
+mutaciones reales del proyecto), copiando resultados, prompts, resumen y
+metadatos tal cual llegaron. La procedencia queda escrita en el propio archivo
+para que sea repetible.
+
+#### AUD-18 — Fallback a `MOCK_REPORT` en producción (decisión del equipo)
+
+La auditoría dejó la decisión abierta; se resolvió **desactivar el fallback en
+el build de producción**: en desarrollo el reporte de ejemplo sigue disponible
+(modo demo, con banner), pero en producción, si el backend no responde, la app
+muestra el error real con la opción de reintentar. Motivo: en una herramienta
+interna, un reporte de ejemplo puede confundirse con un resultado real.
+
+#### Token del buzón en la SPA
+
+El backend (PR #66) admite un token compartido opcional
+(`VISTOBUENO_API_TOKEN` + header `X-VistoBueno-Token`) para el caso en que la
+API se exponga fuera de la máquina del operador. La SPA ahora puede enviarlo
+con `VITE_API_TOKEN` (ver `frontend/.env.example`): si la variable no está
+definida, la SPA sigue hablando sin header (el loopback no lo exige) y el
+comportamiento por defecto no cambia.
+
+#### Verificación (2026-10-28)
+
+- `npm run lint` → 0 errores · `npm test` → **47/47** (20 previos + 27 nuevos
+  de `ficha.test.js`: ficha solo en verde, manuales por autor y su
+  desalineación, sondeo con 404 silencioso, cotejo de título, plan de N
+  descargas, formato de fecha/hora) · `npm run build` → 186.18 kB.
+- E2E del flujo completo → **11/11** · pytest del backend → **623 passed** (los
+  2 fallos iniciales eran `openpyxl` ausente en el `.venv` local; la
+  dependencia sí está declarada en `flake.nix`, el CI la tiene).
+- **Prueba en vivo con Playwright contra la API real (11 pasos, 0 errores de
+  consola)**: documento verde → reporte → CTA → ficha → completado de
+  matrícula y DNI → «Preparar depósito» → panel de espera → depósito con
+  título **distinto** (aviso de discrepancia) → aceptación → **descarga real
+  de la constancia** (36.9 kB, nombre saneado por el servidor) → papeleo en
+  pantalla con la fila del registro.
+- Capturas de evidencia en `docs/capturas/`: `27_ficha_edicion.png`,
+  `28_ficha_espera.png`, `29_ficha_handle.png` (con el aviso de
+  discrepancia) y `30_ficha_papeleo.png`.
+
+#### Coordinación pendiente
+
+- El motor sigue entregando `dc.title` con el prefijo «Título del trabajo de
+  investigación:» (pendiente de Int3, handover §6): en esta pantalla el
+  operador lo recorta, como estaba previsto.
+
+---
+
 ## Evidencias producidas
 
 - `frontend/src/components/ErrorBoundary.jsx` — límite de error con
@@ -118,6 +213,15 @@ fallo determinista el aviso vuelve con la salida de recarga disponible.
 - `frontend/src/App.jsx` — iconos SVG del toggle de tema.
 - Commits: `ab7de6f` (límite de error), `f02a95f` (Enter), `5571bad`
   (SVG), `2345fd5` (tests), más el commit de documentación de esta bitácora.
+- `frontend/src/components/FichaDeposito.jsx` y `frontend/src/ficha.js` —
+  pantalla de ficha y lógica pura del flujo (AUD-16).
+- `frontend/src/ficha.test.js` — 27 tests de la lógica de ficha.
+- `frontend/src/mocks.js` — regenerado desde una respuesta real (AUD-17).
+- `frontend/.env.example` — `VITE_API_TOKEN` documentado.
+- `docs/capturas/` — capturas de la pantalla de ficha (espera, handle y
+  papeleo).
+- `docs/HANDOVER_AUDITORIA_2026-10-26.md` (tabla §11) y `AGENTS.md` (bloque
+  de aviso) — cierre administrativo de AUD-16, AUD-17 y AUD-18.
 
 ---
 
@@ -131,6 +235,12 @@ fallo determinista el aviso vuelve con la salida de recarga disponible.
   mantienen intactos; el cambio es de interacción, no de contrato.
 - **Ingeniería de Software I**: documentación técnica (bitácora, README) y
   respuesta documentada a la revisión de código.
+- **Ingeniería de Software II** (día 2): la pantalla de ficha separa la
+  lógica de flujo (funciones puras testeables) de la presentación, y el
+  sondeo del buzón se modela como una máquina de estados explícita.
+- **Redes de Computadoras I** (día 2): uso del contrato HTTP del buzón
+  (`POST /ficha-pendiente`, `GET /deposito`), del código 404 como respuesta
+  normal del sondeo y del header de token compartido.
 
 ---
 
@@ -151,14 +261,24 @@ fallo determinista el aviso vuelve con la salida de recarga disponible.
   no es verificación (`AGENTS.md`). Los tests de componente son el paso
   intermedio entre la prueba manual y el E2E: el E2E no puede provocar un
   fallo de render de forma controlada.
+- **El 404 del buzón no es un error**: al implementar el sondeo de
+  `GET /deposito` hay que tratar el 404 como «todavía no hay depósito»; si se
+  trata como error, la pantalla ensucia al operador con avisos falsos.
+- **El cotejo del título**: el userscript puede informar un título
+  levemente distinto al de la ficha (prefijos, acentos). Cotejar por
+  inclusión y sin acentos evita el falso positivo, y aceptar o rechazar
+  explícito evita usar un handle a ciegas.
 
 ---
 
 ## Plan de la semana siguiente
 
-1. Cerrar la pantalla de ficha de depósito (AUD-16) con su E2E y sus
-   capturas de evidencia.
-2. Regenerar las capturas de la SPA y dejarlas versionadas como evidencia.
+1. Mergear el PR #62 y después el #68 (el #68 se apila sobre el #62: su
+   `App.jsx` conserva el límite de error y los iconos SVG del día 1).
+2. Ajustar la pantalla de ficha a los cambios de Int1 en el contrato
+   (`X-VistoBueno-Token`) y a los criterios de Int3 para AUD-24 a AUD-27.
 3. Revisar con el equipo la numeración de semanas del calendario (la
    ventana 2026-10-26 → 2026-10-31 figura como «semana 9» en la bitácora de
    retblast y como «semana 10» en este archivo) y unificar el criterio.
+4. Cerrar la semana con la actualización del Plan PPP (evidencia de las
+   horas ejecutadas) y el informe de avance.

@@ -162,14 +162,24 @@ function Upload({ onValidated, apiUrl }) {
     zonaRef.current?.focus()
   }, [])
 
-  // Fallback a reporte mock SOLO cuando no hay respuesta útil del backend
-  // (error de red o proxy sin cuerpo JSON). Modo demo, siempre avisado en Report.
-  const cargarMock = async (motivo) => {
-    const { MOCK_REPORT } = await import('../mocks')
-    onValidated({
-      ...MOCK_REPORT,
-      __mock: true,
-      __mockMotivo: `${motivo} Este es un reporte de ejemplo; el resultado real podría diferir.`,
+  // Fallback a reporte mock SOLO en desarrollo (modo demo, siempre avisado).
+  // Decisión AUD-18 (2026-10-28): en producción un reporte de ejemplo puede
+  // confundir al operador (parece un resultado real), así que el build de
+  // producción muestra el error verdadero y deja reintentar.
+  const fallbackSinBackend = async (motivo) => {
+    if (import.meta.env.DEV) {
+      const { MOCK_REPORT } = await import('../mocks')
+      onValidated({
+        ...MOCK_REPORT,
+        __mock: true,
+        __mockMotivo: `${motivo} Este es un reporte de ejemplo; el resultado real podría diferir.`,
+      })
+      return
+    }
+    setError({
+      titulo: 'No se pudo obtener el reporte del servidor.',
+      texto: `${motivo} Intente nuevamente; si el problema persiste, consulte al administrador.`,
+      tipo: 'servidor',
     })
   }
 
@@ -209,7 +219,7 @@ function Upload({ onValidated, apiUrl }) {
           return
         }
         // Error de red (backend caído, sin proxy, etc.) → mock como modo demo
-        await cargarMock('No se pudo conectar con el servidor de validación.')
+        await fallbackSinBackend('No se pudo conectar con el servidor de validación.')
         return
       } finally {
         clearTimeout(timeoutId)
@@ -220,7 +230,7 @@ function Upload({ onValidated, apiUrl }) {
           const data = await res.json()
           onValidated(data)
         } catch {
-          await cargarMock('El servidor devolvió una respuesta inválida.')
+          await fallbackSinBackend('El servidor devolvió una respuesta inválida.')
         }
         return
       }
@@ -251,7 +261,7 @@ function Upload({ onValidated, apiUrl }) {
 
       // HTTP sin JSON útil (p.ej. proxy 500 con body vacío cuando el backend está caído)
       // → fallback a mock como modo demo
-      await cargarMock(`El servidor respondió HTTP ${res.status} sin detalle.`)
+      await fallbackSinBackend(`El servidor respondió HTTP ${res.status} sin detalle.`)
     } finally {
       cargandoRef.current = false
       setLoading(false)

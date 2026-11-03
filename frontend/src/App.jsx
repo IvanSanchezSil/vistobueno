@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Upload from './components/Upload'
 import Report from './components/Report'
 import ErrorBoundary from './components/ErrorBoundary'
+import FichaDeposito from './components/FichaDeposito'
 
 // API base URL:
 // - Default '' = mismo origen (funciona con el proxy de Vite en `npm run dev`).
@@ -59,11 +60,26 @@ function DarkModeToggle() {
 
 function App() {
   const [reportData, setReportData] = useState(null)
-  const volverACarga = () => setReportData(null)
-  const currentView = reportData ? (
-    <Report data={reportData} onBack={volverACarga} />
+  // Vista actual: 'carga' (subir archivo), 'reporte' o 'ficha' (semana 8).
+  const [vista, setVista] = useState('carga')
+  const volverACarga = () => {
+    setReportData(null)
+    setVista('carga')
+  }
+  const currentView = vista === 'ficha' && reportData ? (
+    <FichaDeposito
+      data={reportData}
+      apiUrl={API_BASE_URL}
+      onBack={() => setVista('reporte')}
+    />
+  ) : reportData ? (
+    <Report
+      data={reportData}
+      onBack={volverACarga}
+      onIrAFicha={() => setVista('ficha')}
+    />
   ) : (
-    <Upload onValidated={(data) => setReportData(data)} apiUrl={API_BASE_URL} />
+    <Upload onValidated={(data) => { setReportData(data); setVista('reporte') }} apiUrl={API_BASE_URL} />
   )
 
   return (
