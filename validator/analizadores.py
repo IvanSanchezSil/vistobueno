@@ -123,6 +123,13 @@ class AnalizadorXML(Analizador):
                 return len(nodes) > 0, f"exists {len(nodes)} nodos"
             return len(nodes) == 0, f"not_exists {len(nodes)} nodos"
 
+        # Sin nodos no hay atributo que comparar. `n_a_si_sin_nodos` permite
+        # declarar que la regla no aplica (p. ej. una línea de carátula que
+        # solo existe en cierto tipo de título), en vez de fallar con
+        # `@w:val=[] esperado=...` (AUD-07).
+        if not nodes and self.config.get("n_a_si_sin_nodos"):
+            return True, "no aplica (sin nodos)"
+
         # Atributo
         atributo = self.config.get("atributo")
         esperado = self.config.get("esperado")
@@ -588,7 +595,13 @@ def _norm_indice(texto: str) -> str:
 
 
 def _sigpalabra(s: str) -> str:
-    """Primera palabra con >=4 caracteres de un texto normalizado (o vacío)."""
+    """Primera palabra con >=4 caracteres de un texto normalizado (o vacío).
+
+    El umbral descarta tokens de numeración o romanos ("I", "1.2", "A") como
+    señal de contenido. Si la entrada no tiene ninguna palabra de 4+
+    caracteres, se devuelve "" y el chequeo la omite: no hay señal suficiente
+    para verificar que apunte a una sección real (AUD-06).
+    """
     for tk in s.split():
         if len(tk) >= 4:
             return tk

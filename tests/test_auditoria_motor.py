@@ -24,7 +24,7 @@ from docx_factory import (
     configuracion_titulo_romano,
 )
 
-from validator.analizadores import _norm_indice, _norm_titulo_cuerpo
+from validator.analizadores import _norm_indice, _norm_titulo_cuerpo, _sigpalabra
 from validator.engine import load_rules, validate_docx
 
 RULES = load_rules("reglas_unt.yaml")
@@ -128,6 +128,31 @@ def _docx_sz(paras: list[str]) -> str:
     return path
 
 
+def _docx_caratula(texto: str, sz: str) -> str:
+    paras = [
+        _para_sz("UNIVERSIDAD NACIONAL DE TRUJILLO", "24"),
+        _para_sz(texto, sz),
+    ]
+    # El `w:pPr/w:sectPr` cierra la portada: los párrafos anteriores son la
+    # carátula para `contexto: caratula`.
+    body = (
+        "".join(paras)
+        + "<w:p><w:pPr><w:sectPr/></w:pPr></w:p>"
+        + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>'
+    )
+    doc = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{WNS}"><w:body>{body}</w:body></w:document>'
+    )
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+        path = f.name
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", CONTENT_TYPES)
+        z.writestr("_rels/.rels", RELS)
+        z.writestr("word/document.xml", doc)
+    return path
+
+
 def _regla_sz(comparacion: str = "all_eq", esperado: str = "24") -> dict:
     return {
         "id": "sz_test",
@@ -173,3 +198,39 @@ def test_aud03_valores_sin_repr_crudo():
     r = _validar_sz("eq", "26")
     assert not r.passed
     assert r.found == "@w:val=[24, 30, 24] esperado=26"
+
+
+def test_aud06_entrada_sin_palabra_larga_se_omite():
+    """AUD-06: sin token de 4+ caracteres no hay señal para verificar."""
+    assert _sigpalabra("1.2 IV") == ""
+    assert _sigpalabra("FASE I") == "FASE"
+
+
+def test_aud07_linea_bachiller_se_evalua():
+    """AUD-07: la línea de Bachiller sí se compara contra los 13 pt."""
+    path = _docx_caratula(
+        "Trabajo de Investigación para optar el grado de Bachiller en Educación Inicial",
+        "24",
+    )
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_optar_grado_tamano"]
+    assert not regla.passed
+    assert regla.found == "@w:val=[24] esperado=26"
+
+
+def test_aud07_otras_titulaciones_no_disparan_la_regla():
+    """AUD-07: la línea de Licenciatura queda fuera del alcance (n/a)."""
+    path = _docx_caratula(
+        "Para Optar el Título Profesional de Licenciada en Educación Inicial",
+        "24",
+    )
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_optar_grado_tamano"]
+    assert regla.passed
+    assert regla.found == "cumple"
