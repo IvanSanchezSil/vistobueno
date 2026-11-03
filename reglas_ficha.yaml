@@ -94,7 +94,7 @@ reglas:
   # (quirk heredado del reglamento, handover issue #4).
   extraccion:
     parte: document
-    contexto: caratula
+    contexto: caratula_ficha
     campo: dc.date.issued
     modo: texto
     patron: \b(?:19|20)\d{2}\b
