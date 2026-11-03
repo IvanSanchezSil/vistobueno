@@ -18,13 +18,13 @@ Documentar y planificar primero. Sin tocar código hasta tener claro el enfoque.
 
 | ID | Sev | Archivos | Acción |
 |----|-----|----------|--------|
-| F-1 | Alta | `validator/extractor.py` | Añadir contexto `caratula_ficha`: incluye el párrafo que porta `w:pPr/w:sectPr` sin tocar `_caratula` ni las 49 reglas normales. Añadir `is_caratula_ficha` y soporte `contexto="caratula_ficha"` en `xpath`. |
-| F-2 | Alta | `validator/analizadores.py` | Añadir `seleccion: primero | ultimo` en `AnalizadorExtraccion` (aplicar tras `filtro`); mapear `nodo` y `pagina` a la pieza elegida. Opcional `quitar_sufijo` (no usar hasta cerrar decisión 5.2). Limpiar puntuación final de palabras clave. |
-| F-3 | Alta | `reglas_ficha.yaml` | Definir: `ficha_anio` (contexto `caratula_ficha`, filtro `\b(19|20)\d{2}\b`, `seleccion: ultimo`), `ficha_titulo` (quitar prefijo "Título del trabajo...", conservar sufijo), `ficha_autores` (una persona por párrafo, sin separador coma, conservar comas internas, quitar etiqueta), `ficha_asesor` (no marcar vacío como detectado), `ficha_palabras_clave` (quitar punto final y entradas vacías). |
-| F-4 | Media | `validator/compilador.py` | `_ficha` marca `detectado` solo con valor no vacío; `valor=None` y `pagina=None` si está vacío. |
-| F-5 | Alta | `tests/_caratula_real.py`, `tests/test_captura_ficha.py`, `tests/test_constancia.py` | Datos falsos con dos autores, año con `sectPr`, título con prefijo/sufijo, palabras clave con punto, sin asesor. Pruebas: año 2026, dos autores, título sin prefijo, palabras clave limpias, asesor vacío con `detectado=false`. Quitar `xfail` tras corrección. Regresión: año 2024 del título no gana sobre 2026 de la portada. |
-| F-6 | Media | `scripts/eval_contra_plantillas.py` | Aceptar `reglas` y `rules`; mantener `carpeta` obligatorio; test con `reglas_unt.yaml`. |
-| F-7 | Media | Decisión de dominio | Resolver `palabras_clave_minimo` (error vs warning vs exención plantillas) antes de cerrar pruebas de ficha. |
+| F-1 | Alta | `validator/extractor.py` | ✅ **HECHO**: Añadir contexto `caratula_ficha`: incluye el párrafo que porta `w:pPr/w:sectPr` sin tocar `_caratula` ni las 49 reglas normales. Añadir `is_caratula_ficha` y soporte `contexto="caratula_ficha"` en `xpath`. |
+| F-2 | Alta | `validator/analizadores.py` | Pendiente |
+| F-3 | Alta | `reglas_ficha.yaml` | Pendiente |
+| F-4 | Media | `validator/compilador.py` | Pendiente |
+| F-5 | Alta | `tests/_caratula_real.py`, `tests/test_captura_ficha.py`, `tests/test_constancia.py` | Pendiente |
+| F-6 | Media | `scripts/eval_contra_plantillas.py` | Pendiente |
+| F-7 | Media | Decisión de dominio | Pendiente |
 
 ---
 

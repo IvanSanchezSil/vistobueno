@@ -12,7 +12,7 @@ import zipfile
 
 import pytest
 
-from validator.extractor import extract, NS, W
+from validator.extractor import NS, W, extract
 
 # Documento XML "mínimo y válido": una etiqueta vacía <w></w> (7 bytes).
 _DOC_MINIMO = b"<w></w>"
