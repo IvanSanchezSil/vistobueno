@@ -21,6 +21,7 @@ Documentar y planificar primero. Sin tocar código hasta tener claro el enfoque.
 | AUD-06 | Baja | decisión | Revisar `_sigpalabra` >= 4. |
 | AUD-07 | Baja | decisión | Alcance `caratula_optar_grado_tamano`. |
 | AUD-20 | Media | `tests/_docx_builder.py`, `tests/_mutations.py` | Fixtures estructura real. |
+| AUD-15 | Media | `validator/exportador.py` | Escape HTML en `message`/`found`/`expected`/`prompt` al inyectarlos en Markdown/PDF. |
 
 ## Diagnóstico
 
@@ -33,6 +34,9 @@ Tres causas: (1) `seccion()` corta en primer título siguiente sin `fin`/`hasta_
 ### AUD-03
 Muestra valores conformes primero, página del primer nodo, formato crudo. Cambiar a culpables primero + página del nodo infractor. Coordinar con paridad.
 
+### AUD-15
+El exportador `validator/exportador.py` interpolaba `message/found/expected` en Markdown y PDF sin escapar HTML. Esto podía romper la sintaxis de tablado o generar marcado no válido. Se soluciona escapando con `html.escape()` antes de inyectar.
+
 ## Orden de ejecución
 1. AUD-01 + test
 2. AUD-02 + fixture + mutations
@@ -40,6 +44,7 @@ Muestra valores conformes primero, página del primer nodo, formato crudo. Cambi
 4. AUD-03 + revisión paridad
 5. AUD-04
 6. Decisiones AUD-05/06/07 si procede
+7. AUD-15: Escape HTML en `validator/exportador.py` (hecho en semana 10).
 
 ## Verificación
 - `nix develop -c pytest tests/ -v`
