@@ -3,7 +3,10 @@
 **Fecha**: 2026-10-23
 **De**: Integrante 1 (Backend/API)
 **Para**: Integrante 2 (Frontend)
-**Estado**: pedido con especificación — el diseño de pantallas es tuyo
+**Estado**: pedido con especificación — el diseño de pantallas es tuyo.
+**Resuelto**: 2026-11-03 (PR #68). La pantalla quedó implementada en
+`frontend/src/components/FichaDeposito.jsx` (vista) y `frontend/src/ficha.js`
+(lógica de flujo pura), con cobertura en `frontend/src/ficha.test.js`.
 **Contexto de producto**: `docs/PLAN_FICHA_DEPOSITO.md` (leer primero;
 v0.2 congelado). Contrato: `docs/CONTRATO_API.md` (v1.7.0).
 
