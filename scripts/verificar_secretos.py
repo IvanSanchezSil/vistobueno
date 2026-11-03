@@ -13,8 +13,9 @@ proyecto (SMTP, DSpace y el token del buzón) y cualquier archivo .env /
 Valores permitidos (placeholders documentales/dummy): ``dummy``, ``prueba``,
 ``test``, ``changeme``, ``<valor>``, los valores entre ángulos
 (``<mi-token>``), los que terminan en ``-de-prueba`` (convención de los
-tests del repo) y las referencias al entorno (``$VAR``, ``${VAR}``,
-``os.environ.get(...)``).
+tests del repo), las referencias al entorno (``$VAR``, ``${VAR}``,
+``os.environ.get(...)`` sin literal en el valor por defecto) y la
+referencia a un atributo del propio objeto (``self.password``).
 
 El propio verificador y sus tests están excluidos: contienen el patrón
 deliberadamente (para probarlo) pero nunca un valor real.
@@ -45,6 +46,9 @@ Límites conocidos (declarados a propósito):
   decisión: los secretos reales del proyecto se configuran por variable
   de entorno, y revisar minúsculas produciría falsos positivos en cada
   test y docstring del repo.
+- El valor capturado llega hasta el primer espacio: una expresión con
+  espacios se revisa solo por su primera parte (``self.password + "x"``
+  se ve como ``self.password``).
 - No se revisan **archivos binarios**: se leen con ``errors="replace"``
   y solo se busca texto.
 - No se detectan secretos **partidos** o codificados (base64, cifrado).
@@ -100,8 +104,10 @@ _NOMBRE_EXPLICITO = "|".join(NOMBRES_SECRETOS)
 _NOMBRE_GENERICO = (
     r"(?<![A-Z0-9_])(?:[A-Z][A-Z0-9]*_)*(?:" + "|".join(SUFIJOS_SECRETOS) + r")(?![A-Z0-9_])"
 )
+# Las comillas opcionales cubren claves JSON/YAML ("DB_PASSWORD": "x"),
+# un formato que antes pasaba sin bloquear (revisión 2026-10-30).
 PATRON_ASIGNACION = re.compile(
-    rf"({_NOMBRE_EXPLICITO}|{_NOMBRE_GENERICO})\s*[=:]\s*(\S+)",
+    rf"[\"']?({_NOMBRE_EXPLICITO}|{_NOMBRE_GENERICO})[\"']?\s*[=:]\s*(\S+)",
 )
 
 # URL con credenciales embebidas: https://usuario:clave@host
@@ -111,7 +117,20 @@ PATRON_URL_CREDENCIALES = re.compile(r"://[^\s:/@]+:[^\s/@]+@")
 PLACEHOLDERS = {"dummy", "prueba", "test", "changeme", "<valor>"}
 
 # Prefijos de referencia al entorno: no son un valor, son una lectura.
-PREFIXOS_REFERENCIA = ("os.environ", "os.getenv", "getenv(", "environ[")
+PREFIXOS_REFERENCIA = ("os.environ", "os.getenv", "getenv(", "environ[", "environ.get(")
+
+# Referencia a un atributo del propio objeto: el valor vive en el
+# proceso, no en el archivo. Solo se acepta un identificador válido
+# detrás del punto: `self.password` sí; `self.password+"extra"` no
+# (revisión PR #71, b3).
+REFERENCIA_ATRIBUTO = re.compile(r"^(self|cls)\.[A-Za-z_][A-Za-z0-9_]*$")
+
+# Literal embebido en el valor por defecto de una lectura del entorno:
+# os.environ.get("X", "hunter2") no es una lectura, es un secreto
+# (nota de la revisión del PR #71). Cubre las cuatro formas de leer.
+DEFAULT_ENTORNO = re.compile(
+    r"""(?:os\.environ\.get|os\.getenv|environ\.get|getenv)\(\s*['"][^'"]*['"]\s*,\s*(['"])(?P<valor>[^'"]*)\1"""
+)
 
 # Archivos que contienen el patrón deliberadamente (el verificador y sus
 # tests); comparación por ruta relativa POSIX desde la raíz del repo.
@@ -146,11 +165,34 @@ MSG_ENV = (
 )
 
 
-def _valor_permitido(valor: str) -> bool:
-    """True si el valor capturado es placeholder o autorreferencia ($VAR)."""
-    limpio = valor.strip().strip("\"'")
-    if not limpio:
+def _valor_permitido(valor: str, resto: str = "") -> bool:
+    """True si el valor capturado es placeholder o autorreferencia ($VAR).
+
+    Args:
+        valor: el valor capturado por el patrón de asignación.
+        resto: lo que sigue al valor en la línea. Sirve para revisar el
+            literal embebido en el valor por defecto de una lectura del
+            entorno (`os.environ.get("X", "secreto")`).
+    """
+    # El valor capturado viene de una línea de texto: puede quedar pegado a
+    # comillas, paréntesis o backticks (por ejemplo, un ejemplo citado
+    # dentro de una frase). Se quita esa envoltura antes de decidir.
+    crudo = valor.strip()
+    if not crudo:
         return True
+    # Una capa de comillas: lo que va dentro es el valor. `""` es un valor
+    # vacío (no filtra nada); `"..."` NO lo es: son solo puntos y el
+    # escáner no debe dejarlo pasar (revisión PR #71, b3).
+    interno = crudo
+    if len(crudo) >= 2 and crudo[0] == crudo[-1] and crudo[0] in "\"'":
+        interno = crudo[1:-1]
+    if not interno:
+        return True
+    limpio = interno.strip("\"'`()[]{}.,;:!?")
+    if not limpio:
+        # Solo puntuación: no es un valor con sentido ni un placeholder
+        # conocido. Se marca como violación.
+        return False
     if limpio.startswith("$"):
         # Autorreferencia de variable de entorno (${VAR}, $VAR)
         return True
@@ -159,6 +201,14 @@ def _valor_permitido(valor: str) -> bool:
         return True
     if limpio.startswith(PREFIXOS_REFERENCIA):
         # Lectura del entorno, no un valor: os.environ.get("X", "")
+        # Salvo que traiga un literal real como valor por defecto.
+        default = DEFAULT_ENTORNO.search(resto)
+        if default and default.group("valor"):
+            return _valor_permitido(default.group("valor"))
+        return True
+    if REFERENCIA_ATRIBUTO.match(limpio):
+        # Referencia a un atributo (self.password): el valor vive en el
+        # proceso, no en el archivo. Una credencial real es un literal.
         return True
     if limpio.lower().endswith("-de-prueba"):
         # Convención de los tests del repo: "secreto-de-prueba" no es un
@@ -219,6 +269,10 @@ def verificar_archivo(ruta: Path) -> list[str]:
         m = PATRON_ASIGNACION.search(linea)
         if m:
             valor = m.group(2)
+            # Lo que sigue al valor capturado (incluido el valor): sirve
+            # para revisar el literal embebido en el valor por defecto de
+            # una lectura del entorno (os.environ.get("X", "secreto")).
+            resto = linea[m.start(2) :]
             if valor.strip("\"'") in ("|", ">"):
                 # Bloque YAML multilínea: el valor está en las líneas
                 # indentadas que siguen. Se revisan todas: si una sola
@@ -227,7 +281,7 @@ def verificar_archivo(ruta: Path) -> list[str]:
                 bloque = _lineas_bloque_yaml(lineas, n - 1, sangria)
                 if any(not _valor_permitido(v) for v in bloque):
                     violaciones.append(MSG_VIOLACION.format(ruta=ruta, linea=n, var=m.group(1)))
-            elif not _valor_permitido(valor):
+            elif not _valor_permitido(valor, resto):
                 # No se imprime el valor: nunca repetir un posible secreto en logs.
                 violaciones.append(MSG_VIOLACION.format(ruta=ruta, linea=n, var=m.group(1)))
         if PATRON_URL_CREDENCIALES.search(linea):
