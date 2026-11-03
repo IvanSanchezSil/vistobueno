@@ -22,7 +22,7 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 | AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Pendiente (decisión) |
 | AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Pendiente (decisión) |
 | AUD-07 | Baja | `reglas_unt.yaml` | Decisión: restringir `caratula_optar_grado_tamano` al "grado de Bachiller" o añadir `EVALUADO:`. | Pendiente (decisión) |
-| AUD-20 | Media | `tests/_docx_builder.py`, `tests/_mutations.py` | Añadir fixtures que reproduzcan estructura real (anexos con Título1 + "Anexo N.") y casos para AUD-01. | Pendiente |
+| AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", título "GENERAL" con entrada de índice paginada) y tests de regresión para AUD-01/AUD-02. | Hecho (b892478) |
 
 **Coordinar:** AUD-15 (`validator/exportador.py`) — fuera de alcance directo; AUD-21 (paridad) con AUD-03.
 
@@ -31,10 +31,9 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 Orden propuesto:
 
 1. **Documentación y planificación** (hecho) — crear bitácora semana 10 + plan detallado.
-2. **AUD-01** — Aislado, test de regresión con "General" + entrada con página arábiga. (Hecho)
-3. **AUD-02** — `seccion(hasta_final)`, incluir TITULO en búsqueda, quitar truncado. (Hecho)
-3. **AUD-02** — Más amplio (tokenizer + analizadores + YAML + mutations). Añadir fixture de estructura de anexos.
-4. **AUD-20** — Blindar 01-02 con fixtures.
+2. **AUD-01** — Separar normalización de títulos del cuerpo e ítems del índice. (Hecho)
+3. **AUD-02** — `seccion(hasta_final)`, incluir TITULO en búsqueda y quitar el truncado. (Hecho)
+4. **AUD-20** — Blindar AUD-01/AUD-02 con fixtures de estructura real y tests de regresión. (Hecho)
 5. **AUD-03** — Cambiar formato de `encontrado`. Revisar `test_paridad_formatos.py` tras el cambio.
 6. **AUD-04** — Trivial, notas `EVALUADO:`.
 7. **AUD-05/AUD-06/AUD-07** — Solo con decisión de dominio.
@@ -42,11 +41,12 @@ Orden propuesto:
 ## Criterios de aceptación
 
 - [x] AUD-01 corregido con test que falle antes y pase después
-- [ ] AUD-02 corregido: detecta anexos con estructura Título1 "Anexos" + "Anexo N.", muestra todos los faltantes
+- [x] AUD-02 corregido: detecta anexos con estructura Título1 "Anexos" + "Anexo N.", muestra todos los faltantes
+- [x] AUD-20: fixtures de estructura real y tests de regresión para AUD-01/AUD-02
 - [ ] AUD-03: `encontrado` legible, culpables primero, página correcta
 - [ ] AUD-04: notas `EVALUADO:` añadidas
 - [ ] `tests/_mutations.py` sincronizado si aplica
-- [ ] `pytest tests/ -v` sin regresiones
+- [x] `pytest tests/ -v` sin regresiones
 - [ ] `tests/test_paridad_formatos.py` OK (o actualizado con justificación)
 - [ ] `nix flake check` OK
 - [ ] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` OK
@@ -60,3 +60,5 @@ Orden propuesto:
 ## Evidencia
 
 Plan detallado en `docs/PLAN_SEMANA10_AUDITORIA_MOTOR.md`
+
+Fixtures y regresiones: `tests/test_auditoria_motor.py` (AUD-20, commit `b892478`). Suite completa: **630 passed, 1 skipped**. Verificado que los tests nuevos fallan con el comportamiento anterior (AUD-01: `indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`).
