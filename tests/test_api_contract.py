@@ -655,6 +655,37 @@ class TestCupoCpuPorEntorno:
         assert cupo.presupuesto == 0.0
         assert cupo.adquirir()[0] is True
 
+    def test_quitar_la_variable_devuelve_el_cupo_a_su_base(self, monkeypatch):
+        """La salida de emergencia no queda pegada al quitar la variable.
+
+        Con la variable en 0 el cupo queda desactivado; al quitarla, el
+        cupo vuelve al presupuesto por defecto (revisión PR #71, N2).
+        """
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=1.0)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
+
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "0")
+        asyncio.run(validator.api.limitar_papeleo())
+        assert cupo.presupuesto == 0.0
+
+        monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG")
+        asyncio.run(validator.api.limitar_papeleo())
+        assert cupo.presupuesto == 1.0
+
+    def test_quitar_la_ventana_devuelve_la_base(self, monkeypatch):
+        """La ventana acortada tampoco queda pegada."""
+        monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_MAX", raising=False)
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=10.0, ventana_segundos=60.0)
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_VALIDACION", cupo)
+
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", "10")
+        assert subir_plantilla().status_code == 200
+        assert cupo.ventana == 10.0
+
+        monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_VENTANA_SEG")
+        assert subir_plantilla().status_code == 200
+        assert cupo.ventana == 60.0
+
 
 # ---------------------------------------------------------------------------
 # Tests: paridad API = CLI

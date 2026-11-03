@@ -187,7 +187,7 @@ def _hosts_confiables() -> frozenset[str]:
     puerto y sin corchetes IPv6. Así, `VISTOBUENO_HOSTS=10.0.0.5:8000`
     sirve para el peer que se anuncia como `10.0.0.5:8000` y también
     para el que se anuncia como `10.0.0.5` (revisión PR #71, B3).
-    """
+
     Las entradas que quedan vacías se descartan: un host vacío admitiría
     peticiones sin header `Host` (revisión PR #71, N1).
     """
@@ -397,8 +397,14 @@ class LimitadorCPU:
         presupuesto_segundos: float = PRESUPUESTO_CPU_DEFAULT,
         ventana_segundos: float = VENTANA_PETICIONES_DEFAULT,
     ) -> None:
-        self._presupuesto = max(presupuesto_segundos, 0.0)
-        self._ventana = max(ventana_segundos, 0.1)
+        # Los valores base son los del constructor: `ajustar()` vuelve a
+        # ellos cuando la variable de entorno desaparece, para que quitar
+        # la salida de emergencia no deje el cupo pegado (revisión PR
+        # #71, N2).
+        self._presupuesto_base = max(presupuesto_segundos, 0.0)
+        self._ventana_base = max(ventana_segundos, 0.1)
+        self._presupuesto = self._presupuesto_base
+        self._ventana = self._ventana_base
         self._tasa = self._presupuesto / self._ventana
         self._deuda = 0.0
         self._ultimo = time.monotonic()
@@ -429,14 +435,23 @@ class LimitadorCPU:
     ) -> None:
         """Aplica la configuración leída del entorno (presupuesto y ventana).
 
+        `None` significa "vuelve al valor base del limitador": cuando la
+        variable de entorno deja de estar definida, el cupo regresa a su
+        valor por defecto. Si no, la salida de emergencia (presupuesto 0)
+        quedaría pegada hasta reiniciar el proceso (revisión PR #71, N2).
+
         La tasa de fuga depende de la ventana, así que cambiarla recalcula
         la tasa. La deuda ya acumulada no se toca: se sigue cobrando.
         """
         with self._lock:
-            if presupuesto_segundos is not None:
-                self._presupuesto = max(presupuesto_segundos, 0.0)
-            if ventana_segundos is not None:
-                self._ventana = max(ventana_segundos, 0.1)
+            self._presupuesto = (
+                self._presupuesto_base
+                if presupuesto_segundos is None
+                else max(presupuesto_segundos, 0.0)
+            )
+            self._ventana = (
+                self._ventana_base if ventana_segundos is None else max(ventana_segundos, 0.1)
+            )
             self._tasa = self._presupuesto / self._ventana
 
     def adquirir(self) -> tuple[bool, float]:
