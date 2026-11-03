@@ -81,4 +81,53 @@ describe('Upload — envío con Enter', () => {
     expect(screen.getByRole('button', { name: /Validar documento/i })).toHaveAttribute('type', 'submit')
     expect(screen.getByRole('button', { name: /Quitar archivo/i })).toHaveAttribute('type', 'button')
   })
+
+  // Regresión F1 (segunda revisión del PR #62): el manejador de Enter del
+  // formulario interceptaba cualquier Enter, y con `preventDefault()` anulaba
+  // la activación por defecto de los botones y de la casilla.
+  //
+  // jsdom no implementa la activación implícita de un control con Enter, así
+  // que el helper emula lo que hace el navegador: si la aplicación cancela
+  // el evento, el control NO se activa; si no lo cancela, se activa.
+  const pulsarEnterComoElNavegador = (elemento) => {
+    const evento = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    elemento.dispatchEvent(evento)
+    const cancelado = evento.defaultPrevented
+    if (!cancelado && elemento.tagName === 'BUTTON') fireEvent.click(elemento)
+    return cancelado
+  }
+
+  it('F1: Enter sobre «Quitar archivo» quita el archivo (no se intercepta)', () => {
+    const { container } = render(<Upload onValidated={() => {}} apiUrl="" />)
+    seleccionarArchivo(container)
+
+    const correo = screen.getByLabelText(/Correo del estudiante/i)
+    fireEvent.change(correo, { target: { value: 'correo-invalido' } })
+
+    const quitar = screen.getByRole('button', { name: /Quitar archivo/i })
+    const cancelado = pulsarEnterComoElNavegador(quitar)
+
+    expect(cancelado).toBe(false)
+    // El archivo se quitó: vuelve a la zona de carga en estado vacío.
+    expect(screen.getByText('Arrastre aquí su documento .docx')).toBeInTheDocument()
+  })
+
+  it('F1: Enter sobre la casilla «Enviar observaciones» no se intercepta', () => {
+    render(<Upload onValidated={() => {}} apiUrl="" />)
+    const casilla = screen.getByRole('checkbox', { name: /Enviar observaciones por correo/i })
+
+    const cancelado = pulsarEnterComoElNavegador(casilla)
+
+    expect(cancelado).toBe(false)
+  })
+
+  it('F1: Enter sobre el campo de correo con el formulario incompleto sí se intercepta', () => {
+    const { container } = render(<Upload onValidated={() => {}} apiUrl="" />)
+    const correo = screen.getByLabelText(/Correo del estudiante/i)
+
+    const cancelado = pulsarEnterComoElNavegador(correo)
+
+    expect(cancelado).toBe(true)
+    expect(container.querySelector('.dropzone')).toHaveFocus()
+  })
 })

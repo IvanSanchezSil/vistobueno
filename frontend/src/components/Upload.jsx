@@ -287,9 +287,10 @@ function Upload({ onValidated, apiUrl }) {
       : null
 
   // Enter-to-submit: el card es un <form>, así Enter en el correo (o en
-  // cualquier campo) valida, como espera el operador. `noValidate` deja la
-  // validación en nuestras reglas (con sus mensajes aria-live); la burbuja
-  // nativa del navegador duplicaría el aviso y no sería accesible.
+  // cualquier campo) dispara el envío implícito del navegador, que este
+  // onSubmit traduce a `validate()`, como espera el operador. `noValidate`
+  // deja la validación en nuestras reglas (con sus mensajes aria-live); la
+  // burbuja nativa del navegador duplicaría el aviso y no sería accesible.
   // Enter/Space sobre la dropzone no llega aquí: su onKeyDown hace
   // preventDefault() y abre el selector de archivos.
   const onFormSubmit = (e) => {
@@ -300,11 +301,17 @@ function Upload({ onValidated, apiUrl }) {
   // El botón «Validar documento» queda deshabilitado mientras falte el
   // archivo .docx o el correo sea inválido; en ese estado el navegador no
   // dispara el envío implícito con Enter y la pulsación se perdería. En vez
-  // de eso, Enter lleva el foco al elemento pendiente (la dropzone o el
-  // campo de correo), donde ya está el aviso correspondiente.
+  // de eso, Enter en el campo de correo lleva el foco al elemento pendiente
+  // (la dropzone o el propio campo), donde ya está el aviso correspondiente.
+  //
+  // La intercepción se limita al campo de correo a propósito: si se
+  // interceptara cualquier Enter del formulario, se anularía la activación
+  // por defecto de los botones («Quitar archivo», «Cerrar aviso») y de la
+  // casilla «Enviar observaciones» (regresión detectada en la segunda
+  // revisión del PR #62, hallazgo F1).
   const onFormKeyDown = (e) => {
     if (e.key !== 'Enter') return
-    if (e.target === zonaRef.current) return
+    if (e.target !== correoRef.current) return
     if (file && !(correo && correoError)) return
     e.preventDefault()
     if (!file) zonaRef.current?.focus()
