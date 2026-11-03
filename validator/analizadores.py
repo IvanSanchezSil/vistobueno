@@ -43,6 +43,15 @@ def _resolve_attr_key(atributo: str) -> str:
     return name
 
 
+class ConfigurationError(ValueError):
+    """Error de configuración de un analizador DSL.
+
+    Se lanza al compilar una regla con parámetros inválidos (p. ej.
+    `lista_obligatoria` sin ítems o `paginacion` sin suficientes xpaths).
+    Es un error del motor, no del documento: no debe aparecer como fallo
+    del estudiante en el reporte.
+    """
+
 class Analizador(ABC):
     """Interfaz común de todos los analizadores del DSL.
 
@@ -389,6 +398,14 @@ class AnalizadorListaObligatoria(Analizador):
 
 
 class AnalizadorPaginacion(Analizador):
+
+    def __init__(self, config: dict):
+        super().__init__(config)
+        xpaths = self.config.get("xpaths")
+        if not isinstance(xpaths, list) or len(xpaths) < 2:
+            raise ConfigurationError(
+                "paginacion: \'xpaths\' debe ser una lista con al menos 2 elementos"
+            )
     """Verifica que los párrafos objetivo estén en páginas físicas distintas.
 
     Sección DSL `paginacion` (F2 ítem 1). La paginación real se calcula en
