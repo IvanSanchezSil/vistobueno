@@ -199,8 +199,9 @@ pytest tests/ -v
 nix run .#serve -- validator.api:app --reload
 # Swagger UI: http://localhost:8000/docs
 
-# API (directo)
-uvicorn validator.api:app --reload
+# API (directo). --no-proxy-headers: un X-Forwarded-For no puede
+# falsificar el peer y saltar el control de loopback.
+uvicorn validator.api:app --reload --no-proxy-headers
 
 # validar un DOCX desde CLI
 python -m validator.cli tesis.docx unt_format_rules_schema.yaml
@@ -320,52 +321,123 @@ El flujo completo es:
   - `VISTOBUENO_PLANTILLA_CONSTANCIA` — opcional, si la plantilla vive
     fuera de `recursos/`.
   - `VISTOBUENO_RATE_LIMIT_MAX` / `VISTOBUENO_RATE_LIMIT_VENTANA_SEG` —
-    límite de peticiones de `POST /validar` (default 60 por 60 s, por IP;
-    `0` lo desactiva). `POST /validar` recompila el DSL en cada request:
-    el límite protege el CPU de la máquina.
-  - `VISTOBUENO_API_TOKEN` — opcional. Si se define, los endpoints del
-    buzón exigen además el header `X-VistoBueno-Token` con ese valor.
-    Solo hace falta si la API se expone fuera de la máquina del operador.
+    opcionales. Por defecto rige un cupo adaptativo por CPU (2 s de
+    trabajo por minuto, medido en cada equipo). Al definir
+    `VISTOBUENO_RATE_LIMIT_MAX` vuelve la ventana fija por IP
+    (`0` la desactiva).
+  - `VISTOBUENO_HOST` / `VISTOBUENO_HOSTS` — bind y hosts admitidos.
+    Por defecto `127.0.0.1` y solo loopback/`localhost`; para exponer la
+    API hay que definir `VISTOBUENO_HOST`, un token y el host del peer.
+  - `VISTOBUENO_API_TOKEN` — opcional. Si se define, toda la API exige
+    el header `X-VistoBueno-Token` a los peers remotos. Solo hace falta
+    si la API se expone fuera de la máquina del operador.
+  - `VISTOBUENO_RATE_LIMIT_CPU_SEG` /
+    `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` — opcionales. Presupuestos de
+    CPU por ventana (validación y papeleo). `0` desactiva el cupo.
 - Userscript en Tampermonkey: crear un script nuevo y pegar el contenido
   de `tools/dspace-fill/dist/vistobueno-dspace-fill.user.js`. El script
   solo se conecta a `localhost` (`@connect localhost`) y **no necesita
-  token**: siempre habla con `127.0.0.1`.
+  token**: siempre habla con `127.0.0.1`. Desde la versión 1.1.0 declara
+  `@updateURL`/`@downloadURL`: Tampermonkey ofrece la actualización sola.
+  Si el script se pegó a mano en una versión anterior, hay que pegarlo de
+  nuevo (ver `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md`).
 
-### Control de acceso (buzón de ficha)
+### Control de acceso (toda la API)
 
-El buzón travela datos personales del estudiante (DNI, ORCID, resumen) y su
-ranura es de "última gana". Por eso los cuatro endpoints del buzón
-**rechazan con `403` toda petición que no venga de `127.0.0.1`/`::1`**
-(auditoría 2026-10-26, AUD-09): sin ese control, un `curl` desde otro
-equipo de la red podía leer la ficha o pisarla mientras el operador
-trabajaba. La SPA y el userscript corren en la misma máquina, así que el
-flujo normal no cambia.
+La API maneja datos personales (DNI, ORCID, resumen), documentos
+oficiales (constancias) y trabajo de CPU (validación). Por eso **todos
+los endpoints rechazan con `403` toda petición que no venga de la
+máquina local** (`127.0.0.0/8` o `::1`; auditoría 2026-10-26, AUD-09):
+sin ese control, un `curl` desde otro equipo de la red podía validar,
+leer la ficha o generar constancias. La SPA y el userscript corren en la
+misma máquina, así que el flujo normal no cambia.
 
-Si algún día la API se expone fuera de la máquina (bind a `0.0.0.0` o un
-reverse proxy en otro host), define `VISTOBUENO_API_TOKEN` y haz que el
-cliente envíe el header `X-VistoBueno-Token`. Con token configurado, un
-peer remoto entra **solo** si el header coincide (comparación en tiempo
-constante). El loopback no necesita el header: la SPA y el userscript
-hablan con `127.0.0.1` y el flujo local no se rompe por definir el token.
+Además, se rechaza con `400` cualquier petición cuyo header `Host` no
+sea `127.0.0.1`, `localhost` o `::1` (se ignora el puerto). Ese chequeo
+cierra el **DNS rebinding** en todos los navegadores. `VISTOBUENO_HOSTS`
+suma dominios propios si la API vive detrás de un reverse proxy local;
+`*` desactiva el chequeo (no recomendado). El procedimiento de prueba
+está en `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md`.
+
+Si algún día la API se expone fuera de la máquina (`VISTOBUENO_HOST` con
+un bind no-loopback o un reverse proxy en otro host), el peer remoto
+necesita **las dos cosas**:
+
+1. `VISTOBUENO_API_TOKEN` definido, y el header `X-VistoBueno-Token` en
+   cada petición (comparación en tiempo constante).
+2. Su dirección o dominio en `VISTOBUENO_HOSTS`, para que el chequeo del
+   `Host` lo acepte.
+
+El chequeo del `Host` corre antes que el del token: un peer con token
+válido pero `Host` no listado recibe `400`, no `200`. El loopback no
+necesita ni el header ni la lista.
+
+`python -m validator.api` arranca con `proxy_headers=False` y la app
+`nix run .#serve` agrega `--no-proxy-headers`: un `X-Forwarded-For`
+falso no puede reescribir el peer y saltar el control.
 
 ### Límite de peticiones de validación
 
-`POST /validar` tiene un límite por IP: `60` peticiones por `60` segundos
-por defecto (`429` con `Retry-After` cuando se excede). Se ajusta con
-`VISTOBUENO_RATE_LIMIT_MAX` y `VISTOBUENO_RATE_LIMIT_VENTANA_SEG`, y
-`0` lo desactiva.
+`POST /validar` usa un **cupo adaptativo por CPU**: acumula los segundos
+reales de trabajo de cada validación y los libera a razón de `2` s por
+minuto. Una petición entra si la deuda está por debajo del presupuesto;
+si no, responde `429` con `Retry-After`. El mismo presupuesto rinde ~33
+validaciones seguidas en un equipo de 60 ms y ~8 en uno de 250 ms: se
+ajusta solo, sin calibrar por hardware.
 
-En el despliegue local **el límite es por máquina, no por persona**: todos
-los clientes locales comparten `127.0.0.1` y, por lo tanto, el mismo
-cubo. Para una sesión de validación por lotes (una clase entera en una
-tanda), sube el límite, por ejemplo:
+El coste que se cobra es **CPU del hilo que validó**, no la latencia: con
+varias peticiones a la vez, la espera no cuenta como trabajo.
+
+`POST /constancia` y `POST /fila-registro` tienen su propio cupo (1 s por
+minuto), porque generar DOCX/XLSX es más caro que validar. Se sube con
+`VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` y se desactiva con `0`: es la
+salida de emergencia para el operador que necesita papelar sin cortes.
+
+Se puede volver al límite anterior de ventana fija por IP definiendo
+`VISTOBUENO_RATE_LIMIT_MAX` (peticiones por IP y ventana; `0` lo
+desactiva), con `VISTOBUENO_RATE_LIMIT_VENTANA_SEG` para la ventana. En
+ese modo el cupo de CPU no se cobra. En el despliegue local **el límite
+es por máquina, no por persona**: todos los clientes locales comparten
+`127.0.0.1` y, por lo tanto, el mismo cupo. Para una sesión de validación
+por lotes, por ejemplo:
 
 ```bash
 VISTOBUENO_RATE_LIMIT_MAX=300 nix run .#serve -- validator.api:app --reload
 ```
 
+Ese modo legacy cubre `POST /validar`, no el papeleo: para un lote que
+también genera constancias, sube el cupo de CPU en vez de usar el modo
+legacy:
+
+```bash
+VISTOBUENO_RATE_LIMIT_CPU_SEG=20 \
+VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG=20 \
+  nix run .#serve -- validator.api:app --reload
+```
+
 El límite real de la red sigue siendo del reverse proxy: este control
 protege el CPU del motor, no la red.
+
+### Ejemplos de demostración (material de la actividad 14)
+
+Hay un par de documentos de ejemplo **reproducibles** —uno conforme y
+otro que incumple el formato— con las respuestas del validador
+versionadas:
+
+| Artefacto | Qué es |
+|-----------|--------|
+| `docs/ejemplos/doc_bueno.docx` | Documento conforme: `POST /validar` devuelve semáforo verde, 0 fallos |
+| `docs/ejemplos/doc_malo.docx` | Documento con incumplimientos: semáforo rojo, 4 errores y 1 warning |
+| `docs/ejemplos/respuesta_doc_bueno.json` · `respuesta_doc_malo.json` | Las dos respuestas, tal cual |
+| `docs/ejemplos/GUIA_EJEMPLOS.md` | Qué se revisó en cada documento y qué resultado produce |
+| `scripts/ejemplo_bueno_malo.py` | Generador del par (misma fábrica determinista que los tests) |
+
+El par es sintético: no hay datos de personas ni tesis reales, y se
+regenera en cualquier máquina:
+
+```
+nix develop --command python3 scripts/ejemplo_bueno_malo.py
+```
 
 ### Ensayo general (sin tocar la instancia real)
 
@@ -384,7 +456,7 @@ propio comando imprime.
 Manual, para recorrerlo con calma: `nix run .#serve --
 validator.api:app --port 8000` en una terminal, `nix run .#mock-dspace`
 en otra (mock de las páginas de DSpace en `http://127.0.0.1:8080`) y el
-checklist de 10 pasos de `tools/dspace-fill/dev/mock-dspace/README.md`.
+checklist de 11 pasos de `tools/dspace-fill/dev/mock-dspace/README.md`.
 El mock imita el DOM del formulario oficial; los comportamientos del
 Angular real se validan en el piloto (borrador descartable, con el
 operador presente).
@@ -400,7 +472,7 @@ operador presente).
    resumen: lleno / a mano / sin dato) y corrige el nivel de acceso
    ("Acceso abierto").
 4. El operador arrastra el .docx, marca "Confirmo la licencia" y pulsa
-   Depositar; el clic queda registrado como timestamp.
+   Depositar; el clic queda registrado como timestamp (hora de Perú).
 5. Al abrir el ítem, el userscript reporta el handle al buzón
    (`POST /deposito`).
 6. Con la ficha + handle + timestamp: `POST /fila-registro` (filas TSV
@@ -446,6 +518,6 @@ Configuración: `OLLAMA_URL` (habilita el módulo), `OLLAMA_MODEL` (por defecto
 
 ## Estado actual
 
-Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba y contra las 5 plantillas oficiales (27/32 mecanizadas PASS). Los dos RCU escaneados fueron leídos vía OCR (2026-09-02) y quedaron reflejados en el YAML: la lista de líneas de investigación del RCU-220 alimenta la regla `caratula_linea_investigacion` y el aporte del RCU-274 (Anexo 5) se registró como no determinista.
+Motor de reglas de producción implementado y probado end-to-end (extractor + checks + engine + filtro de severidad + generador de prompts), validado contra un DOCX de prueba. La auditoría de comportamiento del 2026-10-26 encontró que las 5 plantillas oficiales fallan hoy por `palabras_clave_minimo` y que los tests no replican su estructura real: el estado abierto y su criterio de aceptación están en `docs/HANDOVER_AUDITORIA_2026-10-26.md`. Los dos RCU escaneados fueron leídos vía OCR (2026-09-02) y quedaron reflejados en el YAML: la lista de líneas de investigación del RCU-220 alimenta la regla `caratula_linea_investigacion` y el aporte del RCU-274 (Anexo 5) se registró como no determinista.
 
 **API FastAPI** implementada (`POST /validar`) con validación de entrada, manejo de errores, DTOs Pydantic y suite de tests de contrato (ver `docs/CONTRATO_API.md`). **Frontend React** integrado con el backend (`Upload.jsx`, `Report.jsx`, proxy de desarrollo y manejo de errores HTTP), con campo opcional de correo del estudiante y **opt-in de notificación por correo** (casilla `notificar` + badge de estado `notificacion` en el reporte, 6 estados incluido `deshabilitado` con nota de configuración para administradores), **depósito en el repositorio institucional DSpace deprecado** (decisión 2026-10-28: la app no escribe en la API de DSpace; el campo `depositar` se conserva pero ya no abre ninguna conexión — contrato v1.8.0, ver `docs/CONTRATO_API.md` y `docs/DSPACE_API.md`), **ficha de depósito y buzón de una ranura** (contrato v1.7.0: objeto `ficha_deposito` en la respuesta solo con semáforo verde —valores detectados del DOCX vía el diseño 17 + campos manuales del operador— y endpoints `POST/GET /ficha-pendiente` · `POST/GET /deposito` con TTL de 1 hora para el userscript que pre-llena el formulario oficial de DSpace; plan congelado en `docs/PLAN_FICHA_DEPOSITO.md`), **constancia de depósito y fila de registro** (endpoints `POST /constancia` —Modelo B oficial lleno, una constancia por autor, MERGEFIELD reemplazados por texto plano— y `POST /fila-registro` —filas TSV en el orden de columnas del registro de la biblioteca; el XLSX oficial jamás se escribe desde la app), **pantalla de ficha de depósito en la SPA** (`FichaDeposito.jsx`: datos extraídos editables + matrícula y DNI alineados por autor, resguardo en `localStorage`, «Preparar depósito» al buzón, panel de espera con sondeo de `GET /deposito`, cotejo del título reportado contra la ficha —nunca se usa un handle a ciegas— y descargas de la constancia por autor, del paquete `.zip` y de la fila del registro en `.tsv`/`.csv`/`.xlsx`), **zona de carga con estados explícitos** (vacío, seleccionado, inválido, procesando y error de servidor) y **botón principal «Validar documento» siempre visible a todo el ancho** (deshabilitado con ayuda contextual si no hay archivo válido), **prompt único en «Cómo preguntar a una IA»** que junta todos los prompts en una sola instrucción copiable, **límite de error con pantalla de recuperación** (un fallo de render muestra un aviso anunciado con `role="alert"`, con el foco en el encabezado y salida a la pantalla de carga, en vez de una pantalla en blanco) y **envío del formulario con Enter** (el card de carga es un `<form noValidate>`; con el formulario completo, Enter valida el documento y, si falta el archivo o el correo es inválido, lleva el foco al campo pendiente), primeros **tests automatizados del frontend con vitest** (`npm test`) y **tests de componente con jsdom y `@testing-library/react`** (límite de error, envío con Enter y toggle de tema), mejoras de usabilidad IHC, auditoría UX integral (C1–C41: modo oscuro persistente, `aria-live` con debounce acertado a la vista, contraste AA (`--ambar` corregido en dark + `color-scheme`), barra de cumplimiento calculada solo sobre las reglas evaluadas (contrato v1.5: las no aplicables al tipo de documento detectado no se listan como cumplidas), metadatos del archivo y del tipo de documento en el encabezado del reporte, y búsqueda de reglas del wireframe —la búsqueda filtra también los prompts de IA—, ESLint configurado cubriendo `.js`/`.jsx`, favicon, mock de demo **solo en desarrollo** (en el build de producción, si el backend no responde se muestra el error real, nunca un reporte de ejemplo — decisión AUD-18 del 2026-10-28), re-elección del mismo archivo con retorno de foco, y script E2E del flujo completo versionado en `scripts/e2e_flujo_completo.sh`, 11 verificaciones) y mockups de las pantallas de carga y reporte (`mockups/`). **Motor DSL** consolidado (F1–F6): 49 reglas mecanizadas (incluye paginación real `indice_paginas_separadas`, ubicación por página, encabezados/pies, notas al pie, control de cambios, e índice de contenidos con `indice_apunta_secciones`/`indice_numeracion_jerarquica`), linter, cache XPath, traza de autómata y tests de propiedad con factory determinista de DOCX. **Calidad de ingeniería** (ruff, mypy, coverage, pre-commit, CI con Nix: tests del backend y build, lint y tests del frontend en cada push/PR) y **exportación del reporte a Markdown/PDF** implementadas (tareas 15 y 16 del `docs/PLAN_BACKLOG_FUTURO.md`). **Módulo de IA (asistente del encargado)** iniciado: cliente LLM local (`validator/llm.py`, con `StubLLM` para CI) y la Funcionalidad 2 de explicación/priorización (`validator/asistente.py`), advisory y sin tocar el semáforo; falta el *wiring* de la API (`docs/HANDOVER_API_IA.md`) y los botones del frontend. **Userscript del formulario de depósito** (`tools/dspace-fill/`): núcleo puro testeado en node con jsdom, artefacto instalable en `dist/` (el CI verifica el drift) y ensayo general con `nix run .#mock-dspace` (mock local de las páginas de DSpace con checklist de 10 pasos).

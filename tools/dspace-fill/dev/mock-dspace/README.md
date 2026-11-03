@@ -2,8 +2,10 @@
 
 Simulación local del flujo de depósito para ejercitar el userscript **sin
 Tampermonkey y sin tocar la instancia real**. El mock imita el DOM del
-formulario oficial (mismos `name`/`id`); la lógica Angular se reduce al
-mínimo indispensable (filas repetibles, combobox, botón Depositar).
+formulario oficial: los mismos `name`/`id` y la misma estructura de campos
+repetibles (contenedor `#N_array`, lista `cdk-drop-list` y botón
+`ds-form-add-more`). La lógica Angular se reduce al mínimo indispensable
+(filas repetibles, combobox, botón Depositar).
 
 Qué SÍ cubre: la lógica del userscript (compuertas, mapeador, ejecutor,
 buzón, timestamp, handle) y la mecánica DOM de relleno. Qué NO cubre: los
@@ -17,7 +19,7 @@ instancia real (borrador descartable).
 - Un DOCX de prueba (la plantilla de `recursos/` o el doc bueno del factory)
 - El dist construido: `cd tools/dspace-fill && npm run build` (o `npm test`)
 
-## Checklist (10 pasos)
+## Checklist (11 pasos)
 
 1. Abre `http://127.0.0.1:8080/` — debe mostrar el índice con el flujo.
 2. Entra a `http://127.0.0.1:8080/mock/submit` — el botón verde flotante
@@ -31,14 +33,19 @@ instancia real (borrador descartable).
    clave, año, DNI (tipo + número), ORCID.
 6. Verifica el combobox: "Acceso abierto" debe quedar seleccionado (el
    fix del bug dc.rights).
-7. Con dos autores: el botón "+ Agregar autor" debe haber creado la fila
-   extra y el segundo nombre debe estar lleno.
-8. Marca **"Confirmo la licencia"** y pulsa **Depositar** → navega al
+7. Con dos autores: pulsa **"Publicar ficha de prueba (2 autores)"**
+   (botón morado) y recarga la página. El botón "+ Añadir" (el
+   `ds-form-add-more` del formulario real) debe crear la fila extra y los
+   dos nombres y los dos DNI deben quedar llenos y alineados.
+8. Pulsa otra vez **"Rellenar"**: el formulario NO debe volver a
+   llenarse (conserva lo que corregiste a mano) ni se pierde el
+   timestamp del clic en Depositar.
+9. Marca **"Confirmo la licencia"** y pulsa **Depositar** → navega al
    ítem del mock → el toast dice "Handle enviado a VistoBueno ✓" y el
    indicador persistente abajo muestra el handle y el timestamp.
-9. Verifica el buzón: el indicador del ítem ya lo hace (verde = OK);
-   por terminal: `curl -s http://127.0.0.1:8000/deposito`.
-10. Genera el papeleo con esa respuesta: `POST /fila-registro` (json,
+10. Verifica el buzón: el indicador del ítem ya lo hace (verde = OK);
+    por terminal: `curl -s http://127.0.0.1:8000/deposito`.
+11. Genera el papeleo con esa respuesta: `POST /fila-registro` (json,
     tsv, csv o xlsx) y `POST /constancia` (una descarga por autor; con
     `?formato=zip` incluye el registro del autor) con la ficha + handle
     + timestamp.
