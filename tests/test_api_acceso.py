@@ -13,6 +13,8 @@ Uso:
     pytest tests/test_api_acceso.py -v
 """
 
+import asyncio
+
 import pytest
 from conftest import CLIENTE, MIME_DOCX, ruta_docx_prueba
 from fastapi.testclient import TestClient
@@ -79,6 +81,45 @@ class TestHostConfiable:
         assert _host_sin_puerto("[::1]:8000") == "::1"
         assert _host_sin_puerto("[::1]") == "::1"
         assert _host_sin_puerto("127.0.0.1:8000") == "127.0.0.1"
+
+    def test_el_ipv6_literal_sin_corchetes_no_se_vacia(self):
+        """`::1` es un host, no un host con puerto.
+
+        Al partirlo por el primer `:` quedaba la cadena vacía, y esa
+        cadena vacía entraba en la lista de admitidos: una petición sin
+        header `Host` pasaba el control (revisión PR #71, N1).
+        """
+        assert _host_sin_puerto("::1") == "::1"
+        assert _host_sin_puerto("fe80::1") == "fe80::1"
+        assert "" not in validator.api._hosts_confiables()
+
+    def test_una_peticion_sin_host_devuelve_400(self):
+        """HTTP/1.0 permite omitir el header `Host`: debe recibir 400.
+
+        El control del `Host` es la frontera contra el DNS rebinding: si
+        la petición no dice de dónde viene, no se sirve.
+        """
+        alcance = {
+            "type": "http",
+            "method": "GET",
+            "path": "/docs",
+            "headers": [],
+            "client": ("127.0.0.1", 50000),
+        }
+        mensajes: list[dict] = []
+
+        async def _app(scope, receive, send):  # pragma: no cover - no debe llegar
+            raise AssertionError("la petición sin Host llegó al endpoint")
+
+        async def _send(mensaje):
+            mensajes.append(mensaje)
+
+        async def _receive():
+            return {"type": "http.request"}
+
+        asyncio.run(validator.api.MiddlewareHostConfiable(_app)(alcance, _receive, _send))
+        inicio = next(m for m in mensajes if m["type"] == "http.response.start")
+        assert inicio["status"] == 400
 
     def test_hosts_ampliados_por_entorno(self, monkeypatch):
         """VISTOBUENO_HOSTS suma un dominio propio (reverse proxy local)."""

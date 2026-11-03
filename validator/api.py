@@ -163,11 +163,20 @@ HOSTS_CONFIABLES_DEFAULT = ("127.0.0.1", "localhost", "::1")
 
 
 def _host_sin_puerto(valor: str) -> str:
-    """Normaliza un host: minúsculas, sin puerto y sin corchetes IPv6."""
+    """Normaliza un host: minúsculas, sin puerto y sin corchetes IPv6.
+
+    Un IPv6 literal tiene dos o más `:`: no tiene puerto que quitar, así
+    que se devuelve completo (`::1` se queda `::1`, no `""`). Sin este
+    caso, el host vacío entraba en la lista de admitidos y una petición
+    sin header `Host` pasaba el control (revisión PR #71, N1).
+    """
     host = valor.strip().lower()
     if host.startswith("["):
         cierre = host.find("]")
         return host[1:cierre] if cierre != -1 else host
+    if host.count(":") > 1:
+        # IPv6 literal sin corchetes: "::1", "fe80::1".
+        return host
     return host.split(":", 1)[0]
 
 
@@ -179,10 +188,13 @@ def _hosts_confiables() -> frozenset[str]:
     sirve para el peer que se anuncia como `10.0.0.5:8000` y también
     para el que se anuncia como `10.0.0.5` (revisión PR #71, B3).
     """
+    Las entradas que quedan vacías se descartan: un host vacío admitiría
+    peticiones sin header `Host` (revisión PR #71, N1).
+    """
     extra = os.environ.get("VISTOBUENO_HOSTS", "")
-    return frozenset(
-        _host_sin_puerto(h) for h in HOSTS_CONFIABLES_DEFAULT if h.strip()
-    ) | frozenset(_host_sin_puerto(h) for h in extra.split(",") if h.strip())
+    candidatos = [h for h in HOSTS_CONFIABLES_DEFAULT if h.strip()]
+    candidatos += [h for h in extra.split(",") if h.strip()]
+    return frozenset(h for h in (_host_sin_puerto(h) for h in candidatos) if h)
 
 
 def _es_loopback(host: str | None) -> bool:
