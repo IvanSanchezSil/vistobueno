@@ -370,9 +370,7 @@ class AnalizadorListaObligatoria(Analizador):
                 hasta_final=bool(sec.get("hasta_final")),
             )
             return " ".join(
-                t.texto
-                for t in corte
-                if t.tipo in (PARRAFO, TITULO) and t.texto.strip()
+                t.texto for t in corte if t.tipo in (PARRAFO, TITULO) and t.texto.strip()
             )
         nodos = self._nodos(
             extracted,
