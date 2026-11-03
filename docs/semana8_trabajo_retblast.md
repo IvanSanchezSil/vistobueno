@@ -2,7 +2,7 @@
 
 **Integrante**: retblast
 **Rol**: Integrante 1 — Backend / API
-**Semana**: 8 de 14 (19/10/2026 – 24/10/2026) — **en curso (parcial al 19/10)**
+**Semana**: 8 de 14 (19/10/2026 – 24/10/2026)
 **Proyecto**: VistoBueno — Validador automático de formato de tesis (UNT FECyC)
 
 ---
@@ -184,7 +184,8 @@
    copia de la fila TSV, resguardo en localStorage.
 3. Relay a Int3: prefijo de `dc.title` en la captura (pulió el diseño
    17).
-4. Merge del PR #55 con el CI en verde.
+4. Merge del PR #55 con el CI en verde. — **Cumplido el 24/10**
+   (hallazgos 12–18 atendidos; suite 626 backend + 24 node).
 
 ---
 
@@ -279,3 +280,14 @@ rama:
   antes quedaba enmascarada por el auto-relleno de la ficha en el
   buzón); la segunda página ahora migra localStorage (estado cross-carga,
   el hábitat del bug original).
+
+### 24/10, cierre de la semana
+
+PR #55 mergeado a `master` (18:43) con el CI en verde: el flujo de ficha
+de depósito del contrato v1.7.0 — ficha solo con semáforo verde, buzón
+de una ranura, constancia del Modelo B, registro descargable en
+tsv/csv/xlsx y userscript con ensayo general de un comando — queda en la
+rama principal. Estado final de la semana: suite **626 backend + 24
+node**, ensayo general en frío verde. La actividad 11 continúa en la
+semana 9 con el piloto real del operador, la UI de la ficha (Int2) y el
+relay de la captura a Int3.

@@ -8,6 +8,7 @@ Uso:
 """
 
 import io
+import time
 import zipfile
 from pathlib import Path
 
@@ -24,9 +25,10 @@ from conftest import (
     subir_plantilla,
 )
 from docx_factory import compilar_docx, configuracion_base
+from fastapi.testclient import TestClient
 
 import validator.api
-from validator.api import CAMPOS_EXTRAIDOS_FICHA, CAMPOS_MANUALES_FICHA, REGLAS_YAML_PATH
+from validator.api import CAMPOS_EXTRAIDOS_FICHA, CAMPOS_MANUALES_FICHA, REGLAS_YAML_PATH, app
 from validator.api_models import ResultadoReglaAPI
 from validator.engine import build_report, load_rules, validate_docx
 
@@ -293,6 +295,24 @@ class TestErrores:
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
 
+    def test_content_type_zip(self):
+        """Un .docx es un ZIP: el MIME application/zip es legítimo → 200.
+
+        AUD-13: el backend rechazaba con 415 un .docx real enviado como
+        `application/zip`, mientras el frontend lo aceptaba (acepta por
+        MIME o por extensión). La puerta real es la extensión .docx más la
+        firma PK del archivo.
+        """
+        respuesta = subir_plantilla(mime="application/zip")
+        assert respuesta.status_code == 200
+        assert respuesta.json()["semaforo"] in ("verde", "rojo")
+
+    def test_content_type_invalido_sigue_dando_415(self):
+        """Un MIME que no es de un paquete Office/zip → 415."""
+        respuesta = subir_plantilla(mime="text/plain")
+        assert respuesta.status_code == 415
+        assert "Content-Type" in respuesta.json()["detail"]
+
     def test_zip_magic_bytes_invalidos(self):
         """Archivo .docx con cabecera que no es ZIP (PK) → 422."""
         contenido = b"MZ" + b"\x00" * 200  # cabecera MZ (EXE) + relleno
@@ -428,6 +448,65 @@ class TestCorreo:
         )
         assert respuesta.status_code == 422
         assert "Correo electrónico inválido" in respuesta.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Tests: límite de peticiones (AUD-12)
+# ---------------------------------------------------------------------------
+
+
+class TestLimitePeticiones:
+    """Límite in-app sobre POST /validar (protege el CPU del motor).
+
+    `POST /validar` recompila el DSL en cada request: el recurso a
+    proteger es el proceso, no los datos. El límite es una ventana fija
+    por IP y vive en memoria (sin base de datos).
+    """
+
+    def test_rafaga_devuelve_429(self, monkeypatch):
+        """Más peticiones que el máximo en la ventana → 429 con Retry-After."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_MAX", "2")
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", "60")
+        assert subir_plantilla().status_code == 200
+        assert subir_plantilla().status_code == 200
+        rebotada = subir_plantilla()
+        assert rebotada.status_code == 429
+        assert rebotada.headers.get("Retry-After")
+        assert "peticiones" in rebotada.json()["detail"].lower()
+
+    def test_otra_ip_no_Comparte_cupon(self, monkeypatch):
+        """El cupón es por IP: otra dirección sigue entrando."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_MAX", "1")
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", "60")
+        otro = TestClient(app, client=("127.0.0.2", 50001))
+        with open(ruta_docx_prueba(), "rb") as f:
+            archivos = {"archivo": ("tesis.docx", f.read(), MIME_DOCX)}
+        assert CLIENTE.post("/validar", files=archivos).status_code == 200
+        assert CLIENTE.post("/validar", files=archivos).status_code == 429
+        assert otro.post("/validar", files=archivos).status_code == 200
+
+    def test_ventana_vencida_libera_el_cupon(self, monkeypatch):
+        """Pasada la ventana, la misma IP vuelve a poder entrar."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_MAX", "1")
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", "1")
+        assert subir_plantilla().status_code == 200
+        assert subir_plantilla().status_code == 429
+        time.sleep(1.1)
+        assert subir_plantilla().status_code == 200
+
+    def test_limite_desactivado_no_afecta(self, monkeypatch):
+        """Con máximo 0 el límite queda apagado."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_MAX", "0")
+        for _ in range(5):
+            assert subir_plantilla().status_code == 200
+
+    def test_configuracion_invalida_cae_al_default(self, monkeypatch):
+        """Una variable basura no rompe la API: usa el valor por defecto."""
+        monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_MAX", "no-es-un-numero")
+        maximo, ventana = validator.api._config_limite_peticiones()
+        assert maximo == validator.api.MAXIMO_PETICIONES_DEFAULT
+        assert ventana == validator.api.VENTANA_PETICIONES_DEFAULT
+        assert subir_plantilla().status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -604,3 +683,109 @@ class TestFichaDeposito:
         """ROJO → ficha_deposito es null: no hay nada que pre-llenar."""
         datos = self._subir_doc_rojo().json()
         assert datos["ficha_deposito"] is None
+
+
+class TestContratoFichaUtilizable:
+    """Un campo con `detectado=true` debe traer un valor UTILIZABLE.
+
+    Auditoría 2026-10-26 (AUD-25, AUD-26): el motor puede publicar
+    capturas vacías o con la forma equivocada (el asesor vacío, la línea
+    de ciudad en vez del año). Ese dato viaja al formulario oficial de
+    DSpace, a la constancia y al registro: si no sirve, no debe viajar
+    como detectado. La API lo degrada a `detectado=false, valor=null` y
+    el operador lo teclea en la pantalla de ficha.
+    """
+
+    @staticmethod
+    def _ficha(datos_motor: dict):
+        from validator.api import _ficha_desde_reporte
+
+        return {c.campo: c for c in _ficha_desde_reporte({"ficha": datos_motor}).extraidos}
+
+    def test_asesor_vacio_no_viaja_como_detectado(self):
+        """El caso real de AUD-25: asesor '' con detectado=true."""
+        ficha = self._ficha(
+            {"dc.contributor.advisor": {"valor": "", "pagina": 1, "detectado": True}}
+        )
+        asesor = ficha["dc.contributor.advisor"]
+        assert asesor.detectado is False
+        assert asesor.valor is None
+
+    def test_autor_lista_vacia_no_viaja_como_detectado(self):
+        """Una lista sin elementos no es un autor."""
+        ficha = self._ficha(
+            {"dc.contributor.author": {"valor": [], "pagina": 1, "detectado": True}}
+        )
+        assert ficha["dc.contributor.author"].detectado is False
+
+    def test_autor_con_texto_sigue_detectado(self):
+        """Un autor con texto se publica tal cual."""
+        ficha = self._ficha(
+            {
+                "dc.contributor.author": {
+                    "valor": ["Br. Apellido, Nombre"],
+                    "pagina": 1,
+                    "detectado": True,
+                }
+            }
+        )
+        autor = ficha["dc.contributor.author"]
+        assert autor.detectado is True
+        assert autor.valor == ["Br. Apellido, Nombre"]
+
+    def test_anio_con_forma_invalida_no_viaja_como_detectado(self):
+        """AUD-26: 'Trujillo - Perú' no es un año → no se publica."""
+        ficha = self._ficha(
+            {"dc.date.issued": {"valor": "Trujillo - Perú", "pagina": 1, "detectado": True}}
+        )
+        fecha = ficha["dc.date.issued"]
+        assert fecha.detectado is False
+        assert fecha.valor is None
+
+    def test_anio_rojo_dentro_del_titulo_no_viaja_como_detectado(self):
+        """AUD-26 real: el párrafo del título termina en ', Trujillo 2024'.
+
+        Un chequeo de "contiene un año" dejaría pasar este texto y el
+        ítem se publicaría con la fecha del título. Solo sobrevive un
+        año desnudo.
+        """
+        ficha = self._ficha(
+            {
+                "dc.date.issued": {
+                    "valor": "Estrategias lúdicas en primaria, Trujillo 2024",
+                    "pagina": 1,
+                    "detectado": True,
+                }
+            }
+        )
+        fecha = ficha["dc.date.issued"]
+        assert fecha.detectado is False
+        assert fecha.valor is None
+        assert fecha.pagina is None
+
+    def test_anio_valido_sigue_detectado(self):
+        """Un año con forma correcta se publica (el acierto es del motor)."""
+        ficha = self._ficha({"dc.date.issued": {"valor": "2026", "pagina": 1, "detectado": True}})
+        assert ficha["dc.date.issued"].detectado is True
+        assert ficha["dc.date.issued"].valor == "2026"
+
+    def test_valor_con_espacios_solo_no_viaja_como_detectado(self):
+        """Un texto de solo espacios no es un dato."""
+        ficha = self._ficha(
+            {"dc.contributor.advisor": {"valor": "   ", "pagina": 1, "detectado": True}}
+        )
+        assert ficha["dc.contributor.advisor"].detectado is False
+
+    def test_invariante_en_la_respuesta_real(self):
+        """En la respuesta de la API no hay detectado=true sin valor."""
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("tesis.docx", open(ruta_docx_prueba(), "rb").read(), MIME_DOCX)},
+        )
+        assert respuesta.status_code == 200
+        ficha = respuesta.json()["ficha_deposito"]
+        if ficha is None:
+            return  # semáforo rojo: no hay ficha
+        for extraido in ficha["extraidos"]:
+            if extraido["detectado"]:
+                assert extraido["valor"] not in (None, "", []), extraido["campo"]

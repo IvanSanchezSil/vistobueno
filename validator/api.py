@@ -12,14 +12,27 @@ Uso:
 
 import os
 import re
+import secrets
 import tempfile
+import threading
+import time
 import zipfile
 from functools import cache
 from pathlib import Path
 from typing import Literal
 
 from email_validator import EmailNotValidError, validate_email
-from fastapi import FastAPI, File, Form, HTTPException, Query, Response, UploadFile
+from fastapi import (
+    Depends,
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.concurrency import run_in_threadpool
 
 from .api_models import (
@@ -58,7 +71,6 @@ from .constancia import (
     llenar_constancia,
 )
 from .dsl_check import DSLValidationError
-from .dspace import ConfigDSpace, depositar_documento, metadatos_desde_formulario
 from .engine import build_report, load_ficha_rules, load_rules, validate_docx
 from .models import RuleResult
 from .notificacion import ConfigSMTP, enviar_notificacion
@@ -77,8 +89,15 @@ REGLAS_YAML_PATH = str(Path(__file__).resolve().parent.parent / "reglas_unt.yaml
 
 TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 
+# Tipos de content-type admitidos. La puerta real NO es esta lista: un DOCX
+# es un paquete OPC (ZIP) y algunos clientes lo envían con tipos genéricos.
+# El control efectivo es la extensión `.docx` + la firma "PK" del archivo;
+# los tres chequeos están en `validar()` (extensión, content-type y firma).
+# AUD-13: un .docx legítimo con `application/zip`
+# recibía 415 y el frontend lo aceptaba (acepta por MIME o extensión).
 TIPOS_ACEPTADOS = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/zip",  # un DOCX es un ZIP: algunos clientes lo envían así
     "application/octet-stream",  # algunos navegadores envían esto para .docx
 }
 
@@ -103,6 +122,180 @@ CAMPOS_MANUALES_FICHA = (
     "renati.advisor.dni",
     "renati.advisor.orcid",
 )
+
+
+# ---------------------------------------------------------------------------
+# Control de acceso al buzón (auditoría 2026-10-26, AUD-09)
+# ---------------------------------------------------------------------------
+# El buzón travela datos personales del estudiante (DNI, ORCID, resumen) y
+# su ranura es de "última gana": alguien que llegue desde la red puede
+# leerlos o pisar la ficha en vuelo.
+#
+# El despliegue real es LOCAL: la app corre en la PC del encargado y
+# `uvicorn` hace bind a 127.0.0.1. Por eso el control de acceso por
+# defecto es el **loopback**: solo los peticiones que llegan desde la
+# propia máquina pueden tocar el buzón.
+#
+# Si alguien expone la API fuera de la máquina (bind a 0.0.0.0 o un
+# reverse proxy en otro host), puede exigir además un token compartido
+# por header. La comparación es en tiempo constante.
+
+CABECERA_TOKEN_BUZON = "X-VistoBueno-Token"
+HOSTS_LOOPBACK = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def _token_buzon() -> str:
+    """Token compartido del buzón; vacío significa "no se exige token"."""
+    return (os.environ.get("VISTOBUENO_API_TOKEN") or "").strip()
+
+
+def _es_loopback(host: str | None) -> bool:
+    """True si el host del par es la propia máquina."""
+    return (host or "").strip() in HOSTS_LOOPBACK
+
+
+async def verificar_acceso_buzon(request: Request) -> None:
+    """Dependency de los endpoints del buzón: loopback o token compartido.
+
+    Reglas (AUD-09):
+
+    - **Peer del loopback**: siempre permitido. Es la máquina donde corre
+      la app, que es la frontera de confianza del despliegue local. La SPA
+      y el userscript siempre hablan con `127.0.0.1`, así que no tienen
+      que enviar ningún token.
+    - **Peer de otra máquina**: permitido solo si hay un token
+      configurado (`VISTOBUENO_API_TOKEN`) y el header coincide.
+
+    El token se comprueba **antes** de rechazar al peer remoto: sin ese
+    orden, el token no serviría para el único caso que documenta
+    (API expuesta fuera de la máquina) y el remote sería siempre `403`.
+    """
+    host = request.client.host if request.client else None
+    if _es_loopback(host):
+        return
+    token = _token_buzon()
+    recibido = request.headers.get(CABECERA_TOKEN_BUZON, "")
+    if token and secrets.compare_digest(recibido.encode(), token.encode()):
+        return
+    if not token:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "El buzón de ficha solo se sirve desde la máquina donde corre "
+                "la app (loopback). Si la API se expone a otros equipos, "
+                "define VISTOBUENO_API_TOKEN y envía el header "
+                f"'{CABECERA_TOKEN_BUZON}'."
+            ),
+        )
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "Falta o no coincide el token del buzón. Envía el header "
+            f"'{CABECERA_TOKEN_BUZON}' con el valor de "
+            "VISTOBUENO_API_TOKEN."
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Limitador de peticiones (auditoría 2026-10-26, AUD-12)
+# ---------------------------------------------------------------------------
+# POST /validar recompila el DSL en cada request: el recurso a proteger es
+# el CPU del proceso. El límite vive en memoria (sin base de datos, como el
+# buzón): se reinicia con el servidor y no se comparte entre workers (el
+# despliegue documentado es de UN worker).
+#
+# Es una mitigación mínima: si algún día la API se expone fuera de la
+# máquina, el límite real va en el reverse proxy (ver README).
+
+MAXIMO_PETICIONES_DEFAULT = 60
+VENTANA_PETICIONES_DEFAULT = 60.0
+
+
+class LimitadorPeticiones:
+    """Ventana fija por IP: cuenta las peticiones de un intervalo.
+
+    Attributes:
+        _peticiones: IP → (cantidad, inicio de la ventana).
+        _lock: el acceso puede ser concurrente (endpoints en threadpool).
+    """
+
+    def __init__(self) -> None:
+        self._peticiones: dict[str, tuple[int, float]] = {}
+        self._lock = threading.Lock()
+
+    def registrar(self, ip: str, maximo: int, ventana: float) -> tuple[bool, float]:
+        """Registra una petición.
+
+        Returns:
+            (permitido, segundos para reintentar). Si no está permitida,
+            los segundos son el tiempo que falta para que venza la ventana.
+        """
+        ahora = time.monotonic()
+        with self._lock:
+            cantidad, inicio = self._peticiones.get(ip, (0, ahora))
+            if ahora - inicio >= ventana:
+                cantidad, inicio = 0, ahora
+            cantidad += 1
+            self._peticiones[ip] = (cantidad, inicio)
+            if cantidad > maximo:
+                return False, max(ventana - (ahora - inicio), 0.0)
+            self._purgar(ahora, ventana)
+            return True, 0.0
+
+    def _purgar(self, ahora: float, ventana: float) -> None:
+        """Descarta las entradas vencidas (evita que el dict crezca sin fin)."""
+        if len(self._peticiones) <= 1000:
+            return
+        self._peticiones = {
+            ip: datos for ip, datos in self._peticiones.items() if ahora - datos[1] < ventana
+        }
+
+    def limpiar(self) -> None:
+        """Vacía el estado (tests y reinicio del flujo)."""
+        with self._lock:
+            self._peticiones.clear()
+
+
+_LIMITADOR_PETICIONES = LimitadorPeticiones()
+
+
+def _config_limite_peticiones() -> tuple[int, float]:
+    """Límite por IP y ventana, leídos del entorno en cada request.
+
+    Returns:
+        (máximo de peticiones, ventana en segundos). Un máximo de 0
+        desactiva el límite.
+    """
+    try:
+        maximo = int(os.environ.get("VISTOBUENO_RATE_LIMIT_MAX", MAXIMO_PETICIONES_DEFAULT))
+    except ValueError:
+        maximo = MAXIMO_PETICIONES_DEFAULT
+    try:
+        ventana = float(
+            os.environ.get("VISTOBUENO_RATE_LIMIT_VENTANA_SEG", VENTANA_PETICIONES_DEFAULT)
+        )
+    except ValueError:
+        ventana = VENTANA_PETICIONES_DEFAULT
+    return max(0, maximo), max(ventana, 0.1)
+
+
+async def limitar_validaciones(request: Request) -> None:
+    """Dependency de POST /validar: corta los abuse de CPU con 429."""
+    maximo, ventana = _config_limite_peticiones()
+    if maximo <= 0:
+        return
+    ip = request.client.host if request.client else "desconocido"
+    permitido, reintentar = _LIMITADOR_PETICIONES.registrar(ip, maximo, ventana)
+    if not permitido:
+        raise HTTPException(
+            status_code=429,
+            headers={"Retry-After": str(int(reintentar) + 1)},
+            detail=(
+                "Demasiadas peticiones de validación seguidas. "
+                "Espera unos segundos antes de reintentar."
+            ),
+        )
 
 
 @cache
@@ -192,6 +385,45 @@ def _extraer_metadata_tipo_documento(
     }
 
 
+def _valor_utilizable(valor: object) -> bool:
+    """True si el valor capturado sirve para el formulario de DSpace.
+
+    Contrato de la ficha (auditoría 2026-10-26, AUD-25 y AUD-26): un
+    campo con `detectado=true` debe traer un valor **utilizable**. El
+    motor puede publicar capturas vacías o con la forma equivocada (por
+    ejemplo, el asesor vacío o la línea de ciudad en vez del año), y
+    ese dato viaja al formulario oficial, a la constancia y al
+    registro. La API no lo publica como detectado: lo deja para que el
+    operador lo teclee.
+    """
+    if valor is None:
+        return False
+    if isinstance(valor, str):
+        return bool(valor.strip())
+    if isinstance(valor, list):
+        # Una lista sirve si tiene al menos un elemento con texto.
+        return any(isinstance(item, str) and item.strip() for item in valor)
+    return True
+
+
+def _forma_valida(campo: str, valor: object) -> bool:
+    """True si el valor además tiene la forma que espera el campo.
+
+    Solo `dc.date.issued` tiene forma estricta: el formulario pide un
+    año. El chequeo es de **valor completo**, no de "contiene": la
+    captura real de AUD-26 es el párrafo del título, que termina en
+    ", Trujillo 2024". Un `contains` dejaría pasar ese texto y el
+    ítem se publicaría con la fecha equivocada.
+    """
+    if campo != "dc.date.issued":
+        return True
+    if isinstance(valor, list):
+        valor = valor[0] if valor else ""
+    if not isinstance(valor, str):
+        return False
+    return bool(re.fullmatch(r"(?:19|20)\d{2}", valor.strip()))
+
+
 def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
     """Construye la ficha de depósito a partir del reporte del motor.
 
@@ -202,6 +434,11 @@ def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
     17), viaja con `detectado=false` y `valor=null`: el contrato es
     estable y el frontend puede construirse ya.
 
+    Un campo solo viaja con `detectado=true` si su valor es **utilizable**
+    y tiene la **forma** que espera el campo (ver `_valor_utilizable` y
+    `_forma_valida`). Si no, viaja con `detectado=false` y `valor=null`:
+    el operador lo teclea en la pantalla de ficha.
+
     Los manuales siempre viajan vacíos desde el servidor: los llena el
     operador en la pantalla.
     """
@@ -209,12 +446,16 @@ def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
     extraidos = []
     for campo in CAMPOS_EXTRAIDOS_FICHA:
         dato = datos_motor.get(campo) or {}
+        valor = dato.get("valor")
+        detectado = (
+            bool(dato.get("detectado")) and _valor_utilizable(valor) and _forma_valida(campo, valor)
+        )
         extraidos.append(
             CampoExtraidoFicha(
                 campo=campo,
-                valor=dato.get("valor"),
-                pagina=dato.get("pagina"),
-                detectado=bool(dato.get("detectado")),
+                valor=valor if detectado else None,
+                pagina=dato.get("pagina") if detectado else None,
+                detectado=detectado,
             )
         )
     manuales = [CampoManualFicha(campo=c, valor=None) for c in CAMPOS_MANUALES_FICHA]
@@ -306,7 +547,7 @@ def _validar_correo(correo: str | None) -> str | None:
 app = FastAPI(
     title="VistoBueno API",
     description="API de validación automática de formato de tesis — UNT FECyC",
-    version="1.7.0",
+    version="1.10.0",
 )
 
 
@@ -323,8 +564,10 @@ app = FastAPI(
         413: {"description": "Archivo excede el tamaño máximo (10 MB)"},
         415: {"description": "Tipo de archivo no soportado"},
         422: {"description": "Archivo corrupto, no es DOCX válido o correo inválido"},
+        429: {"description": "Demasiadas peticiones de validación seguidas"},
         500: {"description": "Error interno del validador"},
     },
+    dependencies=[Depends(limitar_validaciones)],
 )
 async def validar(
     archivo: UploadFile = File(..., description="Archivo .docx a validar"),
@@ -355,38 +598,51 @@ async def validar(
     depositar: bool = Form(
         default=False,
         description=(
-            "Solicitar el depósito del documento en el repositorio "
-            "institucional DSpace (opt-in del operador, actividad 10). "
-            "Solo aplica con semáforo verde."
+            "DEPRECADO (decisión 2026-10-28): el depósito automático en DSpace "
+            "queda fuera del flujo. El flujo oficial es la ficha (SPA) → buzón → "
+            "userscript, y el archivo lo adjunta el encargado en el formulario "
+            "oficial de DSpace. El campo se conserva para no romper el "
+            "contrato, pero ya no dispara ninguna llamada."
         ),
     ),
     titulo: str | None = Form(
         default=None,
-        description="Título del trabajo: metadato dc.title del depósito (opcional)",
+        description=(
+            "DEPRECADO: metadato dc.title que usaba el depósito automático. "
+            "El título de la ficha de depósito lo captura el motor del DOCX."
+        ),
         examples=[""],
     ),
     autores: str | None = Form(
         default=None,
         description=(
-            "Autor(es), separados por ';' o saltos de línea: metadato "
-            "dc.contributor.author del depósito (opcional)"
+            "DEPRECADO: metadato dc.contributor.author que usaba el depósito "
+            "automático. Los autores los captura el motor del DOCX y el "
+            "operador los corrige en la pantalla de ficha."
         ),
         examples=[""],
     ),
     asesor: str | None = Form(
         default=None,
-        description="Asesor(a): metadato dc.contributor.advisor del depósito (opcional)",
+        description=(
+            "DEPRECADO: metadato dc.contributor.advisor que usaba el depósito "
+            "automático. El asesor lo captura el motor del DOCX."
+        ),
         examples=[""],
     ),
     resumen: str | None = Form(
         default=None,
-        description="Resumen: metadato dc.description.abstract del depósito (opcional)",
+        description=(
+            "DEPRECADO: metadato dc.description.abstract que usaba el depósito "
+            "automático. El resumen lo captura el motor del DOCX."
+        ),
         examples=[""],
     ),
     palabras_clave: str | None = Form(
         default=None,
         description=(
-            "Palabras clave, separadas por ';' o ',': metadato dc.subject del depósito (opcional)"
+            "DEPRECADO: metadato dc.subject que usaba el depósito automático. "
+            "Las palabras clave las captura el motor del DOCX."
         ),
         examples=[""],
     ),
@@ -580,51 +836,23 @@ async def validar(
                         detalle = resultado_envio.detalle
         respuesta.notificacion = NotificacionAPI(estado=estado, detalle=detalle)
 
-        # --- Depósito en DSpace (Actividad 10, best-effort) ---
-        # Misma mecánica que la notificación: opt-in del operador
-        # (`depositar`), pero SOLO con semáforo "verde" (documento apto
-        # para el repositorio). El ítem queda en la cola de aprobación de
-        # la sede (workflow de DSpace), nunca se publica directo.
-        # depositar_documento() NUNCA lanza: un fallo de DSpace no debe
-        # romper la respuesta HTTP.
+        # --- Depósito en DSpace (Actividad 10) — DEPRECADO ---
+        # Decisión del equipo (2026-10-28, auditoría de comportamiento): la
+        # app NO escribe en la API de DSpace. El flujo oficial es la ficha
+        # (SPA) → buzón → userscript, que rellena el formulario oficial; el
+        # archivo lo adjunta el encargado en ese formulario.
+        # Por eso `depositar=true` ya NO dispara ninguna llamada: responde
+        # "deshabilitado" con la nota que explica el flujo vigente. El campo
+        # y el DTO `deposito` se conservan para no romper el contrato.
         estado_dep = EstadoDepositoAPI.SIN_SOLICITUD
         detalle_dep: str | None = None
         if depositar:
-            if respuesta.semaforo != "verde":
-                estado_dep = EstadoDepositoAPI.NO_APTO
-                detalle_dep = "solo se depositan documentos con semáforo verde"
-            else:
-                config_dspace = ConfigDSpace.desde_entorno()
-                if not config_dspace.enabled:
-                    estado_dep = EstadoDepositoAPI.DESHABILITADO
-                    # Nota de configuración para el personal del repositorio
-                    # (mismo criterio que el hallazgo B3 de la notificación):
-                    # la respuesta indica exactamente qué falta configurar.
-                    detalle_dep = (
-                        "El servidor no tiene el depósito habilitado: configure "
-                        "VISTOBUENO_DSPACE=1 y " + ", ".join(config_dspace.faltantes) + "."
-                    )
-                else:
-                    metadatos_dep = metadatos_desde_formulario(
-                        titulo=titulo,
-                        autores=autores,
-                        asesor=asesor,
-                        resumen=resumen,
-                        palabras_clave=palabras_clave,
-                    )
-                    # httpx es bloqueante (timeout por solicitud): fuera del
-                    # event loop, o un DSpace caído congela toda la API.
-                    resultado_dep = await run_in_threadpool(
-                        depositar_documento,
-                        tmp_path,
-                        metadatos_dep,
-                        config_dspace,
-                    )
-                    if resultado_dep.enviado:
-                        estado_dep = EstadoDepositoAPI.ENVIADO
-                    else:
-                        estado_dep = EstadoDepositoAPI.FALLO
-                    detalle_dep = resultado_dep.detalle
+            estado_dep = EstadoDepositoAPI.DESHABILITADO
+            detalle_dep = (
+                "El depósito automático está deshabilitado: el flujo oficial es "
+                "el formulario de DSpace + el userscript de VistoBueno; el "
+                "archivo lo adjunta el encargado en el formulario oficial."
+            )
         respuesta.deposito = DepositoAPI(estado=estado_dep, detalle=detalle_dep)
 
         return respuesta
@@ -658,8 +886,13 @@ _BUZON = Buzon()
         "La SPA publica la ficha (extraídos + manuales) para que el "
         "userscript de depósito la lea desde el navegador del operador. "
         "El buzón tiene UNA ranura con TTL de 1 hora: publicar de nuevo "
-        "reemplaza la ficha anterior ('última gana')."
+        "reemplaza la ficha anterior ('última gana'). "
+        "Solo se sirve desde la máquina donde corre la app (loopback); "
+        "si hay token configurado, exige el header "
+        f"'{CABECERA_TOKEN_BUZON}'."
     ),
+    responses={403: {"description": "Petición desde otro equipo o sin token válido"}},
+    dependencies=[Depends(verificar_acceso_buzon)],
 )
 async def publicar_ficha_pendiente(ficha: FichaDeposito) -> None:
     _BUZON.publicar_ficha(ficha.model_dump())
@@ -672,9 +905,15 @@ async def publicar_ficha_pendiente(ficha: FichaDeposito) -> None:
     description=(
         "El userscript lee aquí la ficha a rellenar en el formulario "
         "oficial de DSpace. 404 cuando no hay ficha o la publicada "
-        "expiró (TTL de 1 hora)."
+        "expiró (TTL de 1 hora). Solo se sirve desde la máquina donde "
+        "corre la app (loopback); si hay token configurado, exige el "
+        f"header '{CABECERA_TOKEN_BUZON}'."
     ),
-    responses={404: {"description": "Sin ficha pendiente: vacía o expirada"}},
+    responses={
+        403: {"description": "Petición desde otro equipo o sin token válido"},
+        404: {"description": "Sin ficha pendiente: vacía o expirada"},
+    },
+    dependencies=[Depends(verificar_acceso_buzon)],
 )
 async def leer_ficha_pendiente() -> FichaDeposito:
     ficha = _BUZON.leer_ficha()
@@ -694,8 +933,12 @@ async def leer_ficha_pendiente() -> FichaDeposito:
         "El userscript reporta el depósito desde la página del ítem "
         "archivado: handle del ítem, título y el timestamp del clic en "
         "Depositar. La SPA lo recoge sondeando GET /deposito y arma la "
-        "constancia y la fila del registro."
+        "constancia y la fila del registro. Solo se sirve desde la "
+        "máquina donde corre la app (loopback); si hay token configurado, "
+        f"exige el header '{CABECERA_TOKEN_BUZON}'."
     ),
+    responses={403: {"description": "Petición desde otro equipo o sin token válido"}},
+    dependencies=[Depends(verificar_acceso_buzon)],
 )
 async def reportar_deposito(datos: DepositoRecibido) -> None:
     _BUZON.reportar_deposito(datos.model_dump())
@@ -709,9 +952,15 @@ async def reportar_deposito(datos: DepositoRecibido) -> None:
         "La SPA sondea aquí mientras espera el handle del ítem. 404 "
         "cuando no hay reporte o expiró (TTL de 1 hora). Por seguridad, "
         "la SPA debe cotejar el `titulo` reportado con la ficha en vuelo "
-        "antes de usar el handle."
+        "antes de usar el handle. Solo se sirve desde la máquina donde "
+        "corre la app (loopback); si hay token configurado, exige el "
+        f"header '{CABECERA_TOKEN_BUZON}'."
     ),
-    responses={404: {"description": "Sin depósito reportado: vacío o expirado"}},
+    responses={
+        403: {"description": "Petición desde otro equipo o sin token válido"},
+        404: {"description": "Sin depósito reportado: vacío o expirado"},
+    },
+    dependencies=[Depends(verificar_acceso_buzon)],
 )
 async def leer_deposito_reportado() -> DepositoRecibido:
     datos = _BUZON.leer_deposito()
