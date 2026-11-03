@@ -242,7 +242,7 @@ def _caratula_paras(doc) -> set:
 
 
 def _caratula_ficha_paras(doc) -> set:
-    """Párrafos de la carátula **incluyendo** el que cierra la sección.
+    """Párrafos de la carátula incluyendo el que cierra la sección.
 
     Igual que `_caratula_paras`, pero el conjunto también incluye el primer
     párrafo que contiene un `w:pPr/w:sectPr` (el salto de sección que
@@ -340,11 +340,10 @@ class ExtractedDocx:
         return _para_ancestor(node) in self._caratula
 
     def is_caratula_ficha(self, node) -> bool:
-        """¿El nodo vive en un párrafo de la carátula incluyendo el cierre?
+        """¿El nodo vive en la carátula **o en el párrafo que cierra la sección**?
 
-        Igual que `is_caratula`, pero el conjunto también incluye el primer
-        párrafo que contiene un `w:pPr/w:sectPr` (el que cierra la sección).
-        Sirve para capturar la ciudad y el año que esa línea lleva.
+        Para las reglas de la ficha de depósito: captura también el `w:p`
+        con `w:pPr/w:sectPr` (ciudad y año) que la carátula pura excluye.
         """
         return _para_ancestor(node) in self._caratula_ficha
 
