@@ -229,6 +229,9 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas
     (tamaño de letra, 14 puntos)."'
+  # EVALUADO: el manual pide 14 pt (sz 28), pero la plantilla oficial de
+  # EDUCACIÓN INICIAL usa 13 pt (sz 26). Se mantiene el valor del manual como
+  # warning: no bloquea la entrega y deja documentado el desvío (AUD-04).
   atributo_xml:
     parte: document
     contexto: caratula
@@ -246,6 +249,9 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas
     (tamaño de letra, 13 puntos)."'
+  # EVALUADO: el manual pide 13 pt (sz 26), pero la plantilla oficial de
+  # EDUCACIÓN INICIAL usa 12 pt (sz 24). Se mantiene el valor del manual como
+  # warning: no bloquea la entrega y deja documentado el desvío (AUD-04).
   atributo_xml:
     parte: document
     contexto: caratula
