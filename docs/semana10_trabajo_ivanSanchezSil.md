@@ -52,7 +52,7 @@ Orden propuesto:
 - [x] `pytest tests/ -v` sin regresiones (**635 passed, 1 skipped**)
 - [x] linter DSL limpio en `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y `reglas_ficha.yaml`
 - [x] `tests/test_paridad_formatos.py` OK
-- [ ] `nix flake check` OK
+- [x] `nix flake check` OK
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` OK
 
 ## Riesgos
