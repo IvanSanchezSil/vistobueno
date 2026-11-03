@@ -19,8 +19,8 @@ Documentar y planificar primero. Sin tocar código hasta tener claro el enfoque.
 | ID | Sev | Archivos | Acción |
 |----|-----|----------|--------|
 | F-1 | Alta | `validator/extractor.py` | ✅ **HECHO**: Añadir contexto `caratula_ficha`: incluye el párrafo que porta `w:pPr/w:sectPr` sin tocar `_caratula` ni las 49 reglas normales. Añadir `is_caratula_ficha` y soporte `contexto="caratula_ficha"` en `xpath`. |
-| F-2 | Alta | `validator/analizadores.py` | Pendiente |
-| F-3 | Alta | `reglas_ficha.yaml` | Pendiente |
+| F-2 | Alta | `validator/analizadores.py` | ✅ **HECHO**: `AnalizadorExtraccion` con `seleccion: primero | ultimo` (tras `filtro`) y `quitar_sufijo` (regex). |
+| F-3 | Alta | `reglas_ficha.yaml` | ✅ **HECHO**: `ficha_anio` (`seleccion: ultimo`), `ficha_titulo` (`quitar_prefijo`), `ficha_autores` (`etiqueta: autores`, modo lista), `ficha_asesor` (sin cambios), `ficha_palabras_clave` (`quitar_sufijo: \s*\.\s*$`). |
 | F-4 | Media | `validator/compilador.py` | Pendiente |
 | F-5 | Alta | `tests/_caratula_real.py`, `tests/test_captura_ficha.py`, `tests/test_constancia.py` | Pendiente |
 | F-6 | Media | `scripts/eval_contra_plantillas.py` | Pendiente |
