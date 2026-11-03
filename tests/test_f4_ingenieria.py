@@ -177,29 +177,49 @@ class TestLinter:
         compilado = CompilerDSL().compilar(data, linter=False)
         assert len(compilado) == 1
 
-    def test_lista_obligatoria_items_vacio_lanza_error(self):
-        """`lista_obligatoria` con `items: []` falla al compilar, no pasa."""
+    def test_lista_obligatoria_items_vacio_detectado_por_linter(self):
+        """`lista_obligatoria` con `items: []` no puede pasar: el linter lo ve."""
         data = _reglas_de("lista_obligatoria", {"items": []})
-        with pytest.raises(ConfigurationError):
-            CompilerDSL().compilar(data)
+        assert any("'items' debe ser una lista no vacía" in h for h in linter(data))
 
-    def test_lista_obligatoria_sin_items_lanza_error(self):
+    def test_lista_obligatoria_sin_items_detectado_por_linter(self):
         """`lista_obligatoria` sin la clave `items` también es un error."""
         data = _reglas_de("lista_obligatoria", {"seccion": {"inicio": "X"}})
-        with pytest.raises(ConfigurationError):
-            CompilerDSL().compilar(data)
+        assert any("'items' debe ser una lista no vacía" in h for h in linter(data))
 
-    def test_paginacion_sin_xpaths_lanza_error(self):
-        """`paginacion` con `xpaths: []` falla al compilar, no al validar."""
+    def test_paginacion_sin_xpaths_detectado_por_linter(self):
+        """`paginacion` con `xpaths: []` no puede pasar: el linter lo ve."""
         data = _reglas_de("paginacion", {"xpaths": []})
-        with pytest.raises(ConfigurationError):
-            CompilerDSL().compilar(data)
+        assert any("al menos 2" in h for h in linter(data))
 
-    def test_paginacion_con_un_solo_xpath_lanza_error(self):
+    def test_paginacion_con_un_solo_xpath_detectado_por_linter(self):
         """`paginacion` necesita al menos 2 xpaths para comparar páginas."""
         data = _reglas_de("paginacion", {"xpaths": ["//w:body/w:p"]})
-        with pytest.raises(ConfigurationError):
+        assert any("al menos 2" in h for h in linter(data))
+
+    def test_lista_obligatoria_items_vacio_es_error_de_carga(self):
+        """Con el linter activo, la config inválida es error de carga del DSL."""
+        data = _reglas_de("lista_obligatoria", {"items": []})
+        with pytest.raises(DSLValidationError):
             CompilerDSL().compilar(data)
+
+    def test_paginacion_sin_xpaths_es_error_de_carga(self):
+        """Con el linter activo, la config inválida es error de carga del DSL."""
+        data = _reglas_de("paginacion", {"xpaths": []})
+        with pytest.raises(DSLValidationError):
+            CompilerDSL().compilar(data)
+
+    def test_lista_obligatoria_items_vacio_falla_sin_linter(self):
+        """Sin linter, el analizador rechaza la config al construirse."""
+        data = _reglas_de("lista_obligatoria", {"items": []})
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data, linter=False)
+
+    def test_paginacion_sin_xpaths_falla_sin_linter(self):
+        """Sin linter, el analizador rechaza la config al construirse."""
+        data = _reglas_de("paginacion", {"xpaths": []})
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data, linter=False)
 
 
 # ---------------------------------------------------------------------------

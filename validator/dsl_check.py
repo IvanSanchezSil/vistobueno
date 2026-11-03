@@ -377,6 +377,39 @@ def _lint_deteccion_tipo(
                         )
 
 
+def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida la sección `lista_obligatoria`.
+
+    `items` debe ser una lista no vacía: una lista vacía no comprueba nada y
+    la regla pasaría siempre (falso verde silencioso).
+    """
+    items = config.get("items")
+    if not isinstance(items, list) or not items:
+        hallazgos.append(
+            f"[{rule_id}] lista_obligatoria: 'items' debe ser una lista no vacía "
+            "(si no, la regla no comprueba nada y pasa siempre)"
+        )
+    elif not all(isinstance(it, str) and it.strip() for it in items):
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'items' solo admite textos no vacíos")
+
+
+def _lint_paginacion(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida la sección `paginacion`.
+
+    `xpaths` debe traer al menos 2 entradas: la sección compara la página
+    física de los párrafos objetivo, así que con menos no hay nada que
+    comparar y la regla no puede sino fallar.
+    """
+    xpaths = config.get("xpaths")
+    if not isinstance(xpaths, list) or len(xpaths) < 2:
+        hallazgos.append(
+            f"[{rule_id}] paginacion: 'xpaths' debe ser una lista con al menos 2 "
+            "entradas (la regla compara la página física de los párrafos objetivo)"
+        )
+    elif not all(isinstance(x, str) and x.strip() for x in xpaths):
+        hallazgos.append(f"[{rule_id}] paginacion: 'xpaths' solo admite textos no vacíos")
+
+
 def linter(rules_data: dict) -> list[str]:
     """Devuelve la lista de hallazgos (vacía si el DSL está sano)."""
     hallazgos: list[str] = []
@@ -400,6 +433,10 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_automata_pila(c, hallazgos, rule_id)
                 elif seccion == "deteccion_tipo":
                     _lint_deteccion_tipo(c, hallazgos, rule_id, rule)
+                elif seccion == "lista_obligatoria":
+                    _lint_lista_obligatoria(c, hallazgos, rule_id)
+                elif seccion == "paginacion":
+                    _lint_paginacion(c, hallazgos, rule_id)
     _lint_contexto(rules, hallazgos)
     return hallazgos
 
