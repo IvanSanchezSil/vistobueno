@@ -23,8 +23,9 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 | AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Hecho: umbral mantenido y documentado en el docstring + test |
 | AUD-07 | Baja | `reglas_unt.yaml` | Decisión: restringir `caratula_optar_grado_tamano` al "grado de Bachiller" o añadir `EVALUADO:`. | Hecho: XPath acotado a "bachiller" + `n_a_si_sin_nodos` |
 | AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", título "GENERAL" con entrada de índice paginada) y tests de regresión para AUD-01/AUD-02. | Hecho (b892478) |
+| AUD-15 | Media | `validator/exportador.py` | Escape HTML en `message`/`found`/`expected`/`prompt` al inyectarlos en el Markdown/PDF (previene rotura de tablas y XSS). | Hecho (AUD-15) |
 
-**Coordinar:** AUD-15 (`validator/exportador.py`) — fuera de alcance directo; AUD-21 (paridad) con AUD-03.
+**Coordinar:** AUD-21 (paridad) con AUD-03.
 
 ## Plan de trabajo
 
@@ -37,6 +38,7 @@ Orden propuesto:
 5. **AUD-03** — Culpables primero, valores legibles y página del nodo infractor; paridad legacy↔DSL verificada. (Hecho)
 6. **AUD-04** — Notas `EVALUADO:` en los tamaños de carátula, verificadas contra la plantilla oficial. (Hecho)
 7. **AUD-05/AUD-06/AUD-07** — Decisiones tomadas: documentar y diferir los selectores frágiles (AUD-05), mantener el umbral `>= 4` documentado (AUD-06) y acotar la regla de "optar" a "bachiller" (AUD-07). (Hecho)
+8. **AUD-15** — Escape HTML en `message`/`found`/`expected`/`prompt` en `validator/exportador.py` para prevenir rotura de tablas Markdown y XSS en PDF. (Hecho)
 
 ## Criterios de aceptación
 
@@ -48,8 +50,9 @@ Orden propuesto:
 - [x] AUD-05: selectores frágiles documentados (endurecimiento diferido)
 - [x] AUD-06: umbral `>= 4` mantenido y documentado
 - [x] AUD-07: `caratula_optar_grado_tamano` acotada a "bachiller" (n/a en otras titulaciones)
+- [x] AUD-15: `message`/`found`/`expected`/`prompt` escapados con `html.escape()` en `validator/exportador.py`
 - [x] `tests/_mutations.py` sin cambios: no se agregaron reglas nuevas
-- [x] `pytest tests/ -v` sin regresiones (**635 passed, 1 skipped**)
+- [x] `pytest tests/ -v` sin regresiones (**676 passed, 1 skipped**)
 - [x] linter DSL limpio en `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y `reglas_ficha.yaml`
 - [x] `tests/test_paridad_formatos.py` OK
 - [x] `nix flake check` OK
@@ -65,4 +68,4 @@ Orden propuesto:
 
 Plan detallado en `docs/PLAN_SEMANA10_AUDITORIA_MOTOR.md`
 
-Fixtures y regresiones: `tests/test_auditoria_motor.py` (AUD-20, commit `b892478`; AUD-03, commit `166553f`). Suite completa: **632 passed, 1 skipped**. Verificado que los tests nuevos fallan con el comportamiento anterior (AUD-01: `indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`; AUD-03: la página era la del primer nodo, no la del culpable). `docs/ejemplo_respuesta_motor.json` regenerado con el CLI contra el MANUAL. AUD-04: tamaños de la plantilla oficial verificados (`Título` sz 26 = 13 pt; `Para Optar` sz 24 = 12 pt). AUD-05/AUD-06/AUD-07: decisiones tomadas y documentadas; AUD-07 añade `n_a_si_sin_nodos` al analizador XML para que la regla acotada a "bachiller" no genere un falso "no encontrado" en otras titulaciones (tests `test_aud07_*`). Suite final de la rama: **635 passed, 1 skipped**. Tras actualizar con `origin/master` (merges `3370062` y `e91ca2b`): **674 passed, 3 skipped, 6 xfailed**; `ruff`, `ruff format --check`, `mypy` y `nix flake check` OK.
+Fixtures y regresiones: `tests/test_auditoria_motor.py` (AUD-20, commit `b892478`; AUD-03, commit `166553f`). Suite completa: **632 passed, 1 skipped**. Verificado que los tests nuevos fallan con el comportamiento anterior (AUD-01: `indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`; AUD-03: la página era la del primer nodo, no la del culpable). `docs/ejemplo_respuesta_motor.json` regenerado con el CLI contra el MANUAL. AUD-04: tamaños de la plantilla oficial verificados (`Título` sz 26 = 13 pt; `Para Optar` sz 24 = 12 pt). AUD-05/AUD-06/AUD-07: decisiones tomadas y documentadas; AUD-07 añade `n_a_si_sin_nodos` al analizador XML para que la regla acotada a "bachiller" no genere un falso "no encontrado" en otras titulaciones (tests `test_aud07_*`). Suite final de la rama: **676 passed, 1 skipped**. AUD-15: `validator/exportador.py` ahora escapa `message`/`found`/`expected`/`prompt` con `html.escape()` antes de inyectarlos en Markdown/PDF (tests `test_exportador.py` verdes). Tras actualizar con `origin/master` (merges `3370062` y `e91ca2b`): **674 passed, 3 skipped, 6 xfailed**; `ruff`, `ruff format --check`, `mypy` y `nix flake check` OK.
