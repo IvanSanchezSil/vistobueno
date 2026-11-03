@@ -11,6 +11,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "verificar_secretos.py"
 
 
@@ -454,3 +456,26 @@ def test_permite_default_placeholder_en_la_lectura(tmp_path):
     )
     r = correr([str(archivo)])
     assert r.returncode == 0, r.stdout
+
+
+@pytest.mark.parametrize(
+    "llamada",
+    [
+        "os.environ.get('VISTOBUENO_SMTP_PASSWORD', 'secreto-real')",
+        "os.getenv('VISTOBUENO_SMTP_PASSWORD', 'secreto-real')",
+        "environ.get('VISTOBUENO_SMTP_PASSWORD', 'secreto-real')",
+        "getenv('VISTOBUENO_SMTP_PASSWORD', 'secreto-real')",
+    ],
+)
+def test_detecta_literal_en_cada_forma_de_lectura(tmp_path, llamada):
+    """Las cuatro formas de leer el entorno se revisan igual.
+
+    El literal en el valor por defecto es una credencial escrita en el
+    archivo, no una lectura (revisión PR #71, N3).
+    """
+    archivo = tmp_path / "config.py"
+    archivo.write_text(f"PASSWORD={llamada}\n", encoding="utf-8")
+    r = correr([str(archivo)])
+    assert r.returncode == 1
+    assert "PASSWORD" in r.stdout
+    assert "secreto-real" not in r.stdout

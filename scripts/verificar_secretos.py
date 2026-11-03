@@ -127,8 +127,10 @@ REFERENCIA_ATRIBUTO = re.compile(r"^(self|cls)\.[A-Za-z_][A-Za-z0-9_]*$")
 
 # Literal embebido en el valor por defecto de una lectura del entorno:
 # os.environ.get("X", "hunter2") no es una lectura, es un secreto
-# (nota de la revisión del PR #71).
-DEFAULT_ENTORNO = re.compile(r"""environ\.get\(\s*['"][^'"]*['"]\s*,\s*(['"])(?P<valor>[^'"]*)\1""")
+# (nota de la revisión del PR #71). Cubre las cuatro formas de leer.
+DEFAULT_ENTORNO = re.compile(
+    r"""(?:os\.environ\.get|os\.getenv|environ\.get|getenv)\(\s*['"][^'"]*['"]\s*,\s*(['"])(?P<valor>[^'"]*)\1"""
+)
 
 # Archivos que contienen el patrón deliberadamente (el verificador y sus
 # tests); comparación por ruta relativa POSIX desde la raíz del repo.
