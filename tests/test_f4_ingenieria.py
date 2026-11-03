@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from validator.analizadores import ConfigurationError
 from validator.automata import DFA, PDA, Transicion, TransicionPDA
 from validator.compilador import AutomataPila, AutomataSecuencia, CompilerDSL
 from validator.dsl_check import DSLValidationError, linter
@@ -175,6 +176,30 @@ class TestLinter:
         # como ocurría antes de F4).
         compilado = CompilerDSL().compilar(data, linter=False)
         assert len(compilado) == 1
+
+    def test_lista_obligatoria_items_vacio_lanza_error(self):
+        """`lista_obligatoria` con `items: []` falla al compilar, no pasa."""
+        data = _reglas_de("lista_obligatoria", {"items": []})
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data)
+
+    def test_lista_obligatoria_sin_items_lanza_error(self):
+        """`lista_obligatoria` sin la clave `items` también es un error."""
+        data = _reglas_de("lista_obligatoria", {"seccion": {"inicio": "X"}})
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data)
+
+    def test_paginacion_sin_xpaths_lanza_error(self):
+        """`paginacion` con `xpaths: []` falla al compilar, no al validar."""
+        data = _reglas_de("paginacion", {"xpaths": []})
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data)
+
+    def test_paginacion_con_un_solo_xpath_lanza_error(self):
+        """`paginacion` necesita al menos 2 xpaths para comparar páginas."""
+        data = _reglas_de("paginacion", {"xpaths": ["//w:body/w:p"]})
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data)
 
 
 # ---------------------------------------------------------------------------
