@@ -129,14 +129,14 @@ class AnalizadorXML(Analizador):
         if atributo is None:
             return False, "falta 'atributo' para comparación de atributo"
         key = _resolve_attr_key(atributo)
-        # pares conserva la posición (1-based) de cada nodo en el resultado
-        # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
-        # incumple, en vez de mostrar solo los primeros 3 (que suelen ser los
-        # conformes y esconden al culpable — handover issue #7).
+        # pares conserva la posición (1-based) y el nodo de cada valor: al
+        # fallar `all_eq` permite señalar QUÉ valor incumple y en qué página
+        # está, en vez de mostrar solo los primeros 3 (que suelen ser los
+        # conformes y esconden al culpable — handover issue #7 / AUD-03).
         pares = [
-            (i, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
+            (i, n, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
         ]
-        vals = [v for _, v in pares if v is not None]
+        vals = [v for _, _, v in pares if v is not None]
         self.valor = vals[0] if vals else None
 
         # Tolerancia numérica opcional (twips): el valor cumple si su distancia
@@ -164,11 +164,20 @@ class AnalizadorXML(Analizador):
                 ok = bool(vals) and all(esperado in v for v in vals)
         else:
             return False, f"comparación '{comp}' no soportada"
-        detalle = f"{atributo}={vals[:3]} esperado={esperado}"
+        # Sin el repr crudo de Python; la muestra es solo contexto (AUD-03).
+        muestra = ", ".join(str(v) for v in vals[:3])
+        detalle = f"{atributo}=[{muestra}] esperado={esperado}"
         if comp == "all_eq" and not ok and vals:
-            incumplen = [(i, v) for i, v in pares if v is not None and not _acepta(v)]
-            resumen = ", ".join(f"#{i}={v}" for i, v in incumplen[:3])
-            detalle += f"; incumplen=[{resumen}]"
+            incumplen = [(i, v, n) for i, n, v in pares if v is not None and not _acepta(v)]
+            if incumplen:
+                # La página del reporte es la del primer nodo que incumple,
+                # no la del primero del xpath (que suele ser conforme).
+                self.ultimo_nodo = incumplen[0][2]
+                # Culpables primero, para que no los esconda la muestra.
+                resumen = ", ".join(f"#{i}={v}" for i, v, _ in incumplen[:3])
+                detalle = (
+                    f"{atributo} esperado={esperado}; incumplen=[{resumen}]; muestra=[{muestra}]"
+                )
         return ok, detalle
 
 
