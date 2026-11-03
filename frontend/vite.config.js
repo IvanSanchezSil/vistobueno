@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Tests de componente: jsdom + @testing-library/react (ver N2 de la revisión
+  // del PR #62). Los tests de funciones puras siguen funcionando igual.
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.js'],
+  },
   server: {
     port: 5173,
     open: true,

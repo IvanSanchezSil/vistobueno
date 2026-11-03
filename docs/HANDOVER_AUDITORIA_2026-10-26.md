@@ -290,8 +290,11 @@ Necesitan al equipo, no a un integrante:
    faltantes)?
 5. **AUD-07:** ¿`caratula_optar_grado_tamano` se restringe a la línea del
    Bachiller o acepta 12pt para la variante "Título Profesional"?
-6. **AUD-18 (Int2):** ¿el fallback al reporte de ejemplo sigue activo en
-   producción?
+6. **AUD-18 (Int2):** ~~¿el fallback al reporte de ejemplo sigue activo en
+   producción?~~ **Decidido el 2026-10-28 (Int2, PR #68): no.** El fallback
+   queda solo en el build de desarrollo (`import.meta.env.DEV`); en producción
+   se muestra el error real con la opción de reintentar, para que un reporte
+   de ejemplo nunca se confunda con un resultado real.
 7. **`palabras_clave_minimo`:** ¿`warning` o exclusión de placeholders? (§5)
 
 ---
@@ -418,6 +421,22 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > (con su número de PR) y recién después se borra el bloque de aviso de
 > `AGENTS.md`, según la cláusula de cierre.
 
+> **Actualizado por Int2 (2026-10-28)**: la parte de frontend queda cerrada
+> en el PR #68 (`auditoria-2026-10-26-int2`):
+> - **AUD-16** — cerrado: pantalla de ficha de depósito en la SPA
+>   (`frontend/src/components/FichaDeposito.jsx` + `frontend/src/ficha.js`).
+> - **AUD-17** — cerrado: `frontend/src/mocks.js` regenerado desde una
+>   respuesta real de `POST /validar`, con la procedencia escrita en el
+>   archivo.
+> - **AUD-18** — decidido y cerrado: el fallback al reporte de ejemplo queda
+>   **solo en desarrollo** (`import.meta.env.DEV`); en producción se muestra
+>   el error real con la opción de reintentar. La decisión de dominio
+>   quedaba abierta en §8 y la toma el frontend.
+>
+> El bloque de aviso de `AGENTS.md` **no se borra todavía**: faltan los
+> hallazgos de Int3 (AUD-01 a AUD-07, AUD-15, AUD-20, AUD-24 a AUD-27 y los
+> dos nuevos).
+
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
 | AUD-01 | Int3 | pendiente | — |
@@ -434,9 +453,9 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-13 | Int1 | **cerrado** | PR #65 |
 | AUD-14 | Int1 | **cerrado** | PR #65 |
 | AUD-15 | Int3 | pendiente | — |
-| AUD-16 | Int2 | pendiente | — |
-| AUD-17 | Int2 | pendiente | — |
-| AUD-18 | Int2 | decisión de dominio | — |
+| AUD-16 | Int2 | **cerrado** | PR #68 |
+| AUD-17 | Int2 | **cerrado** | PR #68 |
+| AUD-18 | Int2 | **decidido y cerrado** (fallback solo en desarrollo, 2026-10-28) | PR #68 |
 | AUD-19 | Docs | **cerrado** | PR #64 |
 | AUD-20 | Int3 | pendiente | — |
 | AUD-21 | Int1 | **cerrado** | PR #67 |

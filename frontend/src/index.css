@@ -398,6 +398,21 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
    Siempre presente y a todo el ancho para que sea la llamada a la acción
    clara de la pantalla; se deshabilita con una ayuda explicativa. */
 .acciones-form { margin-top: .9rem; display: flex; flex-direction: column; gap: .4rem; }
+/* Botón secundario de las acciones (por ejemplo, «Recargar la página» del
+   límite de error): mismo ancho que la acción principal, pero con el
+   estilo de un control terciario, para que no compitan entre sí. */
+.acciones-form .btn-secundario {
+  width: 100%;
+  min-height: 44px;
+  padding: .6rem 1.2rem;
+  font-size: .95rem;
+  background: transparent;
+  border: 1px solid var(--gris-oscuro);
+  color: var(--gris-texto);
+}
+.acciones-form .btn-secundario:hover:not(:disabled) { border-color: var(--verde); color: var(--verde); }
+.acciones-form .btn-secundario:disabled { opacity: .7; cursor: not-allowed; }
+.dark .acciones-form .btn-secundario { border-color: #78909c; color: var(--gris-texto); }
 .acciones-form .btn-validar {
   width: 100%;
   min-height: 48px;
@@ -492,6 +507,20 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
 }
 .aviso-cerrar:hover { opacity: 1; }
 .aviso .ejemplos { display: block; margin-top: .2rem; font-size: .72rem; line-height: 1.4; }
+
+/* --- Límite de error (ErrorBoundary) --- */
+.error-detalle { margin: .6rem 0; border: 1px solid var(--gris-oscuro); border-radius: 6px; padding: .4rem .7rem; }
+/* `display: list-item` (el valor por defecto de <summary>) conserva el
+   triángulo nativo de expandible: con `display: flex` el marcador disappearía
+   y el control dejaría de parecer plegable. El objetivo táctil de 44 px se
+   resuelve con min-height y padding. */
+.error-detalle summary { cursor: pointer; font-size: .8rem; font-weight: 600; min-height: 44px; padding: .65rem 0; }
+.error-detalle pre { white-space: pre-wrap; font-size: .72rem; color: var(--gris-texto); background: var(--gris-suave); border: 1px solid var(--gris-oscuro); border-radius: 5px; padding: .5rem; margin-top: .4rem; line-height: 1.4; }
+/* En oscuro, --gris-oscuro (#2e2e2e) sobre --blanco (#2c2c2c) era invisible:
+   el borde del recuadro no se distinguía. Con este azul grisáceo el contraste
+   supera 3:1 (WCAG 1.4.11, componentes de interfaz). */
+.dark .error-detalle { border-color: #78909c; }
+.dark .error-detalle pre { background: var(--gris-medio); border-color: #78909c; }
 
 /* --- Utilidad solo para lectores de pantalla --- */
 .sr-only {
@@ -815,3 +844,143 @@ button:focus-visible, input:focus-visible, summary:focus-visible, label:focus-vi
   border-color: var(--verde);
   color: #fff;
 }
+
+/* --- Ficha de depósito (semana 8) --- */
+.subtitulo {
+  font-size: 1rem;
+  color: #455a64;
+  margin-bottom: .35rem;
+}
+.ficha-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--verde);
+  border-radius: 10px;
+  background: rgba(46, 125, 50, .07);
+}
+.ficha-cta .campo-ayuda { margin-top: .2rem; }
+.ficha-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: .9rem;
+  margin-top: .8rem;
+}
+.campo-ficha { display: flex; flex-direction: column; gap: .3rem; }
+.campo-ficha label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--gris-texto);
+}
+.campo-ficha input,
+.campo-ficha textarea {
+  width: 100%;
+  padding: .5rem .6rem;
+  border: 1px solid var(--gris-medio);
+  border-radius: 6px;
+  background: var(--blanco);
+  color: var(--gris-texto);
+  font: inherit;
+  font-size: .8rem;
+}
+.campo-ficha input:focus,
+.campo-ficha textarea:focus {
+  outline: 2px solid var(--verde);
+  outline-offset: 1px;
+}
+.campo-ficha input:disabled,
+.campo-ficha textarea:disabled { opacity: .7; }
+.campo-autor {
+  border: 1px solid var(--gris-medio);
+  border-radius: 8px;
+  padding: .6rem .7rem .8rem;
+  margin: 0;
+}
+.campo-autor legend {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 0 .25rem;
+}
+.campo-ficha-autor { margin-top: .5rem; }
+.campo-ficha-autor label { display: block; font-size: .74rem; margin-bottom: .2rem; }
+.ficha-espera {
+  display: flex;
+  align-items: flex-start;
+  gap: .7rem;
+  margin-top: .9rem;
+  padding: .8rem .9rem;
+  border: 1px dashed var(--verde);
+  border-radius: 8px;
+  background: rgba(46, 125, 50, .06);
+}
+.ficha-espera .campo-ayuda { margin-top: .2rem; }
+.ficha-espera .btn-quitar { margin-left: auto; }
+.ficha-datos {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .3rem .8rem;
+  margin: .8rem 0;
+  font-size: .8rem;
+}
+.ficha-datos dt { font-weight: 600; }
+.ficha-datos dd { overflow-wrap: anywhere; }
+.ficha-descargas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .7rem;
+}
+.btn-descarga {
+  background: var(--gris-suave);
+  border: 1px solid var(--gris-medio);
+  color: var(--gris-texto);
+  border-radius: 6px;
+  padding: .55rem .9rem;
+  min-height: 44px;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-descarga:hover { border-color: var(--verde); color: var(--verde); }
+.btn-descarga:disabled { opacity: .6; cursor: not-allowed; }
+.btn-secundario {
+  background: transparent;
+  border: 1px solid var(--gris-medio);
+  color: var(--gris-texto);
+  border-radius: 6px;
+  padding: .55rem .9rem;
+  min-height: 44px;
+  font-size: .78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-secundario:hover { border-color: var(--rojo); color: var(--rojo); }
+.ficha-filas { margin-top: 1rem; }
+.ficha-filas-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  margin-bottom: .4rem;
+}
+.ficha-filas pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--gris-suave);
+  border: 1px solid var(--gris-medio);
+  border-radius: 6px;
+  padding: .6rem;
+  font-size: .72rem;
+}
+.aviso.ok { background: #e8f5e9; border: 1px solid var(--verde); color: var(--verde-osc); }
+.aviso.info { background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; }
+.dark .aviso.ok { background: #1a3d1a; color: #a5d6a7; }
+.dark .aviso.info { background: #16324a; color: #90caf9; }
+.dark .subtitulo { color: #cfd8dc; }
+.dark .campo-autor { border-color: var(--gris-oscuro); }
+.dark .ficha-cta { background: rgba(111, 255, 111, .07); }
+
