@@ -1,7 +1,8 @@
 # Handover: remediación de la auditoría de comportamiento (2026-10-26)
 
 **Origen:** `docs/AUDIT_COMPORTAMIENTO_VISTOBUENO_2026-10-26.md` (27 hallazgos).
-**Estado:** abierto. Hay trabajo pendiente en el motor (Int3) y en el frontend (Int2).
+**Estado:** abierto. Queda trabajo pendiente en el motor (Int3); la parte de
+frontend (Int2) está cerrada (AUD-16 a AUD-18, PR #68).
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
 todavía no ha cerrado.
