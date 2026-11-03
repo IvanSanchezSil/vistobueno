@@ -39,9 +39,9 @@ Tres arreglos de la lista de pendientes propia, todos locales al frontend:
 
 - **Límite de error (`ErrorBoundary.jsx`)**: hasta ahora un fallo de render
   dejaba la pantalla en blanco. Ahora `App` envuelve la vista activa y el
-  fallo muestra un aviso con botón **«Volver a la pantalla de carga»**
-  (descarta el reporte y retoma el flujo) y el detalle técnico plegado para
-  el reporte del fallo. El alcance se describe con precisión: el reporte ya
+  fallo muestra un aviso con dos salidas —**«Reintentar»** (descarta el
+  reporte y retoma el flujo) y **«Recargar la página»**— y el detalle técnico
+  plegado para el reporte del fallo. El alcance se describe con precisión: el reporte ya
   se defiende de un payload malformado (`Report.jsx` valida `resultados`,
   `aplicable` y `metadatos`), así que el límite es la red contra bugs propios
   del render.
@@ -69,7 +69,7 @@ las observaciones se aplicaron antes de volver a pedir el merge:
 | **B2** — conflicto entre el PR #62 y el #68 | El PR #68 se reapila sobre este: el `App.jsx` del #68 conserva el `ErrorBoundary` y los iconos SVG, y su diff queda reducido a la pantalla de ficha. |
 | **A1** — el aviso de error no se anuncia y el foco se pierde | El aviso lleva `role="alert"` y el foco pasa al encabezado al montar (mismo patrón que el semáforo del reporte). Con teclado o lector de pantalla ya no se queda en `<body>`. |
 | **A2** — el `<summary>` perdía el triángulo | `display: list-item` (valor por defecto) en vez de `display: flex`; el objetivo táctil de 44 px se resuelve con `min-height` y `padding`. |
-| **A3** — la recuperación podía quedar en un bucle | Al reiniciar, un contador cambia la `key` del fragmento y los hijos se vuelven a montar desde cero. |
+| **A3** — la recuperación podía quedar en un bucle | Corregido en la segunda ronda (F2): la etiqueta del botón pasa a «Reintentar» y se agrega «Recargar la página», que es la salida real del bucle cuando el fallo se repite. |
 | **N1** — la promesa de Enter solo se cumplía en el camino feliz | Con el formulario completo, Enter valida; si falta el archivo o el correo es inválido, el botón está deshabilitado y Enter lleva el foco al elemento pendiente (donde ya está el aviso). La redacción del PR y de esta bitácora se ajustó a ese comportamiento real. |
 | **N2** — los tres cambios sin cobertura automatizada | `jsdom` + `@testing-library/react` + `jest-dom`; `environment: 'jsdom'` en la configuración de vitest y 10 tests nuevos (`ErrorBoundary.test.jsx`, `Upload.test.jsx`, `App.test.jsx`). |
 | **N3** — justificación exagerada del límite de error | El alcance se describe con precisión (bug propio del render, no payload inesperado). |
@@ -77,10 +77,30 @@ las observaciones se aplicaron antes de volver a pedir el merge:
 | **N5** — borde invisible del detalle técnico en modo oscuro | En oscuro usa un azul grisáceo con contraste superior a 3:1 (WCAG 1.4.11). |
 | **N6** — commit con tres cambios mezclados | La rama se reconstruye con un commit por tarea lógica: límite de error, envío con Enter, iconos SVG, tests y documentación. |
 
+#### Segunda ronda de revisión de retblast (2026-11-02)
+
+La revisión de la rama reconstruida cerró 8 de los 11 hallazgos y abrió 5
+nuevos (F1 a F5). Los cinco están aplicados:
+
+| Hallazgo | Corrección |
+|----------|------------|
+| **F1** — regresión de teclado: `onFormKeyDown` se comía el Enter de otros controles | La intercepción se limita al campo de correo. Con el formulario completo, Enter sigue disparando el envío implícito; con el formulario incompleto, solo el correo lleva el foco al elemento pendiente. Los botones («Quitar archivo», «Cerrar aviso») y la casilla «Enviar observaciones» conservan su Enter nativo. 3 tests de regresión. |
+| **F2** — la corrección de A3 no hacía lo que decía | React ya remonta el subárbol que falló, así que la `key` no cambia el número de montajes (medido: 5 → 6 con y sin `key`): el comentario, el test y el cuerpo del PR dejan de afirmar un remontaje que no ocurre. La etiqueta pasa a **«Reintentar»** y se agrega **«Recargar la página»**, la salida real del bucle con un fallo determinista. |
+| **F3** — los números de verificación mezclaban este PR con el apilado | El cuerpo del PR #62 lleva sus propias cifras (34/34 tests, 171.61 kB) y las del PR #68 aparte. |
+| **F4** — la referencia al paso «8c» no correspondía al script citado | Se quitó el paréntesis: `scripts/e2e_flujo_completo.sh` no tiene paso 8c (el 8c está en `scripts/e2e_ficha_deposito.sh`, del PR #55). |
+| **F5** — faltaba un test que cubriera F1 | `Upload.test.jsx` tiene tres casos nuevos (Enter sobre «Quitar archivo», sobre la casilla y sobre el correo con el formulario incompleto). Como jsdom no implementa la activación implícita de un control con Enter, el test emula lo que hace el navegador. |
+
+**Verificación en Chrome real** (no solo en vitest): Enter sobre «Quitar
+archivo» quita el archivo, Enter sobre la casilla conserva el foco en la
+casilla, Enter en el correo lleva el foco a la dropzone (sin archivo) o lo
+deja en el campo (con archivo); el aviso del límite ofrece las dos salidas,
+mantiene `role="alert"` y el foco en el `H2`, y tras «Reintentar» con un
+fallo determinista el aviso vuelve con la salida de recarga disponible.
+
 #### Verificación (2026-10-27, repetida tras las correcciones)
 
-- `npm run lint` → 0 errores · `npm test` → **30/30** (20 previos + 10
-  nuevos de componente) · `npm run build` → 171.36 kB OK.
+- `npm run lint` → 0 errores · `npm test` → **34/34** (20 previos + 14
+  nuevos de componente) · `npm run build` → 171.61 kB OK.
 - E2E del flujo completo (`scripts/e2e_flujo_completo.sh`) → **11/11**.
 
 ---
@@ -121,8 +141,12 @@ las observaciones se aplicaron antes de volver a pedir el merge:
   anunciado recibe el foco. El test de A1 lo verifica con `toHaveFocus()`.
 - **React 18 reintenta el render en desarrollo**: un hijo que falla «una
   sola vez» no reproduce el error en los tests (React vuelve a invocarlo y la
-  segunda vez tiene éxito). Los tests de A3 simulan el fallo con un flag
-  explícito.
+  segunda vez tiene éxito). Los tests simulan el fallo con un flag explícito.
+- **Un test puede pasar sin distinguir dos implementaciones**: el test de A3
+  desactivaba la bandera de fallo antes de pulsar el botón, así que pasaba
+  igual con y sin `key` (lo detectó la segunda revisión). Ahora cada test
+  comprueba lo que dice comprobar, y lo que se afirma en el texto está
+  medido.
 - **No toda verificación es manual**: la revisión señaló que «lo probé a mano»
   no es verificación (`AGENTS.md`). Los tests de componente son el paso
   intermedio entre la prueba manual y el E2E: el E2E no puede provocar un
