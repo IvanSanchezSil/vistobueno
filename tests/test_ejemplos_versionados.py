@@ -31,6 +31,8 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import CLIENTE, MIME_DOCX
+from docx_factory import aplicar_mutacion, compilar_docx, configuracion_base
 
 RAIZ = Path(__file__).resolve().parent.parent
 EJEMPLOS = RAIZ / "docs" / "ejemplos"
@@ -44,23 +46,9 @@ MUTACIONES = [
     "sangria_parrafo",
 ]
 
-TIPO_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-
 
 def _respuesta_fresca(nombre: str) -> dict:
     """Regenera el documento de ejemplo y devuelve la respuesta de la API."""
-    sys_path = RAIZ / "tests"
-    import sys
-
-    if str(sys_path) not in sys.path:
-        sys.path.insert(0, str(sys_path))
-
-    from docx_factory import aplicar_mutacion, compilar_docx, configuracion_base
-
-    from fastapi.testclient import TestClient
-
-    from validator.api import app
-
     cfg = configuracion_base()
     if nombre == "doc_malo":
         for rule_id in MUTACIONES:
@@ -68,11 +56,10 @@ def _respuesta_fresca(nombre: str) -> dict:
 
     temporal = Path(compilar_docx(cfg))
     try:
-        cliente = TestClient(app, client=("127.0.0.1", 50000), base_url="http://127.0.0.1")
         with temporal.open("rb") as archivo:
-            respuesta = cliente.post(
+            respuesta = CLIENTE.post(
                 "/validar",
-                files={"archivo": (temporal.name, archivo, TIPO_DOCX)},
+                files={"archivo": (temporal.name, archivo, MIME_DOCX)},
             )
         respuesta.raise_for_status()
         return respuesta.json()
@@ -108,7 +95,9 @@ def test_respuesta_versionada_coincide_con_el_motor(nombre: str) -> None:
             "Regenera el par: python scripts/ejemplo_bueno_malo.py"
         )
 
-    prompts_por_id = {p["rule_id"]: p["prompt"] for p in fresco.get("como_preguntar_a_una_ia", [])}
+    prompts_por_id = {
+        p["rule_id"]: p["prompt"] for p in fresco.get("como_preguntar_a_una_ia", [])
+    }
     for prompt in versionado.get("como_preguntar_a_una_ia", []):
         rule_id = prompt["rule_id"]
         assert rule_id in prompts_por_id, (
