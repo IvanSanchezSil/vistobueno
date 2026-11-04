@@ -7,6 +7,16 @@ module.exports = {
   settings: { react: { version: 'detect' } },
   plugins: ['react'],
   ignorePatterns: ['dist/', 'node_modules/'],
+  overrides: [
+    {
+      // El archivo de configuración del build corre en Node, no en el
+      // navegador: necesita `process` y el resto de globales de Node.
+      // El patrón es relativo a la raíz del frontend: no habilita Node en
+      // el código de `src/`, que sí corre en el navegador.
+      files: ['vite.config.js'],
+      env: { node: true },
+    },
+  ],
   rules: {
     'react/prop-types': 'off',
     'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
