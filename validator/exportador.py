@@ -28,6 +28,19 @@ import markdown
 
 _EMOJIS = {"rojo": "🔴", "verde": "🟢"}
 
+_ESCAPES_MD = {"&": "&amp;", "<": "&lt;", ">": "&gt;", "|": "&#124;"}
+
+
+def _escapar(texto: object) -> str:
+    """Escapa el texto que viene del documento antes de meterlo en Markdown.
+
+    El detalle de las reglas incluye texto del DOCX del estudiante (por
+    ejemplo, el nombre de la carátula que incumplió un patrón) y ese texto
+    no puede romper la tabla ni inyectar HTML crudo en el Markdown (ni en
+    el PDF, que se genera a partir de este Markdown) — AUD-15.
+    """
+    return "".join(_ESCAPES_MD.get(c, c) for c in str(texto))
+
 
 def reporte_a_markdown(reporte: dict) -> str:
     """Convierte el dict del reporte a texto Markdown."""
@@ -52,7 +65,10 @@ def reporte_a_markdown(reporte: dict) -> str:
 
     for r in reporte["resultados"]:
         estado = "✅ cumple" if r["passed"] else "❌ **falla**"
-        linea = f"| `{r['rule_id']}` | {estado} | `{r['severity']}` | {r['message']} |"
+        linea = (
+            f"| `{_escapar(r['rule_id'])}` | {estado} | "
+            f"`{_escapar(r['severity'])}` | {_escapar(r['message'])} |"
+        )
         lineas.append(linea)
 
     lineas += ["", "### Detalle de reglas fallidas", ""]
@@ -60,24 +76,24 @@ def reporte_a_markdown(reporte: dict) -> str:
         if r["passed"]:
             continue
         lineas += [
-            f"#### `{r['rule_id']}` — {r['message']}",
+            f"#### `{_escapar(r['rule_id'])}` — {_escapar(r['message'])}",
             "",
-            f"- **Esperado:** {r['expected']}",
-            f"- **Encontrado:** {r['found']}",
+            f"- **Esperado:** {_escapar(r['expected'])}",
+            f"- **Encontrado:** {_escapar(r['found'])}",
         ]
         if r.get("location"):
-            lineas.append(f"- **Ubicación:** {r['location']}")
+            lineas.append(f"- **Ubicación:** {_escapar(r['location'])}")
         if r.get("fuente"):
-            lineas.append(f"- **Fuente:** {r['fuente']}")
+            lineas.append(f"- **Fuente:** {_escapar(r['fuente'])}")
         if r.get("cita"):
-            lineas.append(f"- **Cita:** {r['cita']}")
+            lineas.append(f"- **Cita:** {_escapar(r['cita'])}")
         lineas.append("")
 
     if reporte.get("como_preguntar_a_una_ia"):
         lineas += ["## Cómo preguntar a una IA", ""]
         for p in reporte["como_preguntar_a_una_ia"]:
             lineas += [
-                f"### `{p['rule_id']}`",
+                f"### `{_escapar(p['rule_id'])}`",
                 "",
                 "```",
                 p["prompt"],
