@@ -431,6 +431,7 @@ versionadas:
 | `docs/ejemplos/respuesta_doc_bueno.json` · `respuesta_doc_malo.json` | Las dos respuestas, tal cual |
 | `docs/ejemplos/GUIA_EJEMPLOS.md` | Qué se revisó en cada documento y qué resultado produce |
 | `scripts/ejemplo_bueno_malo.py` | Generador del par (misma fábrica determinista que los tests) |
+| `docs/REGISTRO_DOCUMENTOS_SEDE.md` | Propuesta de estructura para registrar los documentos que entregue la sede en el piloto: campos, estados, regla de privacidad y criterio de cierre |
 
 El par es sintético: no hay datos de personas ni tesis reales, y se
 regenera en cualquier máquina:

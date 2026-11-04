@@ -5,8 +5,9 @@
 - **Fechas**: 2026-11-01 → 2026-11-07 (semana en curso)
 - **Rol**: Backend / API (FastAPI, contrato de la API, buzón de ficha,
   constancias y registro, escáner de secretos)
-- **Ramas**: `fix/api-hardening-b0-b1` (20 commits sobre `master`, PR #71
-  abierto). El 2026-11-01 el trabajo siguió en esa rama.
+- **Ramas**: `fix/api-hardening-b0-b1` (25 commits sobre `master`; PR #71
+  mergeado el 2026-11-03) y `docs/registro-documentos-sede` (cierre de la
+  Actividad 14). El 2026-11-01 el trabajo siguió en la primera rama.
 
 ---
 
@@ -14,7 +15,8 @@
 
 1. **Actividad 14 — material de demostración**: dejar un par de documentos
    de ejemplo reproducible (uno conforme, otro no) con sus respuestas de
-   `POST /validar` y una guía de lectura.
+   `POST /validar`, una guía de lectura y la propuesta de estructura para
+   registrar los documentos aportados por la sede.
 2. **Informe de Avance de la semana 10**: dejar el informe en el formato
    que exige la guía de la asignatura (APA 7, carátula institucional) y
    el Portafolio Digital de Evidencias listo para subir.
@@ -46,17 +48,19 @@ de documentos y sus respuestas.
   documento y qué resultado produce. Es la guía que acompaña al material
   en el portafolio (`semana 10/GUIA_EJEMPLOS.pdf`).
 
-El par quedó commiteado en la rama, pendiente de PR. La segunda parte de la
-actividad —el registro de los documentos aportados por la sede— sigue
-pendiente porque esos documentos no se han entregado.
+El par quedó en `master` con el PR #71 (mergeado el 2026-11-03). La segunda
+parte de la actividad —el registro de los documentos aportados por la sede—
+se cerró el 2026-11-04 con la propuesta de estructura (ver abajo); el
+llenado real depende de los documentos que entregue la sede.
 
 ### 2026-11-01 — Informe de Avance y Portafolio Digital de Evidencias
 
 - **Informe de Avance** (`Informe_Avance_S10_VistoBueno.md`, en la carpeta
   de la asignatura): 19 actividades, 16 narrativas (14 discretas y 2
-  cargas transversales), 50 PRs mergeados y 696 pruebas. La actividad 14
-  figura como **en ejecución** desde el 01/11, con el par de ejemplo como
-  evidencia parcial y el registro de la sede pendiente.
+  cargas transversales), 50 PRs mergeados y 696 pruebas. En ese informe, la
+  actividad 14 figura como **en ejecución** desde el 01/11, con el par de
+  ejemplo como evidencia parcial; el 2026-11-04 se cerró con la propuesta de
+  estructura.
 - **DOCX final con formato APA 7**: `generar_informe_docx.py` convierte el
   Markdown en un DOCX con carátula institucional, Times New Roman 12,
   interlineado doble, sangría de 1,25 cm, número de página arriba a la
@@ -79,8 +83,8 @@ pendiente porque esos documentos no se han entregado.
 ### 2026-11-02 — Revisión del PR #71 y sus correcciones
 
 El PR #71 recibió una revisión con 3 hallazgos bloqueantes, 5 medios y 3
-bajos, más correcciones de documentación. Todos quedaron corregidos en
-cuatro commits atómicos:
+bajos, más correcciones de documentación. Todo quedó corregido en seis
+commits atómicos:
 
 - `87778ab` — **cupos por CPU real**: el cupo adaptativo medía latencia
   (`perf_counter`) en vez de consumo de CPU. Con peticiones concurrentes la
@@ -113,10 +117,28 @@ cuatro commits atómicos:
   control de loopback). El cambio se hizo con la aprobación del
   responsable del repositorio, como exige la cláusula de `AGENTS.md`.
 
-Evidencia: **716 tests** pasan y 6 quedan como `xfail(strict=True)`, los
-32 tests de node del userscript pasan, `scripts/verify_all.sh --full` da
-**7/7** (incluye el ensayo general con dos autores) y el CI del PR #71
-queda en verde.
+Al cierre del PR #71 la suite quedó con **730 tests recolectados**: en el
+CI, donde `recursos/` no está, 721 pasan, 3 se omiten porque las plantillas
+oficiales no se versionan y 6 quedan como `xfail(strict=True)`. Los 32
+tests de node del userscript pasan, el ensayo general
+`nix run .#test-ficha-deposito` pasa (incluye el flujo con dos autores) y el
+CI del PR #71 queda en verde.
+
+### 2026-11-04 — Cierre de la actividad 14 con la propuesta de registro
+
+La actividad 14 pide una **propuesta de estructura** para registrar los
+documentos que aporte la sede, no el registro lleno. Se agregó
+`docs/REGISTRO_DOCUMENTOS_SEDE.md` con:
+
+- campos de recepción, validación, devolución y cierre;
+- la regla de privacidad: códigos, sin datos personales y carpeta local
+  fuera del repositorio;
+- el flujo de seis pasos y los estados permitidos;
+- el criterio de cierre de la actividad y las preguntas abiertas.
+
+El registro lleno se hará en el piloto (Actividad 16), cuando la sede
+entregue los documentos. El archivo versionado es una plantilla y no
+contiene datos de personas.
 
 ---
 
@@ -127,6 +149,7 @@ queda en verde.
 | Par de ejemplo (documentos) | `docs/ejemplos/doc_bueno.docx`, `docs/ejemplos/doc_malo.docx` |
 | Respuestas del validador | `docs/ejemplos/respuesta_doc_bueno.json`, `docs/ejemplos/respuesta_doc_malo.json` |
 | Guía de lectura del par | `docs/ejemplos/GUIA_EJEMPLOS.md` |
+| Propuesta de registro de documentos de la sede | `docs/REGISTRO_DOCUMENTOS_SEDE.md` |
 | Generador del par | `scripts/ejemplo_bueno_malo.py` |
 | Guía de ejemplos en el portafolio | `semana 10/GUIA_EJEMPLOS.pdf` (carpeta de la asignatura) |
 | Bitácora | este archivo |
@@ -134,9 +157,13 @@ queda en verde.
 - Commits de la semana: `7d7a26c` (generador del par de ejemplo),
   `7c338c9` (par de documentos, respuestas y guía), `87778ab`,
   `97081f6`, `7eff923` y `320402b` (correcciones de la revisión del
-  PR #71).
-- Suite: **716 tests pasan** y **6 quedan como `xfail(strict=True)`** (los
-  criterios de aceptación de AUD-24 a AUD-27 del motor).
+  PR #71), `931644e` y `707dc6f` (sincronización de documentación, PR #76).
+- Cierre de la Actividad 14: `d06284f` en la rama
+  `docs/registro-documentos-sede` (propuesta de registro).
+- Suite actual: **730 tests recolectados**: 724 pasan y **6 quedan como
+  `xfail(strict=True)`** (los criterios de aceptación de AUD-24 a AUD-27 del
+  motor). Los 3 tests que dependen de `recursos/` se omiten cuando esa
+  carpeta no está disponible, como pasa en el CI.
 
 ---
 
@@ -147,7 +174,7 @@ queda en verde.
   editados a mano; el par se puede regenerar y volver a verificar.
 - **Estructura de Datos**: el par expone la estructura de la respuesta de
   la API (semáforo, resumen y resultados) y su correspondencia con el
-  contrato v1.10.0.
+  contrato vigente v1.12.0.
 - **Redes de Computadoras I**: las dos respuestas son el registro de dos
   llamadas reales a `POST /validar` con `multipart/form-data`.
 - **Ingeniería de Software I**: el informe de avance y el portafolio
@@ -176,14 +203,18 @@ queda en verde.
 
 ## Plan de la semana siguiente
 
-1. Revisar el PR #71 con el equipo y mergearlo a `master`.
-2. Cerrar la actividad 14 con el registro de los documentos aportados por
-   la sede, cuando se entreguen.
+1. Verificar el CI de `master` después del merge del PR #71 (2026-11-03).
+2. Reflejar el cierre de la actividad 14 —propuesta de estructura en
+   `docs/REGISTRO_DOCUMENTOS_SEDE.md`— en el informe de avance y el
+   portafolio; el registro lleno se hace en el piloto.
 3. Verificar los `XPASS` de los `xfail` cuando Int3 corrija AUD-24 a
    AUD-27 y quitar las marcas.
-4. Revisar con Int2 que la pantalla de ficha respete el contrato v1.10.0.
-5. Cerrar el resto de la auditoría cuando Int3 y Int2 entreguen su
-   parte: recién entonces se borra el bloque de aviso de `AGENTS.md` y se
-   deja la línea en `docs/cronologia_trabajo.md`.
-6. Cerrar con el equipo las 7 decisiones de dominio abiertas (§8 del
-   handover).
+4. Coordinar con Int2 el ajuste de la pantalla de ficha a los criterios de
+   Int3 para AUD-24 a AUD-27. El token compartido (`X-VistoBueno-Token`)
+   ya está implementado (`cda3d56`).
+5. Cerrar el resto de la auditoría cuando Int3 entregue su parte: recién
+   entonces se borra el bloque de aviso de `AGENTS.md` y se deja la línea
+   en `docs/cronologia_trabajo.md`. Int2 ya cerró AUD-16 a AUD-18 con el
+   PR #68.
+6. Cerrar con el equipo las 6 decisiones de dominio abiertas (§8 del
+   handover; AUD-18 ya está decidida).
