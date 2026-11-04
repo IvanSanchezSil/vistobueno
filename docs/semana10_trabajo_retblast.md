@@ -48,10 +48,10 @@ de documentos y sus respuestas.
   documento y qué resultado produce. Es la guía que acompaña al material
   en el portafolio (`semana 10/GUIA_EJEMPLOS.pdf`).
 
-El par quedó commiteado en la rama, pendiente de PR. La segunda parte de la
-actividad —el registro de los documentos aportados por la sede— se cerró el
-2026-11-04 con la propuesta de estructura (ver abajo); el llenado real
-depende de los documentos que entregue la sede.
+El par quedó en `master` con el PR #71 (mergeado el 2026-11-03). La segunda
+parte de la actividad —el registro de los documentos aportados por la sede—
+se cerró el 2026-11-04 con la propuesta de estructura (ver abajo); el
+llenado real depende de los documentos que entregue la sede.
 
 ### 2026-11-01 — Informe de Avance y Portafolio Digital de Evidencias
 
