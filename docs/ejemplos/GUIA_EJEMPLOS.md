@@ -38,8 +38,15 @@ solo la materializa con semáforo verde.
 | `sangria_parrafo` | warning | Sin sangría de primera línea | 1.27 cm | 0 cm |
 
 El campo `encontrado` del JSON conserva el detalle técnico del motor (por
-ejemplo, `@w:ascii=['Arial', ...]`). La tabla de arriba traduce ese detalle a
-lenguaje legible para la demostración.
+ejemplo, `@w:ascii: 3 valores evaluados, 3 incumplen: #1=Arial (pág. 4),
+…`). La tabla de arriba traduce ese detalle a lenguaje legible para la
+demostración.
+
+Las dos respuestas están versionadas tal cual. Si el motor cambia el
+formato del detalle, hay que regenerarlas (`python
+scripts/ejemplo_bueno_malo.py`) y revisar el diff: el test
+`tests/test_ejemplos_versionados.py` compara las respuestas versionadas con
+las que produce el motor, así que un desfase no pasa inadvertido.
 
 ## Cómo se generó
 
