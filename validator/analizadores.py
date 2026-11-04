@@ -26,6 +26,12 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 
+from .detalle import (
+    detalle_jerarquia,
+    detalle_texto_lista,
+    detalle_texto_regex,
+    detalle_xml_atributo,
+)
 from .extractor import NS, ExtractedDocx, W, text_of
 from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
@@ -131,12 +137,13 @@ class AnalizadorXML(Analizador):
         key = _resolve_attr_key(atributo)
         # pares conserva la posición (1-based) de cada nodo en el resultado
         # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
-        # incumple, en vez de mostrar solo los primeros 3 (que suelen ser los
-        # conformes y esconden al culpable — handover issue #7).
+        # incumple, con su página, en vez de mostrar solo los primeros 3
+        # (que suelen ser los conformes y esconden al culpable — handover
+        # issue #7 / AUD-03).
         pares = [
-            (i, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
+            (i, n, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
         ]
-        vals = [v for _, v in pares if v is not None]
+        vals = [v for _, _, v in pares if v is not None]
         self.valor = vals[0] if vals else None
 
         # Tolerancia numérica opcional (twips): el valor cumple si su distancia
@@ -164,11 +171,20 @@ class AnalizadorXML(Analizador):
                 ok = bool(vals) and all(esperado in v for v in vals)
         else:
             return False, f"comparación '{comp}' no soportada"
-        detalle = f"{atributo}={vals[:3]} esperado={esperado}"
-        if comp == "all_eq" and not ok and vals:
-            incumplen = [(i, v) for i, v in pares if v is not None and not _acepta(v)]
-            resumen = ", ".join(f"#{i}={v}" for i, v in incumplen[:3])
-            detalle += f"; incumplen=[{resumen}]"
+        incumplimientos = [
+            (i, v, extracted.pagina_de(n))
+            for i, n, v in pares
+            if v is not None and comp == "all_eq" and not _acepta(v)
+        ]
+        if incumplimientos:
+            # La ubicación de la regla debe apuntar al primer nodo CULPABLE
+            # (AUD-03), no al primero que devolvió el xpath.
+            culpables = [
+                n for i, n, v in pares if v is not None and comp == "all_eq" and not _acepta(v)
+            ]
+            if culpables:
+                self.ultimo_nodo = culpables[0]
+        detalle = detalle_xml_atributo(self.config, vals, incumplimientos, esperado, tolerancia)
         return ok, detalle
 
 
@@ -203,8 +219,8 @@ class AnalizadorRegex(Analizador):
             return bool(rx.search(s))
 
         if coincidencia == "todos":
-            incumplen = [t for t in textos if not _matchea(t)]
-            return not incumplen, f"textos={len(textos)} incumplen={len(incumplen)}"
+            incumplen = [(i, t) for i, t in enumerate(textos, 1) if not _matchea(t)]
+            return not incumplen, detalle_texto_regex(textos, incumplen)
         if coincidencia == "alguno":
             ok = any(_matchea(t) for t in textos)
             return ok, f"textos={len(textos)} alguno_matchea={ok}"
@@ -235,8 +251,8 @@ class AnalizadorLista(Analizador):
 
         valores = [_norm(t) for t in textos]
         permitidos = [_norm(x) for x in lista]
-        incumplen = [v for v in valores if v not in permitidos]
-        return not incumplen, f"textos={valores[:3]} en_lista_faltan={incumplen[:3]}"
+        incumplen = [(i, v) for i, v in enumerate(valores, 1) if v not in permitidos]
+        return not incumplen, detalle_texto_lista(valores, incumplen)
 
 
 class AnalizadorConteoNodos(Analizador):
@@ -724,7 +740,7 @@ class AnalizadorTocNumeracion(Analizador):
         if fallos:
             if self.ultimo_nodo is None:
                 self.ultimo_nodo = entradas[0]["nodo"]
-            return False, "jerarquia_incorrecta; " + " | ".join(fallos[:6])
+            return False, detalle_jerarquia(fallos)
         return True, "jerarquia_ok"
 
 

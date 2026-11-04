@@ -6,6 +6,7 @@ Migrado y limpiado a partir del prototipo eval_checks2.py.
 
 import re
 
+from .detalle import detalle_texto_lista, detalle_texto_regex, detalle_xml_atributo
 from .extractor import NS, ExtractedDocx, W, es_heading, text_of
 
 # Namespaces también usados para resolver prefijos en nombres de atributo
@@ -51,8 +52,8 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
         # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
         # incumple. Mismo formato que AnalizadorXML (handover issue #7):
         # la paridad legacy↔DSL compara el `found` literal.
-        pares = [(i, n.get(key)) for i, n in enumerate(nodes, 1)]
-        vals = [v for _, v in pares if v is not None]
+        pares = [(i, n, n.get(key)) for i, n in enumerate(nodes, 1)]
+        vals = [v for _, _, v in pares if v is not None]
         esperado = check.get("esperado")
         tolerancia = check.get("tolerancia")
 
@@ -73,11 +74,12 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
             ok = bool(vals) and all(_acepta(v) for v in vals)
         else:
             return False, f"comparacion '{comp}' no soportada para xml_atributo"
-        detalle = f"{check['atributo']}={vals[:3]} esperado={esperado}"
-        if comp == "all_eq" and not ok and vals:
-            desvios = [(i, v) for i, v in pares if v is not None and not _acepta(v)]
-            resumen = ", ".join(f"#{i}={v}" for i, v in desvios[:3])
-            detalle += f"; incumplen=[{resumen}]"
+        incumplimientos = [
+            (i, v, extracted.pagina_de(n))
+            for i, n, v in pares
+            if v is not None and comp == "all_eq" and not _acepta(v)
+        ]
+        detalle = detalle_xml_atributo(check, vals, incumplimientos, esperado, tolerancia)
         return ok, detalle
 
     if tipo == "texto_regex":
@@ -85,8 +87,8 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
         textos = [t.text for n in nodes for t in n.iter(W + "t") if t.text]
         if not textos:
             return False, "sin nodos w:t que evaluar"
-        incumplen = [t for t in textos if not patron.fullmatch(t)]
-        return not incumplen, f"textos={len(textos)} incumplen={len(incumplen)}"
+        incumplen = [(i, t) for i, t in enumerate(textos, 1) if not patron.fullmatch(t)]
+        return not incumplen, detalle_texto_regex(textos, incumplen)
 
     if tipo == "texto_en_lista":
         lista = check.get("lista", [])
@@ -101,8 +103,8 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
 
         valores = [_norm(t) for t in textos]
         permitidos = [_norm(x) for x in lista]
-        incumplen = [v for v in valores if v not in permitidos]
-        return not incumplen, f"textos={valores[:3]} en_lista_faltan={incumplen[:3]}"
+        incumplen = [(i, v) for i, v in enumerate(valores, 1) if v not in permitidos]
+        return not incumplen, detalle_texto_lista(valores, incumplen)
 
     if tipo == "imagen_presencia":
         n = len(nodes)
