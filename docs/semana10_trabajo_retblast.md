@@ -5,7 +5,7 @@
 - **Fechas**: 2026-11-01 → 2026-11-07 (semana en curso)
 - **Rol**: Backend / API (FastAPI, contrato de la API, buzón de ficha,
   constancias y registro, escáner de secretos)
-- **Ramas**: `fix/api-hardening-b0-b1` (20 commits sobre `master`; PR #71
+- **Ramas**: `fix/api-hardening-b0-b1` (25 commits sobre `master`; PR #71
   mergeado el 2026-11-03) y `docs/registro-documentos-sede` (cierre de la
   Actividad 14). El 2026-11-01 el trabajo siguió en la primera rama.
 
@@ -57,9 +57,10 @@ llenado real depende de los documentos que entregue la sede.
 
 - **Informe de Avance** (`Informe_Avance_S10_VistoBueno.md`, en la carpeta
   de la asignatura): 19 actividades, 16 narrativas (14 discretas y 2
-  cargas transversales), 50 PRs mergeados y 696 pruebas. La actividad 14
-  figura como **en ejecución** desde el 01/11, con el par de ejemplo como
-  evidencia parcial; el 2026-11-04 se cerró con la propuesta de estructura.
+  cargas transversales), 50 PRs mergeados y 696 pruebas. En ese informe, la
+  actividad 14 figura como **en ejecución** desde el 01/11, con el par de
+  ejemplo como evidencia parcial; el 2026-11-04 se cerró con la propuesta de
+  estructura.
 - **DOCX final con formato APA 7**: `generar_informe_docx.py` convierte el
   Markdown en un DOCX con carátula institucional, Times New Roman 12,
   interlineado doble, sangría de 1,25 cm, número de página arriba a la
@@ -82,8 +83,8 @@ llenado real depende de los documentos que entregue la sede.
 ### 2026-11-02 — Revisión del PR #71 y sus correcciones
 
 El PR #71 recibió una revisión con 3 hallazgos bloqueantes, 5 medios y 3
-bajos, más correcciones de documentación. Todos quedaron corregidos en
-cuatro commits atómicos:
+bajos, más correcciones de documentación. Todo quedó corregido en seis
+commits atómicos:
 
 - `87778ab` — **cupos por CPU real**: el cupo adaptativo medía latencia
   (`perf_counter`) en vez de consumo de CPU. Con peticiones concurrentes la
@@ -116,10 +117,12 @@ cuatro commits atómicos:
   control de loopback). El cambio se hizo con la aprobación del
   responsable del repositorio, como exige la cláusula de `AGENTS.md`.
 
-Al cierre del PR #71: **716 tests** pasan y 6 quedan como
-`xfail(strict=True)`, los 32 tests de node del userscript pasan,
-`scripts/verify_all.sh --full` da **7/7** (incluye el ensayo general con
-dos autores) y el CI del PR #71 queda en verde.
+Al cierre del PR #71 la suite quedó con **730 tests recolectados**: en el
+CI, donde `recursos/` no está, 721 pasan, 3 se omiten porque las plantillas
+oficiales no se versionan y 6 quedan como `xfail(strict=True)`. Los 32
+tests de node del userscript pasan, el ensayo general
+`nix run .#test-ficha-deposito` pasa (incluye el flujo con dos autores) y el
+CI del PR #71 queda en verde.
 
 ### 2026-11-04 — Cierre de la actividad 14 con la propuesta de registro
 
@@ -154,12 +157,13 @@ contiene datos de personas.
 - Commits de la semana: `7d7a26c` (generador del par de ejemplo),
   `7c338c9` (par de documentos, respuestas y guía), `87778ab`,
   `97081f6`, `7eff923` y `320402b` (correcciones de la revisión del
-  PR #71).
-- Cierre de la Actividad 14: rama `docs/registro-documentos-sede`
-  (propuesta de registro).
-- Suite actual: **730 tests recolectados: 724 pasan** y **6 quedan como
+  PR #71), `931644e` y `707dc6f` (sincronización de documentación, PR #76).
+- Cierre de la Actividad 14: `d06284f` en la rama
+  `docs/registro-documentos-sede` (propuesta de registro).
+- Suite actual: **730 tests recolectados**: 724 pasan y **6 quedan como
   `xfail(strict=True)`** (los criterios de aceptación de AUD-24 a AUD-27 del
-  motor).
+  motor). Los 3 tests que dependen de `recursos/` se omiten cuando esa
+  carpeta no está disponible, como pasa en el CI.
 
 ---
 
@@ -205,9 +209,12 @@ contiene datos de personas.
    portafolio; el registro lleno se hace en el piloto.
 3. Verificar los `XPASS` de los `xfail` cuando Int3 corrija AUD-24 a
    AUD-27 y quitar las marcas.
-4. Revisar con Int2 que la pantalla de ficha respete el contrato v1.12.0.
-5. Cerrar el resto de la auditoría cuando Int3 y Int2 entreguen su
-   parte: recién entonces se borra el bloque de aviso de `AGENTS.md` y se
-   deja la línea en `docs/cronologia_trabajo.md`.
-6. Cerrar con el equipo las 7 decisiones de dominio abiertas (§8 del
-   handover).
+4. Coordinar con Int2 el ajuste de la pantalla de ficha a los criterios de
+   Int3 para AUD-24 a AUD-27. El token compartido (`X-VistoBueno-Token`)
+   ya está implementado (`cda3d56`).
+5. Cerrar el resto de la auditoría cuando Int3 entregue su parte: recién
+   entonces se borra el bloque de aviso de `AGENTS.md` y se deja la línea
+   en `docs/cronologia_trabajo.md`. Int2 ya cerró AUD-16 a AUD-18 con el
+   PR #68.
+6. Cerrar con el equipo las 6 decisiones de dominio abiertas (§8 del
+   handover; AUD-18 ya está decidida).
