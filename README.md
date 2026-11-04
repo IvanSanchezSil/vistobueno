@@ -456,6 +456,18 @@ constancia + registro descargables. Salida esperada: "✅ FLUJO COMPLETO
 OK". La evidencia (logs, archivos generados) queda en un tmp que el
 propio comando imprime.
 
+Los dos comandos de ensayo (`nix run .#test-ficha-deposito` y `nix run
+.#test-local`) levantan su propia API y su propio dev server, así que
+necesitan puertos libres. Antes de arrancar, comprueban que lo estén y
+**se detienen con un mensaje claro si no lo están**: nunca se reaprovechan
+una API ajena por error. Para correrlos junto a otra instancia, se eligen
+otros puertos:
+
+```
+VISTOBUENO_API_PUERTO=8020 VISTOBUENO_MOCK_PUERTO=8021 nix run .#test-ficha-deposito
+VISTOBUENO_API_PUERTO=8020 VISTOBUENO_FRONTEND_PUERTO=5174 nix run .#test-local
+```
+
 Manual, para recorrerlo con calma: `nix run .#serve --
 validator.api:app --port 8000` en una terminal, `nix run .#mock-dspace`
 en otra (mock de las páginas de DSpace en `http://127.0.0.1:8080`) y el

@@ -19,6 +19,12 @@ instancia real (borrador descartable).
 - Un DOCX de prueba (la plantilla de `recursos/` o el doc bueno del factory)
 - El dist construido: `cd tools/dspace-fill && npm run build` (o `npm test`)
 
+El puerto de la API a la que el mock reenvía el buzón se puede cambiar
+con `VISTOBUENO_API_PUERTO` (por defecto 8000). El del mock, con
+`MOCK_PORT` (por defecto 8080). El ensayo general
+(`nix run .#test-ficha-deposito`) los usa para correr su propia API sin
+chocar con otra instancia:
+
 ## Checklist (11 pasos)
 
 1. Abre `http://127.0.0.1:8080/` — debe mostrar el índice con el flujo.

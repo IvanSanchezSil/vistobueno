@@ -52,7 +52,7 @@ Ninguno toca `master` directamente.
 | 2 | Registro propuesto de la sede (Act. 14) | 30 min | sin datos personales, enlaces resueltos | **cerrado** (PR #77) |
 | 3 | Verificación del frontend (Act. 15) | 1–2 h | tests, lint, build y checklist de navegador registrado | **cerrado** (PR #79) |
 | 4 | Kit del piloto y borrador de coordinación | 1–2 h | checklist ejecutable, sin datos personales | **cerrado** (PR #80) |
-| 5 | Ensayo completo contra el mock | 1–2 h | flujo completo OK, sin drift en `dist` | pendiente |
+| 5 | Ensayo completo contra el mock | 1–2 h | flujo completo OK, sin drift en `dist` | **cerrado** |
 | 6 | Cierre de evidencias de la semana 10 | 30 min | registro de regresión y de PRs completo | pendiente |
 
 ---
@@ -224,22 +224,37 @@ nix run .#test-ficha-deposito
 nix run .#test-local
 ```
 
-Dos advertencias:
-
-- `test-ficha-deposito` ejecuta `pkill -f uvicorn` y reconstruye
-  `tools/dspace-fill/dist/`;
-- se corre sin otra instancia de `uvicorn` activa, y después se revisa
-  `git diff -- tools/dspace-fill/dist`.
-
-También un ensayo con navegador: API + mock + frontend; subir la
-demostración conforme; preparar la ficha; correr el userscript contra el
-mock; verificar handle, constancia y registro; limpiar el almacenamiento del
-navegador.
-
-Los resultados se registran en `docs/PILOTO_OPERADOR.md`.
-
 **Compuerta:** «FLUJO COMPLETO OK», sin drift en `dist`, sin datos
 personales en el repositorio.
+
+**Estado:** cerrado (2026-11-04). Los dos comandos pasan y la evidencia
+está en `docs/semana10_trabajo_retblast.md`.
+
+Antes de correrlos hubo que arreglar tres cosas, porque en su estado
+anterior no se podían usar sin romper el trabajo de otra sesión:
+
+- `test-ficha-deposito` y `test-local` levantan su propia API y su propio
+  dev server. Los puertos ahora son configurables
+  (`VISTOBUENO_API_PUERTO`, `VISTOBUENO_MOCK_PUERTO`,
+  `VISTOBUENO_FRONTEND_PUERTO`) y ambos comandos **comprueban que estén
+  libres antes de arrancar**: si el puerto está ocupado, se detienen con
+  un mensaje claro. Antes, el `uvicorn` del ensayo no lograba hacer bind
+  y el chequeo de arranque respondía contra la API que ya estaba
+  escuchando: el ensayo daba verde sin haber probado nada.
+- Los dos scripts detenían **cualquier** `uvicorn` y **cualquier** `vite`
+  del sistema al terminar. Ahora detienen solo los procesos que ellos
+  mismos levantaron, por PID.
+- `nix run .#test-local` fallaba de arranque con «python3: command not
+  found»: la app del flake no ponía `pythonEnv` ni `nodejs` en el
+  `PATH`, como sí hacía su hermana `test-ficha-deposito`.
+
+También: `test-local` levantaba la API en `0.0.0.0`, en contra del
+despliegue documentado (loopback). Ahora usa `127.0.0.1`, y el proxy del
+dev server de Vite apunta a un destino configurable
+(`VISTOBUENO_API_URL`).
+
+El ensayo con navegador real no se hizo en este lote: el clic manual
+contra la instancia de la sede es parte del piloto (Actividad 16).
 
 ---
 
@@ -272,5 +287,7 @@ registro completo.
   hallazgos de la tabla §11 del handover estén cerrados o decididos.
 - `AGENTS.md` solo se modifica con aprobación explícita del responsable del
   repositorio.
-- El lote 5 ejecuta `pkill -f uvicorn`: no se corre con otra instancia de
-  la API en uso.
+- Los dos comandos de ensayo (lote 5) ya no detienen procesos ajenos:
+  comprueban sus puertos y se detienen solos si están ocupados. Aun así,
+  conviene elegirlos libres: el default es 8000 para la API, 8080 para el
+  mock y 5173 para el dev server.

@@ -199,6 +199,60 @@ ejecución las convertía en pasos sin criterio de falla.
 
 ---
 
+### 2026-11-04 — Ensayo completo contra el mock (lote 5)
+
+Lote 5 del plan previo al piloto (`docs/PLAN_LOTES_PRE_PILOTO.md`). La
+compuerta final antes de agendar el piloto: correr los dos ensayos de
+punta a punta.
+
+**Resultado:** los dos pasan.
+
+- `nix run .#test-ficha-deposito` → **«✅ FLUJO COMPLETO OK»**. Valida el
+  doc bueno del factory, publica la ficha en el buzón, corre el userscript
+  real contra el mock, rellena el formulario, conserva la edición del
+  operador al volver a rellenar, alinea los dos autores con sus DNI,
+  reporta el handle y el timestamp, y genera `registro.csv`,
+  `registro.xlsx`, la constancia del Modelo B (137 103 bytes, sin ningún
+  MERGEFIELD sin reemplazar) y el paquete `zip` con la fila del autor.
+- `nix run .#test-local` → **«✅ TODAS LAS PRUEBAS E2E PASARON»**. Build del
+  frontend, suite backend (736 pasan, 6 `xfail`), `POST /validar` por el
+  proxy de Vite, 415 por tipo de archivo, 422 por correo inválido, el
+  estado de la notificación (`deshabilitado` con `notificar=true`,
+  `no_solicitado` sin él) y el proxy devolviendo 500 con body vacío
+  cuando la API está caída.
+
+**Tres cosas que había que arreglar antes de poder correrlos.** En su
+estado anterior los dos comandos no se podían usar sin romper el trabajo
+de otra sesión:
+
+1. **Verde falso por API ajena.** Los dos ensayos levantan su propia API
+   en el 8000. Con ese puerto ocupado, el `uvicorn` del ensayo no lograba
+   hacer bind y el chequeo de arranque respondía contra la API que ya
+   estaba escuchando: el ensayo daba verde sin haber probado nada. Ahora
+   los puertos son configurables (`VISTOBUENO_API_PUERTO`,
+   `VISTOBUENO_MOCK_PUERTO`, `VISTOBUENO_FRONTEND_PUERTO`) y los dos
+   comandos **comprueban que estén libres antes de arrancar**: si no lo
+   están, se detienen con un mensaje que dice qué hacer.
+2. **Mataban procesos ajenos.** Al terminar, los dos scripts detenían
+   cualquier `uvicorn` y cualquier `vite` del sistema. Ahora detienen solo
+   los que levantaron, por PID. En este caso concreto se verificó que la
+   API y el dev server de otra sesión siguen vivos después del ensayo.
+3. **`test-local` no arrancaba.** `nix run .#test-local` fallaba con
+   «python3: command not found»: la app del flake no ponía `pythonEnv`
+   ni `nodejs` en el `PATH`, como sí hacía su hermana
+   `test-ficha-deposito`.
+
+También: `test-local` levantaba la API en `0.0.0.0`, en contra del
+despliegue documentado (el loopback es la frontera de confianza). Ahora
+usa `127.0.0.1`, y el proxy del dev server de Vite apunta a un destino
+configurable (`VISTOBUENO_API_URL`).
+
+**Lo que no se hizo:** el ensayo con navegador real. El clic manual contra
+la instancia de la sede es parte del piloto (Actividad 16), no de este
+lote.
+
+---
+
 ## Evidencias producidas
 
 | Evidencia | Dónde |
