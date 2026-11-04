@@ -20,8 +20,8 @@ import zipfile
 from pathlib import Path
 
 import yaml
-
 from docx_factory import compilar_docx, configuracion_base
+
 from validator.detalle import MAX_INCUMPLIMIENTOS
 from validator.engine import validate_docx
 
