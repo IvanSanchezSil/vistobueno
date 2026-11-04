@@ -17,8 +17,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-API="http://127.0.0.1:8000"
-MOCK="http://127.0.0.1:8080"
+# El ensayo levanta su propia API y su propio mock, así que sus puertos
+# tienen que estar libres. Son configurables para poder correr el ensayo
+# junto a otra instancia de la API en vez de tener que detenerla.
+API_PUERTO="${VISTOBUENO_API_PUERTO:-8000}"
+MOCK_PUERTO="${VISTOBUENO_MOCK_PUERTO:-8080}"
+API="http://127.0.0.1:${API_PUERTO}"
+MOCK="http://127.0.0.1:${MOCK_PUERTO}"
 DIR_TMP="$(mktemp -d /tmp/vistobueno-ensayo-XXXXXX)"
 
 if [ -x "$ROOT/.venv/bin/python" ]; then
@@ -28,14 +33,59 @@ else
 fi
 export VISTOBUENO_FIRMA="${VISTOBUENO_FIRMA:-Lic. Ensayo General}"
 export VISTOBUENO_PLANTILLA_CONSTANCIA="${VISTOBUENO_PLANTILLA_CONSTANCIA:-$ROOT/recursos/TESIS DIGITAL MODELO B-2026.docx}"
+# El mock y el driver leen la API de estas variables.
+export VISTOBUENO_API_PUERTO="$API_PUERTO"
+export MOCK_PORT="$MOCK_PUERTO"
+export API_URL="$API"
+export MOCK_URL="$MOCK"
+
+PID_API=""
+PID_MOCK=""
 
 limpiar() {
-  # ⚠️ Este pkill mata CUALQUIER uvicorn en el sistema, no solo el del
-  # ensayo. Si tienes otro proceso corriendo, se detendrá también.
-  pkill -f "uvicorn validator" 2>/dev/null || true
-  pkill -f "[m]ock-dspace/server.js" 2>/dev/null || true
+  # Solo se detienen los procesos que levantó este ensayo. Un pkill
+  # general mataría cualquier otra API del sistema, y el ensayo no
+  # podría distinguir la suya de una ajena.
+  for pid in "$PID_API" "$PID_MOCK"; do
+    [ -n "$pid" ] || continue
+    kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+  done
 }
 trap limpiar EXIT
+
+# ¿Hay alguien escuchando en el puerto? (sale 0 si está ocupado)
+puerto_ocupado() {
+  "$BACKEND_PY" - "$1" <<'PY'
+import socket
+import sys
+
+sock = socket.socket()
+sock.settimeout(0.5)
+try:
+    sock.connect(("127.0.0.1", int(sys.argv[1])))
+except OSError:
+    sys.exit(1)  # libre
+finally:
+    sock.close()
+sys.exit(0)  # ocupado
+PY
+}
+
+# Pre-flight del puerto: si el puerto está ocupado, el uvicorn de este
+# ensayo no puede hacer bind y el chequeo de arranque respondería contra
+# la API ajena. El ensayo daría verde sin haber probado nada.
+for puerto in "$API_PUERTO" "$MOCK_PUERTO"; do
+  if puerto_ocupado "$puerto"; then
+    echo "❌ El puerto $puerto ya está ocupado."
+    echo "   El ensayo levanta su propia API y su propio mock: necesita"
+    echo "   puertos libres. Cerrá el proceso que los ocupa, o corré el"
+    echo "   ensayo con otros puertos:"
+    echo ""
+    echo "     VISTOBUENO_API_PUERTO=8020 VISTOBUENO_MOCK_PUERTO=8021 \\"
+    echo "       nix run .#test-ficha-deposito"
+    exit 1
+  fi
+done
 
 # Pre-flight (hallazgo 16a): la plantilla del Modelo B vive en recursos/
 # (no versionado). Sin ella, el paso 7 omite la constancia y continúa
@@ -74,11 +124,10 @@ shutil.copy(ruta, "$DIR_TMP/plan_cuantitativo.docx")
 print("  ✅ doc bueno generado")
 PY
 
-paso 3 "API en :8000 (con firma configurada)"
-limpiar
-sleep 1
-setsid nohup "$BACKEND_PY" -m uvicorn validator.api:app --host 127.0.0.1 --port 8000 \
+paso 3 "API en :${API_PUERTO} (con firma configurada)"
+setsid nohup "$BACKEND_PY" -m uvicorn validator.api:app --host 127.0.0.1 --port "$API_PUERTO" \
   > "$DIR_TMP/api.log" 2>&1 < /dev/null &
+PID_API=$!
 for i in $(seq 1 20); do
   curl -sf -o /dev/null "$API/docs" && break
   sleep 1
@@ -86,9 +135,10 @@ done
 curl -sf -o /dev/null "$API/docs" || fallar "la API no arrancó (log: $DIR_TMP/api.log)" 3
 echo "  ✅ API arriba"
 
-paso 4 "Mock de DSpace en :8080"
+paso 4 "Mock de DSpace en :${MOCK_PUERTO}"
 setsid nohup node "$ROOT/tools/dspace-fill/dev/mock-dspace/server.js" \
   > "$DIR_TMP/mock.log" 2>&1 < /dev/null &
+PID_MOCK=$!
 for i in $(seq 1 10); do
   curl -sf -o /dev/null "$MOCK/" && break
   sleep 1

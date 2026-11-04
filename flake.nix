@@ -118,6 +118,10 @@
                 echo "Error: ejecutar desde la raíz del repositorio (nix run .#test-local)"
                 exit 1
               fi
+              # El script usa python3 y npm: ambos tienen que estar en el
+              # PATH (sin esto, el comando fallaba con "python3: command
+              # not found" en el primer chequeo de puerto).
+              export PATH="${pythonEnv}/bin:${pkgs.nodejs}/bin:$PATH"
               exec ${pkgs.bash}/bin/bash "$PWD/scripts/e2e_flujo_completo.sh" "$@"
             '');
           };
