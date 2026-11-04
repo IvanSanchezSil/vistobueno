@@ -1,6 +1,6 @@
 # Plan de implementación: tipo de documento y grupos excluyentes
 
-**Estado**: aprobado, pendiente de ejecución
+**Estado**: cerrado (implementado; se conserva como registro de la Semana 6)
 **Fecha**: 2026-09-28
 **Rama**: `semana6` (continúa el trabajo ya iniciado en esa rama; el PR es el #36)
 **Diseño asociado**: `docs/diseno/15_tipo_documento_grupos.md`
@@ -213,13 +213,12 @@ desconocido; los estados terminales son errores propios. Las 8 estructuras
 
 ### Paso 7 — Contrato de API (coordinar con Integrante 1)
 
-> **Estado: entregado como documento, no implementado.**
-> `api_models.py` es área del Integrante 1 y cambiar `resumen` altera el
-> contrato publicado, así que este paso no se ejecuta aquí: se entrega
-> `docs/HANDOVER_API_TIPO_DOCUMENTO.md`, que especifica el cambio exacto con
-> números medidos sobre el motor actual, la decisión de contrato que le toca
-> tomar al Integrante 1 y los pasos de regeneración del spec. La implementación
-> queda pendiente de que el Integrante 1 la asuma.
+> **Estado: implementado.** El contrato se actualizó en el PR #44 (v1.4.0).
+> `api_models.py` era área del Integrante 1 y cambiar `resumen` alteraba el
+> contrato publicado; por eso el paso se entregó primero como handover. Hoy
+> `docs/HANDOVER_API_TIPO_DOCUMENTO.md` se conserva como registro del pedido;
+> la evidencia está en `tests/test_api_contract.py` y
+> `tests/test_tipo_documento.py`.
 
 **Objetivo**: exponer lo nuevo sin romper el contrato publicado.
 
