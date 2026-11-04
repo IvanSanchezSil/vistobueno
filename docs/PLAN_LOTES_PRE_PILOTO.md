@@ -1,6 +1,6 @@
 # Plan de lotes previos al piloto — Integrante 1 (Backend / API)
 
-> **Estado**: en ejecución. Lotes 1, 2 y 3 cerrados; el lote 4 está en curso.
+> **Estado**: en ejecución. Lotes 1 a 4 cerrados; el lote 5 queda pendiente.
 > **Fecha de creación**: 2026-11-04.
 > **Alcance**: todo el trabajo de Integrante 1 que se puede cerrar **sin** la
 > presencia del operador de la biblioteca. El piloto real (Actividad 16) y el
@@ -51,7 +51,7 @@ Ninguno toca `master` directamente.
 | 1 | Puesta al día de la documentación | 45 min | `nix flake check`, sin versiones viejas | **cerrado** (PR #76) |
 | 2 | Registro propuesto de la sede (Act. 14) | 30 min | sin datos personales, enlaces resueltos | **cerrado** (PR #77) |
 | 3 | Verificación del frontend (Act. 15) | 1–2 h | tests, lint, build y checklist de navegador registrado | **cerrado** (PR #79) |
-| 4 | Kit del piloto y borrador de coordinación | 1–2 h | checklist ejecutable, sin datos personales | pendiente |
+| 4 | Kit del piloto y borrador de coordinación | 1–2 h | checklist ejecutable, sin datos personales | **cerrado** (PR #80) |
 | 5 | Ensayo completo contra el mock | 1–2 h | flujo completo OK, sin drift en `dist` | pendiente |
 | 6 | Cierre de evidencias de la semana 10 | 30 min | registro de regresión y de PRs completo | pendiente |
 
@@ -201,7 +201,7 @@ responsable lo revisa y lo envía; el equipo no envía nada en su nombre.
 
 **Compuerta:** checklist ejecutable, sin datos personales.
 
-**Estado:** cerrado (2026-11-04). El kit quedó en `docs/PILOTO_OPERADOR.md`,
+**Estado:** cerrado (2026-11-04, PR #80). El kit quedó en `docs/PILOTO_OPERADOR.md`,
 con el checklist de 11 pasos, las limitaciones conocidas (AUD-24 a AUD-27
 y el prefijo de `dc.title`), la tabla de hallazgos, las reglas de datos
 personales, la reversión y el cierre de sesión. El borrador de
