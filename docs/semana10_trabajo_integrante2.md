@@ -251,9 +251,10 @@ los valores conformes, que esconden al culpable.
   (`capturas/07_detalle_completo.png`).
 
 **Coordinación**: el cambio toca `validator/`, que es área de Int3, así que
-va en un PR abierto contra `upstream` para que lo revise y lo mergee. El
-equipo ya había acordado la forma (opción 1 de AUD-03: módulo único
-`validator/detalle.py`).
+va en el **PR #78** abierto contra `upstream` para que lo revise y lo mergee.
+El equipo ya había acordado la forma (opción 1 de AUD-03: módulo único
+`validator/detalle.py`). La tabla §11 del handover queda actualizada con el
+estado «implementado, pendiente de merge».
 
 **Pendiente para Int3**: `docs/ejemplo_respuesta_motor.json` es la salida de
 referencia del motor contra la tesis real y quedó con el formato anterior

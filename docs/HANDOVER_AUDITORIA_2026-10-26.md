@@ -364,12 +364,21 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > El bloque de aviso de `AGENTS.md` **no se borra todavía**: faltan los
 > hallazgos de Int3 (AUD-01 a AUD-07, AUD-15, AUD-20, AUD-24 a AUD-27 y los
 > dos nuevos).
+>
+> **Actualizado por Int2 (2026-11-04)**: el bug reportado de «el frontend solo
+> muestra las primeras 3 líneas de cada error» estaba en el truncamiento del
+> detalle en el motor (`vals[:3]`, `incumplen[:3]`), no en el frontend. Se
+> implementó la opción 1 de AUD-03 en el **PR #78** (módulo único
+> `validator/detalle.py`, usado por los dos motores): ahora el detalle
+> enumera **todos** los incumplimientos con posición, valor y página. Toca
+> `validator/` (área de Int3), así que el PR queda abierto para que lo
+> revise y lo mergee.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
 | AUD-01 | Int3 | pendiente | — |
 | AUD-02 | Int3 | pendiente | — |
-| AUD-03 | Int3 | pendiente (opción 1 decidida) | — |
+| AUD-03 | Int3 | implementado (opción 1: módulo único `validator/detalle.py`), **pendiente de merge** | PR #78 |
 | AUD-04 | Int3 | pendiente | — |
 | AUD-05 | Int3 | decisión de dominio | — |
 | AUD-06 | Int3 | decisión de dominio | — |
