@@ -171,6 +171,34 @@ El detalle completo está en `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` §8.
 
 ---
 
+### 2026-11-04 — Kit del piloto (lote 4)
+
+Lote 4 del plan previo al piloto (`docs/PLAN_LOTES_PRE_PILOTO.md`). Se
+escribió el kit que va a seguir el operador de la biblioteca en la
+primera sesión con la instancia real de DSpace:
+`docs/PILOTO_OPERADOR.md`.
+
+**Qué lleva:** propósito y alcance; roles (operador, Integrante 1 y
+contacto de la sede); estado de la entrega; nueve precondiciones con su
+comprobación; el checklist de ejecución de once pasos, cada uno con su
+esperado objetivo; las limitaciones que el operador va a ver (AUD-24 a
+AUD-27, el prefijo de `dc.title` y el `palabras_clave_minimo`); una tabla
+de hallazgos para llenar durante la sesión; las reglas de datos
+personales y datos locales; la reversión; y el cierre de la sesión.
+
+**Borrador de coordinación:** va en el Anexo B. Es neutral y trae
+marcadores entre corchetes (`[FECHA]`, `[HORA]`, `[LUGAR]`,
+`[NOMBRE]`). Lo revisa y lo envía el contacto de la sede; el equipo no
+envía nada en su nombre.
+
+**Decisión de diseño:** las precondiciones van en una sección aparte, antes
+del checklist. Varias solo se pueden comprobar con la API levantada
+(`/docs` en 200, un `Host` ajeno en 400, la plantilla del Modelo B
+presente, `VISTOBUENO_FIRMA` definida), y mezclarlas con los pasos de
+ejecución las convertía en pasos sin criterio de falla.
+
+---
+
 ## Evidencias producidas
 
 | Evidencia | Dónde |

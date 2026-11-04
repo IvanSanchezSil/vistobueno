@@ -1,6 +1,6 @@
 # Plan de lotes previos al piloto — Integrante 1 (Backend / API)
 
-> **Estado**: en ejecución. Lotes 1 y 2 cerrados; el lote 3 está en curso.
+> **Estado**: en ejecución. Lotes 1, 2 y 3 cerrados; el lote 4 está en curso.
 > **Fecha de creación**: 2026-11-04.
 > **Alcance**: todo el trabajo de Integrante 1 que se puede cerrar **sin** la
 > presencia del operador de la biblioteca. El piloto real (Actividad 16) y el
@@ -50,7 +50,7 @@ Ninguno toca `master` directamente.
 |---|---|---|---|---|
 | 1 | Puesta al día de la documentación | 45 min | `nix flake check`, sin versiones viejas | **cerrado** (PR #76) |
 | 2 | Registro propuesto de la sede (Act. 14) | 30 min | sin datos personales, enlaces resueltos | **cerrado** (PR #77) |
-| 3 | Verificación del frontend (Act. 15) | 1–2 h | tests, lint, build y checklist de navegador registrado | **cerrado** |
+| 3 | Verificación del frontend (Act. 15) | 1–2 h | tests, lint, build y checklist de navegador registrado | **cerrado** (PR #79) |
 | 4 | Kit del piloto y borrador de coordinación | 1–2 h | checklist ejecutable, sin datos personales | pendiente |
 | 5 | Ensayo completo contra el mock | 1–2 h | flujo completo OK, sin drift en `dist` | pendiente |
 | 6 | Cierre de evidencias de la semana 10 | 30 min | registro de regresión y de PRs completo | pendiente |
@@ -147,7 +147,7 @@ Si aparece un hueco real, se corrige en este lote y se agrega un test a
 
 **Compuerta:** tests, lint, build y checklist de navegador registrados.
 
-**Estado:** cerrado (2026-11-04). El checklist se ejecutó contra la API
+**Estado:** cerrado (2026-11-04, PR #79). El checklist se ejecutó contra la API
 real; el detalle está en `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` §8. La
 pantalla no tenía ninguna prueba de componente: se agregó
 `frontend/src/components/FichaDeposito.test.jsx` (8 casos, verificados con
@@ -200,6 +200,18 @@ También: enlace desde `README.md`, enlace desde
 responsable lo revisa y lo envía; el equipo no envía nada en su nombre.
 
 **Compuerta:** checklist ejecutable, sin datos personales.
+
+**Estado:** cerrado (2026-11-04). El kit quedó en `docs/PILOTO_OPERADOR.md`,
+con el checklist de 11 pasos, las limitaciones conocidas (AUD-24 a AUD-27
+y el prefijo de `dc.title`), la tabla de hallazgos, las reglas de datos
+personales, la reversión y el cierre de sesión. El borrador de
+coordinación va en el Anexo B: es neutral, con marcadores entre
+corchetes, y el contacto de la sede lo revisa y lo envía.
+
+Una diferencia con lo planificado: el checklist se escribió con **once**
+pasos de ejecución (los mismos once que la lista de arriba) más una
+sección de precondiciones que va antes, porque varias de las
+precondiciones solo se pueden comprobar con la API levantada.
 
 ---
 

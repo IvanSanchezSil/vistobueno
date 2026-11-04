@@ -432,6 +432,7 @@ versionadas:
 | `docs/ejemplos/GUIA_EJEMPLOS.md` | Qué se revisó en cada documento y qué resultado produce |
 | `scripts/ejemplo_bueno_malo.py` | Generador del par (misma fábrica determinista que los tests) |
 | `docs/REGISTRO_DOCUMENTOS_SEDE.md` | Propuesta de estructura para registrar los documentos que entregue la sede en el piloto: campos, estados, regla de privacidad y criterio de cierre |
+| `docs/PILOTO_OPERADOR.md` | Kit del piloto: precondiciones, checklist de 11 pasos contra la instancia real, limitaciones conocidas, tabla de hallazgos y reversión |
 | `docs/PLAN_LOTES_PRE_PILOTO.md` | Plan de trabajo previo al piloto por lotes, con el estado de cada uno y su compuerta |
 
 El par es sintético: no hay datos de personas ni tesis reales, y se
@@ -461,7 +462,7 @@ en otra (mock de las páginas de DSpace en `http://127.0.0.1:8080`) y el
 checklist de 11 pasos de `tools/dspace-fill/dev/mock-dspace/README.md`.
 El mock imita el DOM del formulario oficial; los comportamientos del
 Angular real se validan en el piloto (borrador descartable, con el
-operador presente).
+operador presente). El kit del piloto está en `docs/PILOTO_OPERADOR.md`.
 
 ### Flujo real (contrato v1.12.0)
 
