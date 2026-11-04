@@ -4,6 +4,10 @@ Guía para instalar y verificar VistoBueno en la PC de la biblioteca.
 Complementa `README.md`, `docs/CONTRATO_API.md` y el handover de la
 auditoría 2026-10-26.
 
+> Este documento cubre la **instalación**. La sesión de prueba con la
+> instancia real de DSpace tiene su propio kit, con el checklist de
+> ejecución paso a paso: `docs/PILOTO_OPERADOR.md`.
+
 ## 1. Qué protege el despliegue
 
 La API maneja datos personales del estudiante (DNI, ORCID, resumen),
