@@ -1,8 +1,12 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.7.0 (Semana 8 — ficha de depósito y buzón de una ranura)  
-**Fecha**: 2026-10-14  
+**Versión**: 1.12.0 (2026-10-30 — hora de Perú en el papeleo)<br>
+**Fecha**: 2026-10-30<br>
 **Estado**: Implementado
+
+> **Nota de lectura**: los títulos de sección con versión (por ejemplo,
+> «v1.7.0») indican cuándo entró cada bloque. El contrato vigente es la
+> versión de este encabezado; el changelog al final tiene la historia completa.
 
 ---
 

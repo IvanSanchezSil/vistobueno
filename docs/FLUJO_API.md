@@ -1,7 +1,11 @@
 # Flujo del endpoint POST /validar
 
-**Versión**: 1.4  
+**Versión**: 1.12.0<br>
 **Fecha**: 2026-10-30
+
+> Este documento describe el flujo de `POST /validar` y el buzón de la ficha.
+> El contrato completo, incluidos constancia y registro, está en
+> `docs/CONTRATO_API.md` (v1.12.0).
 
 ---
 
@@ -180,7 +184,7 @@ return _validate_legacy(rules_data, extracted)
 
 ---
 
-## Buzón de una ranura (ficha de depósito, v1.7.0)
+## Buzón de una ranura (ficha de depósito, desde v1.7.0)
 
 Comunicación entre la SPA y el userscript que corre sobre las páginas de
 DSpace en el navegador del operador. Sin archivos, sin pegar, sin

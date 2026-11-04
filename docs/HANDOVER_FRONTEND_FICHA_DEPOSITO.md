@@ -3,12 +3,17 @@
 **Fecha**: 2026-10-23
 **De**: Integrante 1 (Backend/API)
 **Para**: Integrante 2 (Frontend)
-**Estado**: pedido con especificación — el diseño de pantallas es tuyo.
+**Estado**: resuelto — el diseño de pantallas quedó implementado.
 **Resuelto**: 2026-11-03 (PR #68). La pantalla quedó implementada en
 `frontend/src/components/FichaDeposito.jsx` (vista) y `frontend/src/ficha.js`
 (lógica de flujo pura), con cobertura en `frontend/src/ficha.test.js`.
-**Contexto de producto**: `docs/PLAN_FICHA_DEPOSITO.md` (leer primero;
-v0.2 congelado). Contrato: `docs/CONTRATO_API.md` (v1.7.0).
+**Contrato vigente**: `docs/CONTRATO_API.md` (v1.12.0). La SPA envía el token
+compartido opcional (`VITE_API_TOKEN` → `X-VistoBueno-Token`) cuando está
+configurado; en loopback no hace falta.
+**Limitaciones conocidas del motor** (no de la UI): AUD-24 a AUD-27 siguen
+abiertas en `docs/HANDOVER_AUDITORIA_2026-10-26.md`. La pantalla permite
+corregir los campos a mano; el piloto debe registrar estos casos.
+**Contexto de producto**: `docs/PLAN_FICHA_DEPOSITO.md` (v0.2 congelado).
 
 ---
 

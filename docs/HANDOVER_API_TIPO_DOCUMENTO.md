@@ -1,25 +1,26 @@
-# Handover: cambios de API pendientes (Semana 6, paso 7)
+# Handover: cambios de API de tipo de documento (implementado)
 
 **Destinatario**: Integrante 1 (Backend / API).
 
-**Este documento no modifica tu código.** Los pasos 1–6 de
-`docs/PLAN_TIPO_DOCUMENTO.md` cambiaron el motor; la API no se actualizó a
-propósito, para no romper el contrato publicado. Este es el detalle de lo que
-queda por hacer en `validator/api.py`, `validator/api_models.py`,
-`docs/CONTRATO_API.md` y `docs/openapi_spec.json`, que son área tuya según
-`AGENTS.md`.
+**Estado**: **implementado**. La API expone `aplicable`, `total_evaluadas`,
+`reglas_no_aplicables` y los metadatos `tipo_documento_*`; la evidencia está
+en `tests/test_api_contract.py` y `tests/test_tipo_documento.py`. Este
+documento se conserva como registro del pedido: las secciones siguientes
+describen el estado anterior a la implementación.
 
-**Estado**: el motor ya está terminado y con tests en verde. Este handover no
-bloquea ningún otro paso del plan.
+**Contexto**: los pasos 1–6 de `docs/PLAN_TIPO_DOCUMENTO.md` cambiaron el
+motor. El handover original pedía actualizar `validator/api.py`,
+`validator/api_models.py`, `docs/CONTRATO_API.md` y
+`docs/openapi_spec.json`, área de Integrante 1 según `AGENTS.md`.
 
 ---
 
-## 1. Qué cambió en el motor que la API todavía no refleja
+## 1. Qué cambió en el motor que la API no reflejaba al momento del pedido
 
 Los pasos 1–6 introdujeron dos conceptos nuevos:
 
 1. **Aplicabilidad**: una regla puede no aplican a un documento concreto
-   (`RuleResult.aplicable`). Hoy solo lo usan las 3 reglas de estructura
+   (`RuleResult.aplicable`). Al momento del pedido solo lo usaban las 3 reglas de estructura
    (`estructura_tinv_*`), que dependen del tipo de documento.
 2. **Reglas centinela**: ante un tipo `sin_determinar` o `contradictorio` el
    motor sintetiza un error propio (`tipo_documento_no_determinado` /
@@ -31,7 +32,7 @@ Los pasos 1–6 introdujeron dos conceptos nuevos:
 
 ---
 
-## 2. El problema concreto: la API reporta como aprobado lo que nunca revisó
+## 2. El problema concreto: la API reportaba como aprobado lo que nunca revisó
 
 `validator/api.py:89` mapea `resultados_motor` (**crudos**, sin filtrar) a los
 DTOs, y `_rule_result_a_dto` (`validator/api.py:65`) **no copia `aplicable`**.
@@ -56,7 +57,7 @@ Dos consecuencias visibles para el estudiante:
 
 ---
 
-## 3. Cambios necesarios
+## 3. Cambios implementados
 
 ### 3.1 `ResultadoReglaAPI`: exponer la aplicabilidad
 
@@ -87,9 +88,9 @@ Mapeados desde `reporte["resumen"]` en `validator/api.py:93-97`.
 
 ### 3.3 `metadatos.reglas_evaluadas`: decisión de semántica
 
-Hoy vale `reporte["resumen"]["total"]` (`validator/api.py:105`), o sea 48,
-pero el campo se llama `reglas_evaluadas`. **El nombre miente desde antes del
-paso 5**; ahora se nota porque existe el valor real.
+Al momento del pedido valía `reporte["resumen"]["total"]` (`validator/api.py:105`),
+o sea 48, pero el campo se llama `reglas_evaluadas`. **El nombre mentía desde
+antes del paso 5**; ahora se nota porque existe el valor real.
 
 - **(A) Recomendada** — `reglas_evaluadas` = `total_evaluadas` (46) y agregar
   `reglas_totales` = 48. Por fin el nombre significa lo que dice.
@@ -110,12 +111,12 @@ evita que el frontend tenga que parsear texto libre.
 
 ---
 
-## 4. La decisión que te toca a ti
+## 4. La decisión que se tomó
 
 **¿El frontend recibe todas las reglas con su flag `aplicable`, o solo las aplicables?**
 
-Hoy divergen: la API manda crudas, y `build_report()` (`validator/engine.py`)
-**filtra** las no aplicables.
+Al momento del pedido divergían: la API mandaba crudas, y `build_report()`
+(`validator/engine.py`) **filtra** las no aplicables.
 
 - **(A) Mandar todas + `aplicable`** — el frontend puede mostrar "omitida" y
   explicar por qué. No se pierde información. Requiere tocar el frontend.
@@ -126,6 +127,9 @@ Hoy divergen: la API manda crudas, y `build_report()` (`validator/engine.py`)
 Recomiendo **(A)**: el paso 6 existe justamente para que el estudiante entienda
 *por qué* algo no se revisó. Ocultarlas lo deja con la misma pregunta que
 tenía antes.
+
+**Decisión tomada**: se implementó (A). La API manda todas las reglas con
+`aplicable` y el resumen distingue las evaluadas de las no aplicables.
 
 ---
 
@@ -142,7 +146,8 @@ con los modelos. Si cambias `api_models.py` sin regenerarlo, el CI se pone rojo
 por drift, no por tu cambio.
 
 No olvides el ejemplo de la respuesta embebido en `api_models.py:116`
-(hoy dice `total: 47`, que ya no corresponde a ningún escenario real).
+(al momento del pedido decía `total: 47`, que ya no correspondía a ningún
+escenario real).
 
 Agrega también los tests de contrato correspondientes en
 `tests/test_api_contract.py`, que también es área tuya.
@@ -164,5 +169,5 @@ python3 scripts/generate_openapi.py --check
 nix flake check
 ```
 
-**Hecho cuando**: el contrato refleja lo nuevo, el CI confirma que no hay
-drift, y el frontend sabe que el resumen es dinámico.
+**Cumplido**: el contrato refleja lo nuevo y el CI confirma que no hay drift.
+La suite de contrato y el handover de auditoría cubren el resumen dinámico.

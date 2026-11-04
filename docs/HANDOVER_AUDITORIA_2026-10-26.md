@@ -416,12 +416,6 @@ JSON, clave con comillas simples y el falso positivo
 Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 `AGENTS.md`).
 
-> **Pendiente de una última pasada**: AUD-16, AUD-17 y AUD-18 los cierra
-> el PR de frontend (se apoya en `master`, así que **no puede** tocar
-> esta tabla). Cuando ese PR entre, hay que marcar esos tres aquí
-> (con su número de PR) y recién después se borra el bloque de aviso de
-> `AGENTS.md`, según la cláusula de cierre.
-
 > **Actualizado por Int2 (2026-10-28)**: la parte de frontend queda cerrada
 > en el PR #68 (`auditoria-2026-10-26-int2`):
 > - **AUD-16** — cerrado: pantalla de ficha de depósito en la SPA
