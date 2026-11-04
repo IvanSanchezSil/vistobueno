@@ -172,7 +172,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | `resultados[].severidad` | `string` | `"error"` o `"warning"` |
 | `resultados[].mensaje` | `string` | Descripción de la regla en lenguaje natural |
 | `resultados[].esperado` | `string` | Valor esperado según el reglamento |
-| `resultados[].encontrado` | `string` | Lo que encontró el validador (`"cumple"` si pasó; `"no aplica a este documento"` si no aplicó). Si la regla falló, enumera **todos** los incumplimientos con su posición (`#1`, `#2`, …), su valor y su página (AUD-03); no se trunca la lista en silencio |
+| `resultados[].encontrado` | `string` | Lo que encontró el validador (`"cumple"` si pasó; `"no aplica a este documento"` si no aplicó). Si la regla falló, enumera **todos** los incumplimientos con su posición (`#1`, `#2`, …), su valor y su página (AUD-03), con los valores en cm o puntos cuando la unidad es conocida; no se trunca la lista en silencio y el conteo de incumplimientos nunca contradice al veredicto |
 | `resultados[].ubicacion` | `string?` | Referencia al documento del reglamento |
 | `resultados[].fuente` | `string` | Archivo fuente del que se extrajo la regla |
 | `resultados[].cita` | `string` | Cita textual del reglamento |

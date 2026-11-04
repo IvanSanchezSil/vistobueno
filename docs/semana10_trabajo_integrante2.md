@@ -263,6 +263,50 @@ repositorio).
 
 ---
 
+### 2026-11-04 (2ª tanda) — Respuesta a la revisión del PR #78
+
+**Revisión de retblast** (2026-11-04): un bloqueante y varias
+observaciones. Todas aplicadas:
+
+1. **Bloqueante — una regla fallida informaba "0 incumplen"**. La lista de
+   incumplimientos se filtraba por `comp == "all_eq"`, pero el detalle
+   imprimía el conteo sin condición: con `comparacion: eq` o `contains`
+   (9 checks en 8 reglas) una regla en rojo decía que no había nada que
+   corregir. **Arreglado**: la comparación (veredicto + lista de
+   incumplimientos) vive ahora en `evaluar_atributo()` dentro de
+   `validator/detalle.py` y la usan los dos motores, así que el detalle no
+   puede contradecir al semáforo. Para `eq` el culpable es el valor que la
+   comparación evalúa; si no se leyó ningún valor, el detalle dice
+   «sin valores que comparar». Test nuevo con una regla `eq` que falla
+   (papel Letter): el detalle nombra `#1=21.59 cm`.
+2. **AUD-15 (escape del exportador)**: el detalle nuevo mete texto del
+   documento (hasta 60 caracteres por incidente), así que el exportador
+   podía inyectar HTML crudo en el Markdown y en el PDF. **Arreglado**:
+   `_escapar()` escapa `&`, `<`, `>` y `|` en la tabla, el detalle y los
+   encabezados, con test.
+3. **«Culpables primero» a medias**: el prefijo seguía mostrando los
+   primeros valores leídos (que suelen ser los conformes). **Arreglado**: el
+   detalle ya no muestra esa muestra de valores; empieza por el atributo,
+   el número de valores evaluados y la lista de incumplimientos.
+4. **Unidades en cm/pt**: la revisión está de acuerdo con que es más legible
+   para el estudiante; se documentó la decisión en el handover (§AUD-03).
+5. **Heurística de unidad por subcadena del xpath**: **arreglada**; la
+   unidad se deduce del **último paso** del xpath (el elemento que lleva el
+   atributo), así que un `w:ind` mencionado en un predicado no convierte un
+   valor a centímetros.
+6. **Cifras de la verificación**: las del primer mensaje correspondían a
+   otro estado del árbol; se publican las medidas por retblast sobre la
+   base actual (737 recolectados, 731 pasan, 6 xfail) y las locales.
+
+**Verificación tras los cambios**: `pytest` 674 passed, 3 skipped, 6 xfailed
+(4 tests nuevos: `eq` que falla, sin valores que comparar, escape del
+exportador) · `vitest` 68 passed · `eslint` 0 · `build` 187.45 kB ·
+`ruff check` y `ruff format --check` limpios · `mypy` sin avisos ·
+E2E `scripts/e2e_flujo_completo.sh` OK · Playwright: el detalle muestra los
+8 incumplimientos con su página.
+
+---
+
 ## Evidencias producidas
 
 - `frontend/src/components/ErrorBoundary.jsx` — límite de error con
