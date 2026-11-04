@@ -75,6 +75,33 @@ def test_markdown_incluye_prompt_ia():
     assert "¿Cómo corrijo el margen superior?" in md
 
 
+def test_markdown_escapa_el_texto_que_viene_del_documento():
+    """AUD-15: el texto del DOCX no puede romper la tabla ni injectar HTML."""
+    reporte = {
+        **REPORTE,
+        "resultados": [
+            {
+                "rule_id": "caratula_autores_mayusculas",
+                "passed": False,
+                "severity": "error",
+                "message": "Los autores <b>deben</b> ir en mayúsculas",
+                "expected": "Mayúsculas y minúsculas",
+                "found": "@w:val=['<b>ana</b> | maría'] 1 incumplen: #1=<b>ana</b>",
+                "location": "Carátula | fila 2",
+                "fuente": "MANUAL.docx",
+                "cita": '"Autores"',
+            }
+        ],
+    }
+    md = reporte_a_markdown(reporte)
+    assert "<b>" not in md
+    assert "&lt;b&gt;" in md
+    assert "&#124;" in md, "el pipe rompe la tabla si no se escapa"
+    # La tabla sigue siendo una tabla: el pipe escapado no la parte en dos.
+    assert "| Regla | Estado | Severidad | Resultado |" in md
+    assert md.count("| `caratula_autores_mayusculas` |") == 1
+
+
 def test_pdf_devuelve_bytes_validos():
     pdf = reporte_a_pdf(REPORTE)
     assert isinstance(pdf, bytes)

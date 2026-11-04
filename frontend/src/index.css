@@ -213,7 +213,10 @@ h1, h2, h3 { line-height: 1.25; letter-spacing: -.01em; }
 .estado.warn { color: var(--ambar); }
 .resultado .info { grid-column: 2; min-width: 0; }
 .resultado .msg { font-size: .75rem; line-height: 1.4; }
-.resultado .esperado { font-size: .7rem; color: var(--gris-texto); margin-top: .1rem; }
+/* El detalle puede traer la lista completa de incumplimientos (una regla
+   puede fallar en todas las líneas): tiene que partirse y leerse entero,
+   nunca cortarse. */
+.resultado .esperado { font-size: .7rem; color: var(--gris-texto); margin-top: .1rem; overflow-wrap: anywhere; }
 .resultado .esperado .etq { color: #555; font-weight: 600; }
 
 /* --- Cómo preguntar a una IA --- */

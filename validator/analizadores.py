@@ -26,6 +26,13 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 
+from .detalle import (
+    detalle_jerarquia,
+    detalle_texto_lista,
+    detalle_texto_regex,
+    detalle_xml_atributo,
+    evaluar_atributo,
+)
 from .extractor import NS, ExtractedDocx, W, text_of
 from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
@@ -130,45 +137,32 @@ class AnalizadorXML(Analizador):
             return False, "falta 'atributo' para comparación de atributo"
         key = _resolve_attr_key(atributo)
         # pares conserva la posición (1-based) de cada nodo en el resultado
-        # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
-        # incumple, en vez de mostrar solo los primeros 3 (que suelen ser los
-        # conformes y esconden al culpable — handover issue #7).
+        # del xpath: al fallar es lo que permite señalar QUÉ valor incumple,
+        # con su página, en vez de mostrar solo los primeros 3 (que suelen
+        # ser los conformes y esconden al culpable — handover issue #7 /
+        # AUD-03).
         pares = [
-            (i, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
+            (i, n, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
         ]
-        vals = [v for _, v in pares if v is not None]
+        vals = [v for _, _, v in pares if v is not None]
         self.valor = vals[0] if vals else None
-
-        # Tolerancia numérica opcional (twips): el valor cumple si su distancia
-        # al esperado no supera `tolerancia`. Misma lógica que el motor legacy
-        # (checks.py) para que la paridad compare el mismo veredicto.
         tolerancia = self.config.get("tolerancia")
 
-        def _acepta(valor: object) -> bool:
-            if tolerancia is None:
-                return valor == esperado
-            try:
-                return abs(float(str(valor)) - float(str(esperado))) <= float(str(tolerancia))
-            except TypeError, ValueError:
-                return valor == esperado
-
-        if comp == "eq":
-            ok = bool(vals) and _acepta(vals[0])
-        elif comp == "all_eq":
-            ok = bool(vals) and all(_acepta(v) for v in vals)
-        elif comp == "contains":
-            ignore_case = self.config.get("ignore_case", False)
-            if ignore_case:
-                ok = bool(vals) and all(str(esperado).lower() in str(v).lower() for v in vals)
-            else:
-                ok = bool(vals) and all(esperado in v for v in vals)
-        else:
+        if comp not in ("eq", "all_eq", "contains"):
             return False, f"comparación '{comp}' no soportada"
-        detalle = f"{atributo}={vals[:3]} esperado={esperado}"
-        if comp == "all_eq" and not ok and vals:
-            incumplen = [(i, v) for i, v in pares if v is not None and not _acepta(v)]
-            resumen = ", ".join(f"#{i}={v}" for i, v in incumplen[:3])
-            detalle += f"; incumplen=[{resumen}]"
+        # La comparación (veredicto + lista de incumplimientos) la resuelve
+        # el módulo compartido: así el detalle no puede contradecir al
+        # semáforo (una regla que falla siempre tiene un culpable nombrado).
+        con_pagina = [(i, v, extracted.pagina_de(n)) for i, n, v in pares]
+        ok, incumplimientos = evaluar_atributo(self.config, con_pagina)
+        if incumplimientos:
+            # La ubicación de la regla debe apuntar al primer nodo CULPABLE
+            # (AUD-03), no al primero que devolvió el xpath.
+            posiciones = {i for i, _, _ in incumplimientos}
+            culpables = [n for i, n, _ in pares if i in posiciones]
+            if culpables:
+                self.ultimo_nodo = culpables[0]
+        detalle = detalle_xml_atributo(self.config, vals, incumplimientos, esperado, tolerancia)
         return ok, detalle
 
 
@@ -203,8 +197,8 @@ class AnalizadorRegex(Analizador):
             return bool(rx.search(s))
 
         if coincidencia == "todos":
-            incumplen = [t for t in textos if not _matchea(t)]
-            return not incumplen, f"textos={len(textos)} incumplen={len(incumplen)}"
+            incumplen = [(i, t) for i, t in enumerate(textos, 1) if not _matchea(t)]
+            return not incumplen, detalle_texto_regex(textos, incumplen)
         if coincidencia == "alguno":
             ok = any(_matchea(t) for t in textos)
             return ok, f"textos={len(textos)} alguno_matchea={ok}"
@@ -235,8 +229,8 @@ class AnalizadorLista(Analizador):
 
         valores = [_norm(t) for t in textos]
         permitidos = [_norm(x) for x in lista]
-        incumplen = [v for v in valores if v not in permitidos]
-        return not incumplen, f"textos={valores[:3]} en_lista_faltan={incumplen[:3]}"
+        incumplen = [(i, v) for i, v in enumerate(valores, 1) if v not in permitidos]
+        return not incumplen, detalle_texto_lista(valores, incumplen)
 
 
 class AnalizadorConteoNodos(Analizador):
@@ -724,7 +718,7 @@ class AnalizadorTocNumeracion(Analizador):
         if fallos:
             if self.ultimo_nodo is None:
                 self.ultimo_nodo = entradas[0]["nodo"]
-            return False, "jerarquia_incorrecta; " + " | ".join(fallos[:6])
+            return False, detalle_jerarquia(fallos)
         return True, "jerarquia_ok"
 
 

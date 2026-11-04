@@ -141,6 +141,26 @@ Para `w:sz`: `13pt (se esperaba 14pt)`.
 Además, `validator/compilador.py` debe reportar la página del nodo
 **culpable**, no la del primero.
 
+**Implementado en el PR #78** (formato final, con el nombre del atributo y
+el conteo de valores evaluados; los incumplimientos van primero y el detalle
+nunca dice "0 incumplen" en una regla que falla):
+
+```
+@w:firstLine: 8 valores evaluados, 8 incumplen: #1=0.00 cm (pág. 1), #2=0.00 cm (pág. 1), ...; tolerancia ±0.02 cm; esperado=1.27 cm
+```
+
+**Decisión sobre las unidades (2026-11-04, revisión de retblast)**: se
+mantienen **cm y puntos** en lugar de twips, porque es lo que entiende el
+estudiante (Word guarda twips y medios puntos). La unidad se deduce del
+**último paso del xpath** (el elemento que lleva el atributo: `w:ind`,
+`w:pgMar`, `w:pgSz` → twips; `w:sz` → medios puntos), no de buscar
+subcadenas en el xpath completo.
+
+El conteo de incumplimientos sale de la misma función que produce el
+veredicto (`evaluar_atributo` en `validator/detalle.py`), así que una regla
+en rojo **siempre** nombra a su culpable o dice que no había valores que
+comparar.
+
 ### AUD-04 — Desvíos manual-vs-plantilla sin nota `EVALUADO` (media)
 
 `caratula_titulo_trabajo_tamano` (14pt) y `caratula_optar_grado_tamano`
@@ -162,6 +182,12 @@ python-markdown sin escape (HTML crudo). Un `|` en un título rompe la tabla.
 
 **Criterio de aceptación:** escapar `|`, `<`, `>` y `&` antes de armar el
 Markdown, con test.
+
+**Implementado en el PR #78**: `_escapar()` escapa `&`, `<`, `>` y `|` en
+todos los valores que vienen del reporte (tabla, detalle y encabezados) y
+hay un test que comprueba que un `<b>` del documento no llega como HTML
+crudo al Markdown. Los prompts de IA van dentro de un bloque de código, que
+no se interpreta como Markdown.
 
 ### AUD-20 — Brecha factory-vs-realidad (media, Int3)
 
@@ -431,12 +457,23 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > El bloque de aviso de `AGENTS.md` **no se borra todavía**: faltan los
 > hallazgos de Int3 (AUD-01 a AUD-07, AUD-15, AUD-20, AUD-24 a AUD-27 y los
 > dos nuevos).
+>
+> **Actualizado por Int2 (2026-11-04)**: el bug reportado de «el frontend solo
+> muestra las primeras 3 líneas de cada error» estaba en el truncamiento del
+> detalle en el motor (`vals[:3]`, `incumplen[:3]`), no en el frontend. Se
+> implementó la opción 1 de AUD-03 en el **PR #78** (módulo único
+> `validator/detalle.py`, usado por los dos motores): ahora el detalle
+> enumera **todos** los incumplimientos con posición, valor y página, y el
+> conteo sale de la misma comparación que produce el veredicto (una regla en
+> rojo nunca dice "0 incumplen"). El mismo PR implementa el escape del
+> exportador (AUD-15). Toca `validator/` (área de Int3), así que el PR queda
+> abierto para que lo revise y lo mergee.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
 | AUD-01 | Int3 | pendiente | — |
 | AUD-02 | Int3 | pendiente | — |
-| AUD-03 | Int3 | pendiente (opción 1 decidida) | — |
+| AUD-03 | Int3 | implementado (opción 1: módulo único `validator/detalle.py`), **pendiente de merge** | PR #78 |
 | AUD-04 | Int3 | pendiente | — |
 | AUD-05 | Int3 | decisión de dominio | — |
 | AUD-06 | Int3 | decisión de dominio | — |
@@ -447,7 +484,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-12 | Int1 | **cerrado** | PR #66 |
 | AUD-13 | Int1 | **cerrado** | PR #65 |
 | AUD-14 | Int1 | **cerrado** | PR #65 |
-| AUD-15 | Int3 | pendiente | — |
+| AUD-15 | Int3 | implementado (escape del Markdown), **pendiente de merge** | PR #78 |
 | AUD-16 | Int2 | **cerrado** | PR #68 |
 | AUD-17 | Int2 | **cerrado** | PR #68 |
 | AUD-18 | Int2 | **decidido y cerrado** (fallback solo en desarrollo, 2026-10-28) | PR #68 |
