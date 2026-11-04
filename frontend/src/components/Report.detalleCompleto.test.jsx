@@ -14,7 +14,7 @@ const incumplimientos = Array.from(
 ).join(', ')
 
 const DETALLE =
-  `@w:firstLine=['0.00 cm', '0.00 cm', '0.00 cm'] de 8 valores; 8 incumplen: ` +
+  '@w:firstLine: 8 valores evaluados, 8 incumplen: ' +
   `${incumplimientos}; tolerancia ±0.02 cm; esperado=1.27 cm`
 
 const REPORTE = {
