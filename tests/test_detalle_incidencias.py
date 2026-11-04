@@ -78,6 +78,44 @@ def _cargar(ruta: Path) -> dict:
         return yaml.safe_load(f)
 
 
+def test_una_regla_eq_que_falla_nombra_al_culpable():
+    """Una comparación `eq` que falla NO puede decir "0 incumplen".
+
+    El conteo sale de la misma comparación que produce el veredicto: una
+    regla en rojo con "0 incumplen" le dice al estudiante que no hay nada
+    que corregir (revisión del PR #78).
+    """
+    cfg = configuracion_base()
+    cfg["pg"]["w"] = 12240  # Letter en vez de A4
+    path = compilar_docx(cfg)
+    try:
+        r = _regla(path, "papel_tamano", _cargar(DSL_YAML))
+        assert r is not None, "la regla papel_tamano no se evaluó"
+        assert not r.passed, "el papel Letter debe fallar la regla"
+        assert "0 incumplen" not in r.found, r.found
+        assert "1 incumplen" in r.found, r.found
+        assert "#1=" in r.found, r.found
+        assert "21.59 cm" in r.found, r.found
+        assert "esperado=21.00 cm" in r.found, r.found
+    finally:
+        os.unlink(path)
+
+
+def test_una_regla_sin_valores_no_dice_cero_incumplimientos():
+    """Si no se leyó ningún valor, el detalle lo dice (no "0 incumplen")."""
+    cfg = configuracion_base()
+    cfg["portada"]["autores_label"]["texto"] = "Nómina: "  # sin "Autor..."
+    path = compilar_docx(cfg)
+    try:
+        r = _regla(path, "caratula_autores_tamano", _cargar(DSL_YAML))
+        assert r is not None, "la regla caratula_autores_tamano no se evaluó"
+        assert not r.passed, "sin el párrafo de autores la regla debe fallar"
+        assert "0 incumplen" not in r.found, r.found
+        assert "sin valores que comparar" in r.found, r.found
+    finally:
+        os.unlink(path)
+
+
 def test_detalle_lista_todos_los_incumplimientos():
     """Con 8 párrafos que incumplen la sangría, el detalle lista los 8.
 

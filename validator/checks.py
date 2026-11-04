@@ -6,7 +6,12 @@ Migrado y limpiado a partir del prototipo eval_checks2.py.
 
 import re
 
-from .detalle import detalle_texto_lista, detalle_texto_regex, detalle_xml_atributo
+from .detalle import (
+    detalle_texto_lista,
+    detalle_texto_regex,
+    detalle_xml_atributo,
+    evaluar_atributo,
+)
 from .extractor import NS, ExtractedDocx, W, es_heading, text_of
 
 # Namespaces también usados para resolver prefijos en nombres de atributo
@@ -49,36 +54,21 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
     if tipo == "xml_atributo":
         key = _resolve_attr_key(check["atributo"])
         # pares conserva la posición (1-based) de cada nodo en el resultado
-        # del xpath: al fallar `all_eq` es lo que permite señalar QUÉ valor
-        # incumple. Mismo formato que AnalizadorXML (handover issue #7):
-        # la paridad legacy↔DSL compara el `found` literal.
+        # del xpath: al fallar es lo que permite señalar QUÉ valor incumple.
+        # Mismo formato que AnalizadorXML (handover issue #7): la paridad
+        # legacy↔DSL compara el `found` literal.
         pares = [(i, n, n.get(key)) for i, n in enumerate(nodes, 1)]
         vals = [v for _, _, v in pares if v is not None]
         esperado = check.get("esperado")
         tolerancia = check.get("tolerancia")
 
-        def _acepta(valor: object) -> bool:
-            # Tolerancia numérica opcional (twips): el valor cumple si su
-            # distancia al esperado no supera `tolerancia`. Si no aplica
-            # (esperado o valor no numérico, sin tolerancia), igualdad exacta.
-            if tolerancia is None:
-                return valor == esperado
-            try:
-                return abs(float(str(valor)) - float(str(esperado))) <= float(str(tolerancia))
-            except TypeError, ValueError:
-                return valor == esperado
-
-        if comp == "eq":
-            ok = bool(vals) and _acepta(vals[0])
-        elif comp == "all_eq":
-            ok = bool(vals) and all(_acepta(v) for v in vals)
-        else:
+        if comp not in ("eq", "all_eq"):
             return False, f"comparacion '{comp}' no soportada para xml_atributo"
-        incumplimientos = [
-            (i, v, extracted.pagina_de(n))
-            for i, n, v in pares
-            if v is not None and comp == "all_eq" and not _acepta(v)
-        ]
+        # La comparación (veredicto + lista de incumplimientos) la resuelve
+        # el módulo compartido, igual que en el motor DSL: así el detalle no
+        # puede contradecir al semáforo.
+        con_pagina = [(i, v, extracted.pagina_de(n)) for i, n, v in pares]
+        ok, incumplimientos = evaluar_atributo(check, con_pagina)
         detalle = detalle_xml_atributo(check, vals, incumplimientos, esperado, tolerancia)
         return ok, detalle
 
