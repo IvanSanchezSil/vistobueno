@@ -70,9 +70,7 @@ def _respuesta_fresca(nombre: str) -> dict:
 @pytest.mark.parametrize("nombre", ["doc_bueno", "doc_malo"])
 def test_respuesta_versionada_coincide_con_el_motor(nombre: str) -> None:
     """La respuesta versionada debe ser la que produce el motor hoy."""
-    versionado = json.loads(
-        (EJEMPLOS / f"respuesta_{nombre}.json").read_text(encoding="utf-8")
-    )
+    versionado = json.loads((EJEMPLOS / f"respuesta_{nombre}.json").read_text(encoding="utf-8"))
     fresco = _respuesta_fresca(nombre)
 
     assert versionado["semaforo"] == fresco["semaforo"], (
@@ -95,9 +93,7 @@ def test_respuesta_versionada_coincide_con_el_motor(nombre: str) -> None:
             "Regenera el par: python scripts/ejemplo_bueno_malo.py"
         )
 
-    prompts_por_id = {
-        p["rule_id"]: p["prompt"] for p in fresco.get("como_preguntar_a_una_ia", [])
-    }
+    prompts_por_id = {p["rule_id"]: p["prompt"] for p in fresco.get("como_preguntar_a_una_ia", [])}
     for prompt in versionado.get("como_preguntar_a_una_ia", []):
         rule_id = prompt["rule_id"]
         assert rule_id in prompts_por_id, (
