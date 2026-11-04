@@ -140,6 +140,35 @@ El registro lleno se hará en el piloto (Actividad 16), cuando la sede
 entregue los documentos. El archivo versionado es una plantilla y no
 contiene datos de personas.
 
+### 2026-11-04 — Verificación del frontend (actividad 15)
+
+Lote 3 del plan previo al piloto (`docs/PLAN_LOTES_PRE_PILOTO.md`). La
+pantalla de ficha de depósito se verificó contra la API real.
+
+**Qué se comprobó:** los diez pasos del checklist —subir el documento
+conforme, confirmar el semáforo verde, editar los datos extraídos,
+completar los del operador, publicar en el buzón, confirmar el panel de
+espera, aceptar el handle, descargar la constancia y la fila del registro,
+comprobar la cabecera de token y limpiar el resguardo del navegador—. La
+constancia sale del Modelo B oficial con los MERGEFIELD ya reemplazados
+(137 KB) y la fila del registro responde en `tsv`, `csv`, `xlsx` y `json`.
+
+**Hueco encontrado y cerrado:** la pantalla **no tenía ninguna prueba de
+componente**; solo existían tests de las funciones puras de `ficha.js`. Se
+agregó `frontend/src/components/FichaDeposito.test.jsx` con 8 casos que
+montan la pantalla y recorren el flujo completo. Los casos se validaron con
+mutaciones: sin publicar la ficha, o sin cotejar el título antes de usar el
+handle, el test falla.
+
+**Desfase encontrado y cerrado:** las respuestas versionadas del par de
+ejemplo quedaron con el formato de detalle anterior al PR #78 (AUD-03):
+5 reglas y sus prompts de IA seguían desfasados. Se regeneraron con
+`scripts/ejemplo_bueno_malo.py` y se agregó
+`tests/test_ejemplos_versionados.py`, que compara las respuestas versionadas
+con las del motor para que el desfase no vuelva a colarse.
+
+El detalle completo está en `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` §8.
+
 ---
 
 ## Evidencias producidas
@@ -151,6 +180,8 @@ contiene datos de personas.
 | Guía de lectura del par | `docs/ejemplos/GUIA_EJEMPLOS.md` |
 | Propuesta de registro de documentos de la sede | `docs/REGISTRO_DOCUMENTOS_SEDE.md` |
 | Generador del par | `scripts/ejemplo_bueno_malo.py` |
+| Plan de lotes previos al piloto | `docs/PLAN_LOTES_PRE_PILOTO.md` |
+| Verificación de la Actividad 15 | `docs/HANDOVER_FRONTEND_FICHA_DEPOSITO.md` §8 |
 | Guía de ejemplos en el portafolio | `semana 10/GUIA_EJEMPLOS.pdf` (carpeta de la asignatura) |
 | Bitácora | este archivo |
 
@@ -159,11 +190,16 @@ contiene datos de personas.
   `97081f6`, `7eff923` y `320402b` (correcciones de la revisión del
   PR #71), `931644e` y `707dc6f` (sincronización de documentación, PR #76).
 - Cierre de la Actividad 14: `d06284f` en la rama
-  `docs/registro-documentos-sede` (propuesta de registro).
-- Suite actual: **730 tests recolectados**: 724 pasan y **6 quedan como
+  `docs/registro-documentos-sede` (propuesta de registro), mergeado con el
+  PR #77.
+- Verificación de la Actividad 15: rama `feature/act15-verificacion-frontend`
+  (pruebas de componente de la pantalla de ficha, regeneración de las
+  respuestas de ejemplo y su test de guarda).
+- Suite actual: **742 tests recolectados**: 736 pasan y **6 quedan como
   `xfail(strict=True)`** (los criterios de aceptación de AUD-24 a AUD-27 del
   motor). Los 3 tests que dependen de `recursos/` se omiten cuando esa
   carpeta no está disponible, como pasa en el CI.
+- Frontend: **76 tests** en 9 archivos de prueba (`vitest` + `jsdom`).
 
 ---
 
