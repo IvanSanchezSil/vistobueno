@@ -1,6 +1,6 @@
 # Flujo del endpoint POST /validar
 
-**Versión**: 1.12.0<br>
+**Versión del contrato**: 1.12.0<br>
 **Fecha**: 2026-10-30
 
 > Este documento describe el flujo de `POST /validar` y el buzón de la ficha.

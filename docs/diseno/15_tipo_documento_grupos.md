@@ -1,8 +1,8 @@
 # 15. Tipo de documento y grupos excluyentes de reglas
 
 - **Fecha**: 2026-09-28
-- **Estado**: diseño aprobado, pendiente de implementación
-- **Commits**: — (Semana 6 — Fase A)
+- **Estado**: implementado (Fase A y Fase B; Fase B sin plantillas reales)
+- **Commits**: PR #36 (motor y reglas) y PR #44 (contrato de API)
 - **Alcance**: Fase A (mecanismo) / Fase B (5 estructuras)
 
 ## Problema

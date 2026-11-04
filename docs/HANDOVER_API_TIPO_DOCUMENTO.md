@@ -19,7 +19,7 @@ motor. El handover original pedía actualizar `validator/api.py`,
 
 Los pasos 1–6 introdujeron dos conceptos nuevos:
 
-1. **Aplicabilidad**: una regla puede no aplican a un documento concreto
+1. **Aplicabilidad**: una regla puede no aplicar a un documento concreto
    (`RuleResult.aplicable`). Al momento del pedido solo lo usaban las 3 reglas de estructura
    (`estructura_tinv_*`), que dependen del tipo de documento.
 2. **Reglas centinela**: ante un tipo `sin_determinar` o `contradictorio` el
