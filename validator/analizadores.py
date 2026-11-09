@@ -33,6 +33,7 @@ from .detalle import (
     detalle_xml_atributo,
     evaluar_atributo,
 )
+from .dsl_check import DSLValidationError
 from .extractor import NS, ExtractedDocx, W, text_of
 from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
@@ -50,13 +51,18 @@ def _resolve_attr_key(atributo: str) -> str:
     return name
 
 
-class ConfigurationError(ValueError):
+class ConfigurationError(DSLValidationError):
     """Error de configuración de un analizador DSL.
 
     Se lanza al compilar una regla con parámetros inválidos (p. ej.
     `lista_obligatoria` sin ítems o `paginacion` sin suficientes xpaths).
     Es un error del motor, no del documento: no debe aparecer como fallo
     del estudiante en el reporte.
+
+    Hereda de `DSLValidationError` (y no directamente de `ValueError`) para
+    que la API lo traduzca a un 500 de configuración y no al 422 que culpa
+    al archivo del estudiante: `api.validar` captura `DSLValidationError`
+    antes del `except ValueError` genérico.
     """
 
 

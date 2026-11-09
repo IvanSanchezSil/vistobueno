@@ -221,6 +221,10 @@ class TestLinter:
         with pytest.raises(ConfigurationError):
             CompilerDSL().compilar(data, linter=False)
 
+    def test_configuration_error_es_error_de_configuracion_del_dsl(self):
+        """La API lo mapea a 500 (no al 422 que culpa al documento)."""
+        assert issubclass(ConfigurationError, DSLValidationError)
+
 
 # ---------------------------------------------------------------------------
 # Cache de XPath
