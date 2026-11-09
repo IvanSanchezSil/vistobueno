@@ -555,3 +555,19 @@ Para agregar un tipo de analizador nuevo:
    `validator/compilador.py`.
 3. Agregar un ejemplo en `reglas_dsl_ejemplo.yaml` y un test en
    `tests/test_dsl.py`.
+
+---
+
+## Linter del DSL
+
+El linter (`validator/dsl_check.py`) valida la configuración de las reglas en
+ tiempo de carga. Detecta:
+
+- **Prefijos de namespace desconocidos** en los XPath (p. ej. `//wp:ind`) — evita que la regla repute `XPathEvalError` en tiempo de ejecución.
+- **Claves de sección desconocidas** (p. ej. `atributo_xmls`) — evita que la regla desaparezca del reporte.
+- **Configuraciones no válidas** (p. ej. `xpath` sin `esperado`, `aplicar_si` sin `esperado`).
+- **Errores de autómatas** (`automata_secuencia`, `automata_pila`).
+- **Centinelas de tipo** `sin_determinar`/`contradictorio` son valores legítimos para `aplicar_si`.
+- **Claves de regla duplicadas** (`id`).
+
+Los hallazgos se devuelven como `DSLValidationError` con un mensaje legible para el usuario (p. ej. `"[regla_r1] atributo_xml: XPath inválido '//wp:ind': prefijo de namespace desconocido {w}"`).

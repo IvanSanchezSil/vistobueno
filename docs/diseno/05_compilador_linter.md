@@ -189,6 +189,18 @@ El ciclo de ε-transiciones es el más delicado: sin detección, un
 `reconocer()`. El detector DFS de `dsl_check` acota la complejidad a
 `O(|transiciones|)` en tiempo de carga, no en cada validación.
 
+### Controles adicionales (F4 — linter endurecido)
+
+Además de los errores de autómatas, el linter valida:
+
+| Control | Qué detecta |
+|---------|-------------|
+| XPath no evaluable | Prefijos de namespace desconocidos (e.g., `wp:`) y sintaxis XPath inválida; usa `lxml.etree.XPath` contra un árbol vacío con `NS` del extractor. |
+| Claves de regla desconocidas | Cualquier clave al nivel de la regla que no esté en `_CLAVES_VALIDAS` (secciones conocidas + campos de regla); usa similitud difusa solo para sugerir. |
+| Configuración no-diccionario | Secciones cuyo valor no es un `dict` (e.g., string) — antes causaba `AttributeError` en runtime. |
+| Centinelas de tipo | `sin_determinar` y `contradictorio` son valores válidos en `aplicar_si` (publicados por `DeteccionTipo`). |
+| IDs duplicados | `id` de regla repetido se reporta una vez. |
+
 ## 5. Decisiones de diseño y justificación
 
 | # | Decisión | Alternativa descartada | Justificación |
