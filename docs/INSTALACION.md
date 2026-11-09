@@ -207,6 +207,10 @@ Esperado con `recursos/`: `736 passed, 6 xfailed`. Sin esa carpeta:
 nix run .#serve -- validator.api:app --reload
 ```
 
+Si ya construiste `frontend/dist`, la API sirve la SPA en
+`http://localhost:8000/`; el servidor de Vite solo hace falta para
+desarrollo con recarga.
+
 En otra terminal de Ubuntu:
 
 ```bash
@@ -247,7 +251,51 @@ reintenta. Confirma que `wsl -l -v` muestra `VERSION 2`.
   define `VISTOBUENO_PLANTILLA_CONSTANCIA` con la ruta absoluta. Define
   `VISTOBUENO_FIRMA` para la columna FIRMA del registro.
 
-### 3.7 Límites de WSL2
+### 3.7 Acceso directo en Windows
+
+El acceso directo abre la SPA sin escribir comandos. Usa el navegador de
+Windows, pero la API y Nix siguen dentro de WSL.
+
+1. Construye la SPA una vez:
+
+   ```bash
+   cd ~/vistobueno
+   nix develop --command bash -lc 'cd frontend && npm ci && npm run build'
+   ```
+
+2. Copia `tools/launcher/` a una carpeta local de Windows, por ejemplo
+   `C:\VistoBueno\`. El `.bat` sigue apuntando al repositorio en WSL.
+
+   ```bash
+   mkdir -p /mnt/c/VistoBueno
+   cp -r ~/vistobueno/tools/launcher/. /mnt/c/VistoBueno/
+   ```
+
+3. En PowerShell, crea el acceso directo:
+
+   ```powershell
+   cd C:\VistoBueno
+   powershell -ExecutionPolicy Bypass -File .\crear_acceso_directo.ps1
+   ```
+
+4. Abre el acceso directo **VistoBueno** del escritorio. Se inicia la API
+   en `http://127.0.0.1:8000/` y el navegador abre la SPA.
+
+5. Para detenerlo, cierra la ventana de consola o pulsa `Ctrl+C`.
+
+`VistoBueno.bat` usa la distro por defecto de WSL y espera el repositorio
+en `~/vistobueno`. Si el repositorio está en otra ruta, edita el `cd` del
+`.bat`. Si usas una distro concreta, cambia `wsl.exe --` por
+`wsl.exe -d <distro> --`.
+
+El ícono `vistobueno.ico` se genera con
+`python3 scripts/generar_icono.py` a partir del trazo de
+`frontend/public/favicon.svg`.
+
+Si reconstruyes la SPA, cierra y vuelve a abrir el acceso directo para
+que la API cargue el build nuevo.
+
+### 3.8 Límites de WSL2
 
 - `recursos/` es local; no se versiona.
 - Los puertos 8000 y 5173 no se exponen a la LAN.
@@ -370,11 +418,13 @@ Usa esta lista para el hito de instalación de la actividad 4.
 | `experimental Nix feature 'flakes' is disabled` | Falta la config | Agregar `experimental-features = nix-command flakes` a `~/.config/nix/nix.conf` |
 | `error: getting status of '/nix/store/...'` | Entorno incompleto | Volver a `nix develop` |
 | `python3: command not found` | Se ejecutó fuera del entorno | Entrar con `nix develop` o usar `nix develop --command python3 ...` |
-| `Address already in use` | Otro proceso en el puerto | Cerrar el proceso o usar `--port 8020` |
+| `Address already in use` | Otro proceso en el puerto | Cerrar el proceso o cambiar el puerto (`--port` en uvicorn, `--puerto` en el lanzador) |
 | `400` por `Host` | `Host` ajeno (por ejemplo, la IP de WSL) | Usar `localhost` o `127.0.0.1`; si es un dominio propio, agregarlo a `VISTOBUENO_HOSTS` |
 | `403` desde el navegador en WSL | El peer no se ve como loopback | Usar `localhost` (no la IP de WSL) y verificar el forwarding; si persiste, usar §4 |
 | `xfail` en la suite | Criterios abiertos de Int3 | Es esperado; no tocar |
 | `3 skipped` | Falta `recursos/` | Es esperado en un clon limpio |
+| El acceso directo no abre la SPA | Falta `frontend/dist/index.html` | Construir la SPA (ver §3.7) |
+| El acceso directo no inicia | La distro por defecto no tiene Nix o el repo no está en `~/vistobueno` | Revisar el `cd` y la distro de `VistoBueno.bat` |
 | PDF falla en Windows | Falta Pango/GTK3 | Ver §4.4 |
 | PDF falla en Linux/macOS | Falta Pango en el sistema | Usar Nix (`nix develop`) o instalar Pango |
 

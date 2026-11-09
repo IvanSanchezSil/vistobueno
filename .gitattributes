@@ -8,3 +8,7 @@
 *.json text eol=lf
 *.sh text eol=lf
 *.txt text eol=lf
+
+# Scripts de Windows: CRLF para cmd.exe y PowerShell
+*.bat text eol=crlf
+*.ps1 text eol=crlf

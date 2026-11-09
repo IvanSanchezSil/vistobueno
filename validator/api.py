@@ -38,6 +38,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.concurrency import run_in_threadpool
+from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers
 from starlette.responses import PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -1585,6 +1586,31 @@ async def generar_fila_registro(
         # CPU real del hilo que armó las filas, no la latencia
         # (revisión PR #71, B1).
         _LIMITADOR_CPU_PAPELES.registrar_coste(medidor.segundos)
+
+
+# ---------------------------------------------------------------------------
+# SPA del frontend (opcional)
+# ---------------------------------------------------------------------------
+
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+
+def _montar_spa(app: FastAPI, dist_dir: Path = FRONTEND_DIST) -> bool:
+    """Sirve la SPA construida si existe frontend/dist/index.html.
+
+    El montaje va después de todas las rutas para no tapar /validar,
+    /docs ni el resto de la API. Sin build, la API sigue funcionando sola.
+
+    La SPA cambia de vista con estado de React, no con la URL; por eso no
+    hace falta un fallback de index.html para rutas profundas.
+    """
+    if not (dist_dir / "index.html").is_file():
+        return False
+    app.mount("/", StaticFiles(directory=dist_dir, html=True), name="spa")
+    return True
+
+
+_montar_spa(app)
 
 
 # ---------------------------------------------------------------------------
