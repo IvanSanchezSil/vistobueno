@@ -300,33 +300,47 @@ el año en la línea de portada.
 
 ---
 
-## 8. Decisiones de dominio abiertas
+## 8. Decisiones de dominio (resueltas el 2026-11-08)
 
-Necesitan al equipo, no a un integrante:
+Quedaron resueltas todas las decisiones que estaban abiertas. La evidencia
+está medida contra la tesis real de la auditoría y las 5 plantillas
+oficiales.
 
-1. **Sangría:** ¿la regla exime estilos de bloque tipo `Textoindependiente`?
-   Los 4 párrafos marcados en la tesis real son legítimos según la letra de
-   la regla; discutible según APA.
-2. **Anexos:** ¿"Base de datos cuantitativa" debe matchear "Base de datos"?
-   (AUD-02, ítem 5 de la lista de anexos).
-3. **AUD-05:** ¿se endurecen los selectores de carátula (leer todos los runs
-   con texto, validar todos los párrafos de autores) o se documenta la
-   limitación en el YAML?
-4. **AUD-06:** ¿se endurece la heurística del índice (palabra significativa de
-   menos de 4 caracteres auto-pasa; el match por subcadena puede ocultar
-   faltantes)?
-5. **AUD-07:** ¿`caratula_optar_grado_tamano` se restringe a la línea del
-   Bachiller o acepta 12pt para la variante "Título Profesional"?
-6. **AUD-18 (Int2):** ~~¿el fallback al reporte de ejemplo sigue activo en
-   producción?~~ **Decidido el 2026-10-28 (Int2, PR #68): no.** El fallback
-   queda solo en el build de desarrollo (`import.meta.env.DEV`); en producción
-   se muestra el error real con la opción de reintentar, para que un reporte
-   de ejemplo nunca se confunda con un resultado real.
-7. **`palabras_clave_minimo`:** ¿`warning` o exclusión de placeholders? (§5)
+| # | Tema | Decisión | Consecuencia |
+|---|------|----------|--------------|
+| 1 | Sangría (`sangria_parrafo`) | Se mantiene la regla literal. **No** se eximen estilos de cita en bloque. | Nota `EVALUADO` en el YAML. Las citas en bloque usan `w:left` sin `firstLine`, así que la comparación ya las ignora. Sin cambio de código. |
+| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | Cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`. El efecto se ve cuando AUD-02 lea la sección de anexos. Sigue siendo `warning`. |
+| 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. Cambio en el YAML y, si hace falta, en el analizador de atributos. |
+| 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | Cambio en `analizadores.py`. **Depende de AUD-01** (PR #73, abierto): hoy la normalización borra la última letra de títulos como «General» y cualquier endurecimiento falla. |
+| 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | **No era un defecto y no se cambia el XPath.** El manual exige 13 pt también para la línea «Tesis para optar el Título Profesional de Licenciado» (párr. 1058 y 1076). La que desvía es la plantilla oficial, que usa 12 pt. | Se cierra AUD-07. El desvío de la plantilla se documenta en la misma nota `EVALUADO` de AUD-04. |
+| 6 | `palabras_clave_minimo` | Se mantiene `error`. | Las 5 plantillas oficiales siguen en rojo. Es intencional: sus palabras clave no cumplen el mínimo. No es un bug del motor ni del frontend. |
+| 7 | Cache compilado por hilo (§12.3) | **No se implementa.** Medición del 2026-11-08: compilar tarda 5.6 ms de 5.0 s (0.1 %) con la tesis real, y 4.9 ms de 89 ms (5.6 %) con el documento del factory. | Se retira de pendientes. Si se retoma el rendimiento, el objetivo es `tokenizar()`: 6 llamadas, 1.64 s de 4.24 s, no la compilación. |
+| 8 | `formato` en `POST /validar` | **No se agrega.** `/validar` sigue devolviendo solo JSON. | El ítem 16 de `docs/PLAN_BACKLOG_FUTURO.md` queda rechazado para el piloto. Si se retoma, va en `POST /reporte` (`md`/`pdf`), con `run_in_threadpool` y medidor de CPU. |
+| 9 | Subir el `.docx` a DSpace desde el userscript (§9) | **Descartado.** | El archivo lo adjunta el encargado en el formulario oficial. El userscript solo completa metadatos. |
+
+Notas de evidencia:
+
+- **Sangría**: 16 de 129 párrafos evaluados incumplen, todos a 1.00 cm, en
+  «Población, muestra y muestreo». Son prosa normal (`Body Text`,
+  justificados); ninguno es una cita en bloque. Ninguno de los 9 documentos
+  del corpus usa un estilo de cita.
+- **Anexos**: hoy la regla reporta 8 de 9 faltantes por AUD-02, no por el
+  nombre. La tesis real tiene 8 anexos; los que de verdad faltan son
+  Reporte de similitud, Carta de autorización institucional, Declaración
+  jurada y Carta de autorización de publicación.
+- **AUD-07**: la cita del párr. 178 es de la línea del Bachiller, pero el
+  manual también fija 13 pt para la línea de la Tesis (párr. 1058 y 1076).
+
+**AUD-18** ya estaba decidido el 2026-10-28 (Int2, PR #68): el fallback al
+reporte de ejemplo queda solo en el build de desarrollo; en producción se
+muestra el error real con la opción de reintentar.
 
 ---
 
-## 9. Alcance nuevo, no resuelto
+## 9. Alcance nuevo (descartado el 2026-11-08)
+
+> **Descartado el 2026-11-08**: no se implementa. El archivo lo adjunta el
+> encargado en el formulario oficial.
 
 **Subir el `.docx` a DSpace desde el userscript.** Hoy el script solo
 rellena metadatos: el archivo lo adjunta el encargado con el selector de
@@ -469,22 +483,26 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > exportador (AUD-15). Toca `validator/` (área de Int3), así que el PR queda
 > abierto para que lo revise y lo mergee.
 
+> **Actualizado (2026-11-08, Int1)**: el PR #78 está mergeado en `master`
+> (`validator/detalle.py` presente). Las filas AUD-03 y AUD-15 quedan
+> cerradas. Las decisiones de dominio quedaron resueltas en §8.
+
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
 | AUD-01 | Int3 | pendiente | — |
 | AUD-02 | Int3 | pendiente | — |
-| AUD-03 | Int3 | implementado (opción 1: módulo único `validator/detalle.py`), **pendiente de merge** | PR #78 |
+| AUD-03 | Int3 | **cerrado** (opción 1: módulo único `validator/detalle.py`) | PR #78 |
 | AUD-04 | Int3 | pendiente | — |
-| AUD-05 | Int3 | decisión de dominio | — |
-| AUD-06 | Int3 | decisión de dominio | — |
-| AUD-07 | Int3 | decisión de dominio | — |
+| AUD-05 | Int3 | **decidido** (2026-11-08): endurecer solo la regla `error`; pendiente de implementación | — |
+| AUD-06 | Int3 | **decidido** (2026-11-08): igualdad normalizada; depende de AUD-01 | — |
+| AUD-07 | Int3 | **cerrado: no era defecto** (el manual exige 13 pt también en Tesis); se documenta con AUD-04 | — |
 | AUD-09 | Int1 | **cerrado** | PR #66 |
 | AUD-10 | Int1 | **cerrado** | PR #66 |
 | AUD-11 | Int1 | **cerrado: no aplica** (decisión 2026-10-28) | — |
 | AUD-12 | Int1 | **cerrado** | PR #66 |
 | AUD-13 | Int1 | **cerrado** | PR #65 |
 | AUD-14 | Int1 | **cerrado** | PR #65 |
-| AUD-15 | Int3 | implementado (escape del Markdown), **pendiente de merge** | PR #78 |
+| AUD-15 | Int3 | **cerrado** (escape del Markdown) | PR #78 |
 | AUD-16 | Int2 | **cerrado** | PR #68 |
 | AUD-17 | Int2 | **cerrado** | PR #68 |
 | AUD-18 | Int2 | **decidido y cerrado** (fallback solo en desarrollo, 2026-10-28) | PR #68 |
@@ -497,7 +515,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-25 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
 | AUD-26 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
 | AUD-27 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| Nuevo: `palabras_clave_minimo` | Int3 | pendiente | — |
+| Nuevo: `palabras_clave_minimo` | Int3 | **decidido: se mantiene `error`** (intencional; las 5 plantillas fallan a propósito) | — |
 | Nuevo: plantillas no cuantitativas | Int3 | documentar | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
 | AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
@@ -507,22 +525,26 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-32 | Int1 | **cerrado** (hora de Perú) | `f0ba1f0` (PR #71) |
 | AUD-33 | Int1 | **cerrado** (botón "+" del userscript) | `22e6a19` (PR #71) |
 | AUD-34 | Int1 | **cerrado** (claves entre comillas en el escáner) | `efca435` (PR #71) |
-| Nuevo: cache compilado por hilo | Int3 | pendiente (propuesta de Int1, §12.3) | — |
+| Nuevo: cache compilado por hilo | Int3 | **decidido: no se implementa** (0.1 % de mejora medida; §12.3) | — |
 
 ---
 
-## 12. Propuestas de Int1 para el área de Int3 (NO aplicadas)
+## 12. Propuestas de Int1 para el área de Int3
 
 Estas propuestas se escribieron desde Int1 (API) y se **revirtieron antes
 de commitear**: `engine.py`, `compilador.py`, `analizadores.py`,
 `exportador.py` y los YAML de reglas son área de Int3 (motor), según la
-tabla de responsabilidades de `AGENTS.md`. Quedan documentadas acá, con el
-diff exacto, para que Int3 las implemente, las descarte o las aplique.
+tabla de responsabilidades de `AGENTS.md`. Quedaron documentadas acá, con
+el diff exacto, para que Int3 las implemente, las descarte o las aplique.
 
-> **Estado**: nada de esto está en el repo. Los archivos del motor están
-> sin tocar. Los parches se transcriben tal cual se escribieron.
+> **Estado al 2026-11-08**: §12.1 (AUD-04) **se aplica** e incluye la nota
+> de AUD-07. §12.2 (AUD-15) está **aplicada y mergeada** (PR #78). §12.3
+> (cache por hilo) **no se implementa** (decisión del 2026-11-08).
 
 ### 12.1 AUD-04 — notas `EVALUADO` para las dos reglas de carátula
+
+> **Se aplica.** Incluye la nota de AUD-07: el manual exige 13 pt también
+> para la línea de la Tesis (párr. 1058 y 1076), así que el XPath no cambia.
 
 **Criterio de aceptación**: nota `EVALUADO` con fecha y decisión en
 `reglas_unt.yaml`, como la tiene `sangria_parrafo`.
@@ -556,6 +578,8 @@ Nota: el texto de las notas es una propuesta de redacción. Si Int3 prefiere
 otra formulación, lo decide quien conoce el manual.
 
 ### 12.2 AUD-15 — escape del texto antes de armar el Markdown
+
+> **Aplicada y mergeada** (PR #78). El diff queda como registro.
 
 **Criterio de aceptación**: escapar `|`, `<`, `>` y `&` antes de armar el
 Markdown, con test.
@@ -629,6 +653,12 @@ Nota: el escape no cubre el prompt de "Cómo preguntar a una IA" (va dentro
 de un bloque de código, donde el contenido es literal).
 
 ### 12.3 Propuesta: cache compilado por hilo (rendimiento y thread-safety)
+
+> **No se implementa (decisión del 2026-11-08).** Medición en este equipo:
+> compilar tarda 5.6 ms de 5.0 s (0.1 %) con la tesis real y 4.9 ms de
+> 89 ms (5.6 %) con el documento del factory. El costo real está en
+> `tokenizar()`: 6 llamadas, 1.64 s de 4.24 s de ejecución. Se deja como
+> análisis histórico.
 
 **Motivo**: `validate_docx` recompila el DSL en cada petición. Medido en
 este equipo, la validación síncrona tarda ~58 ms (compilación ~2,7 ms).
@@ -739,3 +769,16 @@ del área del motor.
 **Verificación realizada con el parche** (en la rama de Int1, ya revertida):
 la suite completa pasó (693 passed, 6 xfailed) y `nix flake check` dio
 "all checks passed".
+
+---
+
+## 13. Impacto por integrante (2026-11-08)
+
+Resumen de lo que cambia para cada área después de las decisiones de §8.
+
+| Integrante | Qué cambia | Qué no hacer |
+|------------|------------|--------------|
+| **Int1 (API)** | Documentar las decisiones (§8, §11, §13) y cerrar el ítem 16 del backlog. Mantener `/validar` en JSON. | No agregar `formato` a `/validar`. No tocar el contrato (sigue en v1.12.0). |
+| **Int2 (frontend)** | Nada de código. Los reportes cambian de contenido cuando el motor cierre AUD-02, AUD-05 y AUD-06 (menos avisos falsos), pero la forma del JSON no cambia. | No construir descarga del reporte (decisión 8). No construir subida del `.docx` a DSpace (decisión 9). No tratar el rojo de las plantillas por `palabras_clave_minimo` como bug de UI (decisión 6). Actualizar `docs/semana10_trabajo_integrante2.md`: dice que el PR #78 está abierto y ya está mergeado. |
+| **Int3 (motor)** | AUD-02 (leer los anexos reales y no truncar), AUD-05 (endurecer la regla `error`), AUD-06 (igualdad normalizada, después de AUD-01), AUD-04 (notas `EVALUADO`, incluido AUD-07). | No implementar el cache por hilo (decisión 7). No eximir estilos en sangría (decisión 1). No agregar `n_a_si_sin_nodos` para AUD-07: no hace falta. |
+| **Documentación** | Handover actualizado, backlog sincronizado y bloque de aviso de `AGENTS.md` (aprobado el 2026-11-08). | No borrar el bloque de aviso hasta que todos los hallazgos estén en `cerrado` o `decidido`. |
