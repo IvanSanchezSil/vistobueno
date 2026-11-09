@@ -17,13 +17,15 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   se resolvió.
 > - **Int3 — motor (prioritario)**: AUD-01 (índice: falso positivo en
 >   "General"), AUD-02 (los anexos reales no se ven: la regla reporta 9 ítems
->   faltantes aunque existan), AUD-03 (el texto `encontrado` es ilegible y
->   señala mal; **opción 1 acordada**: módulo único `validator/detalle.py`),
->   AUD-04, AUD-05, AUD-06, AUD-07, AUD-15, AUD-20 (los tests
->   no replican la estructura real) y **AUD-24 a AUD-27** (las capturas de la
->   ficha: los autores se parten, el asesor llega vacío y el año sale del
->   título). **Más un hallazgo nuevo**: `palabras_clave_minimo` es `error` y
->   hace que **las 5 plantillas oficiales fallen**. Los criterios de
+>   faltantes aunque existan), AUD-04 (notas `EVALUADO`), AUD-05 (endurecer
+>   solo la regla `error` de la carátula), AUD-06 (igualdad normalizada del
+>   índice, después de AUD-01), AUD-20 (los tests no replican la estructura
+>   real) y **AUD-24 a AUD-27** (las capturas de la ficha: los autores se
+>   parten, el asesor llega vacío y el año sale del título). **AUD-03 y
+>   AUD-15 quedaron cerrados** con el PR #78; **AUD-07 se cerró como "no era
+>   defecto"** (ver §8 del handover). **Más un hallazgo nuevo**:
+>   `palabras_clave_minimo` queda en `error` por decisión del 2026-11-08;
+>   las 5 plantillas oficiales siguen en rojo a propósito. Los criterios de
 >   aceptación de AUD-24 a AUD-27 ya están en `tests/test_captura_ficha.py`
 >   (tests con `xfail(strict=True)`: cuando el motor los cumpla, el CI se
 >   pone rojo hasta que Int1 quite la marca).
@@ -33,21 +35,22 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   (fórmulas en el registro), AUD-30 (acceso al papeleo), AUD-31 (cupo de
 >   CPU), AUD-32 (hora de Perú), AUD-33 (botón "+" del userscript) y AUD-34
 >   (escáner de secretos). Ver la tabla §11 del handover.
-> - **Int3 — propuestas ya escritas, NO aplicadas**: el diff de AUD-04 (notas
->   `EVALUADO`), AUD-15 (escape del exportador) y del cache compilado por
->   hilo está en **§12 del handover**. Son del área del motor: Int1 los
->   revertió y los dejó documentados para que Int3 los implemente.
+> - **Int3 — propuestas ya escritas**: el diff de AUD-04 (notas `EVALUADO`)
+>   sigue en **§12.1 del handover**. AUD-15 (escape del exportador) ya está
+>   aplicada y mergeada (PR #78, §12.2). El cache compilado por hilo (§12.3)
+>   **no se implementa**: la compilación es el 0.1 % del tiempo con una tesis
+>   real (decisión 2026-11-08).
 > - **Int2 — frontend**: AUD-16 (la pantalla de ficha del handover S8 no
 >   existe), AUD-17, AUD-18: **cerrados** (PR #68; ver la tabla §11 del
 >   handover). La pantalla de ficha vive en
 >   `frontend/src/components/FichaDeposito.jsx` (lógica de flujo en
 >   `frontend/src/ficha.js`) y el mock de ejemplo queda **solo en desarrollo**.
-> - **Decisiones de dominio abiertas** (las necesita el equipo, no un
->   integrante): exención de estilos en la regla de sangría, si "Base de
->   datos cuantitativa" debe matchear "Base de datos", alcance de las reglas
->   de carátula (AUD-05/06/07) y el estado de `palabras_clave_minimo`.
->   (AUD-18 ya está decidido: el mock de reporte **no** se activa en
->   producción.)
+> - **Decisiones de dominio resueltas el 2026-11-08**: sangría (sin exención
+>   por estilo), anexos («Base de datos»), AUD-05 (endurecer solo la regla
+>   `error`), AUD-06 (igualdad normalizada), AUD-07 (cerrado: el manual exige
+>   13 pt también en Tesis) y `palabras_clave_minimo` (se mantiene `error`).
+>   Detalle: §8 del handover. (AUD-18 ya estaba decidido: el mock de reporte
+>   **no** se activa en producción.)
 >
 > **Ojo antes de confiar en la suite**: los tests pasan, pero **no cubren la
 > estructura real de las plantillas** (AUD-20). Un `pytest` en verde **no**
@@ -670,10 +673,11 @@ Al revisar un PR, verificar que:
    rama `fix/api-hardening-b0-b1`. Detalle y criterios de aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
 2. **Int3**: correctitud del motor contra la tesis real — AUD-01, AUD-02,
-   AUD-03 (mensajes legibles), AUD-04 (notas `EVALUADO`), AUD-15 (escape del
-   exportador), AUD-20 (factory con la estructura real) y AUD-24 a AUD-27
-   (capturas de la ficha). Los diffs propuestos de AUD-04, AUD-15 y del cache
-   compilado están en §12 del handover. Criterios de aceptación:
+   AUD-04 (notas `EVALUADO`), AUD-05 (endurecer la regla `error`), AUD-06
+   (después de AUD-01), AUD-20 (factory con la estructura real) y AUD-24 a
+   AUD-27 (capturas de la ficha). AUD-03 y AUD-15 quedaron cerrados en el
+   PR #78; AUD-07 se cerró sin cambio de código. Las decisiones de dominio
+   están en §8 del handover. Criterios de aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
 3. **Int2**: pantalla de ficha de depósito (handover S8, AUD-16): **resuelto**
    (PR #68). Queda pendiente solo el ajuste a los cambios de contrato de
