@@ -12,7 +12,7 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 > respuesta), pero **hay bugs abiertos**. La afirmación del README que el
 > código contradecía ya se corrigió (2026-10-30).
 >
-> - **Leé esto primero**: [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md)
+> - **Lee esto primero**: [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md)
 >   → evidencia, criterios de aceptación, decisiones tomadas y lo que **no**
 >   se resolvió.
 > - **Int3 — motor (prioritario)**: AUD-01 (índice: falso positivo en
@@ -54,8 +54,8 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >
 > **Ojo antes de confiar en la suite**: los tests pasan, pero **no cubren la
 > estructura real de las plantillas** (AUD-20). Un `pytest` en verde **no**
-> significa que el motor acierte. Al tocar el motor, agregá el caso real al
-> factory (regla 5 de esta guía) y verificá contra la tesis real.
+> significa que el motor acierte. Al tocar el motor, agrega el caso real al
+> factory (regla 5 de esta guía) y verifica contra la tesis real.
 >
 > **Regla del flujo de depósito**: la app **no** escribe en la API de DSpace.
 > El archivo lo adjunta el encargado en el formulario oficial; el userscript
@@ -66,18 +66,18 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >
 > Cuando termines tu parte:
 >
-> 1. Actualizá la **tabla de estado** (§11) de
->    `docs/HANDOVER_AUDITORIA_2026-10-26.md`: poné tu ID en estado
->    `cerrado` y anotá el PR o commit. Si tu hallazgo no estaba en la tabla,
->    agregalo.
-> 2. Actualizá el **bloque de aviso de arriba**: sacá tu ID del listado de
->    pendientes y dejá la línea con su estado real.
-> 3. Si tu parte cambió el contrato (API, reglas, flujo), actualizá
+> 1. Actualiza la **tabla de estado** (§11) de
+>    `docs/HANDOVER_AUDITORIA_2026-10-26.md`: pon tu ID en estado
+>    `cerrado` y anota el PR o commit. Si tu hallazgo no estaba en la tabla,
+>    agrégalo.
+> 2. Actualiza el **bloque de aviso de arriba**: saca tu ID del listado de
+>    pendientes y deja la línea con su estado real.
+> 3. Si tu parte cambió el contrato (API, reglas, flujo), actualiza
 >    `README.md` y `docs/CONTRATO_API.md` en el mismo commit.
 > 4. **El bloque de aviso no se borra hasta que TODOS los hallazgos de la
 >    tabla §11 estén en `cerrado` o `decidido`.** Cuando se cierre el
->    último, eliminá el bloque, dejá una línea en
->    `docs/cronologia_trabajo.md` y actualizá "Próximos pasos".
+>    último, elimina el bloque, deja una línea en
+>    `docs/cronologia_trabajo.md` y actualiza "Próximos pasos".
 > 5. Todo cambio a este `AGENTS.md` sigue requiriendo aprobación del
 >    usuario (ver "Este documento es vivo").
 

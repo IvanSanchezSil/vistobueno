@@ -30,7 +30,7 @@ decida y coordine antes de ejecutar el switch.
 
 ---
 
-## 2. ¿Qué es la "severidad" y por qué importa acá? (para todos los que lean)
+## 2. ¿Qué es la "severidad" y por qué importa aquí? (para todos los que lean)
 
 Cada regla de validación tiene una **severidad**, que define cómo afecta a la
 entrega:
