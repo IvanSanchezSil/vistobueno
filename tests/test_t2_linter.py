@@ -173,13 +173,26 @@ def test_prefijo_xpath_desconocido_se_detecta():
     assert any("wp" in h for h in hallazgos)
 
 
-def test_prefijo_xpath_desconocido_antes_reventaba_en_runtime():
-    """Sin linter, el XPath inválido llega hasta la evaluación del documento."""
+def test_prefijo_xpath_desconocido_antes_fallaba_en_runtime():
+    """Sin linter, el XPath inválido se evalúa contra el documento y falla."""
+    from pathlib import Path
+
+    from docx_factory import compilar_docx, configuracion_base
+
     from validator.compilador import CompilerDSL
+    from validator.extractor import extract
 
     dsl = _dsl(_regla("r1", atributo_xml={"parte": "document", "xpath": "//wp:ind"}))
-    compiladas = CompilerDSL().compilar(dsl, linter=False)
-    assert len(compiladas) == 1, "sin linter la regla compila (y revienta al evaluar)"
+    regla = CompilerDSL().compilar(dsl, linter=False)[0]
+    path = compilar_docx(configuracion_base())
+    try:
+        resultado = regla.ejecutar(extract(path))
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+    assert not resultado.passed
+    assert "XPathEvalError" in resultado.found
+    assert "Undefined namespace prefix" in resultado.found
 
     with pytest.raises(DSLValidationError):
         CompilerDSL().compilar(dsl)
@@ -241,10 +254,22 @@ def test_severidad_inventada_se_detecta():
 
 
 def test_severidad_inventada_antes_reventaba_en_runtime():
+    """Sin linter, `Severity('aviso')` revienta al construir el resultado."""
+    from pathlib import Path
+
+    from docx_factory import compilar_docx, configuracion_base
+
     from validator.compilador import CompilerDSL
+    from validator.extractor import extract
 
     dsl = _dsl(_regla("r1", severidad="aviso"))
-    CompilerDSL().compilar(dsl, linter=False)  # compila: el error es posterior
+    regla = CompilerDSL().compilar(dsl, linter=False)[0]
+    path = compilar_docx(configuracion_base())
+    try:
+        with pytest.raises(ValueError, match="aviso"):
+            regla.ejecutar(extract(path))
+    finally:
+        Path(path).unlink(missing_ok=True)
 
     with pytest.raises(DSLValidationError):
         CompilerDSL().compilar(dsl)
@@ -347,9 +372,11 @@ def test_id_duplicado_se_detecta():
     assert any("duplicado" in h for h in hallazgos)
 
 
-def test_id_duplicado_antes_no_se_detectaba():
-    """Control: el linter previo aceptaba los ids repetidos."""
-    assert len(linter(_dsl(_regla("dup"), _regla("dup")))) == 1
+def test_id_duplicado_produce_un_solo_hallazgo():
+    """El id repetido se reporta una vez, no una por regla afectada."""
+    hallazgos = linter(_dsl(_regla("dup"), _regla("dup")))
+    assert len(hallazgos) == 1
+    assert "duplicado" in hallazgos[0]
 
 
 def test_ids_unicos_no_producen_hallazgo():
