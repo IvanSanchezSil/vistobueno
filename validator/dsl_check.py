@@ -16,7 +16,8 @@ Detecta:
   misma regla;
 - `aplicar_si` con un valor que no es un tipo documental declarado: la
   regla no aplicaría nunca y el semáforo quedaría verde sin comprobar;
-- secciones mal escritas (la regla desaparecería del reporte en silencio);
+- claves de regla desconocidas (sección mal escrita o campo inválido): la
+  regla desaparecería del reporte en silencio;
 - XPath no evaluables: prefijos de namespace desconocidos o sintaxis inválida;
 - `severidad` fuera del catálogo y `id` de regla duplicado.
 
@@ -75,6 +76,10 @@ _CLAVES_REGLA = frozenset(
         "mecanismo_verificable",
     }
 )
+
+# Claves válidas a nivel de REGLA: secciones reconocidas + campos de regla.
+# Cualquier otra clave la ignora el compilador y la regla desaparece.
+_CLAVES_VALIDAS = frozenset(_SECCIONES) | _CLAVES_REGLA
 
 # Severidades válidas (las de `validator.models.Severity`).
 _SEVERIDADES = frozenset({"error", "warning"})
@@ -586,31 +591,32 @@ def _lint_severidad(config: dict, hallazgos: list[str], rule_id: str) -> None:
 
 
 def _lint_secciones_desconocidas(rules: list[dict], hallazgos: list[str]) -> None:
-    """Detecta secciones mal escritas y reglas que no declaran ninguna.
+    """Detecta claves de nivel de regla que el compilador ignoraría.
 
     Una sección mal escrita (por ejemplo `atributo_xmls` en vez de
     `atributo_xml`) no la reconoce el compilador: la regla se salta en
     silencio y DESAPARECE del reporte sin ningún aviso. Para el estudiante
     eso es indistinguishable de "cumplió la regla".
 
-    Se distinguen tres situaciones:
-    - la clave parece una sección (comparación difusa) → se sugiere la
-      correcta, que es el error más probable;
-    - la clave no se parece a nada conocido → se descarta, porque el DSL
-      admite campos propios de cada analizador;
-    - la regla no declara ninguna sección → se descarta, porque las reglas
-      no mecanizadas son legítimas (el campo `mecanismo_verificable` las
-      marca).
+    El conjunto de claves válidas a nivel de regla es CERRADO: las secciones
+    conocidas más los campos de regla. Los campos propios de cada analizador
+    viven dentro de la configuración de la sección, no al nivel de la regla.
+    La similitud difusa se usa solo para sugerir la sección correcta.
     """
     for rule in rules:
         rule_id = rule.get("id", "<sin id>")
         for clave in rule:
-            if clave in _SECCIONES or clave in _CLAVES_REGLA:
+            if clave in _CLAVES_VALIDAS:
                 continue
-            cercania = difflib.get_close_matches(clave, _SECCIONES, n=1, cutoff=0.75)
+            cercania = difflib.get_close_matches(clave, _SECCIONES, n=1, cutoff=0.6)
             if cercania:
                 hallazgos.append(
                     f"[{rule_id}] sección desconocida '{clave}' (¿quiso decir '{cercania[0]}'?)"
+                )
+            else:
+                hallazgos.append(
+                    f"[{rule_id}] clave desconocida '{clave}': no es una sección "
+                    "ni un campo de regla válido"
                 )
 
 

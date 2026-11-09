@@ -119,6 +119,36 @@ def test_campo_propio_del_analizador_no_se_reporta():
     assert _hallazgos(_regla("r1", atributo_xml=config)) == []
 
 
+@pytest.mark.parametrize(
+    "clave",
+    ["conteo", "patron", "lista", "nota", "gramatica"],
+)
+def test_clave_de_regla_truncada_se_detecta(clave):
+    """Los truncamientos no llegan al umbral difuso, pero igual se reportan."""
+    hallazgos = _hallazgos(
+        {
+            "id": "r1",
+            "tipo": "atributo_xml",
+            "severidad": "error",
+            clave: dict(PAGINA),
+        }
+    )
+    assert any(clave in h for h in hallazgos)
+
+
+def test_clave_de_regla_desconocida_sin_sugerencia_se_detecta():
+    """Aunque no haya una sección parecida, la clave inválida se reporta."""
+    hallazgos = _hallazgos(
+        {
+            "id": "r1",
+            "tipo": "atributo_xml",
+            "severidad": "error",
+            "campo_inventado": 1,
+        }
+    )
+    assert any("campo_inventado" in h and "clave desconocida" in h for h in hallazgos)
+
+
 # ---------------------------------------------------------------------------
 # 2. XPath con prefijo de namespace desconocido
 # ---------------------------------------------------------------------------
