@@ -4,6 +4,10 @@ Guía para instalar y verificar VistoBueno en la PC de la biblioteca.
 Complementa `README.md`, `docs/CONTRATO_API.md` y el handover de la
 auditoría 2026-10-26.
 
+> Los pasos de instalación de la máquina (Linux, macOS y Windows 10/11 con
+> WSL2) están en [`docs/INSTALACION.md`](INSTALACION.md). Este documento
+> cubre la configuración y la verificación de seguridad del despliegue.
+
 > Este documento cubre la **instalación**. La sesión de prueba con la
 > instancia real de DSpace tiene su propio kit, con el checklist de
 > ejecución paso a paso: `docs/PILOTO_OPERADOR.md`.
