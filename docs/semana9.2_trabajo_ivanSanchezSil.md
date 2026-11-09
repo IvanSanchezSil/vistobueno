@@ -4,7 +4,7 @@
 **Fecha**: 2026-10-21
 **Rama**: `linter-config-invalida` (antes `semana9.2`; creada desde
 `origin/semana8-deposito-ficha` en `cccd7a3`)
-**Estado**: En progreso
+**Estado**: Hecho
 
 ---
 
@@ -141,6 +141,42 @@ su tesis; un error de carga se presenta como 500 de configuración.
       de los analizadores no se reportan.
 - [x] Suite: `pytest tests/ -v` → **527 passed, 1 skipped** (499 + 28).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
+
+---
+
+## N2 — Actualizar bitácora de la semana 9.2
+
+*Actualizar la bitácora semanal con la rama/PR/conteos/commits reales y agregar las secciones obligatorias (competencias, dificultades/aprendizajes, plan siguiente).*  
+
+### Actividades realizadas (fecha)
+
+- Commit `a89f2d7 chore: fusionar master en la rama del linter` (N5).
+- Commit `1108605 docs: agregar plan de corrección del linter (PR #72)` (plan).
+- Commit `ab4c709 fix(dsl): validar XPath con lxml y no confundir literales` (B1+M3).
+- Commit `a00251c fix(dsl): detectar cualquier clave de regla desconocida` (B2).
+- Commit `c5d8654 fix(motor): ConfigurationError es un error de configuración del DSL` (M2a).
+- Commit `291a558 fix(motor): rechazar configuraciones de sección que no son diccionario` (M2b).
+- Commit `b34623a fix(motor): restaurar el docstring de AnalizadorPaginacion` (M1).
+- Commit `fa58810 refactor(dsl): usar Severity en el catálogo de severidades` (M4).
+- Commit `2d94688 fix(dsl): admitir los centinelas de detección de tipo` (M5).
+- Commit `3a33377 test(dsl): ejercitar de verdad los controles "antes"` (N3).
+- Commit `1d5738d docs: documentar los controles nuevos del linter` (N1).
+- Commit `docs: actualizar la bitácora de la semana 9.2` (N2).
+
+### Competencias desarrolladas
+- **Ingeniería de software**: diseño de linter, testing y diseño de APIs.
+- **Modelo y análisis**: DSL declarativo, autómatas y analizadores de hoja.
+- **Ingeniería de sistemas**: pipelines de CI, tests y documentación.
+
+### Dificultades y aprendizajes
+- El linter y el motor comparten un conjunto cerrado de secciones → código duplicado (C3) resuelto por tests.
+- La detección de prefijos de namespace en XPath requiere evitar confusión con ejes (B1).
+- Errores de configuración vs. errores del documento: usar un `DSLValidationError` específico para el lado del motor (M2a).
+- Los tests del linter deben verificar tanto el error como el caso positivo.
+- Mantener la bitácora al día es un overhead pero obligatorio para auditoría.
+
+### Plan de la semana siguiente (N/A)
+Esta semana está completada; el PR #72 está listo para mergear (pendiente solo de aprobación).
 
 ---
 
