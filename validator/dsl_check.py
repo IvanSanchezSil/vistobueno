@@ -86,6 +86,11 @@ _CLAVES_VALIDAS = frozenset(_SECCIONES) | _CLAVES_REGLA
 # puedan divergir del catálogo que usa el motor.
 _SEVERIDADES = frozenset(s.value for s in Severity)
 
+# Valores que publica `DeteccionTipo` cuando no hay tipo o hay contradicción
+# (docs/DSL.md, sección 16). Se admiten siempre en `aplicar_si`, además de los
+# tipos declarados en las firmas. Un test los sincroniza con `analizadores`.
+_TIPOS_SENTINELA = frozenset({"sin_determinar", "contradictorio"})
+
 # Literales entre comillas: se excluyen al buscar el prefijo culpable de un
 # XPath, para no confundir `'Palabras clave:'` con un namespace.
 _LITERAL_XPATH = re.compile(r"'[^']*'|\"[^\"]*\"")
@@ -328,22 +333,26 @@ def _lintar_valor_tipo_documento(
     `tinv_cuantitativo`) no casa con nada: la regla NO se aplica nunca, y
     el estudiante ve un semáforo verde sobre una comprobación que jamás se
     hizo. El linter ya detectaba la clave mal escrita; este cierra el caso
-    del valor mal escrito.
+    del valor mal escrito. Los centinelas `sin_determinar` y `contradictorio`
+    son válidos siempre: los publica `DeteccionTipo` y están documentados.
     """
     validos = tipos_declarados.get(clave)
     if not validos:
         return
+    admitidos = validos | _TIPOS_SENTINELA
     if isinstance(valor, list):
         for v in valor:
-            if isinstance(v, str) and v not in validos:
+            if isinstance(v, str) and v not in admitidos:
                 hallazgos.append(
                     f"[{rule_id}] aplicar_si: '{v}' no es un tipo documental válido "
-                    f"para '{clave}' (tipos declarados: {sorted(validos)})"
+                    f"para '{clave}' (tipos declarados: {sorted(validos)}; "
+                    f"centinelas admitidos: {sorted(_TIPOS_SENTINELA)})"
                 )
-    elif isinstance(valor, str) and valor not in validos:
+    elif isinstance(valor, str) and valor not in admitidos:
         hallazgos.append(
             f"[{rule_id}] aplicar_si: '{valor}' no es un tipo documental válido "
-            f"para '{clave}' (tipos declarados: {sorted(validos)})"
+            f"para '{clave}' (tipos declarados: {sorted(validos)}; "
+            f"centinelas admitidos: {sorted(_TIPOS_SENTINELA)})"
         )
 
 

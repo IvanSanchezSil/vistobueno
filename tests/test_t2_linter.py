@@ -320,6 +320,22 @@ def test_aplicar_si_sobre_clave_no_documental_no_se_contrasta():
     )
 
 
+@pytest.mark.parametrize("centinela", ["sin_determinar", "contradictorio"])
+def test_aplicar_si_con_centinelas_es_valido(centinela):
+    """Los centinelas de `DeteccionTipo` son valores legítimos."""
+    assert (
+        _hallazgos(DETECCION, _regla("consumidor", aplicar_si={"tipo_documento": centinela})) == []
+    )
+
+
+def test_centinelas_sincronizados_con_analizadores():
+    """El linter no debe inventar centinelas que el motor no publica."""
+    from validator.analizadores import TIPO_CONTRADICTORIO, TIPO_SIN_DETERMINAR
+    from validator.dsl_check import _TIPOS_SENTINELA
+
+    assert _TIPOS_SENTINELA == {TIPO_SIN_DETERMINAR, TIPO_CONTRADICTORIO}
+
+
 # ---------------------------------------------------------------------------
 # 5. id duplicado
 # ---------------------------------------------------------------------------
