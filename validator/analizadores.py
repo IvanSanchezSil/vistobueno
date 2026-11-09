@@ -410,14 +410,6 @@ class AnalizadorListaObligatoria(Analizador):
 
 
 class AnalizadorPaginacion(Analizador):
-    def __init__(self, config: dict):
-        super().__init__(config)
-        xpaths = self.config.get("xpaths")
-        if not isinstance(xpaths, list) or len(xpaths) < 2:
-            raise ConfigurationError(
-                "paginacion: 'xpaths' debe ser una lista con al menos 2 elementos"
-            )
-
     """Verifica que los párrafos objetivo estén en páginas físicas distintas.
 
     Sección DSL `paginacion` (F2 ítem 1). La paginación real se calcula en
@@ -440,6 +432,14 @@ class AnalizadorPaginacion(Analizador):
     produce un falso positivo: solo juzga la paginación de las secciones
     que existen. La sección de "presencia" la cubren otras reglas.
     """
+
+    def __init__(self, config: dict):
+        super().__init__(config)
+        xpaths = self.config.get("xpaths")
+        if not isinstance(xpaths, list) or len(xpaths) < 2:
+            raise ConfigurationError(
+                "paginacion: 'xpaths' debe ser una lista con al menos 2 elementos"
+            )
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         xpaths = self.config.get("xpaths")

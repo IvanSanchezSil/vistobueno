@@ -233,6 +233,13 @@ class TestLinter:
         with pytest.raises(ConfigurationError):
             CompilerDSL().compilar(data, linter=False)
 
+    def test_paginacion_conserva_el_docstring(self):
+        """El `__init__` no debe quedar antes del docstring de la clase."""
+        from validator.analizadores import AnalizadorPaginacion
+
+        assert AnalizadorPaginacion.__doc__ is not None
+        assert "páginas físicas" in AnalizadorPaginacion.__doc__
+
 
 # ---------------------------------------------------------------------------
 # Cache de XPath
