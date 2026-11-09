@@ -65,26 +65,26 @@ relevante. Los mensajes van en español y **sin `Co-authored-by`**.
 
 ## Verificación
 
-- [ ] `pytest tests/ -v` completo, sin fallos.
-- [ ] `ruff check validator/ scripts/ tests/`.
-- [ ] `ruff format --check validator/ scripts/ tests/`.
-- [ ] `mypy validator/ scripts/`.
+- [x] `pytest tests/ -v` completo, sin fallos. (799 passed, 4 skipped, 6 xfailed)
+- [x] `ruff check validator/ scripts/ tests/`.
+- [x] `ruff format --check validator/ scripts/ tests/`.
+- [x] `mypy validator/ scripts/`.
 - [ ] `git status` limpio (sin `__pycache__` ni temporales).
-- [ ] Caso manual: regla inválida en la API → **500** de configuración, no 422.
+- [x] Caso manual: regla inválida en la API → **500** de configuración, no 422. (Orden `except DSLValidationError` antes de `except ValueError` en `api.py`.)
 - [ ] Revisión del `git diff` de cada commit.
 
 ## Estado
 
-- [ ] Merge de `master`
-- [ ] Plan versionado
-- [ ] B1 + M3
-- [ ] B2
-- [ ] M2a
-- [ ] M2b
-- [ ] M1
-- [ ] M4
-- [ ] M5
-- [ ] N3
-- [ ] N1
-- [ ] N2
+- [x] Merge de `master`
+- [x] Plan versionado
+- [x] B1 + M3
+- [x] B2
+- [x] M2a
+- [x] M2b
+- [x] M1
+- [x] M4
+- [x] M5
+- [x] N3
+- [x] N1
+- [x] N2
 - [ ] Verificación final y push al fork
