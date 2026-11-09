@@ -183,7 +183,9 @@ reglas_dsl_ejemplo.yaml    # Ejemplo de reglas DSL
 
 En Windows 10/11, el camino soportado es **WSL2 + Nix**. La guía completa
 —incluido el camino nativo sin Nix para levantar la API— está en
-[`docs/INSTALACION.md`](docs/INSTALACION.md).
+[`docs/INSTALACION.md`](docs/INSTALACION.md). El acceso directo opcional
+para abrir la SPA desde el escritorio se crea con
+`tools/launcher/crear_acceso_directo.ps1` (ver §3.7 de la guía).
 
 ```bash
 nix develop   # entorno con todas las dependencias
@@ -275,9 +277,10 @@ El frontend llama a `POST /validar` con `API_BASE_URL = import.meta.env.VITE_API
 |---------|----------------------|
 | **`npm run dev`** (desarrollo) | Proxy de Vite en `vite.config.js` enruta `/validar` → `http://localhost:8000`. El default `VITE_API_URL=''` (mismo origen) funciona sin configurar nada. |
 | **`npm run preview` / build estático** | **No existe el proxy de Vite.** Hay que: (1) definir `VITE_API_URL` en tiempo de build hacia el origen de la API, o (2) servir el build detrás de un **reverse proxy** (nginx, Caddy, etc.) que enroute `/validar` al backend FastAPI. |
+| **Build servido por FastAPI** | Si existe `frontend/dist/index.html` al arrancar, la API monta la SPA en `/` y comparte origen con `/validar`. Es el modo del lanzador de Windows (`docs/INSTALACION.md` §3.7). |
 | **Build con API en otro origen** | `VITE_API_URL=https://api.tudominio.com npm run build` (o variable en CI). Ver `frontend/.env.example`. |
 
-Mientras `VITE_API_URL` quede vacío en un despliegue **sin** proxy/reverse proxy, las llamadas a `/validar` fallarán con error de red y el UI mostrará el error real con opción de reintentar. El reporte mock solo existe en desarrollo (`import.meta.env.DEV`); en producción nunca sustituye un fallo del backend. Errores HTTP con cuerpo JSON (`detail`) se muestran al usuario y tampoco se sustituyen por mocks.
+Con `VITE_API_URL` vacío, el build funciona si la SPA se sirve desde la misma API (**Build servido por FastAPI**) o desde un reverse proxy. En un despliegue estático sin proxy, las llamadas a `/validar` fallan con error de red y el UI muestra el error real con opción de reintentar. El reporte mock solo existe en desarrollo (`import.meta.env.DEV`); en producción nunca sustituye un fallo del backend. Errores HTTP con cuerpo JSON (`detail`) se muestran al usuario y tampoco se sustituyen por mocks.
 
 ## Operación en la biblioteca (flujo de ficha de depósito)
 
