@@ -22,7 +22,7 @@ el factory de tests no replica la estructura de las plantillas oficiales
 falta un documento real.
 
 Este handover es la lista de trabajo compartida. Al cerrar una parte,
-actualizá la tabla de estado (§11) y el bloque de aviso de `AGENTS.md`.
+actualiza la tabla de estado (§11) y el bloque de aviso de `AGENTS.md`.
 
 ---
 
@@ -534,7 +534,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 Estas propuestas se escribieron desde Int1 (API) y se **revirtieron antes
 de commitear**: `engine.py`, `compilador.py`, `analizadores.py`,
 `exportador.py` y los YAML de reglas son área de Int3 (motor), según la
-tabla de responsabilidades de `AGENTS.md`. Quedaron documentadas acá, con
+tabla de responsabilidades de `AGENTS.md`. Quedaron documentadas aquí, con
 el diff exacto, para que Int3 las implemente, las descarte o las aplique.
 
 > **Estado al 2026-11-08**: §12.1 (AUD-04) **se aplica** e incluye la nota
