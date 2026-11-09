@@ -657,6 +657,10 @@ def linter(rules_data: dict) -> list[str]:
             configs = cfg if isinstance(cfg, list) else [cfg]
             for c in configs:
                 if not isinstance(c, dict):
+                    hallazgos.append(
+                        f"[{rule_id}] {seccion}: la configuración debe ser un diccionario "
+                        f"(se recibió {type(c).__name__})"
+                    )
                     continue
                 _escanear_regex(c, hallazgos, rule_id, seccion)
                 if seccion in ("atributo_xml", "presencia_xml"):

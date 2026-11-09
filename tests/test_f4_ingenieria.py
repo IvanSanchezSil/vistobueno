@@ -225,6 +225,14 @@ class TestLinter:
         """La API lo mapea a 500 (no al 422 que culpa al documento)."""
         assert issubclass(ConfigurationError, DSLValidationError)
 
+    def test_configuracion_no_dict_es_error_de_carga(self):
+        """Una config que no es diccionario no debe llegar al analizador."""
+        data = _reglas_de("lista_obligatoria", "x")
+        with pytest.raises(DSLValidationError):
+            CompilerDSL().compilar(data)
+        with pytest.raises(ConfigurationError):
+            CompilerDSL().compilar(data, linter=False)
+
 
 # ---------------------------------------------------------------------------
 # Cache de XPath

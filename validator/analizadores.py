@@ -75,6 +75,11 @@ class Analizador(ABC):
     """
 
     def __init__(self, config: dict):
+        if config is not None and not isinstance(config, dict):
+            raise ConfigurationError(
+                "configuración de analizador inválida: se esperaba un diccionario "
+                f"y se recibió {type(config).__name__}"
+            )
         self.config = config or {}
         # Nodo objetivo (párrafo/subnodo) que determinó la última ejecución.
         # Permite que el motor enriquezca `location` con "página N" (ítem 1).

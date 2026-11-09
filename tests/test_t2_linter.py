@@ -149,6 +149,19 @@ def test_clave_de_regla_desconocida_sin_sugerencia_se_detecta():
     assert any("campo_inventado" in h and "clave desconocida" in h for h in hallazgos)
 
 
+def test_configuracion_de_seccion_no_dict_se_detecta():
+    """Una sección que no es diccionario reventaba con `AttributeError`."""
+    hallazgos = _hallazgos(
+        {
+            "id": "r1",
+            "tipo": "lista_obligatoria",
+            "severidad": "error",
+            "lista_obligatoria": "x",
+        }
+    )
+    assert any("diccionario" in h for h in hallazgos)
+
+
 # ---------------------------------------------------------------------------
 # 2. XPath con prefijo de namespace desconocido
 # ---------------------------------------------------------------------------
