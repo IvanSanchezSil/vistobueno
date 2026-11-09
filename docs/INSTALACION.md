@@ -31,8 +31,10 @@ El flake fija Python 3.14 y Node LTS. No instales esas versiones a mano en
 el camino soportado.
 
 `recursos/` no está versionado. Sin esa carpeta, tres pruebas se omiten y
-la constancia usa la plantilla sintética. Es el comportamiento esperado en
-un clon limpio y en CI.
+la constancia usa la plantilla sintética. `frontend/dist` tampoco está
+versionado: sin el build del frontend se omite una prueba más, la que
+comprueba que la API sirve la SPA. En un clon limpio se omiten cuatro
+pruebas. Es el comportamiento esperado en un clon limpio y en CI.
 
 ## 2. Linux y macOS (camino soportado)
 
@@ -73,13 +75,19 @@ instantáneas.
 nix run .#test -- tests/ -q
 ```
 
-Resultado esperado:
+Resultado esperado. El conteo depende de las carpetas locales `recursos/` y
+`frontend/dist`:
 
-- con `recursos/`: `736 passed, 6 xfailed`;
-- sin `recursos/`: `733 passed, 3 skipped, 6 xfailed`.
+| `recursos/` | `frontend/dist` | Resultado |
+|---|---|---|
+| sí | sí | `749 passed, 6 xfailed` |
+| sí | no | `748 passed, 1 skipped, 6 xfailed` |
+| no | sí | `746 passed, 3 skipped, 6 xfailed` |
+| no | no | `745 passed, 4 skipped, 6 xfailed` |
 
 Los `xfail` son criterios de aceptación abiertos de Int3 (AUD-24 a AUD-27).
-No son fallos de la instalación.
+No son fallos de la instalación. Los `skipped` dependen de carpetas que no
+están versionadas.
 
 Levanta la API:
 
@@ -198,8 +206,8 @@ nix develop
 nix run .#test -- tests/ -q
 ```
 
-Esperado con `recursos/`: `736 passed, 6 xfailed`. Sin esa carpeta:
-`733 passed, 3 skipped, 6 xfailed`.
+Esperado: ver la tabla de conteos de la sección 2.3. En un clon limpio
+sin `recursos/` ni `frontend/dist`: `745 passed, 4 skipped, 6 xfailed`.
 
 ### 3.5 Levantar la API y la SPA
 
@@ -398,8 +406,9 @@ Sin eso, `--formato pdf` falla. Markdown y JSON funcionan igual.
 Usa esta lista para el hito de instalación de la actividad 4.
 
 - [ ] `nix develop` entra sin errores (o el venv nativo arranca).
-- [ ] `nix run .#test -- tests/ -q` → `736 passed, 6 xfailed` (sin
-      `recursos/`: `733 passed, 3 skipped, 6 xfailed`).
+- [ ] `nix run .#test -- tests/ -q` → `749 passed, 6 xfailed` con
+      `recursos/` y `frontend/dist` (sin `recursos/`: `745 passed,
+      4 skipped, 6 xfailed`). Ver la tabla de la sección 2.3.
 - [ ] `nix run .#serve -- validator.api:app` → `/docs` responde `200` en
       `127.0.0.1:8000`.
 - [ ] `Host: atacante.example` → `400`.
@@ -422,7 +431,7 @@ Usa esta lista para el hito de instalación de la actividad 4.
 | `400` por `Host` | `Host` ajeno (por ejemplo, la IP de WSL) | Usar `localhost` o `127.0.0.1`; si es un dominio propio, agregarlo a `VISTOBUENO_HOSTS` |
 | `403` desde el navegador en WSL | El peer no se ve como loopback | Usar `localhost` (no la IP de WSL) y verificar el forwarding; si persiste, usar §4 |
 | `xfail` en la suite | Criterios abiertos de Int3 | Es esperado; no tocar |
-| `3 skipped` | Falta `recursos/` | Es esperado en un clon limpio |
+| `skipped` en la suite | Faltan `recursos/` y/o `frontend/dist` | Es esperado; ver la tabla de conteos de la sección 2.3 |
 | El acceso directo no abre la SPA | Falta `frontend/dist/index.html` | Construir la SPA (ver §3.7) |
 | El acceso directo no inicia | La distro por defecto no tiene Nix o el repo no está en `~/vistobueno` | Revisar el `cd` y la distro de `VistoBueno.bat` |
 | PDF falla en Windows | Falta Pango/GTK3 | Ver §4.4 |

@@ -296,6 +296,10 @@ desfasadas al escribirse el plan):
   está hecha; falta el clic manual en un navegador real contra la instancia
   de la sede, que es parte del piloto.
 
+> **Actualización al 2026-11-09**: la suite creció a **755 recolectados**
+> (749 pasan y 6 `xfail` con `recursos/` y `frontend/dist`; 745 pasan y 4 se
+> omiten en un clon limpio). Las cifras de arriba son la foto del 2026-11-04.
+
 El informe y el portafolio de prácticas viven fuera del repositorio, en
 `~/Documents/University/2026-II/PRAPRE`. Ahí se actualizaron el estado de las
 actividades, las rutas de la columna de evidencia (que apuntaban a una

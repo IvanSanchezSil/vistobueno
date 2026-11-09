@@ -65,7 +65,7 @@ la sede.
 | Mock de DSpace | Listo | Para ensayo sin tocar la instancia real |
 | Constancia (Modelo B) y fila del registro | Listo | Requiere `VISTOBUENO_FIRMA` y la plantilla oficial |
 | Hallazgos AUD-24 a AUD-27 del motor | **Abiertos** | Los ve el operador; ver §7 |
-| Pruebas automatizadas | 736 pasan, 6 `xfail` | Los 6 `xfail` son los hallazgos del punto anterior |
+| Pruebas automatizadas | 755 recolectados: 749 pasan y 6 `xfail` | Con `recursos/` y `frontend/dist`; en un clon limpio son 745 pasan y 4 se omiten. Los 6 `xfail` son los hallazgos del punto anterior |
 
 ---
 
