@@ -255,6 +255,14 @@ def test_severidad_valida_no_produce_hallazgo(severidad):
     assert _hallazgos(_regla("r1", severidad=severidad)) == []
 
 
+def test_catalogo_de_severidades_sincronizado_con_models():
+    """El linter no debe mantener una copia manual de `Severity`."""
+    from validator.dsl_check import _SEVERIDADES
+    from validator.models import Severity
+
+    assert _SEVERIDADES == {s.value for s in Severity}
+
+
 # ---------------------------------------------------------------------------
 # 4. aplicar_si con valor que no es un tipo documental declarado
 # ---------------------------------------------------------------------------

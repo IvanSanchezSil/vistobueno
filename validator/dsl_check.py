@@ -32,6 +32,7 @@ import re
 from lxml import etree
 
 from .extractor import NS
+from .models import Severity
 
 # Las mismas secciones que conoce el compilador (sin importarlo para
 # evitar una dependencia circular: compilador -> dsl_check).
@@ -81,8 +82,9 @@ _CLAVES_REGLA = frozenset(
 # Cualquier otra clave la ignora el compilador y la regla desaparece.
 _CLAVES_VALIDAS = frozenset(_SECCIONES) | _CLAVES_REGLA
 
-# Severidades válidas (las de `validator.models.Severity`).
-_SEVERIDADES = frozenset({"error", "warning"})
+# Severidades válidas: se derivan de `validator.models.Severity` para que no
+# puedan divergir del catálogo que usa el motor.
+_SEVERIDADES = frozenset(s.value for s in Severity)
 
 # Literales entre comillas: se excluyen al buscar el prefijo culpable de un
 # XPath, para no confundir `'Palabras clave:'` con un namespace.
