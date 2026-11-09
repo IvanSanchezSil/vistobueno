@@ -167,6 +167,25 @@ def test_prefijo_xpath_tambien_se_valida_en_paginacion():
     assert any("wp" in h for h in hallazgos)
 
 
+@pytest.mark.parametrize(
+    "xpath",
+    [
+        "//w:p[contains(., 'Palabras clave:')]",
+        "//w:p[contains(., 'Escuela:')]",
+        "//w:p[contains(., 'http://ejemplo.test')]",
+    ],
+)
+def test_dos_puntos_dentro_de_un_literal_no_es_un_prefijo(xpath):
+    """Los literales del XPath no se confunden con prefijos de namespace."""
+    assert _hallazgos(_regla("r1", atributo_xml={"parte": "document", "xpath": xpath})) == []
+
+
+def test_xpath_con_sintaxis_invalida_se_detecta():
+    """lxml también detecta la expresión mal formada, no solo el prefijo."""
+    hallazgos = _hallazgos(_regla("r1", atributo_xml={"parte": "document", "xpath": "//w:p["}))
+    assert any("sintaxis" in h for h in hallazgos)
+
+
 # ---------------------------------------------------------------------------
 # 3. Severidad inventada
 # ---------------------------------------------------------------------------

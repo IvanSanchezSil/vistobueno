@@ -17,7 +17,7 @@ Detecta:
 - `aplicar_si` con un valor que no es un tipo documental declarado: la
   regla no aplicaría nunca y el semáforo quedaría verde sin comprobar;
 - secciones mal escritas (la regla desaparecería del reporte en silencio);
-- prefijos de namespace desconocidos en los XPath;
+- XPath no evaluables: prefijos de namespace desconocidos o sintaxis inválida;
 - `severidad` fuera del catálogo y `id` de regla duplicado.
 
 El compilador invoca `linter_o_alzar` al principio de `compilar()`.
@@ -27,6 +27,10 @@ from __future__ import annotations
 
 import difflib
 import re
+
+from lxml import etree
+
+from .extractor import NS
 
 # Las mismas secciones que conoce el compilador (sin importarlo para
 # evitar una dependencia circular: compilador -> dsl_check).
@@ -75,30 +79,13 @@ _CLAVES_REGLA = frozenset(
 # Severidades válidas (las de `validator.models.Severity`).
 _SEVERIDADES = frozenset({"error", "warning"})
 
-# Prefijos de namespace que el extractor declara y que lxml puede resolver.
-# Copia local de `validator.extractor.NS` para no introducir una dependencia
-# circular (extractor -> ... -> dsl_check).
-_PREFIXOS_NAMESPACE = frozenset({"w", "r", "a", "pic"})
+# Literales entre comillas: se excluyen al buscar el prefijo culpable de un
+# XPath, para no confundir `'Palabras clave:'` con un namespace.
+_LITERAL_XPATH = re.compile(r"'[^']*'|\"[^\"]*\"")
 
-# Ejes de XPath que llevan dos puntos y NO son prefijos de namespace.
-# Se ignoran al validar prefijos: `following-sibling::w:p` es correcto.
-_EJES_XPATH = frozenset(
-    {
-        "ancestor",
-        "ancestor-or-self",
-        "attribute",
-        "child",
-        "descendant",
-        "descendant-or-self",
-        "following",
-        "following-sibling",
-        "namespace",
-        "parent",
-        "preceding",
-        "preceding-sibling",
-        "self",
-    }
-)
+# Prefijo de namespace (`w:`, `a:`, ...). El `(?!:)` descarta los ejes
+# (`following-sibling::w:p`), que también llevan dos puntos y no son prefijos.
+_PREFIJO_XPATH = re.compile(r"([A-Za-z_][\w.-]*):(?!:)")
 
 
 class DSLValidationError(ValueError):
@@ -524,29 +511,48 @@ def _lint_paginacion(config: dict, hallazgos: list[str], rule_id: str) -> None:
         hallazgos.append(f"[{rule_id}] paginacion: 'xpaths' solo admite textos no vacíos")
 
 
-def _prefijos_de_xpath(xpath: str) -> set[str]:
-    """Prefijos de namespace usados en un XPath.
+def _prefijos_desconocidos(xpath: str) -> list[str]:
+    """Prefijos de namespace del XPath que no declara el extractor.
 
-    Se ignoran los ejes (`following-sibling::w:p`), que también llevan dos
-    puntos pero no son prefijos: confundirlos daría falsos positivos.
+    Solo se usa para enriquecer el mensaje de error: la validez la decide
+    lxml. Se quitan los literales entre comillas para no confundir
+    `'Palabras clave:'` con un prefijo.
     """
-    prefijos: set[str] = set()
-    for coincidencia in re.finditer(r"([A-Za-z_][\w.-]*):", xpath):
-        candidato = coincidencia.group(1)
-        if candidato in _EJES_XPATH:
-            continue
-        prefijos.add(candidato)
-    return prefijos
+    sin_literales = _LITERAL_XPATH.sub("", xpath)
+    return sorted({p for p in _PREFIJO_XPATH.findall(sin_literales) if p not in NS})
+
+
+def _error_de_xpath(xpath: str) -> str | None:
+    """Devuelve el motivo por el que un XPath no es válido, o `None`.
+
+    Usa el compilador de lxml, que distingue los prefijos de namespace de
+    los literales entre comillas y detecta además expresiones mal formadas.
+    Se evalúa contra un árbol vacío porque lxml resuelve los prefijos al
+    evaluar, no al compilar.
+    """
+    try:
+        etree.XPath(xpath, namespaces=NS)(etree.Element("root"))
+    except etree.XPathSyntaxError as e:
+        return f"sintaxis inválida: {e}"
+    except etree.XPathEvalError as e:
+        desconocidos = _prefijos_desconocidos(xpath)
+        if desconocidos:
+            return (
+                f"prefijo de namespace desconocido {desconocidos} (prefijos válidos: {sorted(NS)})"
+            )
+        return f"expresión no evaluable: {e}"
+    return None
 
 
 def _lint_xpath(config: dict, hallazgos: list[str], rule_id: str, seccion: str) -> None:
-    """Valida que los prefijos de namespace de un XPath existan.
+    """Valida que los XPath de la sección sean evaluables.
 
     Un XPath con un prefijo desconocido (`//wp:ind`) no lo detecta lxml al
     parsear el YAML: revienta al EVALUAR contra el documento, con un
     `XPathEvalError` que la API muestra al estudiante como si fuera un
     defecto de su tesis. Con el linter, el error aparece al cargar las
-    reglas, que es donde pertenece.
+    reglas, que es donde pertenece. El mismo control cubre la sintaxis
+    inválida (`//w:p[`).
     """
     valores: list[str] = []
     xpath = config.get("xpath")
@@ -556,13 +562,9 @@ def _lint_xpath(config: dict, hallazgos: list[str], rule_id: str, seccion: str) 
     if isinstance(xpaths, list):
         valores.extend(x for x in xpaths if isinstance(x, str))
     for valor in valores:
-        for prefijo in sorted(_prefijos_de_xpath(valor)):
-            if prefijo not in _PREFIXOS_NAMESPACE:
-                hallazgos.append(
-                    f"[{rule_id}] {seccion}: prefijo de namespace desconocido "
-                    f"'{prefijo}' en el XPath '{valor}' "
-                    f"(prefijos válidos: {sorted(_PREFIXOS_NAMESPACE)})"
-                )
+        error = _error_de_xpath(valor)
+        if error:
+            hallazgos.append(f"[{rule_id}] {seccion}: XPath inválido '{valor}': {error}")
 
 
 def _lint_severidad(config: dict, hallazgos: list[str], rule_id: str) -> None:
