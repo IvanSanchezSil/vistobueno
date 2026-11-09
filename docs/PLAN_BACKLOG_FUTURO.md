@@ -6,7 +6,7 @@
 >
 > **Ejecutado 2026-09-15/16 (Fase 1 parcial)**:
 > - **15 — Calidad de ingeniería** ✅: *ruff + mypy + coverage + pre-commit* agregados a `flake.nix`; config en `pyproject.toml`; `.pre-commit-config.yaml`; CI `.github/workflows/ci.yml` (Nix); `nix flake check` verde. Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
-> - **16 — Exportación de reporte** ✅ (solo CLI): `validator/exportador.py` (Markdown + PDF vía WeasyPrint) + `--formato/--salida` en CLI. **Pendiente para el compañero de API/frontend**: exponer `formato` en `POST /validar` (afecta `CONTRATO_API.md` v1.2.0 y `openapi_spec.json`). Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
+> - **16 — Exportación de reporte** ✅ (solo CLI): `validator/exportador.py` (Markdown + PDF vía WeasyPrint) + `--formato/--salida` en CLI. **Cerrado (2026-11-08): no se expone `formato` en `POST /validar`.** La exportación queda solo en la CLI; si se retoma, va en `POST /reporte` (`md`/`pdf`). Detalle: [`docs/diseno/10_calidad_y_exportacion.md`](diseno/10_calidad_y_exportacion.md).
 > - **1 — Paginación real** ✅ (2026-09-21, F2 ítem 1): mapa párrafo→página en `extractor._paginacion_para()` (`w:lastRenderedPageBreak` + `w:br w:type="page"`), `ExtractedDocx.pagina_de()`, sección DSL `paginacion` (`AnalizadorPaginacion`, `paginas_distintas`), regla `indice_paginas_separadas` (warning) **y enriquecimiento de `location`** con "página N" cuando el analizador falla (`ultimo_nodo` en la base `Analizador` + fallback heurístico **sin** LibreOffice; ver "Decisiones pendientes"). La regla de carátula sin enumerar (`caratula_no_se_enumera`) ya estaba mecanizada (presencia de `w:titlePg`). Detalle: [`docs/diseno/11_ubicacion_pagina.md`](diseno/11_ubicacion_pagina.md).
 
 > - **2 — Encabezados y pies** ✅ (2026-09-21, F2 ítem 2): extractor multi-parte y reglas `encabezado_membrete`/`encabezado_formato` (warning). Detalle: [`docs/diseno/12_encabezados_pies.md`](diseno/12_encabezados_pies.md).
@@ -76,7 +76,7 @@ Mejoras que no tocan reglas pero sí el ecosistema del motor.
 
 > **PENDIENTE → Integrante 1 (Backend)**: el motor DSL pasó de **41 a 49 reglas**
 > (Semana 5, ítems 1-3 y 11-12 de la F2; Semana 8, ítem 4 track changes). Coordinar para:
-> 1. Exponer `formato` en `POST /validar` (exportación, ítem 16, `CONTRATO_API.md` v1.2.0).
+> 1. ~~Exponer `formato` en `POST /validar`~~ — **rechazado (2026-11-08)**: `/validar` sigue en JSON; si se retoma, va en `POST /reporte` (`md`/`pdf`).
 > 2. Changelog de `docs/CONTRATO_API.md`: la entrada v1.1.0 (Semana 4, nota F5)
 >    quedó actualizada con las 49 reglas; conviene reetiquetarla como **v1.2.0**
 >    (Sería entrada nueva de Semana 5). No se editó aquí por ser archivo del área backend.

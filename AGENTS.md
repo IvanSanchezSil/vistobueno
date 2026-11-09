@@ -9,43 +9,53 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 > La auditoría corrió el motor contra **una tesis real** y contra **las 5
 > plantillas oficiales**. Salieron **27 hallazgos (4 altos)**. El núcleo está
 > sano (el semáforo se calcula bien, el correo y el buzón no rompen la
-> respuesta), pero **hay bugs abiertos** y **una afirmación del README que el
-> código contradice**.
+> respuesta), pero **hay bugs abiertos**. La afirmación del README que el
+> código contradecía ya se corrigió (2026-10-30).
 >
-> - **Leé esto primero**: [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md)
+> - **Lee esto primero**: [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md)
 >   → evidencia, criterios de aceptación, decisiones tomadas y lo que **no**
 >   se resolvió.
 > - **Int3 — motor (prioritario)**: AUD-01 (índice: falso positivo en
 >   "General"), AUD-02 (los anexos reales no se ven: la regla reporta 9 ítems
->   faltantes aunque existan), AUD-03 (el texto `encontrado` es ilegible y
->   señala mal; **opción 1 acordada**: módulo único `validator/detalle.py`),
->   AUD-04, AUD-05, AUD-06, AUD-07, AUD-15, AUD-20 (los tests
->   no replican la estructura real) y **AUD-24 a AUD-27** (las capturas de la
->   ficha: los autores se parten, el asesor llega vacío y el año sale del
->   título). **Más un hallazgo nuevo**: `palabras_clave_minimo` es `error` y
->   hace que **las 5 plantillas oficiales fallen**. Los criterios de
+>   faltantes aunque existan), AUD-04 (notas `EVALUADO`), AUD-05 (endurecer
+>   solo la regla `error` de la carátula), AUD-06 (igualdad normalizada del
+>   índice, después de AUD-01), AUD-20 (los tests no replican la estructura
+>   real) y **AUD-24 a AUD-27** (las capturas de la ficha: los autores se
+>   parten, el asesor llega vacío y el año sale del título). **AUD-03 y
+>   AUD-15 quedaron cerrados** con el PR #78; **AUD-07 se cerró como "no era
+>   defecto"** (ver §8 del handover). **Más un hallazgo nuevo**:
+>   `palabras_clave_minimo` queda en `error` por decisión del 2026-11-08;
+>   las 5 plantillas oficiales siguen en rojo a propósito. Los criterios de
 >   aceptación de AUD-24 a AUD-27 ya están en `tests/test_captura_ficha.py`
 >   (tests con `xfail(strict=True)`: cuando el motor los cumpla, el CI se
 >   pone rojo hasta que Int1 quite la marca).
-> - **Int1 — API**: AUD-09, AUD-10, AUD-12, AUD-13, AUD-21, AUD-22 y el
->   contrato de la ficha: **cerrados** (PR #65, #66, #67 y #69; ver la tabla
->   §11 del handover).
+> - **Int1 — API**: **cerrado**. AUD-09, AUD-10, AUD-12, AUD-13, AUD-21,
+>   AUD-22 y el contrato de la ficha (PR #65, #66, #67 y #69); además, en la
+>   rama `fix/api-hardening-b0-b1`: AUD-28 (Host y DNS rebinding), AUD-29
+>   (fórmulas en el registro), AUD-30 (acceso al papeleo), AUD-31 (cupo de
+>   CPU), AUD-32 (hora de Perú), AUD-33 (botón "+" del userscript) y AUD-34
+>   (escáner de secretos). Ver la tabla §11 del handover.
+> - **Int3 — propuestas ya escritas**: el diff de AUD-04 (notas `EVALUADO`)
+>   sigue en **§12.1 del handover**. AUD-15 (escape del exportador) ya está
+>   aplicada y mergeada (PR #78, §12.2). El cache compilado por hilo (§12.3)
+>   **no se implementa**: la compilación es el 0.1 % del tiempo con una tesis
+>   real (decisión 2026-11-08).
 > - **Int2 — frontend**: AUD-16 (la pantalla de ficha del handover S8 no
 >   existe), AUD-17, AUD-18: **cerrados** (PR #68; ver la tabla §11 del
 >   handover). La pantalla de ficha vive en
 >   `frontend/src/components/FichaDeposito.jsx` (lógica de flujo en
 >   `frontend/src/ficha.js`) y el mock de ejemplo queda **solo en desarrollo**.
-> - **Decisiones de dominio abiertas** (las necesita el equipo, no un
->   integrante): exención de estilos en la regla de sangría, si "Base de
->   datos cuantitativa" debe matchear "Base de datos", alcance de las reglas
->   de carátula (AUD-05/06/07) y el estado de `palabras_clave_minimo`.
->   (AUD-18 ya está decidido: el mock de reporte **no** se activa en
->   producción.)
+> - **Decisiones de dominio resueltas el 2026-11-08**: sangría (sin exención
+>   por estilo), anexos («Base de datos»), AUD-05 (endurecer solo la regla
+>   `error`), AUD-06 (igualdad normalizada), AUD-07 (cerrado: el manual exige
+>   13 pt también en Tesis) y `palabras_clave_minimo` (se mantiene `error`).
+>   Detalle: §8 del handover. (AUD-18 ya estaba decidido: el mock de reporte
+>   **no** se activa en producción.)
 >
 > **Ojo antes de confiar en la suite**: los tests pasan, pero **no cubren la
 > estructura real de las plantillas** (AUD-20). Un `pytest` en verde **no**
-> significa que el motor acierte. Al tocar el motor, agregá el caso real al
-> factory (regla 5 de esta guía) y verificá contra la tesis real.
+> significa que el motor acierte. Al tocar el motor, agrega el caso real al
+> factory (regla 5 de esta guía) y verifica contra la tesis real.
 >
 > **Regla del flujo de depósito**: la app **no** escribe en la API de DSpace.
 > El archivo lo adjunta el encargado en el formulario oficial; el userscript
@@ -56,18 +66,18 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >
 > Cuando termines tu parte:
 >
-> 1. Actualizá la **tabla de estado** (§11) de
->    `docs/HANDOVER_AUDITORIA_2026-10-26.md`: poné tu ID en estado
->    `cerrado` y anotá el PR o commit. Si tu hallazgo no estaba en la tabla,
->    agregalo.
-> 2. Actualizá el **bloque de aviso de arriba**: sacá tu ID del listado de
->    pendientes y dejá la línea con su estado real.
-> 3. Si tu parte cambió el contrato (API, reglas, flujo), actualizá
+> 1. Actualiza la **tabla de estado** (§11) de
+>    `docs/HANDOVER_AUDITORIA_2026-10-26.md`: pon tu ID en estado
+>    `cerrado` y anota el PR o commit. Si tu hallazgo no estaba en la tabla,
+>    agrégalo.
+> 2. Actualiza el **bloque de aviso de arriba**: saca tu ID del listado de
+>    pendientes y deja la línea con su estado real.
+> 3. Si tu parte cambió el contrato (API, reglas, flujo), actualiza
 >    `README.md` y `docs/CONTRATO_API.md` en el mismo commit.
 > 4. **El bloque de aviso no se borra hasta que TODOS los hallazgos de la
 >    tabla §11 estén en `cerrado` o `decidido`.** Cuando se cierre el
->    último, eliminá el bloque, dejá una línea en
->    `docs/cronologia_trabajo.md` y actualizá "Próximos pasos".
+>    último, elimina el bloque, deja una línea en
+>    `docs/cronologia_trabajo.md` y actualiza "Próximos pasos".
 > 5. Todo cambio a este `AGENTS.md` sigue requiriendo aprobación del
 >    usuario (ver "Este documento es vivo").
 
@@ -184,7 +194,7 @@ El CI es la barrera de calidad del proyecto y **no se debilita para hacer pasar 
 Antes de hacer commit, siempre:
 
 1. **Tests**: `pytest tests/ -v` — todos deben pasar.
-2. **API manual**: levantar con `uvicorn validator.api:app --reload`, probar con `curl` o desde Swagger (`http://localhost:8000/docs`).
+2. **API manual**: levantar con `uvicorn validator.api:app --reload --no-proxy-headers`, probar con `curl` o desde Swagger (`http://localhost:8000/docs`).
 3. **Sin archivos temporales**: verificar que `git status` no muestre archivos que no deban ir al repo (`__pycache__`, `.pyc`, archivos temporales).
 4. **Revisar el diff**: `git diff` antes de `git add` para asegurarse de que solo cambiaste lo que querías cambiar.
 
@@ -316,7 +326,7 @@ Al entrar, el shellHook muestra los comandos disponibles. Herramientas principal
 | `nix run .#test-ficha-deposito` | Ensayo general de UN comando (flujo completo S8: ficha → buzón → userscript → constancia) |
 | `nix flake check` | Verificación completa (tests + lint del flake) |
 | `pytest tests/ -v` | Tests directos (requiere `nix develop` activo) |
-| `uvicorn validator.api:app --reload` | API directa (requiere `nix develop` activo) |
+| `uvicorn validator.api:app --reload --no-proxy-headers` | API directa (requiere `nix develop` activo) |
 
 Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMuPDF, lxml, pytest, httpx, python-multipart, ocrmypdf, tesseract (spa+eng), Node.js LTS (build del frontend).
 
@@ -339,9 +349,13 @@ Dependencias: Python 3.14, FastAPI, uvicorn, Pydantic, pyyaml, python-docx, PyMu
 ### Correr la API en desarrollo
 
 ```bash
-uvicorn validator.api:app --reload
+uvicorn validator.api:app --reload --no-proxy-headers
 # Swagger UI: http://localhost:8000/docs
 ```
+
+> `--no-proxy-headers` es obligatorio: `uvicorn` habilita `proxy_headers`
+> por defecto y un `X-Forwarded-For` podría falsificar el peer y saltar el
+> control de loopback (auditoría 2026-10-26, AUD-09 y AUD-28).
 
 ### Ejecutar tests
 
@@ -654,14 +668,16 @@ Al revisar un PR, verificar que:
 
 ## Próximos pasos propuestos
 
-1. **Int1**: remediación de la auditoría de 2026-10-26 — protección local del
-   buzón, límite de peticiones, contrato de la ficha y test de paridad no
-   vacía. Detalle y criterios de aceptación:
+1. **Int1**: remediación de la auditoría de 2026-10-26 (API, buzón, papeleo,
+   userscript y escáner de secretos): **resuelto** — PR #65, #66, #67, #69 y
+   rama `fix/api-hardening-b0-b1`. Detalle y criterios de aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
 2. **Int3**: correctitud del motor contra la tesis real — AUD-01, AUD-02,
-   AUD-03 (mensajes legibles), AUD-04 (notas `EVALUADO`), AUD-20 (factory con
-   la estructura real) y AUD-24 a AUD-27 (capturas de la ficha). Criterios de
-   aceptación:
+   AUD-04 (notas `EVALUADO`), AUD-05 (endurecer la regla `error`), AUD-06
+   (después de AUD-01), AUD-20 (factory con la estructura real) y AUD-24 a
+   AUD-27 (capturas de la ficha). AUD-03 y AUD-15 quedaron cerrados en el
+   PR #78; AUD-07 se cerró sin cambio de código. Las decisiones de dominio
+   están en §8 del handover. Criterios de aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
 3. **Int2**: pantalla de ficha de depósito (handover S8, AUD-16): **resuelto**
    (PR #68). Queda pendiente solo el ajuste a los cambios de contrato de

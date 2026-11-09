@@ -16,7 +16,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { JSDOM } = require("jsdom");
+const { JSDOM, VirtualConsole } = require("jsdom");
 
 const MOCK = process.env.MOCK_URL || "http://127.0.0.1:8080";
 const API = process.env.API_URL || "http://127.0.0.1:8000";
@@ -41,6 +41,21 @@ async function esperar(condicion, msTotal, mensaje) {
 	throw new Error("❌ " + mensaje);
 }
 
+// jsdom no implementa la navegación entre páginas (location.href). El mock
+// navega al ítem al pulsar Depositar, así que ese error es esperado y no
+// dice nada del userscript: se filtra para no ensuciar la salida verde del
+// ensayo. Los demás errores de jsdom sí se muestran.
+function consolaVirtual() {
+	const vc = new VirtualConsole();
+	vc.sendTo(console, { omitJSDOMErrors: true });
+	vc.on("jsdomError", (error) => {
+		const mensaje = (error && error.message) || String(error);
+		if (/Not implemented: navigation/.test(mensaje)) return;
+		console.error("[jsdom]", mensaje);
+	});
+	return vc;
+}
+
 async function nuevaPagina(ruta) {
 	const respuesta = await fetch(MOCK + ruta);
 	if (!respuesta.ok) {
@@ -50,6 +65,7 @@ async function nuevaPagina(ruta) {
 		url: MOCK + ruta,
 		runScripts: "dangerously", // el JS vanilla del mock (filas, combobox, Depositar)
 		pretendToBeVisual: true,
+		virtualConsole: consolaVirtual(),
 	});
 	// El shim usa fetch relativo: se resuelve contra el mock (el proxy
 	// /api-proxy del mock habla con la API real — la invariante sin-CORS
@@ -194,6 +210,90 @@ function migrarLocalStorage(origen, destino) {
 		"el botón flotante no rellenó el formulario al pulsarlo (hallazgo 12)"
 	);
 	console.log("  ✅ relleno tras pulsar el botón en la segunda página (hallazgo 12 cerrado)");
+
+	// --- 5. Re-llenado: no pisa lo que corrigió el operador (PR #71, b1) ---
+	// Con el título ya coincidente, un nuevo "Rellenar" NO debe tocar los
+	// campos: el operador corrigió el asesor a mano y ese cambio se queda.
+	const asesorEditado = "Mag. Asesor Corregido A Mano";
+	const inputAsesor = docTarde.querySelector('input[name="dc.contributor.advisor"]');
+	inputAsesor.value = asesorEditado;
+	const timestampPrevio = JSON.parse(
+		domTarde.window.localStorage.getItem("vb:vb_envio") || "null"
+	);
+	docTarde.getElementById("vb-boton").click();
+	await dormir(600);
+	const asesorFinal = docTarde.querySelector('input[name="dc.contributor.advisor"]').value;
+	if (asesorFinal !== asesorEditado) {
+		throw new Error("❌ el re-llenado pisó la edición del operador: " + asesorFinal);
+	}
+	const envioTarde = JSON.parse(domTarde.window.localStorage.getItem("vb:vb_envio") || "null");
+	if (!envioTarde || envioTarde.timestamp !== (timestampPrevio && timestampPrevio.timestamp)) {
+		throw new Error("❌ el re-llenado borró el timestamp del clic en Depositar");
+	}
+	console.log("  ✅ re-llenado: conserva la edición del operador y el timestamp");
+
+	// --- 6. Dos autores: el "+" real agrega la fila y la llena (PR #71, M5) ---
+	// Se publica una ficha con dos autores (botón del mock) y se carga una
+	// página nueva: el formulario debe quedar con DOS autores y DOS DNIs.
+	const domDos = await nuevaPagina("/mock/submit");
+	const docDos = domDos.window.document;
+	await esperar(
+		() => docDos.getElementById("btn-publicar-ficha-dos") !== null,
+		5000,
+		"el mock no sirvió el botón de ficha con dos autores"
+	);
+	docDos.getElementById("btn-publicar-ficha-dos").click();
+	await esperar(
+		async () => {
+			const r = await fetch(MOCK + "/api-proxy/ficha-pendiente");
+			if (r.status !== 200) return false;
+			const ficha = await r.json();
+			const autores = (ficha.extraidos || []).find((e) => e.campo === "dc.contributor.author");
+			return autores && Array.isArray(autores.valor) && autores.valor.length === 2;
+		},
+		8000,
+		"la ficha de dos autores nunca llegó al buzón"
+	);
+
+	const domDos2 = await nuevaPagina("/mock/submit");
+	ejecutarUserscript(domDos2);
+	const docDos2 = domDos2.window.document;
+	await esperar(
+		() => docDos2.querySelectorAll('input[name="dc.contributor.author"]').length >= 2,
+		10000,
+		"el botón + no agregó la segunda fila de autor"
+	);
+	await esperar(
+		() =>
+			Array.from(docDos2.querySelectorAll('input[name="dc.contributor.author"]')).every(
+				(el) => el.value !== ""
+			),
+		10000,
+		"las filas de autor quedaron vacías"
+	);
+	const autoresDos = Array.from(
+		docDos2.querySelectorAll('input[name="dc.contributor.author"]')
+	).map((el) => el.value);
+	const esperadoAutores = ["Ana María Pérez García", "Luis Alberto Ramírez Vega"];
+	if (JSON.stringify(autoresDos) !== JSON.stringify(esperadoAutores)) {
+		throw new Error("❌ autores con dos filas: " + JSON.stringify(autoresDos));
+	}
+	await esperar(
+		() =>
+			Array.from(docDos2.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')).every(
+				(el) => el.value !== ""
+			) &&
+			docDos2.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]').length >= 2,
+		10000,
+		"los DNI de los dos autores no quedaron llenos"
+	);
+	const dnisDos = Array.from(
+		docDos2.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')
+	).map((el) => el.value);
+	if (JSON.stringify(dnisDos) !== JSON.stringify(["12345678", "87654321"])) {
+		throw new Error("❌ DNI con dos filas: " + JSON.stringify(dnisDos));
+	}
+	console.log("  ✅ dos autores: el + agregó la fila y los DNI quedaron alineados");
 
 	console.log("OK");
 	process.exit(0);

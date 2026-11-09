@@ -3,9 +3,17 @@
 **Fecha**: 2026-10-23
 **De**: Integrante 1 (Backend/API)
 **Para**: Integrante 2 (Frontend)
-**Estado**: pedido con especificación — el diseño de pantallas es tuyo
-**Contexto de producto**: `docs/PLAN_FICHA_DEPOSITO.md` (leer primero;
-v0.2 congelado). Contrato: `docs/CONTRATO_API.md` (v1.7.0).
+**Estado**: resuelto — el diseño de pantallas quedó implementado.
+**Resuelto**: 2026-11-03 (PR #68). La pantalla quedó implementada en
+`frontend/src/components/FichaDeposito.jsx` (vista) y `frontend/src/ficha.js`
+(lógica de flujo pura), con cobertura en `frontend/src/ficha.test.js`.
+**Contrato vigente**: `docs/CONTRATO_API.md` (v1.12.0). La SPA envía el token
+compartido opcional (`VITE_API_TOKEN` → `X-VistoBueno-Token`) cuando está
+configurado; en loopback no hace falta.
+**Limitaciones conocidas del motor** (no de la UI): AUD-24 a AUD-27 siguen
+abiertas en `docs/HANDOVER_AUDITORIA_2026-10-26.md`. La pantalla permite
+corregir los campos a mano; el piloto debe registrar estos casos.
+**Contexto de producto**: `docs/PLAN_FICHA_DEPOSITO.md` (v0.2 congelado).
 
 ---
 
@@ -140,3 +148,74 @@ texto editable, así que no requiere nada especial de tu lado.
 El piloto real con el operador (borrador descartable en la instancia,
 checklist firmado) — el ensayo general local ya corre solo con
 `nix run .#test-ficha-deposito`.
+
+---
+
+## 8. Verificación de la Actividad 15 (2026-11-04, Integrante 1)
+
+Lote 3 del plan previo al piloto (`docs/PLAN_LOTES_PRE_PILOTO.md`). La
+pantalla se verificó contra la API real, no contra mocks sueltos.
+
+### 8.1 Qué se comprobó
+
+| # | Paso | Resultado |
+|---|------|-----------|
+| 1 | Subir `docs/ejemplos/doc_bueno.docx` | HTTP 200, semáforo **verde**, 43 reglas evaluadas, 0 fallos |
+| 2 | La ficha viaja solo con verde | `ficha_deposito` presente en verde y `null` en rojo |
+| 3 | Editar título, autores, asesor, año y palabras clave | Los valores editados llegan tal cual en `POST /ficha-pendiente` |
+| 4 | Completar los campos manuales | Matrícula y DNI del autor se alinean por posición con los autores |
+| 5 | «Preparar depósito» | `POST /ficha-pendiente` → 204 |
+| 6 | Panel de espera y viaje al buzón | `GET /ficha-pendiente` devuelve la ficha editada; `GET /deposito` responde 404 en silencio mientras no hay depósito |
+| 7 | Aceptar el handle | `POST /deposito` → 204 y `GET /deposito` devuelve `handle`, `titulo` y `timestamp` |
+| 8 | Constancia y fila del registro | `POST /constancia` → DOCX de 137 KB con los MERGEFIELD del Modelo B ya reemplazados; `?formato=zip` devuelve la constancia + `registro.csv`; `POST /fila-registro` responde en `tsv`, `csv`, `xlsx` y `json` |
+| 9 | Cabecera de token | `cabecerasBuzon()` envía `X-VistoBueno-Token` solo si hay token configurado; el backend solo lo exige para peers remotos (`tests/test_api_acceso.py`) |
+| 10 | Limpiar el resguardo | «Volver al reporte» borra la clave `vb-ficha-deposito` de `localStorage` |
+
+Comprobaciones de seguridad del servidor en la misma corrida:
+
+- `GET /docs` con `Host` propio → **200**; con `Host: evil.com` → **400**.
+- `POST /constancia` sin `VISTOBUENO_FIRMA` → **500** con el mensaje en
+  español que nombra la variable (es el comportamiento documentado en
+  `docs/CONTRATO_API.md`: configuración del servidor, no un fallo del
+  cliente).
+
+### 8.2 Lo que faltaba y quedó cubierto
+
+La pantalla **no tenía ninguna prueba de componente**: solo existían tests
+de las funciones puras de `frontend/src/ficha.js`. Ahora hay
+`frontend/src/components/FichaDeposito.test.jsx` con 8 casos que montan la
+pantalla y recorren el flujo completo (editar, completar, publicar, esperar,
+aceptar, rechazar, descargar, resguardo). Los casos se verificaron con
+mutaciones: si la pantalla deja de publicar la ficha, o si desaparece el
+cotejo del título (que evita usar un handle ajeno a ciegas), el test falla.
+
+### 8.3 Lo que la verificación destapó
+
+Las respuestas versionadas del par de ejemplo (`docs/ejemplos/`) quedaron
+desfasadas cuando el PR #78 cambió el formato del detalle de las reglas
+(AUD-03): 5 reglas y sus prompts de IA seguían con el texto anterior. Se
+regeneraron con `python scripts/ejemplo_bueno_malo.py` y se agregó
+`tests/test_ejemplos_versionados.py`, que compara las respuestas versionadas
+con las que produce el motor. Sin ese test, el desfase volvería a colarse
+sin que nadie lo note.
+
+### 8.4 Límites de esta verificación
+
+Los pasos se ejecutaron con un cliente HTTP que replica lo que hace el
+navegador (mismos métodos, cabeceras y cuerpos que `frontend/src/ficha.js`),
+y la parte de interfaz se cubre con los tests de componente. El clic manual
+en un navegador real contra la instancia de la sede queda para el piloto:
+es el paso 4 del checklist del kit del operador
+(`docs/PILOTO_OPERADOR.md`, lote 4 del plan).
+
+### 8.5 Limitaciones del motor que el operador verá
+
+Siguen abiertas y no son de la UI (AUD-24 a AUD-27 en
+`docs/HANDOVER_AUDITORIA_2026-10-26.md`):
+
+- `dc.title` llega con el prefijo «Título del trabajo de investigación:» —
+  el operador lo recorta en la pantalla (§6).
+- Los autores se pueden partir por la coma (AUD-24).
+- El asesor puede llegar vacío (AUD-25).
+- El año puede salir del título (AUD-26).
+- La última palabra clave conserva el punto final (AUD-27).
