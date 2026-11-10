@@ -76,7 +76,7 @@ servidor**. Es la diferencia entre "tu tesis está mal" y "el motor está mal".
 - [x] `paginacion` sin `xpaths` (o con < 2) no se muestra como fallo del
       documento: es error de carga del DSL.
 - [x] Tests existentes siguen pasando.
-- [x] Suite al cerrar el PR: **799 passed, 4 skipped, 6 xfailed** (T3 aportó 8 tests).
+- [x] Suite al cerrar el PR: **800 passed, 4 skipped, 6 xfailed** (T3 aportó 8 tests).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
@@ -138,7 +138,7 @@ su tesis; un error de carga se presenta como 500 de configuración.
 - [x] Ningún YAML de producción produce hallazgos nuevos.
 - [x] Sin falsos positivos: ejes de XPath, prefijos válidos y campos propios
       de los analizadores no se reportan.
-- [x] Suite al cerrar el PR: **799 passed, 4 skipped, 6 xfailed** (T2 aportó 28 tests).
+- [x] Suite al cerrar el PR: **800 passed, 4 skipped, 6 xfailed** (T2 aportó 28 tests).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
