@@ -404,3 +404,27 @@ def test_linter_o_alzar_mensaje_legible():
     with pytest.raises(DSLValidationError) as exc:
         linter_o_alzar(_dsl(_regla("dup"), _regla("dup")))
     assert "duplicado" in str(exc.value)
+
+
+def test_claves_de_regla_sincronizadas_con_el_motor():
+    """Toda clave de regla que el motor lee debe estar en `_CLAVES_VALIDAS`.
+
+    El linter rechaza como error de carga cualquier clave de nivel de regla
+    que no conozca. Si el motor empieza a leer una clave nueva y no se añade
+    al conjunto cerrado, las reglas que la usen se caerían con un 500. Este
+    test compara `_CLAVES_VALIDAS` con las claves que leen `compilador.py` y
+    `engine.py`.
+    """
+    import re
+    from pathlib import Path
+
+    from validator.dsl_check import _CLAVES_VALIDAS
+
+    raiz = Path(__file__).resolve().parent.parent / "validator"
+    patron = re.compile(r'rule(?:\.get\(|\[)"([a-z_]+)"')
+    leidas: set[str] = set()
+    for archivo in ("compilador.py", "engine.py"):
+        leidas |= set(patron.findall((raiz / archivo).read_text(encoding="utf-8")))
+
+    faltantes = leidas - _CLAVES_VALIDAS
+    assert not faltantes, f"claves leídas por el motor fuera del linter: {sorted(faltantes)}"
