@@ -69,9 +69,9 @@ relevante. Los mensajes van en español y **sin `Co-authored-by`**.
 - [x] `ruff check validator/ scripts/ tests/`.
 - [x] `ruff format --check validator/ scripts/ tests/`.
 - [x] `mypy validator/ scripts/`.
-- [ ] `git status` limpio (sin `__pycache__` ni temporales).
+- [x] `git status` limpio (sin `__pycache__` ni temporales).
 - [x] Caso manual: regla inválida en la API → **500** de configuración, no 422. (Orden `except DSLValidationError` antes de `except ValueError` en `api.py`.)
-- [ ] Revisión del `git diff` de cada commit.
+- [x] Revisión del `git diff` de cada commit.
 
 ## Estado
 
@@ -87,4 +87,4 @@ relevante. Los mensajes van en español y **sin `Co-authored-by`**.
 - [x] N3
 - [x] N1
 - [x] N2
-- [ ] Verificación final y push al fork
+- [x] Verificación final y push al fork
