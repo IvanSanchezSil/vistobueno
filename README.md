@@ -155,7 +155,7 @@ tests/
   test_f2_automatas.py      # Tests F2: tokenizer, PDA, automata_pila
   test_f3_mecanizacion.py   # Tests F3: reglas no deterministas
   test_f4_ingenieria.py     # Tests F4: linter, cache, traza
-  test_t2_linter.py         # Tests T2: endurecimiento del linter (pruebas "antes" y nuovi controles)
+  test_t2_linter.py         # Tests T2: endurecimiento del linter (pruebas "antes" y nuevos controles)
   test_paridad_formatos.py  # Paridad legacy vs DSL
   test_propiedad.py         # Tests de propiedad (factory + mutaciones)
   test_exportador.py        # Tests de exportación a Markdown/PDF
