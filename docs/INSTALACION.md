@@ -406,14 +406,14 @@ Sin eso, `--formato pdf` falla. Markdown y JSON funcionan igual.
 Usa esta lista para el hito de instalación de la actividad 4.
 
 - [ ] `nix develop` entra sin errores (o el venv nativo arranca).
+- [ ] `cd frontend && npm ci && npm run build && npm test` → build y tests
+      en verde. Esto deja `frontend/dist`, que la suite usa.
 - [ ] `nix run .#test -- tests/ -q` → `749 passed, 6 xfailed` con
-      `recursos/` y `frontend/dist` (sin `recursos/`: `745 passed,
-      4 skipped, 6 xfailed`). Ver la tabla de la sección 2.3.
+      `recursos/` y `frontend/dist`; sin `recursos/`: `746 passed,
+      3 skipped, 6 xfailed`. Ver la tabla de la sección 2.3.
 - [ ] `nix run .#serve -- validator.api:app` → `/docs` responde `200` en
       `127.0.0.1:8000`.
 - [ ] `Host: atacante.example` → `400`.
-- [ ] `cd frontend && npm ci && npm run build && npm test` → build y tests
-      en verde.
 - [ ] `docs/ejemplos/doc_bueno.docx` → verde; `doc_malo.docx` → rojo
       (4 errores, 1 warning).
 - [ ] `nix run .#test-ficha-deposito` → `✅ FLUJO COMPLETO OK` (opcional).
