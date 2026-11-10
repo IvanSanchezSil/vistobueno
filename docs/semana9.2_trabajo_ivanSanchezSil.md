@@ -2,8 +2,7 @@
 
 **Integrante**: IvanSanchezSil (Int3 — Motor de reglas / Procesamiento)
 **Fecha**: 2026-10-21
-**Rama**: `linter-config-invalida` (antes `semana9.2`; creada desde
-`origin/semana8-deposito-ficha` en `cccd7a3`)
+**Rama**: `fix/motor-linter-config-invalida` (PR #72, base `master`)
 **Estado**: Hecho
 
 ---
@@ -77,7 +76,7 @@ servidor**. Es la diferencia entre "tu tesis está mal" y "el motor está mal".
 - [x] `paginacion` sin `xpaths` (o con < 2) no se muestra como fallo del
       documento: es error de carga del DSL.
 - [x] Tests existentes siguen pasando.
-- [x] Suite: `pytest tests/ -v` → **499 passed, 1 skipped**.
+- [x] Suite al cerrar el PR: **799 passed, 4 skipped, 6 xfailed** (T3 aportó 8 tests).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
@@ -139,7 +138,7 @@ su tesis; un error de carga se presenta como 500 de configuración.
 - [x] Ningún YAML de producción produce hallazgos nuevos.
 - [x] Sin falsos positivos: ejes de XPath, prefijos válidos y campos propios
       de los analizadores no se reportan.
-- [x] Suite: `pytest tests/ -v` → **527 passed, 1 skipped** (499 + 28).
+- [x] Suite al cerrar el PR: **799 passed, 4 skipped, 6 xfailed** (T2 aportó 28 tests).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
@@ -150,7 +149,7 @@ su tesis; un error de carga se presenta como 500 de configuración.
 
 ### Actividades realizadas (fecha)
 
-- Commit `a89f2d7 chore: fusionar master en la rama del linter` (N5).
+- Commit `4a89695 chore: fusionar master en la rama del linter` (N5).
 - Commit `1108605 docs: agregar plan de corrección del linter (PR #72)` (plan).
 - Commit `ab4c709 fix(dsl): validar XPath con lxml y no confundir literales` (B1+M3).
 - Commit `a00251c fix(dsl): detectar cualquier clave de regla desconocida` (B2).
@@ -161,7 +160,8 @@ su tesis; un error de carga se presenta como 500 de configuración.
 - Commit `2d94688 fix(dsl): admitir los centinelas de detección de tipo` (M5).
 - Commit `3a33377 test(dsl): ejercitar de verdad los controles "antes"` (N3).
 - Commit `1d5738d docs: documentar los controles nuevos del linter` (N1).
-- Commit `docs: actualizar la bitácora de la semana 9.2` (N2).
+- Commit `ac22913 docs: actualizar la bitácora de la semana 9.2` (N2).
+- Commit `df3faa7 docs: actualizar checklist del plan de corrección del linter`.
 
 ### Competencias desarrolladas
 - **Ingeniería de software**: diseño de linter, testing y diseño de APIs.
@@ -184,10 +184,9 @@ Esta semana está completada; el PR #72 está listo para mergear (pendiente solo
 
 - No se toca `api.py`, `api_models.py`, `frontend/`, `notificacion.py`,
   `dspace.py`.
-- La rama `linter-config-invalida` parte de `origin/semana8-deposito-ficha`
-  (que ya tiene el PR #56 mergeado). El PR es el **#59**, con base en esa
-  rama de integración: así el diff muestra solo los commits de esta semana
-  y no mezcla el trabajo de ficha/buzón/constancias de otros integrantes.
+- La rama `fix/motor-linter-config-invalida` parte de `master` y corresponde
+  al **PR #72** de `retblast/vistobueno`. El diff muestra solo los cambios del
+  linter y su documentación.
 
 ---
 
@@ -195,10 +194,23 @@ Esta semana está completada; el PR #72 está listo para mergear (pendiente solo
 
 | Fecha | Commit | Qué |
 |-------|--------|-----|
-| 2026-10-21 | `a89f2d7` | T3: `ConfigurationError` + validación en `__init__` de los dos analizadores |
-| 2026-10-21 | `199ab3b` | T3: tests de configuración inválida (8 casos) |
-| 2026-10-21 | `56bf51f` | T3: detección en el linter (`_lint_lista_obligatoria`, `_lint_paginacion`) |
-| 2026-10-21 | `2b25586` | T3: bitácora de la semana |
-| 2026-10-21 | (T2) | T2: endurecer el linter (secciones, XPath, severidad, ids, `aplicar_si`) |
-| 2026-10-21 | (T2) | T2: tests de los 5 casos (28 tests) |
-| 2026-10-21 | (T2) | T2: bitácora de la semana |
+| 2026-10-21 | `e2a7cfa` | T3: evitar falsos verdes en `lista_obligatoria` y `paginacion` |
+| 2026-10-21 | `787cf31` | T3: tests de configuración inválida |
+| 2026-10-21 | `05a11d0` | T3: detección en el linter |
+| 2026-10-21 | `93c0a07` | T3: bitácora |
+| 2026-10-21 | `8e25a2c` | T2: endurecer el linter del DSL |
+| 2026-10-21 | `ddf2233` | T2: tests de los 5 casos |
+| 2026-10-21 | `3d9ebac` | T2: bitácora |
+| 2026-11-09 | `4a89695` | Fusionar `master` en la rama del linter (N5) |
+| 2026-11-09 | `1108605` | Plan de corrección del linter (PR #72) |
+| 2026-11-09 | `ab4c709` | B1 + M3: validar XPath con lxml |
+| 2026-11-09 | `a00251c` | B2: detectar claves de regla desconocidas |
+| 2026-11-09 | `c5d8654` | M2a: `ConfigurationError` como error del DSL |
+| 2026-11-09 | `291a558` | M2b: rechazar secciones que no son diccionario |
+| 2026-11-09 | `b34623a` | M1: restaurar el docstring de `AnalizadorPaginacion` |
+| 2026-11-09 | `fa58810` | M4: derivar las severidades de `Severity` |
+| 2026-11-09 | `2d94688` | M5: admitir los centinelas de tipo |
+| 2026-11-09 | `3a33377` | N3: tests "antes" con runtime real |
+| 2026-11-09 | `1d5738d` | N1: documentar los controles nuevos |
+| 2026-11-09 | `ac22913` | N2: actualizar esta bitácora |
+| 2026-11-09 | `df3faa7` | Actualizar el checklist del plan |
