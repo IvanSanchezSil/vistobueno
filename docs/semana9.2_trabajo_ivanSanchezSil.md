@@ -1,7 +1,7 @@
 # Semana 9.2 — Bitácora de trabajo
 
 **Integrante**: IvanSanchezSil (Int3 — Motor de reglas / Procesamiento)
-**Fecha**: 2026-10-21
+**Fecha**: 2026-10-21 — 2026-11-10
 **Rama**: `fix/motor-linter-config-invalida` (PR #72, base `master`)
 **Estado**: Hecho
 
@@ -214,3 +214,13 @@ Esta semana está completada; el PR #72 está listo para mergear (pendiente solo
 | 2026-11-09 | `1d5738d` | N1: documentar los controles nuevos |
 | 2026-11-09 | `ac22913` | N2: actualizar esta bitácora |
 | 2026-11-09 | `df3faa7` | Actualizar el checklist del plan |
+| 2026-11-09 | `897506e` | M-A: corregir la bitácora (rama, notas e historial) |
+| 2026-11-09 | `ad52f86` | L-1 y L-3: typo del README y árbol de tests |
+| 2026-11-09 | `92acec5` | L-2: actualizar la sección del linter en `docs/DSL.md` |
+| 2026-11-09 | `a5d225b` | L-4: C3 con 18 entradas y decisión C8 |
+| 2026-11-09 | `00abc30` | L-6: sincronizar las claves de regla con el motor |
+| 2026-11-09 | `15aa96a` | L-5: cerrar el checklist del plan |
+| 2026-11-09 | `ced9aed` | L-5: actualizar el conteo final de la suite |
+| 2026-11-10 | `6a27ece` | M-B y L-7: sincronizar secciones y robustecer el guard de claves |
+| 2026-11-10 | `03b616c` | L-8: citar el test real de sincronía de secciones |
+| 2026-11-10 | `07fa3e1` | L-10: newline final en `docs/DSL.md` |
