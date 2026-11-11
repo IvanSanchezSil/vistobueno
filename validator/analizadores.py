@@ -74,6 +74,11 @@ class Analizador(ABC):
         # `AnalizadorExtraccion` y los analizadores con `extraccion` anidada lo
         # rellenan.
         self.ficha: list[dict] = []
+        # Marca que el analizador determinó que la regla NO APLICA a este
+        # documento (p. ej. `n_a_si_sin_nodos` o `n_a_si_ausente`). El
+        # compilador la usa para devolver `aplicable=False` en vez de un
+        # "cumple" engañoso (AUD-07).
+        self.no_aplica = False
 
     @abstractmethod
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]: ...
@@ -114,6 +119,7 @@ class AnalizadorXML(Analizador):
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
         comp = self.config.get("comparacion", "exists")
+        self.no_aplica = False
 
         try:
             nodes = self._nodos(extracted, parte, contexto)
@@ -121,6 +127,7 @@ class AnalizadorXML(Analizador):
             # La parte no existe (p. ej. tesis sin header*.xml): si la regla
             # declara `n_a_si_ausente`, el incumplimiento no aplica (n/a).
             if self.config.get("n_a_si_ausente"):
+                self.no_aplica = True
                 return True, f"no aplica (parte '{parte}' ausente)"
             raise
 
@@ -135,6 +142,7 @@ class AnalizadorXML(Analizador):
         # solo existe en cierto tipo de título), en vez de fallar con
         # `@w:val=[] esperado=...` (AUD-07).
         if not nodes and self.config.get("n_a_si_sin_nodos"):
+            self.no_aplica = True
             return True, "no aplica (sin nodos)"
 
         # Atributo
@@ -391,9 +399,12 @@ class AnalizadorListaObligatoria(Analizador):
 
         texto_norm = _norm(texto)
         faltan = [it for it in items if _norm(it) not in texto_norm]
+        encontrados = len(items) - len(faltan)
         if not faltan:
-            return True, f"items_obligatorios={len(items)} completo"
-        return False, f"items_obligatorios={len(items)} faltan={faltan}"
+            return True, f"items_obligatorios={len(items)} encontrados={encontrados} completo"
+        return False, (
+            f"items_obligatorios={len(items)} encontrados={encontrados} faltan={faltan}"
+        )
 
 
 class AnalizadorPaginacion(Analizador):
@@ -567,15 +578,24 @@ def _norm_indice(texto: str) -> str:
     Quita el prefijo de numeración (romano "I." o decimal "1.1."), el número
     de página al final (arábigo "10" o romano "ii"), separadores sueltos,
     tildes y colapsa el whitespace.
+
+    La página se recorta aunque venga PEGADA al título (`1.2.1.General17`,
+    `Dedicatoriaii`): en los índices reales de Word el tabulador que separa
+    título y página no llega a `text_of`, y exigir whitespace dejaba 21
+    entradas sin sección (AUD-01). El título del CUERPO usa
+    `_norm_titulo_cuerpo`, que no recorta sufijo romano, así que este
+    heurístico no puede volver a borrar la `l` de "General".
     """
     s = texto.strip()
     s = re.sub(r"^\s*(?:[IVXLC]+\s*\.|(?:\d+)+(?:\.\d+)*\s*\.?\s*)", "", s)
     s = re.sub(r"[()\[\],;:¿?¡!.]", " ", s)
     s = s.translate(_MAP_ACENTOS)
     s = re.sub(r"\s+", " ", s).strip().upper()
-    if re.search(r"\s+[IVXLC]{1,5}$", s) or re.search(r"\s+\d+$", s):
-        s = re.sub(r"\s+[IVXLC]{1,5}\s*$", "", s)
-        s = re.sub(r"\s+\d+\s*$", "", s)
+    # Página romana y arábiga, separadas o pegadas. El romano va primero:
+    # si se quitara el arábigo antes, `1.2.1.General17` quedaría `GENERAL` y
+    # el recorte romano volvería a comerse la `l` (el bug original).
+    s = re.sub(r"\s*[IVXLC]{1,5}\s*$", "", s)
+    s = re.sub(r"\s*\d+\s*$", "", s)
     return s.strip()
 
 
@@ -591,6 +611,23 @@ def _sigpalabra(s: str) -> str:
         if len(tk) >= 4:
             return tk
     return ""
+
+
+def _texto_con_tabs(nodo) -> str:
+    """Texto de un párrafo preservando `w:tab` como espacio.
+
+    `text_of()` solo concatena `w:t`, así que en un índice de Word el
+    tabulador que separa título y página desaparece y ambos quedan pegados
+    (`1.2.1.General17`). Para normalizar entradas del índice necesitamos ese
+    separador (AUD-01); los saltos de línea también se tratan como espacio.
+    """
+    partes: list[str] = []
+    for hijo in nodo.iter():
+        if hijo.tag == W + "t":
+            partes.append(hijo.text or "")
+        elif hijo.tag in (W + "tab", W + "br", W + "cr"):
+            partes.append(" ")
+    return "".join(partes)
 
 
 def _entradas_indice(extracted: ExtractedDocx, regex_indice: str = REFERENCIA_INDICE) -> list[dict]:
@@ -611,7 +648,7 @@ def _entradas_indice(extracted: ExtractedDocx, regex_indice: str = REFERENCIA_IN
     for p in body.findall(W + "p"):
         st = p.find(f"{W}pPr/{W}pStyle")
         estilo = st.get(W + "val") if st is not None else ""
-        texto = text_of(p).strip()
+        texto = _texto_con_tabs(p).strip()
         if es_heading(estilo):
             en_region = bool(rx.search(_sin_acentos(texto)))
             continue

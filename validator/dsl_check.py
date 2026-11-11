@@ -82,6 +82,58 @@ def _lint_xml(config: dict, hallazgos: list[str], rule_id: str, seccion: str) ->
             hallazgos.append(f"[{rule_id}] {seccion}: 'comparacion: {comp}' requiere 'atributo'")
 
 
+# Claves que entiende la sub-configuración `seccion:` de `lista_obligatoria`.
+# Se declaran aquí para que un typo (`hasta_fin`, `final`) falle en carga en
+# vez de ignorarse en silencio.
+_CLAVES_SECCION = frozenset({"inicio", "fin", "hasta_final"})
+
+
+def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `lista_obligatoria`: ítems y la sub-configuración `seccion`.
+
+    `hasta_final` se registra aquí explícitamente (AUD-02): sin este linter,
+    una regla podía declarar la clave y el DSL la aceptaba sin validar su
+    tipo ni avisar de un nombre mal escrito.
+    """
+    items = config.get("items")
+    if not isinstance(items, list) or not items:
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'items' debe ser una lista no vacía")
+    elif not all(isinstance(it, str) and it.strip() for it in items):
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'items' debe contener textos no vacíos")
+
+    if "ignore_case" in config and not isinstance(config.get("ignore_case"), bool):
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'ignore_case' debe ser booleano")
+
+    seccion = config.get("seccion")
+    if seccion is None:
+        return
+    if not isinstance(seccion, dict):
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'seccion' debe ser un mapa")
+        return
+
+    desconocidas = sorted(set(seccion) - _CLAVES_SECCION)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] lista_obligatoria: 'seccion' tiene claves desconocidas "
+            f"{desconocidas} (válidas: {sorted(_CLAVES_SECCION)})"
+        )
+
+    inicio = seccion.get("inicio")
+    if not isinstance(inicio, str) or not inicio.strip():
+        hallazgos.append(
+            f"[{rule_id}] lista_obligatoria: 'seccion.inicio' debe ser un texto no vacío"
+        )
+    fin = seccion.get("fin")
+    if fin is not None and (not isinstance(fin, str) or not fin.strip()):
+        hallazgos.append(
+            f"[{rule_id}] lista_obligatoria: 'seccion.fin' debe ser un texto no vacío"
+        )
+    if "hasta_final" in seccion and not isinstance(seccion.get("hasta_final"), bool):
+        hallazgos.append(
+            f"[{rule_id}] lista_obligatoria: 'seccion.hasta_final' debe ser booleano"
+        )
+
+
 def _lint_automata_secuencia(config: dict, hallazgos: list[str], rule_id: str) -> None:
     estados = config.get("estados", [])
     if not estados:
@@ -400,6 +452,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_automata_pila(c, hallazgos, rule_id)
                 elif seccion == "deteccion_tipo":
                     _lint_deteccion_tipo(c, hallazgos, rule_id, rule)
+                elif seccion == "lista_obligatoria":
+                    _lint_lista_obligatoria(c, hallazgos, rule_id)
     _lint_contexto(rules, hallazgos)
     return hallazgos
 

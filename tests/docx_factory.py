@@ -29,6 +29,7 @@ from _docx_builder import (
     compilar_docx,
     configuracion_anexos_titulos,
     configuracion_base,
+    configuracion_indice_tabs,
     configuracion_titulo_romano,
 )
 from _mutations import (
@@ -55,6 +56,7 @@ __all__ = [
     "compilar_docx",
     "configuracion_anexos_titulos",
     "configuracion_base",
+    "configuracion_indice_tabs",
     "configuracion_titulo_romano",
 ]
 

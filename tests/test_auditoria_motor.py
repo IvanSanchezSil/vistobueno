@@ -21,6 +21,7 @@ from pathlib import Path
 from docx_factory import (
     compilar_docx,
     configuracion_anexos_titulos,
+    configuracion_indice_tabs,
     configuracion_titulo_romano,
 )
 
@@ -52,14 +53,25 @@ def _sin_archivo(path: str):
     Path(path).unlink(missing_ok=True)
 
 
-def test_norm_indice_no_recorta_sufijo_de_palabra():
-    """AUD-01: sin número de página, la última letra se conserva."""
-    assert _norm_indice("GENERAL") == "GENERAL"
+def test_norm_titulo_cuerpo_no_recorta_sufijo_de_palabra():
+    """AUD-01: el título del cuerpo conserva su última letra."""
     assert _norm_titulo_cuerpo("General") == "GENERAL"
+    assert _norm_titulo_cuerpo("GENERAL") == "GENERAL"
+
+
+def test_norm_indice_recorta_pagina_pegada():
+    """AUD-01: la página se recorta aunque venga pegada al título.
+
+    Es la estructura real del índice de la tesis: `text_of()` ignora el
+    tabulador y deja `1.2.1.General17`, `Dedicatoriaii`, `Resumenx`.
+    """
+    assert _norm_indice("1.2.1.General17") == "GENERAL"
+    assert _norm_indice("Dedicatoriaii") == "DEDICATORIA"
+    assert _norm_indice("Resumenx") == "RESUMEN"
 
 
 def test_norm_indice_si_recorta_pagina_arabiga_y_romana():
-    """AUD-01: con número de página, sí se recorta (precedido de espacio)."""
+    """AUD-01: con separador, la página también se recorta."""
     assert _norm_indice("1.4. OBJETIVOS 9") == "OBJETIVOS"
     assert _norm_indice("OBJETIVOS iv") == "OBJETIVOS"
 
@@ -72,6 +84,22 @@ def test_aud01_titulo_romano_apunta_a_seccion_real():
     finally:
         _sin_archivo(path)
     assert res["indice_apunta_secciones"].passed
+
+
+def test_aud01_indice_con_tabuladores_reales():
+    """AUD-01/AUD-20: índice con `w:tab` y páginas pegadas de una letra.
+
+    Reproduce la estructura real: `1.4.1.<tab>GENERAL<tab>9` y
+    `RESUMEN<tab>x`. Sin preservar el tabulador, la entrada se extraía
+    pegada y no encontraba su sección.
+    """
+    path = compilar_docx(configuracion_indice_tabs())
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    assert res["indice_apunta_secciones"].passed, res["indice_apunta_secciones"].found
+    assert res["indice_numeracion_jerarquica"].passed
 
 
 def test_aud02_anexos_como_titulos_satisfacen_minimos():
@@ -185,19 +213,23 @@ def _validar_sz(comparacion: str, esperado: str):
 
 
 def test_aud03_culpables_primero_y_pagina_del_nodo_infractor():
-    """AUD-03: `incumplen` va antes y la página es la del nodo culpable."""
+    """AUD-03: los incumplimientos van primero y con la página del culpable."""
     r = _validar_sz("all_eq", "24")
     assert not r.passed
-    assert r.found == "@w:val esperado=24; incumplen=[#2=30]; muestra=[24, 30, 24]"
+    assert r.found == (
+        "@w:val: 3 valores evaluados, 1 incumplen: #2=15 pt (pág. 2); esperado=12 pt"
+    )
     # El primer nodo (A) está en la página 1; el culpable (B) en la 2.
     assert r.location == "Cuerpo; página 2"
 
 
-def test_aud03_valores_sin_repr_crudo():
-    """AUD-03: la muestra se imprime legible, sin comillas de lista Python."""
+def test_aud03_valores_en_puntos_sin_repr_crudo():
+    """AUD-03: el valor se muestra en puntos, sin comillas de lista Python."""
     r = _validar_sz("eq", "26")
     assert not r.passed
-    assert r.found == "@w:val=[24, 30, 24] esperado=26"
+    assert r.found == (
+        "@w:val: 3 valores evaluados, 1 incumplen: #1=12 pt (pág. 1); esperado=13 pt"
+    )
 
 
 def test_aud06_entrada_sin_palabra_larga_se_omite():
@@ -218,11 +250,19 @@ def test_aud07_linea_bachiller_se_evalua():
         _sin_archivo(path)
     regla = res["caratula_optar_grado_tamano"]
     assert not regla.passed
-    assert regla.found == "@w:val=[24] esperado=26"
+    assert regla.aplicable
+    assert regla.found == (
+        "@w:val: 1 valores evaluados, 1 incumplen: #1=12 pt (pág. 1); esperado=13 pt"
+    )
 
 
-def test_aud07_otras_titulaciones_no_disparan_la_regla():
-    """AUD-07: la línea de Licenciatura queda fuera del alcance (n/a)."""
+def test_aud07_otras_titulaciones_son_no_aplicables():
+    """AUD-07: la línea de Licenciatura deja la regla como NO APLICABLE.
+
+    El contrato de la API exige `aplicable=False` y el texto
+    "no aplica a este documento" para una regla que no le toca al documento;
+    un "cumple" haría creer que se evaluó.
+    """
     path = _docx_caratula(
         "Para Optar el Título Profesional de Licenciada en Educación Inicial",
         "24",
@@ -233,4 +273,5 @@ def test_aud07_otras_titulaciones_no_disparan_la_regla():
         _sin_archivo(path)
     regla = res["caratula_optar_grado_tamano"]
     assert regla.passed
-    assert regla.found == "cumple"
+    assert not regla.aplicable
+    assert regla.found == "no aplica a este documento"
