@@ -61,6 +61,13 @@ jobs:
       - name: Build frontend (npm ci + vite build)
         run: nix develop --command sh -c "cd frontend && npm ci && npm run build"
 
+      # La API sirve la SPA desde `frontend/dist` (validator/api.py). El
+      # test de integración solo corre si el build existe, así que en el
+      # job `check` queda en skip. Este paso lo ejecuta con la SPA ya
+      # construida. Aditivo: no toca ni relaja ningún paso existente.
+      - name: Test API sirve la SPA (pytest con frontend/dist)
+        run: nix develop --command python3 -m pytest tests/test_api_spa.py -q
+
       # Observación de revisión (Arreglos.txt v4): toda área con
       # verificación propia debe tener su paso en CI (AGENTS.md,
       # "Protección del CI"). Aditivo: reutiliza node_modules del
