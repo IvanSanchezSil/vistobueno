@@ -18,6 +18,9 @@ Uso:
     pytest tests/test_t2_linter.py -v
 """
 
+import ast
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -406,6 +409,115 @@ def test_linter_o_alzar_mensaje_legible():
     assert "duplicado" in str(exc.value)
 
 
+_NOMBRES_REGLA = frozenset({"rule", "regla"})
+
+
+def _menciona_contenedor_de_reglas(nodo: ast.AST) -> bool:
+    """¿La expresión es el `.get("reglas"/"rules")` que itera el compilador?"""
+    return any(
+        isinstance(sub, ast.Constant) and sub.value in {"reglas", "rules"} for sub in ast.walk(nodo)
+    )
+
+
+def _es_receptor_de_regla(nodo: ast.AST, receptores: set[str]) -> bool:
+    """¿El receptor de un acceso es un diccionario de regla?"""
+    if isinstance(nodo, ast.Name):
+        return nodo.id in receptores
+    # `self.rule` y cualquier otro `<objeto>.rule` / `.regla`.
+    return isinstance(nodo, ast.Attribute) and nodo.attr in _NOMBRES_REGLA
+
+
+def _claves_de_regla_en_fuente(codigo: str) -> set[str]:
+    """Claves de nivel de regla leídas en un fragmento, vía AST.
+
+    Se considera receptor de regla una variable llamada `rule`/`regla` o
+    cualquier atributo `.rule`/`.regla` (p. ej. `self.rule`). Además se
+    propagan los alias y los destinos de un `for` sobre
+    `.get("reglas"/"rules")`, para que renombrar la variable no deje el
+    guard en verde sin cubrir nada (L-7).
+
+    Al recorrer el AST da igual la comilla usada y se detectan también los
+    accesos con subíndice, que un regex sobre el texto no veía.
+    """
+    arbol = ast.parse(codigo)
+    receptores = set(_NOMBRES_REGLA)
+
+    # Propagación simple de alias: `for r in rules_data.get("reglas", [])`
+    # y `otra = rule` marcan `r`/`otra` como receptores de regla.
+    cambiado = True
+    while cambiado:
+        cambiado = False
+        for nodo in ast.walk(arbol):
+            destinos: list[ast.AST] = []
+            if isinstance(nodo, ast.For) and _menciona_contenedor_de_reglas(nodo.iter):
+                destinos = [nodo.target]
+            elif (
+                isinstance(nodo, ast.Assign)
+                and isinstance(nodo.value, ast.Name)
+                and nodo.value.id in receptores
+            ):
+                destinos = list(nodo.targets)
+            elif (
+                isinstance(nodo, ast.AnnAssign)
+                and nodo.value is not None
+                and isinstance(nodo.value, ast.Name)
+                and nodo.value.id in receptores
+            ):
+                destinos = [nodo.target]
+            for destino in destinos:
+                for nombre in ast.walk(destino):
+                    if isinstance(nombre, ast.Name) and nombre.id not in receptores:
+                        receptores.add(nombre.id)
+                        cambiado = True
+
+    claves: set[str] = set()
+    for nodo in ast.walk(arbol):
+        receptor: ast.AST | None = None
+        argumentos: list[ast.AST] = []
+        if (
+            isinstance(nodo, ast.Call)
+            and isinstance(nodo.func, ast.Attribute)
+            and nodo.func.attr == "get"
+        ):
+            receptor = nodo.func.value
+            argumentos = nodo.args
+        elif isinstance(nodo, ast.Subscript):
+            receptor = nodo.value
+            argumentos = [nodo.slice]
+        if receptor is None or not _es_receptor_de_regla(receptor, receptores):
+            continue
+        if (
+            argumentos
+            and isinstance(argumentos[0], ast.Constant)
+            and isinstance(argumentos[0].value, str)
+        ):
+            claves.add(argumentos[0].value)
+    return claves
+
+
+def _claves_de_regla_leidas(ruta: Path) -> set[str]:
+    """Claves de nivel de regla que el motor lee en `ruta`."""
+    return _claves_de_regla_en_fuente(ruta.read_text(encoding="utf-8"))
+
+
+def test_el_guard_de_claves_no_depende_del_nombre_ni_de_las_comillas():
+    """L-7: el guard detecta comillas simples, `self.rule` y variables renombradas."""
+    codigo = """
+for r in rules_data.get("reglas", []):
+    r.get('valor_esperado')
+    r["ubicacion"]
+self.rule.get('cita')
+alias = r
+alias.get("fuente")
+"""
+    assert _claves_de_regla_en_fuente(codigo) == {
+        "valor_esperado",
+        "ubicacion",
+        "cita",
+        "fuente",
+    }
+
+
 def test_claves_de_regla_sincronizadas_con_el_motor():
     """Toda clave de regla que el motor lee debe estar en `_CLAVES_VALIDAS`.
 
@@ -415,16 +527,26 @@ def test_claves_de_regla_sincronizadas_con_el_motor():
     test compara `_CLAVES_VALIDAS` con las claves que leen `compilador.py` y
     `engine.py`.
     """
-    import re
-    from pathlib import Path
-
     from validator.dsl_check import _CLAVES_VALIDAS
 
     raiz = Path(__file__).resolve().parent.parent / "validator"
-    patron = re.compile(r'rule(?:\.get\(|\[)"([a-z_]+)"')
     leidas: set[str] = set()
     for archivo in ("compilador.py", "engine.py"):
-        leidas |= set(patron.findall((raiz / archivo).read_text(encoding="utf-8")))
+        leidas |= _claves_de_regla_leidas(raiz / archivo)
 
     faltantes = leidas - _CLAVES_VALIDAS
     assert not faltantes, f"claves leídas por el motor fuera del linter: {sorted(faltantes)}"
+
+
+def test_secciones_del_linter_sincronizadas_con_el_compilador():
+    """M-B: el linter y el compilador conocen el MISMO conjunto de secciones.
+
+    Si el linter conoce una sección que el compilador ya no (deriva A), la
+    regla compila a 0 analizadores y desaparece del reporte sin error; si es
+    al revés (deriva B), la regla revienta con `DSLValidationError` y la API
+    devuelve un 500 global. Comparar los conjuntos convierte la deriva futura
+    en un fallo de test.
+    """
+    from validator import compilador, dsl_check
+
+    assert set(dsl_check._SECCIONES) == set(compilador.SECCIONES_ANALIZADOR)
