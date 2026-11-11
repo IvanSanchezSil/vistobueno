@@ -200,6 +200,113 @@ comportamiento por defecto no cambia.
 
 ---
 
+### 2026-11-04 — El reporte mostraba solo las primeras 3 líneas de cada error
+
+**Lo que reportó el equipo**: «el backend manda todos los errores (ejemplo:
+error de sangría en todas las líneas), pero el frontend solo muestra las
+primeras 3 líneas de error».
+
+**Diagnóstico**: el truncamiento no estaba en el frontend (que renderiza
+`encontrado`/`found` entero) sino en el **backend**: el detalle de cada
+regla se armaba con los tres primeros valores (`vals[:3]`) y con los tres
+primeros incumplimientos (`incumplen[:3]`, `fallos[:6]`). Una regla que
+fallaba en todas las líneas —la sangría es el caso típico— llegaba al
+frontend con 3 líneas de error de las N que había, y además mostraba primero
+los valores conformes, que esconden al culpable.
+
+**Solución (AUD-03, opción 1 acordada por el equipo el 2026-10-28)**:
+
+- **Nuevo módulo `validator/detalle.py`**: una sola fuente de verdad del
+  texto del detalle, importada por los **dos** motores (`checks.py` legacy y
+  `analizadores.py` DSL). Así la paridad legacy↔DSL sigue siendo literal (el
+  test de paridad compara el texto completo) y no hay dos copias del
+  formateo.
+- **Se listan TODOS los incumplimientos**, cada uno con su posición (`#1`,
+  `#2`, …), su valor y su página. Si superan el tope (200), el detalle dice
+  cuántos más hay: nunca hay pérdida silenciosa de información.
+- **Unidades legibles**: la sangría y los márgenes se muestran en cm y el
+  tamaño de letra en puntos (Word guarda twips y medios puntos).
+- **La ubicación apunta al primer nodo culpable**, no al primero que devolvió
+  el XPath (la página que se informaba era la de un párrafo que sí cumplía).
+- **Frontend**: `overflow-wrap: anywhere` en la caja del detalle (el texto
+  largo tiene que partirse y leerse entero) y el mock regenerado desde una
+  respuesta real con el formato nuevo.
+
+**Verificación**:
+
+- `tests/test_detalle_incidencias.py` (7 tests): lista completa de
+  incumplimientos, página de cada uno, aviso al superar el tope, paridad
+  literal legacy↔DSL, detalle de lista de valores y de patrón de texto, y
+  ubicación apuntando al culpable (este test **falla** si se revierte el
+  cambio del nodo culpable).
+- `frontend/src/components/Report.detalleCompleto.test.jsx` (2 tests): el
+  frontend pinta los 8 incumplimientos, no solo los primeros.
+- `pytest`: 671 passed, 3 skipped, 6 xfailed.
+- `vitest`: 68 passed (8 archivos) · `eslint`: 0 · `build`: 187.45 kB ·
+  `ruff format --check`: 71 archivos correctos.
+- E2E `scripts/e2e_flujo_completo.sh`: ✅ todas las pruebas.
+- Verificación con navegador real (Playwright) sobre un DOCX con 8 párrafos
+  de sangría incorrecta: el detalle en pantalla muestra los 8 incumplimientos
+  con su página, y la caja no recorta el texto
+  (`capturas/07_detalle_completo.png`).
+
+**Coordinación**: el cambio toca `validator/`, que es área de Int3, así que
+va en el **PR #78** abierto contra `upstream` para que lo revise y lo mergee.
+El equipo ya había acordado la forma (opción 1 de AUD-03: módulo único
+`validator/detalle.py`). La tabla §11 del handover queda actualizada con el
+estado «implementado, pendiente de merge».
+
+**Pendiente para Int3**: `docs/ejemplo_respuesta_motor.json` es la salida de
+referencia del motor contra la tesis real y quedó con el formato anterior
+del detalle; hay que regenerarlo con el documento real (no está en el
+repositorio).
+
+---
+
+### 2026-11-04 (2ª tanda) — Respuesta a la revisión del PR #78
+
+**Revisión de retblast** (2026-11-04): un bloqueante y varias
+observaciones. Todas aplicadas:
+
+1. **Bloqueante — una regla fallida informaba "0 incumplen"**. La lista de
+   incumplimientos se filtraba por `comp == "all_eq"`, pero el detalle
+   imprimía el conteo sin condición: con `comparacion: eq` o `contains`
+   (9 checks en 8 reglas) una regla en rojo decía que no había nada que
+   corregir. **Arreglado**: la comparación (veredicto + lista de
+   incumplimientos) vive ahora en `evaluar_atributo()` dentro de
+   `validator/detalle.py` y la usan los dos motores, así que el detalle no
+   puede contradecir al semáforo. Para `eq` el culpable es el valor que la
+   comparación evalúa; si no se leyó ningún valor, el detalle dice
+   «sin valores que comparar». Test nuevo con una regla `eq` que falla
+   (papel Letter): el detalle nombra `#1=21.59 cm`.
+2. **AUD-15 (escape del exportador)**: el detalle nuevo mete texto del
+   documento (hasta 60 caracteres por incidente), así que el exportador
+   podía inyectar HTML crudo en el Markdown y en el PDF. **Arreglado**:
+   `_escapar()` escapa `&`, `<`, `>` y `|` en la tabla, el detalle y los
+   encabezados, con test.
+3. **«Culpables primero» a medias**: el prefijo seguía mostrando los
+   primeros valores leídos (que suelen ser los conformes). **Arreglado**: el
+   detalle ya no muestra esa muestra de valores; empieza por el atributo,
+   el número de valores evaluados y la lista de incumplimientos.
+4. **Unidades en cm/pt**: la revisión está de acuerdo con que es más legible
+   para el estudiante; se documentó la decisión en el handover (§AUD-03).
+5. **Heurística de unidad por subcadena del xpath**: **arreglada**; la
+   unidad se deduce del **último paso** del xpath (el elemento que lleva el
+   atributo), así que un `w:ind` mencionado en un predicado no convierte un
+   valor a centímetros.
+6. **Cifras de la verificación**: las del primer mensaje correspondían a
+   otro estado del árbol; se publican las medidas por retblast sobre la
+   base actual (737 recolectados, 731 pasan, 6 xfail) y las locales.
+
+**Verificación tras los cambios**: `pytest` 674 passed, 3 skipped, 6 xfailed
+(4 tests nuevos: `eq` que falla, sin valores que comparar, escape del
+exportador) · `vitest` 68 passed · `eslint` 0 · `build` 187.45 kB ·
+`ruff check` y `ruff format --check` limpios · `mypy` sin avisos ·
+E2E `scripts/e2e_flujo_completo.sh` OK · Playwright: el detalle muestra los
+8 incumplimientos con su página.
+
+---
+
 ## Evidencias producidas
 
 - `frontend/src/components/ErrorBoundary.jsx` — límite de error con
@@ -222,6 +329,14 @@ comportamiento por defecto no cambia.
   papeleo).
 - `docs/HANDOVER_AUDITORIA_2026-10-26.md` (tabla §11) y `AGENTS.md` (bloque
   de aviso) — cierre administrativo de AUD-16, AUD-17 y AUD-18.
+- `validator/detalle.py` — módulo único del texto de detalle (AUD-03), usado
+  por los dos motores.
+- `tests/test_detalle_incidencias.py` — 7 tests del detalle completo
+  (incumplimientos, páginas, tope, paridad legacy↔DSL).
+- `frontend/src/components/Report.detalleCompleto.test.jsx` — 2 tests de
+  render del detalle completo.
+- `capturas/07_detalle_completo.png` — captura de la verificación con
+  navegador real (8 incumplimientos visibles).
 
 ---
 
@@ -273,12 +388,15 @@ comportamiento por defecto no cambia.
 
 ## Plan de la semana siguiente
 
-1. Mergear el PR #62 y después el #68 (el #68 se apila sobre el #62: su
-   `App.jsx` conserva el límite de error y los iconos SVG del día 1).
+1. ~~Mergear el PR #62 y después el #68~~ → **hecho**: los dos quedaron
+   mergeados (`30ac699` y `2d2f0ac`).
 2. Ajustar la pantalla de ficha a los cambios de Int1 en el contrato
-   (`X-VistoBueno-Token`) y a los criterios de Int3 para AUD-24 a AUD-27.
+   (`X-VistoBueno-Token`, ya aplicado) y a los criterios de Int3 para
+   AUD-24 a AUD-27 (siguen abiertos: dependen del motor).
 3. Revisar con el equipo la numeración de semanas del calendario (la
    ventana 2026-10-26 → 2026-10-31 figura como «semana 9» en la bitácora de
    retblast y como «semana 10» en este archivo) y unificar el criterio.
 4. Cerrar la semana con la actualización del Plan PPP (evidencia de las
    horas ejecutadas) y el informe de avance.
+5. Revisar con Int3 el PR del detalle completo (AUD-03) y regenerar
+   `docs/ejemplo_respuesta_motor.json` con la tesis real.

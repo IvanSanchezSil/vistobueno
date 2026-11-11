@@ -49,8 +49,17 @@
 	function reportarDeposito(handle) {
 		const envio = GM_getValue(CLAVE_ENVIO, null);
 		if (!envio) return;
-		const timestamp =
-			envio.timestamp || new Date().toISOString().slice(0, 19);
+		// El ítem abierto debe ser la tesis preparada: un ítem ajeno
+		// (otra pestaña, una búsqueda) no debe pisar la ranura del buzón.
+		const meta = doc.querySelector('meta[name="citation_title"]');
+		const tituloItem = meta ? meta.getAttribute("content") || "" : "";
+		if (envio.titulo && tituloItem && !VBCompuertas.titulosCoinciden(envio.titulo, tituloItem)) {
+			mostrarToast(
+				"El ítem abierto no coincide con la tesis preparada; no se reportó a VistoBueno."
+			);
+			return;
+		}
+		const timestamp = envio.timestamp || VBReloj.ahoraLima();
 		pedir(
 			"/deposito",
 			"POST",
@@ -112,7 +121,32 @@
 
 	// --- Flujo principal ---
 
+	function _tituloDelFormulario() {
+		const el = doc.querySelector(VBCompuertas.SELECTORES.titulo);
+		return el ? (el.value || "").trim() : "";
+	}
+
 	function llenar(ficha) {
+		const tituloFicha = (VBMapeador.valorExtraido(ficha, "dc.title") || "").trim();
+		const tituloActual = _tituloDelFormulario();
+		const envio = GM_getValue(CLAVE_ENVIO, null);
+		// Si el userscript YA llenó esta tesis y el formulario sigue
+		// mostrando su título, NO se vuelve a llenar: el operador ya
+		// corrigió lo que quiso y un segundo relleno pisaría sus
+		// cambios (revisión PR #71, b1).
+		//
+		// La condición exige un envío registrado: si el operador escribió
+		// el título a mano (sin relleno previo), el llenado sigue
+		// adelante — si no, el formulario quedaría a medias sin salida.
+		const yaLleno =
+			envio &&
+			envio.titulo &&
+			tituloFicha &&
+			VBCompuertas.titulosCoinciden(envio.titulo, tituloFicha);
+		if (yaLleno && tituloActual && VBCompuertas.titulosCoinciden(tituloActual, tituloFicha)) {
+			mostrarToast("El formulario ya tiene esta tesis: no se volvió a rellenar.");
+			return;
+		}
 		const plan = VBMapeador.construirPlan(ficha, VBCompuertas.SELECTORES);
 		VBEjecutor.aplicarPlan(doc, plan).then(function (resumen) {
 			const partes = ["Rellenado de VistoBueno — revisa antes de continuar."];
@@ -120,9 +154,12 @@
 			if (resumen.fallidos.length) partes.push("A mano: " + resumen.fallidos.join(", ") + ".");
 			if (resumen.omitidos.length) partes.push("Sin dato: " + resumen.omitidos.join(", ") + ".");
 			mostrarToast(partes.join(" "), 12000);
+			// El timestamp del clic en "Depositar" se conserva: un
+			// relleno posterior no puede borrarlo (revisión PR #71, b1).
+			const previo = GM_getValue(CLAVE_ENVIO, null);
 			GM_setValue(CLAVE_ENVIO, {
 				titulo: VBMapeador.valorExtraido(ficha, "dc.title") || null,
-				timestamp: null,
+				timestamp: previo ? previo.timestamp || null : null,
 			});
 		});
 	}
@@ -144,20 +181,26 @@
 	}
 
 	// El SPA de DSpace navega sin recargar: un observador detecta tanto la
-	// aparición del formulario como la página del ítem con el handle.
-	const visto = { formulario: false, handle: false };
+	// aparición del formulario como la página del ítem con el handle. El
+	// estado se recalcula en cada pasada para que una SEGUNDA tesis (u otro
+	// ítem abierto después) no quede bloqueada por la anterior.
+	const visto = { formulario: false, handle: null };
 
 	function revisar() {
-		if (!visto.formulario && VBCompuertas.esFormularioTesis(doc)) {
-			visto.formulario = true;
+		const hayFormulario = VBCompuertas.esFormularioTesis(doc);
+		if (hayFormulario && !visto.formulario) {
 			alAbrirFormulario();
 		}
-		if (!visto.handle) {
-			const handle = VBCompuertas.extraerHandle(doc);
-			if (handle) {
-				visto.handle = true;
-				reportarDeposito(handle);
-			}
+		visto.formulario = hayFormulario;
+
+		const handle = VBCompuertas.esPaginaItem(doc) ? VBCompuertas.extraerHandle(doc) : null;
+		if (!handle) {
+			visto.handle = null;
+			return;
+		}
+		if (handle !== visto.handle) {
+			visto.handle = handle;
+			reportarDeposito(handle);
 		}
 	}
 
@@ -167,7 +210,10 @@
 		temporizador = setTimeout(revisar, 300);
 	}
 
-	new MutationObserver(revisarConCalma).observe(doc.body, {
+	// Se observa el documento entero: `citation_title` vive en <head> y el
+	// cuerpo del ítem se renderiza por separado; con solo <body> la
+	// compuerta podía ver el handle antes que el meta y no reintentar.
+	new MutationObserver(revisarConCalma).observe(doc.documentElement, {
 		childList: true,
 		subtree: true,
 	});
@@ -184,7 +230,7 @@
 			if (boton) {
 				const envio = GM_getValue(CLAVE_ENVIO, null);
 				if (envio) {
-					envio.timestamp = new Date().toISOString().slice(0, 19);
+					envio.timestamp = VBReloj.ahoraLima();
 					GM_setValue(CLAVE_ENVIO, envio);
 				}
 			}

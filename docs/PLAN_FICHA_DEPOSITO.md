@@ -6,8 +6,11 @@
 el análisis del formulario real de la instancia (captura del 2026-10-19).
 **Área**: Backend/API (Int1), con Motor (Int3) y Frontend (Int2)
 **Relacionados**: `docs/DSPACE_API.md` (análisis de la instancia y hallazgos
-de la captura), contrato v1.6.0 (`docs/CONTRATO_API.md`),
+de la captura), `docs/CONTRATO_API.md` (contrato vigente v1.12.0),
 `docs/HANDOVER_MOTOR_FICHA_DEPOSITO.md` (pedido al motor)
+
+> **Nota (2026-11-04)**: este plan conserva el alcance congelado de v0.2.
+> El contrato vigente es `docs/CONTRATO_API.md` v1.12.0.
 
 ---
 

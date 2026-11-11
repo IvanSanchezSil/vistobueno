@@ -21,7 +21,10 @@ const fs = require("fs");
 const path = require("path");
 
 const PUERTO = Number(process.env.MOCK_PORT || 8080);
-const API_PUERTO = 8000;
+// Puerto de la API a la que el proxy reenvía el buzón. Configurable
+// para que el ensayo general pueda correr su propia API en otro puerto
+// sin chocar con una instancia que ya esté escuchando.
+const API_PUERTO = Number(process.env.VISTOBUENO_API_PUERTO || 8000);
 const RAIZ = path.join(__dirname, "..", ".."); // tools/dspace-fill/
 
 const TIPOS = {

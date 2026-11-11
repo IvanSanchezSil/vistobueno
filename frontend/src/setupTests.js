@@ -20,3 +20,9 @@ if (!window.matchMedia) {
     dispatchEvent: vi.fn(),
   }))
 }
+
+// jsdom tampoco implementa scrollIntoView: Report lo llama al montar para
+// llevar el foco al semáforo.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn()
+}
