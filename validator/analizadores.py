@@ -33,6 +33,7 @@ from .detalle import (
     detalle_xml_atributo,
     evaluar_atributo,
 )
+from .dsl_check import DSLValidationError
 from .extractor import NS, ExtractedDocx, W, text_of
 from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
@@ -50,6 +51,21 @@ def _resolve_attr_key(atributo: str) -> str:
     return name
 
 
+class ConfigurationError(DSLValidationError):
+    """Error de configuración de un analizador DSL.
+
+    Se lanza al compilar una regla con parámetros inválidos (p. ej.
+    `lista_obligatoria` sin ítems o `paginacion` sin suficientes xpaths).
+    Es un error del motor, no del documento: no debe aparecer como fallo
+    del estudiante en el reporte.
+
+    Hereda de `DSLValidationError` (y no directamente de `ValueError`) para
+    que la API lo traduzca a un 500 de configuración y no al 422 que culpa
+    al archivo del estudiante: `api.validar` captura `DSLValidationError`
+    antes del `except ValueError` genérico.
+    """
+
+
 class Analizador(ABC):
     """Interfaz común de todos los analizadores del DSL.
 
@@ -59,6 +75,11 @@ class Analizador(ABC):
     """
 
     def __init__(self, config: dict):
+        if config is not None and not isinstance(config, dict):
+            raise ConfigurationError(
+                "configuración de analizador inválida: se esperaba un diccionario "
+                f"y se recibió {type(config).__name__}"
+            )
         self.config = config or {}
         # Nodo objetivo (párrafo/subnodo) que determinó la última ejecución.
         # Permite que el motor enriquezca `location` con "página N" (ítem 1).
@@ -354,6 +375,12 @@ class AnalizadorListaObligatoria(Analizador):
     normalizado (colapso de whitespace y, por defecto, ignore_case).
     """
 
+    def __init__(self, config: dict):
+        super().__init__(config)
+        items = self.config.get("items")
+        if not isinstance(items, list) or not items:
+            raise ConfigurationError("lista_obligatoria: 'items' debe ser una lista no vacía")
+
     def _texto(self, extracted: ExtractedDocx) -> str:
         sec = self.config.get("seccion")
         if sec:
@@ -405,6 +432,14 @@ class AnalizadorPaginacion(Analizador):
     produce un falso positivo: solo juzga la paginación de las secciones
     que existen. La sección de "presencia" la cubren otras reglas.
     """
+
+    def __init__(self, config: dict):
+        super().__init__(config)
+        xpaths = self.config.get("xpaths")
+        if not isinstance(xpaths, list) or len(xpaths) < 2:
+            raise ConfigurationError(
+                "paginacion: 'xpaths' debe ser una lista con al menos 2 elementos"
+            )
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         xpaths = self.config.get("xpaths")
