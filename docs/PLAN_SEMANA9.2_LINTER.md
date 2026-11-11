@@ -65,7 +65,7 @@ relevante. Los mensajes van en español y **sin `Co-authored-by`**.
 
 ## Verificación
 
-- [x] `pytest tests/ -v` completo, sin fallos. (800 passed, 4 skipped, 6 xfailed)
+- [x] `pytest tests/ -v` completo, sin fallos. (802 passed, 4 skipped, 6 xfailed; incluye los 2 tests de M-B y L-7)
 - [x] `ruff check validator/ scripts/ tests/`.
 - [x] `ruff format --check validator/ scripts/ tests/`.
 - [x] `mypy validator/ scripts/`.
