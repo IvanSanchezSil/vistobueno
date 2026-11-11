@@ -76,7 +76,7 @@ servidor**. Es la diferencia entre "tu tesis está mal" y "el motor está mal".
 - [x] `paginacion` sin `xpaths` (o con < 2) no se muestra como fallo del
       documento: es error de carga del DSL.
 - [x] Tests existentes siguen pasando.
-- [x] Suite al cerrar el PR: **800 passed, 4 skipped, 6 xfailed** (T3 aportó 8 tests).
+- [x] Suite al cerrar el PR: **802 passed, 4 skipped, 6 xfailed** (T3 aportó 8 tests; M-B y L-7 añadieron 2).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
@@ -138,7 +138,7 @@ su tesis; un error de carga se presenta como 500 de configuración.
 - [x] Ningún YAML de producción produce hallazgos nuevos.
 - [x] Sin falsos positivos: ejes de XPath, prefijos válidos y campos propios
       de los analizadores no se reportan.
-- [x] Suite al cerrar el PR: **800 passed, 4 skipped, 6 xfailed** (T2 aportó 28 tests).
+- [x] Suite al cerrar el PR: **802 passed, 4 skipped, 6 xfailed** (T2 aportó 28 tests; M-B y L-7 añadieron 2).
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` limpios.
 
 ---
@@ -176,7 +176,10 @@ su tesis; un error de carga se presenta como 500 de configuración.
 - Mantener la bitácora al día es un overhead pero obligatorio para auditoría.
 
 ### Plan de la semana siguiente (N/A)
-Esta semana está completada; el PR #72 está listo para mergear (pendiente solo de aprobación).
+Esta semana está completada y el PR #72 se mergeó (`1e797ba`). La
+**Revisión 4** aprobó el PR y dejó L-11 a L-14 para un PR de seguimiento:
+huecos y falsos positivos del guard AST (L-11/L-12) y los conteos e
+historial de esta bitácora (L-13/L-14).
 
 ---
 
@@ -224,3 +227,4 @@ Esta semana está completada; el PR #72 está listo para mergear (pendiente solo
 | 2026-11-10 | `6a27ece` | M-B y L-7: sincronizar secciones y robustecer el guard de claves |
 | 2026-11-10 | `03b616c` | L-8: citar el test real de sincronía de secciones |
 | 2026-11-10 | `07fa3e1` | L-10: newline final en `docs/DSL.md` |
+| 2026-11-10 | `29d87e2` | Merge de `master` (`20e0fe5`, PR #90) en la rama del PR #72 |
