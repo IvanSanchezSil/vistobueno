@@ -1,6 +1,6 @@
 # Handover de pendientes — 2026-11-11
 
-**Snapshot:** 2026-11-11T16:10Z
+**Snapshot:** 2026-11-11T16:30Z
 **Base de referencia:** `origin/master` = `d605d63` (merge del PR #91)
 **Rama de este documento:** `docs/handover-pendientes-2026-11-11`
 **Distribución:** publicada en `origin`; PR #92. La rama ya incorpora el
@@ -196,7 +196,7 @@ Valores esperados sobre `tests/_caratula_real.py`:
 | `dc.contributor.author` | `['Br. Apellido, Nombre', 'Br. Apellido2, Nombre2']` |
 | `dc.contributor.advisor` | `Dra. Apellido, Nombre` |
 | `dc.date.issued` | `2026` |
-| `dc.description.abstract` | texto del resumen, sin la línea de palabras clave |
+| `dc.description.abstract` | `El presente estudio analiza la relación entre las estrategias lúdicas y la identidad cultural en estudiantes de primaria.` |
 | `dc.subject` | `['Educación', 'Cultura', 'Identidad cultural']` |
 
 Los 4 xfail que deben pasar y luego quitarse:
@@ -279,10 +279,11 @@ párrafo normal. Esa es la causa de que `seccion()` no encuentre la sección.
 analizador:
 
 - crear `RESUMEN` con `add_heading(..., level=1)`;
-- agregar al menos un párrafo de resumen antes de la línea de palabras
-  clave;
+- agregar exactamente este párrafo antes de la línea de palabras clave:
+  `El presente estudio analiza la relación entre las estrategias lúdicas y la identidad cultural en estudiantes de primaria.`;
 - mantener la línea `Palabras Clave:` como párrafo;
-- comprobar `dc.description.abstract` y `dc.subject`.
+- comparar `dc.description.abstract` contra ese texto exacto y `dc.subject`
+  contra la lista esperada.
 
 Si la plantilla oficial demuestra otra estructura, documentarlo antes de
 cambiar el analizador.
