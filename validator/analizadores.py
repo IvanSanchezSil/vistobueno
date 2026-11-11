@@ -402,9 +402,7 @@ class AnalizadorListaObligatoria(Analizador):
         encontrados = len(items) - len(faltan)
         if not faltan:
             return True, f"items_obligatorios={len(items)} encontrados={encontrados} completo"
-        return False, (
-            f"items_obligatorios={len(items)} encontrados={encontrados} faltan={faltan}"
-        )
+        return False, (f"items_obligatorios={len(items)} encontrados={encontrados} faltan={faltan}")
 
 
 class AnalizadorPaginacion(Analizador):

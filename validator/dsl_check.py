@@ -125,13 +125,9 @@ def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) ->
         )
     fin = seccion.get("fin")
     if fin is not None and (not isinstance(fin, str) or not fin.strip()):
-        hallazgos.append(
-            f"[{rule_id}] lista_obligatoria: 'seccion.fin' debe ser un texto no vacío"
-        )
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'seccion.fin' debe ser un texto no vacío")
     if "hasta_final" in seccion and not isinstance(seccion.get("hasta_final"), bool):
-        hallazgos.append(
-            f"[{rule_id}] lista_obligatoria: 'seccion.hasta_final' debe ser booleano"
-        )
+        hallazgos.append(f"[{rule_id}] lista_obligatoria: 'seccion.hasta_final' debe ser booleano")
 
 
 def _lint_automata_secuencia(config: dict, hallazgos: list[str], rule_id: str) -> None:
