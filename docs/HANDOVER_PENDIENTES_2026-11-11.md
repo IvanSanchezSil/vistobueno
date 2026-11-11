@@ -3,8 +3,8 @@
 **Snapshot:** 2026-11-11T16:10Z
 **Base de referencia:** `origin/master` = `d605d63` (merge del PR #91)
 **Rama de este documento:** `docs/handover-pendientes-2026-11-11`
-**Distribución:** local; todavía no está en `origin`. Esta rama solo agrega
-el documento y aún no incorpora el merge de #91; el PR debe resolverlo.
+**Distribución:** publicada en `origin`; PR #92. La rama ya incorpora el
+merge de #91 (`d605d63`).
 
 **Verificación de la base:** `nix run .#test -- tests/ -q` →
 **809 passed, 6 xfailed, 1 warning** en 39.22 s.
