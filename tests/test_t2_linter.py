@@ -410,13 +410,62 @@ def test_linter_o_alzar_mensaje_legible():
 
 
 _NOMBRES_REGLA = frozenset({"rule", "regla"})
+_NOMBRES_CONTENEDOR = frozenset({"reglas", "rules"})
 
 
-def _menciona_contenedor_de_reglas(nodo: ast.AST) -> bool:
-    """¿La expresión es el `.get("reglas"/"rules")` que itera el compilador?"""
-    return any(
-        isinstance(sub, ast.Constant) and sub.value in {"reglas", "rules"} for sub in ast.walk(nodo)
-    )
+def _es_acceso_a_contenedor_de_reglas(nodo: ast.AST) -> bool:
+    """¿La expresión lee la lista de reglas: `.get("reglas")` o `["rules"]`?
+
+    Solo se mira la clave (primer argumento de `.get` o del subíndice), no
+    cualquier cadena del iterable: `config.get("otra", "rules")` no es el
+    contenedor de reglas (L-12).
+    """
+    if (
+        isinstance(nodo, ast.Call)
+        and isinstance(nodo.func, ast.Attribute)
+        and nodo.func.attr == "get"
+    ):
+        argumentos = nodo.args
+    elif isinstance(nodo, ast.Subscript):
+        argumentos = [nodo.slice]
+    else:
+        return False
+    if not argumentos:
+        return False
+    clave = argumentos[0]
+    return isinstance(clave, ast.Constant) and clave.value in _NOMBRES_CONTENEDOR
+
+
+def _itera_contenedor_de_reglas(nodo: ast.AST, contenedores: set[str]) -> bool:
+    """¿El iterable de un `for` es la lista de reglas, directa o por variable?"""
+    if _es_acceso_a_contenedor_de_reglas(nodo):
+        return True
+    return isinstance(nodo, ast.Name) and nodo.id in contenedores
+
+
+def _agregar_nombres(destinos: list[ast.AST], conjunto: set[str]) -> bool:
+    """Añade al conjunto los nombres asignados en los destinos."""
+    cambiado = False
+    for destino in destinos:
+        for nombre in ast.walk(destino):
+            if isinstance(nombre, ast.Name) and nombre.id not in conjunto:
+                conjunto.add(nombre.id)
+                cambiado = True
+    return cambiado
+
+
+def _propagar_asignacion(
+    valor: ast.AST,
+    destinos: list[ast.AST],
+    receptores: set[str],
+    contenedores: set[str],
+) -> bool:
+    """Propaga receptores de regla y contenedores de reglas en una asignación."""
+    if isinstance(valor, ast.Name) and valor.id in receptores:
+        return _agregar_nombres(destinos, receptores)
+    if _itera_contenedor_de_reglas(valor, contenedores):
+        return _agregar_nombres(destinos, contenedores)
+    return False
 
 
 def _es_receptor_de_regla(nodo: ast.AST, receptores: set[str]) -> bool:
@@ -432,43 +481,39 @@ def _claves_de_regla_en_fuente(codigo: str) -> set[str]:
 
     Se considera receptor de regla una variable llamada `rule`/`regla` o
     cualquier atributo `.rule`/`.regla` (p. ej. `self.rule`). Además se
-    propagan los alias y los destinos de un `for` sobre
-    `.get("reglas"/"rules")`, para que renombrar la variable no deje el
-    guard en verde sin cubrir nada (L-7).
+    propagan los alias, los destinos de un `for` sobre
+    `.get("reglas"/"rules")` y las variables que guardan esa lista
+    (`reglas = rules_data.get("reglas", [])`), para que renombrar la
+    variable no deje el guard en verde sin cubrir nada (L-7 y L-11).
 
     Al recorrer el AST da igual la comilla usada y se detectan también los
     accesos con subíndice, que un regex sobre el texto no veía.
     """
     arbol = ast.parse(codigo)
     receptores = set(_NOMBRES_REGLA)
+    contenedores: set[str] = set()
 
-    # Propagación simple de alias: `for r in rules_data.get("reglas", [])`
-    # y `otra = rule` marcan `r`/`otra` como receptores de regla.
+    # Propagación hasta punto fijo:
+    # - `for r in rules_data.get("reglas", [])` y `for r in reglas` marcan el
+    #   destino como receptor de regla;
+    # - `reglas = rules_data.get("reglas", [])` recuerda el contenedor, para
+    #   que un `for` posterior sobre esa variable también cuente (L-11);
+    # - `alias = rule` propaga el receptor.
     cambiado = True
     while cambiado:
         cambiado = False
         for nodo in ast.walk(arbol):
-            destinos: list[ast.AST] = []
-            if isinstance(nodo, ast.For) and _menciona_contenedor_de_reglas(nodo.iter):
-                destinos = [nodo.target]
-            elif (
-                isinstance(nodo, ast.Assign)
-                and isinstance(nodo.value, ast.Name)
-                and nodo.value.id in receptores
-            ):
-                destinos = list(nodo.targets)
-            elif (
-                isinstance(nodo, ast.AnnAssign)
-                and nodo.value is not None
-                and isinstance(nodo.value, ast.Name)
-                and nodo.value.id in receptores
-            ):
-                destinos = [nodo.target]
-            for destino in destinos:
-                for nombre in ast.walk(destino):
-                    if isinstance(nombre, ast.Name) and nombre.id not in receptores:
-                        receptores.add(nombre.id)
-                        cambiado = True
+            if isinstance(nodo, ast.For):
+                if _itera_contenedor_de_reglas(nodo.iter, contenedores):
+                    cambiado |= _agregar_nombres([nodo.target], receptores)
+            elif isinstance(nodo, ast.Assign):
+                cambiado |= _propagar_asignacion(
+                    nodo.value, list(nodo.targets), receptores, contenedores
+                )
+            elif isinstance(nodo, ast.AnnAssign) and nodo.value is not None:
+                cambiado |= _propagar_asignacion(
+                    nodo.value, [nodo.target], receptores, contenedores
+                )
 
     claves: set[str] = set()
     for nodo in ast.walk(arbol):
@@ -516,6 +561,41 @@ alias.get("fuente")
         "cita",
         "fuente",
     }
+
+
+def test_el_guard_detecta_reglas_extraidas_a_una_variable():
+    """L-11: extraer la lista a una variable no oculta las claves del `for`."""
+    codigo = """
+reglas = rules_data.get("reglas", [])
+for r in reglas:
+    r.get("clave_nueva")
+"""
+    assert _claves_de_regla_en_fuente(codigo) == {"clave_nueva"}
+
+
+def test_el_guard_detecta_reglas_extraidas_por_subindice():
+    """L-11: la variante con subíndice y destino renombrado también se detecta."""
+    codigo = """
+reglas = rules_data["rules"]
+for rule in reglas:
+    rule["otra_clave"]
+"""
+    assert _claves_de_regla_en_fuente(codigo) == {"otra_clave"}
+
+
+def test_el_guard_ignora_cadenas_que_no_son_el_contenedor_de_reglas():
+    """L-12: una constante "rules"/"reglas" que no es la clave no marca receptor.
+
+    Antes, cualquier cadena "reglas"/"rules" dentro del iterable hacía que el
+    destino se tratara como diccionario de regla y generaba un falso positivo.
+    """
+    codigo = """
+for x in config.get("otra", "rules"):
+    x.get("clave")
+for y in algo("reglas"):
+    y.get("otra")
+"""
+    assert _claves_de_regla_en_fuente(codigo) == set()
 
 
 def test_claves_de_regla_sincronizadas_con_el_motor():
