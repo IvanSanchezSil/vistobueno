@@ -1,10 +1,10 @@
 # Semana 10 — Bitácora de trabajo
 
 **Integrante**: IvanSanchezSil ( — Motor de reglas / Procesamiento)  
-**Fecha**: 2026-10-27  
+**Fecha**: 2026-10-27 — 2026-11-10  
 **Rama**: `semana10-auditoria-motor`  
-**Base**: `origin/semana8-deposito-ficha` (PR #56 ya mergeado)  
-**Estado**: En progreso  
+**Base**: `origin/master` (`20e0fe5`, merge del PR #90)  
+**Estado**: Correcciones de la revisión del PR #73 aplicadas  
 **Contexto**: Auditoría `AUDIT_COMPORTAMIENTO_VISTOBUENO_2026-10-26.md`
 
 ## Objetivo de la semana
@@ -15,15 +15,15 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 
 | ID | Severidad | Archivos | Acción prevista | Estado |
 |----|-----|----------|-----------------|--------|
-| AUD-01 | Alta | `validator/analizadores.py` (`_norm_indice`) | Separar normalización entre títulos del cuerpo (sin recorte romano falso) e ítems del índice (mantener lógica actual). Falso positivo con "General" y títulos acabados en i/l/v/x/c. | Hecho (b947a27) |
-| AUD-02 | Alta | `validator/tokenizer.py`, `validator/analizadores.py`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: permitir `seccion()` hasta final (`hasta_final: true`), incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes (eliminar `[:8]`). Sincronizar `tests/_mutations.py`. | Hecho (707960d) |
+| AUD-01 | Alta | `validator/analizadores.py` (`_norm_indice`) | `_norm_titulo_cuerpo` para el cuerpo y `_norm_indice` híbrido: preservar `w:tab` como espacio al leer el índice y recortar la página aunque venga pegada (`1.2.1.General17`, `Dedicatoriaii`). Falso positivo con "General" y títulos acabados en i/l/v/x/c. | Hecho (PR #73; revisión 2026-11-10) |
+| AUD-02 | Alta | `validator/analizadores.py`, `validator/dsl_check.py`, `docs/DSL.md`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: `seccion(hasta_final)`, incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes y añadir `encontrados=N/M`. Documentar `hasta_final` y validarlo en el linter. | Hecho (PR #73; revisión 2026-11-10) |
 | AUD-03 | Media | `validator/analizadores.py`, `validator/checks.py`, `tests/test_auditoria_motor.py` | `encontrado` legible: culpables primero, valores sin repr crudo, página del nodo infractor. Formato replicado en el motor legacy (paridad literal). | Hecho (166553f) |
-| AUD-04 | Media | `reglas_unt.yaml` | Añadir notas `EVALUADO:` a `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Hecho (feafa82) |
+| AUD-04 | Media | `reglas_unt.yaml` | Notas `EVALUADO (2026-10-27):` con decisión en `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Hecho (PR #73; revisión 2026-11-10) |
 | AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Hecho: documentado y diferido (nota EVALUADO en el bloque de carátula) |
 | AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Hecho: umbral mantenido y documentado en el docstring + test |
-| AUD-07 | Baja | `reglas_unt.yaml` | Decisión: restringir `caratula_optar_grado_tamano` al "grado de Bachiller" o añadir `EVALUADO:`. | Hecho: XPath acotado a "bachiller" + `n_a_si_sin_nodos` |
-| AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", título "GENERAL" con entrada de índice paginada) y tests de regresión para AUD-01/AUD-02. | Hecho (b892478) |
-| AUD-15 | Media | `validator/exportador.py` | Escape HTML en `message`/`found`/`expected`/`prompt` al inyectarlos en el Markdown/PDF (previene rotura de tablas y XSS). | Hecho (AUD-15) |
+| AUD-07 | Baja | `reglas_unt.yaml`, `validator/compilador.py` | Acotar `caratula_optar_grado_tamano` a "bachiller" y propagar el n/a real: `aplicable=False`, `found="no aplica a este documento"`. | Hecho (PR #73; revisión 2026-11-10) |
+| AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", índice con `w:tab` y página pegada) y tests de regresión para AUD-01/AUD-02. | Hecho (PR #73; revisión 2026-11-10) |
+| AUD-15 | Media | `validator/exportador.py` | Escape de `&`, `<`, `>` y `|` en `message`/`found`/`expected`; el prompt de IA **no** se escapa (va en bloque de código). | Hecho (integrado desde `master`, PR #78) |
 
 **Coordinar:** AUD-21 (paridad) con AUD-03.
 
@@ -50,13 +50,13 @@ Orden propuesto:
 - [x] AUD-05: selectores frágiles documentados (endurecimiento diferido)
 - [x] AUD-06: umbral `>= 4` mantenido y documentado
 - [x] AUD-07: `caratula_optar_grado_tamano` acotada a "bachiller" (n/a en otras titulaciones)
-- [x] AUD-15: `message`/`found`/`expected`/`prompt` escapados con `html.escape()` en `validator/exportador.py`
-- [x] `tests/_mutations.py` sin cambios: no se agregaron reglas nuevas
-- [x] `pytest tests/ -v` sin regresiones (**676 passed, 1 skipped**)
+- [x] AUD-15: `message`/`found`/`expected` escapados (`&`, `<`, `>`, `|`); el prompt de IA no se escapa
+- [x] `tests/_mutations.py` sin cambios: no se agregaron reglas nuevas (no requiere sincronización)
+- [x] `pytest tests/ -q` tras el merge con `master`: **757 passed, 4 skipped, 6 xfailed**
 - [x] linter DSL limpio en `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y `reglas_ficha.yaml`
 - [x] `tests/test_paridad_formatos.py` OK
-- [x] `nix flake check` OK
 - [x] `ruff check`, `ruff format --check`, `mypy validator/ scripts/` OK
+- [ ] `nix flake check`: no ejecutado en este entorno (sin `nix`); se apoya en el CI
 
 ## Riesgos
 
@@ -68,4 +68,36 @@ Orden propuesto:
 
 Plan detallado en `docs/PLAN_SEMANA10_AUDITORIA_MOTOR.md`
 
-Fixtures y regresiones: `tests/test_auditoria_motor.py` (AUD-20, commit `b892478`; AUD-03, commit `166553f`). Suite completa: **632 passed, 1 skipped**. Verificado que los tests nuevos fallan con el comportamiento anterior (AUD-01: `indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`; AUD-03: la página era la del primer nodo, no la del culpable). `docs/ejemplo_respuesta_motor.json` regenerado con el CLI contra el MANUAL. AUD-04: tamaños de la plantilla oficial verificados (`Título` sz 26 = 13 pt; `Para Optar` sz 24 = 12 pt). AUD-05/AUD-06/AUD-07: decisiones tomadas y documentadas; AUD-07 añade `n_a_si_sin_nodos` al analizador XML para que la regla acotada a "bachiller" no genere un falso "no encontrado" en otras titulaciones (tests `test_aud07_*`). Suite final de la rama: **676 passed, 1 skipped**. AUD-15: `validator/exportador.py` ahora escapa `message`/`found`/`expected`/`prompt` con `html.escape()` antes de inyectarlos en Markdown/PDF (tests `test_exportador.py` verdes). Tras actualizar con `origin/master` (merges `3370062` y `e91ca2b`): **674 passed, 3 skipped, 6 xfailed**; `ruff`, `ruff format --check`, `mypy` y `nix flake check` OK.
+Fixtures y regresiones: `tests/test_auditoria_motor.py`. Los tests nuevos se
+verificaron contra el comportamiento anterior (AUD-01:
+`indice_apunta_secciones=False`; AUD-02: `anexos_minimos_cuantitativo=False`;
+AUD-03: la página era la del primer nodo, no la del culpable). AUD-04:
+tamaños de la plantilla oficial verificados (`Título` sz 26 = 13 pt;
+`Para Optar` sz 24 = 12 pt). `docs/ejemplo_respuesta_motor.json` regenerado
+con el CLI contra el MANUAL real (solo lectura).
+
+### Revisión del PR #73 (2026-11-04) y cierre (2026-11-10)
+
+La revisión de `retblast` encontró un bloqueante en AUD-01 (21 entradas del
+índice real sin sección), duplicación del formato de AUD-03 y un escape
+incompleto en AUD-15. Tras fusionar `origin/master` (`20e0fe5`) y aplicar las
+correcciones:
+
+- **AUD-01**: `_norm_titulo_cuerpo` se mantiene; `_norm_indice` recorta la
+  página aunque venga pegada y `_entradas_indice` preserva `w:tab` como
+  espacio. Test con `1.4.1.<tab>GENERAL<tab>9` y `RESUMEN<tab>x`.
+- **AUD-03/AUD-15**: se adopta `validator/detalle.py` y el escape de `master`
+  (PR #78); se retira la duplicación y `html.escape`.
+- **AUD-02**: `hasta_final` documentado en `docs/DSL.md`, validado por el
+  linter y con conteo `encontrados=N/M`.
+- **AUD-04**: fecha en las notas `EVALUADO`.
+- **AUD-07**: la regla acotada a «bachiller» usa el camino n/a existente
+  (`aplicable=False`, `found="no aplica a este documento"`).
+- **AUD-20**: fixture con tabuladores reales y regresión.
+- **Cierre documental**: handover §11, aviso de `AGENTS.md`,
+  `docs/CONTRATO_API.md`, este documento y el ejemplo del motor.
+
+Verificación final sobre el merge: **757 passed, 4 skipped, 6 xfailed**;
+`ruff check`, `ruff format --check` y `mypy validator/ scripts/` OK; linter
+DSL limpio en los tres rulesets. `tests/_mutations.py` no necesitó cambios:
+no se agregaron reglas nuevas.

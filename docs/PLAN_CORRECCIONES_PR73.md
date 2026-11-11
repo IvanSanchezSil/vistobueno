@@ -129,6 +129,24 @@ PYTHONPATH=/tmp/opencode/pylibs:.:tests python3 -m pytest tests/ -q
 Además: linter DSL sobre `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y
 `reglas_ficha.yaml`.
 
+## Estado final (2026-11-10)
+
+| Paso | Estado | Evidencia |
+|------|--------|-----------|
+| Merge con `origin/master` (`20e0fe5`) | Hecho | merge `85fc141` |
+| AUD-01 + tests de tabuladores | Hecho | `624db11` |
+| AUD-07 + tests n/a | Hecho | `624db11` |
+| AUD-02 + docs/linter + conteo | Hecho | `624db11` |
+| AUD-04 fechas | Hecho | `ed630b3` |
+| AUD-20 fixture real + regresión | Hecho | `624db11` |
+| Cierre documental | Hecho | commit de documentación de esta revisión |
+| Verificación final | Hecho | 757 passed, 4 skipped, 6 xfailed; ruff/mypy OK |
+
+La suite se ejecutó con `PYTHONPATH=/tmp/opencode/pylibs:.:tests`. El linter
+DSL quedó cubierto por `test_yaml_de_produccion_pasa_el_linter` sobre los tres
+rulesets. `nix flake check` no se ejecutó en este entorno (no hay `nix`); queda
+a cargo del CI.
+
 ## Notas
 
 - Sin `Co-Authored-By`.

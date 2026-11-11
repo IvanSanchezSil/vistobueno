@@ -55,7 +55,7 @@
       "severity": "error",
       "message": "El tamaño de letra del cuerpo del texto debe ser 12 puntos",
       "expected": "12pt",
-      "found": "@w:val esperado=24; incumplen=[#11=32, #37=36, #38=26]; muestra=[24, 24, 24]",
+      "found": "@w:val: 1416 valores evaluados, 134 incumplen: #11=16 pt (pág. 8), #37=18 pt (pág. 13), #38=13 pt (pág. 13), #39=13 pt (pág. 13), #42=13 pt (pág. 13), #43=13 pt (pág. 13), #294=18 pt (pág. 43), #295=13 pt (pág. 43), #296=13 pt (pág. 43), #297=13 pt (pág. 43), #298=13 pt (pág. 43), #299=13 pt (pág. 43), #381=16 pt (pág. 54), #406=18 pt (pág. 60), #407=13 pt (pág. 60), #408=13 pt (pág. 60), #410=13 pt (pág. 60), #411=13 pt (pág. 60), #770=18 pt (pág. 101), #771=13 pt (pág. 101), #772=13 pt (pág. 101), #774=13 pt (pág. 101), #775=13 pt (pág. 101), #776=13 pt (pág. 101), #777=13 pt (pág. 101), #1037=18 pt (pág. 134), #1038=13 pt (pág. 134), #1039=13 pt (pág. 134), #1040=13 pt (pág. 134), #1041=13 pt (pág. 134), #1042=13 pt (pág. 134), #1043=13 pt (pág. 134), #1056=18 pt (pág. 134), #1101=10 pt (pág. 139), #1241=10.5 pt (pág. 162), #1242=10.5 pt (pág. 162), #1243=10.5 pt (pág. 162), #1244=10.5 pt (pág. 162), #1245=10.5 pt (pág. 162), #1246=10.5 pt (pág. 162), #1247=10.5 pt (pág. 162), #1248=10.5 pt (pág. 162), #1249=10.5 pt (pág. 162), #1250=10.5 pt (pág. 162), #1251=10.5 pt (pág. 162), #1252=10.5 pt (pág. 162), #1253=10.5 pt (pág. 162), #1254=10.5 pt (pág. 162), #1255=10.5 pt (pág. 162), #1256=10.5 pt (pág. 162), #1257=10.5 pt (pág. 162), #1258=10.5 pt (pág. 162), #1259=10.5 pt (pág. 162), #1260=10.5 pt (pág. 162), #1261=10.5 pt (pág. 162), #1262=10.5 pt (pág. 162), #1263=10.5 pt (pág. 162), #1267=11 pt (pág. 163), #1268=11 pt (pág. 163), #1269=11 pt (pág. 163), #1270=11 pt (pág. 163), #1271=11 pt (pág. 163), #1272=11 pt (pág. 163), #1273=11 pt (pág. 163), #1274=11 pt (pág. 163), #1275=11 pt (pág. 163), #1276=11 pt (pág. 163), #1277=11 pt (pág. 163), #1278=11 pt (pág. 163), #1279=11 pt (pág. 163), #1280=11 pt (pág. 163), #1281=11 pt (pág. 163), #1282=11 pt (pág. 163), #1283=11 pt (pág. 163), #1284=11 pt (pág. 163), #1285=11 pt (pág. 163), #1286=11 pt (pág. 163), #1287=11 pt (pág. 164), #1288=11 pt (pág. 164), #1289=11 pt (pág. 164), #1290=11 pt (pág. 164), #1291=11 pt (pág. 164), #1292=11 pt (pág. 164), #1293=11 pt (pág. 164), #1294=11 pt (pág. 164), #1295=11 pt (pág. 164), #1296=11 pt (pág. 164), #1297=11 pt (pág. 164), #1298=11 pt (pág. 164), #1299=11 pt (pág. 164), #1300=11 pt (pág. 164), #1301=11 pt (pág. 164), #1302=11 pt (pág. 164), #1303=11 pt (pág. 164), #1304=11 pt (pág. 164), #1305=11 pt (pág. 164), #1306=11 pt (pág. 164), #1307=11 pt (pág. 164), #1308=11 pt (pág. 164), #1309=11 pt (pág. 164), #1383=9 pt (pág. 170), #1384=9 pt (pág. 170), #1385=9 pt (pág. 170), #1386=9 pt (pág. 170), #1387=9 pt (pág. 170), #1388=9 pt (pág. 170), #1389=9 pt (pág. 170), #1390=9 pt (pág. 170), #1391=9 pt (pág. 170), #1392=9 pt (pág. 170), #1393=9 pt (pág. 170), #1394=9 pt (pág. 170), #1395=9 pt (pág. 170), #1396=11 pt (pág. 171), #1397=11 pt (pág. 171), #1398=11 pt (pág. 171), #1399=11 pt (pág. 171), #1400=11 pt (pág. 171), #1401=11 pt (pág. 171), #1402=11 pt (pág. 171), #1403=11 pt (pág. 171), #1404=11 pt (pág. 171), #1405=11 pt (pág. 171), #1406=11 pt (pág. 171), #1407=11 pt (pág. 171), #1408=9 pt (pág. 171), #1409=9 pt (pág. 171), #1410=9 pt (pág. 171), #1411=9 pt (pág. 171), #1412=9 pt (pág. 171), #1413=9 pt (pág. 171), #1414=11 pt (pág. 171), #1415=11 pt (pág. 171), #1416=11 pt (pág. 171); esperado=12 pt",
       "location": "Sección \"Formato general\" (párr. 126-127); página 8",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Times New Roman: 12 puntos\"",
@@ -67,7 +67,7 @@
       "severity": "error",
       "message": "Tamaño de letra del nombre de la Universidad en carátula",
       "expected": "18pt",
-      "found": "@w:val=[] esperado=36",
+      "found": "@w:val: sin valores que comparar; esperado=18 pt",
       "location": "Carátula, especificaciones (párr. 174); nota indicativa en párr. 153: \"(Times New Román 18 puntos/13 puntos/13 puntos)\"",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos).\"",
@@ -79,7 +79,7 @@
       "severity": "error",
       "message": "Tamaño de letra de Facultad y Escuela Profesional en carátula",
       "expected": "13pt",
-      "found": "@w:val=[44] esperado=26",
+      "found": "@w:val: 1 valores evaluados, 1 incumplen: #1=22 pt (pág. 1); esperado=13 pt",
       "location": "Carátula, especificaciones (párr. 175); página 1",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"",
@@ -91,22 +91,10 @@
       "severity": "warning",
       "message": "Tamaño de letra del título del trabajo en carátula",
       "expected": "14pt",
-      "found": "@w:val=[] esperado=28",
+      "found": "@w:val: sin valores que comparar; esperado=14 pt",
       "location": "Carátula, especificaciones (párr. 177)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\"",
-      "ficha": []
-    },
-    {
-      "rule_id": "caratula_optar_grado_tamano",
-      "passed": false,
-      "severity": "warning",
-      "message": "Tamaño de letra de la línea \"Trabajo de Investigación para optar el grado de Bachiller en...\"",
-      "expected": "13pt",
-      "found": "@w:val=[] esperado=26",
-      "location": "Carátula, especificaciones (párr. 178)",
-      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-      "cita": "\"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"",
       "ficha": []
     },
     {
@@ -115,7 +103,7 @@
       "severity": "error",
       "message": "Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula",
       "expected": "12pt",
-      "found": "@w:val=[] esperado=24",
+      "found": "@w:val: sin valores que comparar; esperado=12 pt",
       "location": "Carátula, especificaciones (párr. 161, 168, 179-183)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
@@ -139,7 +127,7 @@
       "severity": "error",
       "message": "El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)",
       "expected": "1.5 (ONE_POINT_FIVE)",
-      "found": "@w:line esperado=360; incumplen=[#11=259, #397=259, #847=259]; muestra=[360, 360, 360]",
+      "found": "@w:line: 1346 valores evaluados, 32 incumplen: #11=259 (pág. 8), #397=259 (pág. 54), #847=259 (pág. 104), #848=259 (pág. 105), #950=259 (pág. 115), #951=259 (pág. 116), #1158=259 (pág. 143), #1199=259 (pág. 148), #1200=259 (pág. 148), #1228=240 (pág. 156), #1306=276 (pág. 166), #1307=276 (pág. 166), #1308=276 (pág. 166), #1309=480 (pág. 166), #1310=480 (pág. 166), #1311=480 (pág. 166), #1312=480 (pág. 166), #1313=480 (pág. 166), #1314=480 (pág. 166), #1315=480 (pág. 166), #1316=480 (pág. 166), #1317=480 (pág. 166), #1318=480 (pág. 166), #1319=480 (pág. 166), #1320=480 (pág. 166), #1321=480 (pág. 166), #1322=480 (pág. 166), #1323=480 (pág. 166), #1324=480 (pág. 166), #1345=276 (pág. 170), #1346=276 (pág. 170), #1354=276 (pág. 170); esperado=360",
       "location": "Sección \"Formato general\" (párr. 128-129); página 8",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Interlineado: 1.5 puntos\"",
@@ -151,7 +139,7 @@
       "severity": "error",
       "message": "El cuerpo del texto debe estar justificado",
       "expected": "justificada",
-      "found": "@w:val esperado=both; incumplen=[#11=center, #38=center, #39=center]; muestra=[both, both, both]",
+      "found": "@w:val: 1274 valores evaluados, 119 incumplen: #11=center (pág. 8), #38=center (pág. 13), #39=center (pág. 13), #40=center (pág. 13), #41=center (pág. 13), #42=center (pág. 13), #43=center (pág. 13), #44=center (pág. 13), #45=center (pág. 13), #46=center (pág. 13), #47=center (pág. 13), #48=center (pág. 13), #49=center (pág. 13), #50=center (pág. 13), #51=center (pág. 13), #52=center (pág. 13), #53=center (pág. 13), #54=center (pág. 13), #55=center (pág. 13), #56=center (pág. 13), #278=center (pág. 43), #279=center (pág. 43), #280=center (pág. 43), #281=center (pág. 43), #282=center (pág. 43), #283=center (pág. 43), #284=center (pág. 43), #285=center (pág. 43), #286=center (pág. 43), #287=center (pág. 43), #288=center (pág. 43), #289=center (pág. 43), #290=center (pág. 43), #291=center (pág. 43), #292=center (pág. 43), #293=center (pág. 43), #294=center (pág. 43), #295=center (pág. 43), #296=center (pág. 43), #362=center (pág. 54), #388=center (pág. 60), #389=center (pág. 60), #390=center (pág. 60), #391=center (pág. 60), #392=center (pág. 60), #393=center (pág. 60), #394=center (pág. 60), #395=center (pág. 60), #396=center (pág. 60), #397=center (pág. 60), #398=center (pág. 60), #399=center (pág. 60), #400=center (pág. 60), #401=center (pág. 60), #402=center (pág. 60), #403=center (pág. 60), #404=center (pág. 60), #405=center (pág. 60), #406=center (pág. 60), #407=center (pág. 60), #423=center (pág. 62), #583=center (pág. 80), #734=center (pág. 101), #735=center (pág. 101), #736=center (pág. 101), #737=center (pág. 101), #738=center (pág. 101), #739=center (pág. 101), #740=center (pág. 101), #741=center (pág. 101), #742=center (pág. 101), #743=center (pág. 101), #744=center (pág. 101), #745=center (pág. 101), #746=center (pág. 101), #747=center (pág. 101), #748=center (pág. 101), #749=center (pág. 101), #750=center (pág. 101), #751=center (pág. 101), #752=center (pág. 101), #753=center (pág. 101), #754=center (pág. 101), #755=center (pág. 101), #959=center (pág. 134), #960=center (pág. 134), #961=center (pág. 134), #962=center (pág. 134), #963=center (pág. 134), #964=center (pág. 134), #965=center (pág. 134), #966=center (pág. 134), #967=center (pág. 134), #968=center (pág. 134), #969=center (pág. 134), #970=center (pág. 134), #971=center (pág. 134), #972=center (pág. 134), #973=center (pág. 134), #974=center (pág. 134), #975=center (pág. 134), #976=center (pág. 134), #977=center (pág. 134), #978=center (pág. 134), #1041=center (pág. 143), #1042=center (pág. 143), #1087=right (pág. 156), #1129=right (pág. 160), #1130=center (pág. 162), #1131=right (pág. 162), #1132=right (pág. 162), #1133=right (pág. 162), #1154=center (pág. 163), #1155=right (pág. 163), #1156=right (pág. 163), #1177=center (pág. 164), #1178=right (pág. 164), #1179=right (pág. 164), #1269=right (pág. 170); esperado=both",
       "location": "Sección \"Formato general\" (párr. 130-131); página 8",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Alineación: Justificada\"",
@@ -163,7 +151,7 @@
       "severity": "error",
       "message": "Todos los elementos de la carátula deben estar centrados",
       "expected": "centrado",
-      "found": "@w:val esperado=center; incumplen=[#1=right]; muestra=[right]",
+      "found": "@w:val: 1 valores evaluados, 1 incumplen: #1=right (pág. 1); esperado=center",
       "location": "Carátula, especificaciones (párr. 174-183); página 1",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Nombre de la Universidad: Centrado...\", \"Facultad y Escuela Profesional: Centrado...\", \"Título del Trabajo...: Centrado...\", etc.",
@@ -175,7 +163,7 @@
       "severity": "error",
       "message": "Margen superior del documento",
       "expected": "2.5 cm",
-      "found": "@w:top esperado=1418; incumplen=[#1=1417, #2=1417, #3=1417]; muestra=[1417, 1417, 1417]",
+      "found": "@w:top: 6 valores evaluados, 4 incumplen: #1=2.50 cm (pág. 24), #2=2.50 cm (pág. 139), #3=2.50 cm (pág. 148), #4=2.50 cm (pág. 151); esperado=2.50 cm",
       "location": "Sección \"Formato general\" (párr. 132-133); página 24",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Superior: 2.5 cm\"",
@@ -187,7 +175,7 @@
       "severity": "error",
       "message": "Margen inferior del documento",
       "expected": "2.5 cm",
-      "found": "@w:bottom esperado=1418; incumplen=[#1=1417, #2=1417, #3=1417]; muestra=[1417, 1417, 1417]",
+      "found": "@w:bottom: 6 valores evaluados, 4 incumplen: #1=2.50 cm (pág. 24), #2=2.50 cm (pág. 139), #3=2.50 cm (pág. 148), #4=2.50 cm (pág. 151); esperado=2.50 cm",
       "location": "Sección \"Formato general\" (párr. 132-134); página 24",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Inferior: 2.5 cm\"",
@@ -199,7 +187,7 @@
       "severity": "error",
       "message": "Margen derecho del documento",
       "expected": "2.5 cm",
-      "found": "@w:right esperado=1418; incumplen=[#1=1701, #2=1701, #3=1701]; muestra=[1701, 1701, 1701]",
+      "found": "@w:right: 6 valores evaluados, 6 incumplen: #1=3.00 cm (pág. 24), #2=3.00 cm (pág. 139), #3=3.00 cm (pág. 148), #4=3.00 cm (pág. 151), #5=3.00 cm (pág. 154), #6=3.00 cm; esperado=2.50 cm",
       "location": "Sección \"Formato general\" (párr. 132-135); página 24",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Derecho: 2.5 cm\"",
@@ -223,7 +211,7 @@
       "severity": "warning",
       "message": "La primera línea de cada párrafo debe tener sangría de 1.27 cm",
       "expected": "1.27 cm (½ pulgada)",
-      "found": "@w:firstLine esperado=720; incumplen=[#34=436, #36=436, #38=436]; muestra=[708, 436, 436]",
+      "found": "@w:firstLine: 104 valores evaluados, 87 incumplen: #34=0.77 cm (pág. 15), #36=0.77 cm (pág. 16), #38=0.77 cm (pág. 16), #40=0.77 cm (pág. 16), #102=1.25 cm (pág. 22), #104=1.25 cm (pág. 22), #131=1.73 cm (pág. 23), #132=1.73 cm (pág. 23), #141=1.00 cm (pág. 24), #221=1.00 cm (pág. 34), #264=0.77 cm (pág. 46), #266=0.77 cm (pág. 47), #268=0.77 cm (pág. 47), #270=0.77 cm (pág. 47), #417=1.77 cm (pág. 69), #476=0.98 cm (pág. 74), #477=0.98 cm (pág. 74), #480=0.98 cm (pág. 74), #481=0.98 cm (pág. 74), #483=0.75 cm (pág. 74), #484=0.75 cm (pág. 74), #489=1.00 cm (pág. 74), #490=1.00 cm (pág. 74), #499=0.75 cm (pág. 75), #500=0.75 cm (pág. 75), #501=0.75 cm (pág. 75), #502=0.75 cm (pág. 75), #507=0.75 cm (pág. 75), #508=0.75 cm (pág. 75), #510=0.75 cm (pág. 75), #511=0.75 cm (pág. 75), #512=0.75 cm (pág. 75), #513=0.75 cm (pág. 75), #514=0.75 cm (pág. 75), #516=0.75 cm (pág. 75), #517=0.75 cm (pág. 76), #518=0.75 cm (pág. 76), #519=0.75 cm (pág. 76), #520=0.75 cm (pág. 76), #521=1.00 cm (pág. 76), #522=1.00 cm (pág. 76), #601=0.98 cm (pág. 89), #602=0.98 cm (pág. 89), #605=0.98 cm (pág. 89), #606=0.98 cm (pág. 89), #608=0.75 cm (pág. 89), #609=0.75 cm (pág. 89), #614=1.00 cm (pág. 89), #615=1.00 cm (pág. 89), #623=1.12 cm (pág. 90), #628=1.12 cm (pág. 90), #631=1.12 cm (pág. 90), #636=1.12 cm (pág. 91), #643=0.25 cm (pág. 91), #644=1.00 cm (pág. 91), #745=0.50 cm (pág. 111), #746=0.50 cm (pág. 111), #747=0.50 cm (pág. 111), #748=0.50 cm (pág. 111), #749=0.50 cm (pág. 111), #758=0.50 cm (pág. 111), #759=0.50 cm (pág. 111), #824=0.50 cm (pág. 121), #825=0.50 cm (pág. 121), #914=0.48 cm (pág. 143), #919=0.48 cm (pág. 143), #923=0.48 cm (pág. 143), #924=0.48 cm (pág. 143), #925=0.48 cm (pág. 143), #930=1.12 cm (pág. 144), #931=1.12 cm (pág. 144), #933=1.12 cm (pág. 144), #934=1.12 cm (pág. 144), #1006=0.00 cm (pág. 166), #1007=0.00 cm (pág. 166), #1008=0.00 cm (pág. 166), #1009=0.00 cm (pág. 166), #1010=0.00 cm (pág. 166), #1013=0.00 cm (pág. 166), #1014=0.00 cm (pág. 166), #1016=0.00 cm (pág. 166), #1017=0.00 cm (pág. 166), #1018=0.60 cm (pág. 166), #1019=0.60 cm (pág. 166), #1020=0.60 cm (pág. 166), #1021=0.37 cm (pág. 166), #1030=0.62 cm (pág. 167); tolerancia ±0.02 cm; esperado=1.27 cm",
       "location": "Sección \"Formato general\" (párr. 141); página 15",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo.\"",
@@ -247,7 +235,7 @@
       "severity": "error",
       "message": "Las páginas preliminares se numeran en romanos minúsculos; la carátula no se enumera pero se cuenta; la Dedicatoria inicia con \"ii\"",
       "expected": "romanos minúsculos (ii, iii, iv...); carátula = i (sin mostrar)",
-      "found": "@w:fmt=[] esperado=lowerRoman",
+      "found": "@w:fmt: sin valores que comparar; esperado=lowerRoman",
       "location": "Sección \"Formato general\" (párr. 139)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos (\"ii\") en romano...\"",
@@ -355,7 +343,7 @@
       "severity": "error",
       "message": "La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT",
       "expected": "Línea de investigación aprobada (RCU-N°220-2022/UNT)",
-      "found": "textos=['(times new román 12 puntos)'] en_lista_faltan=['(times new román 12 puntos)']",
+      "found": "textos: 1 evaluados, 1 en_lista_faltan: #1=(times new román 12 puntos)",
       "location": "Carátula, campo \"Línea de Investigación\"; página 13",
       "fuente": "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf",
       "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"",
@@ -422,30 +410,6 @@
       "ficha": []
     },
     {
-      "rule_id": "encabezado_membrete",
-      "passed": true,
-      "severity": "warning",
-      "message": "El encabezado repite el membrete institucional con el logotipo de la UNT",
-      "expected": "imagen (dibujo) en el encabezado",
-      "found": "cumple",
-      "location": "Encabezado de página (estándar institucional UNT)",
-      "fuente": "Formato institucional UNT (plantillas oficiales)",
-      "cita": "\"Membrete institucional: logotipo de la UNT repetido en el encabezado de página.\"",
-      "ficha": []
-    },
-    {
-      "rule_id": "encabezado_formato",
-      "passed": true,
-      "severity": "warning",
-      "message": "El texto del encabezado usa la misma familia tipográfica que el cuerpo (Times New Roman)",
-      "expected": "Times New Roman",
-      "found": "cumple",
-      "location": "Encabezado de página (estándar institucional UNT)",
-      "fuente": "Formato institucional UNT (plantillas oficiales)",
-      "cita": "\"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman).\"",
-      "ficha": []
-    },
-    {
       "rule_id": "notas_al_pie_consistencia",
       "passed": true,
       "severity": "warning",
@@ -497,10 +461,10 @@
   "ficha": {},
   "resumen": {
     "total": 50,
-    "total_evaluadas": 41,
-    "reglas_no_aplicables": 9,
+    "total_evaluadas": 38,
+    "reglas_no_aplicables": 12,
     "fallidos_error": 22,
-    "fallidos_warning": 6
+    "fallidos_warning": 5
   },
   "como_preguntar_a_una_ia": [
     {
@@ -509,55 +473,51 @@
     },
     {
       "rule_id": "tamano_cuerpo",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El tamaño de letra del cuerpo del texto debe ser 12 puntos\n- Valor esperado según el reglamento: 12pt\n- Lo que encontró el validador: @w:val esperado=24; incumplen=[#11=32, #37=36, #38=26]; muestra=[24, 24, 24]\n- Cita del reglamento: \"Times New Roman: 12 puntos\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El tamaño de letra del cuerpo del texto debe ser 12 puntos\n- Valor esperado según el reglamento: 12pt\n- Lo que encontró el validador: @w:val: 1416 valores evaluados, 134 incumplen: #11=16 pt (pág. 8), #37=18 pt (pág. 13), #38=13 pt (pág. 13), #39=13 pt (pág. 13), #42=13 pt (pág. 13), #43=13 pt (pág. 13), #294=18 pt (pág. 43), #295=13 pt (pág. 43), #296=13 pt (pág. 43), #297=13 pt (pág. 43), #298=13 pt (pág. 43), #299=13 pt (pág. 43), #381=16 pt (pág. 54), #406=18 pt (pág. 60), #407=13 pt (pág. 60), #408=13 pt (pág. 60), #410=13 pt (pág. 60), #411=13 pt (pág. 60), #770=18 pt (pág. 101), #771=13 pt (pág. 101), #772=13 pt (pág. 101), #774=13 pt (pág. 101), #775=13 pt (pág. 101), #776=13 pt (pág. 101), #777=13 pt (pág. 101), #1037=18 pt (pág. 134), #1038=13 pt (pág. 134), #1039=13 pt (pág. 134), #1040=13 pt (pág. 134), #1041=13 pt (pág. 134), #1042=13 pt (pág. 134), #1043=13 pt (pág. 134), #1056=18 pt (pág. 134), #1101=10 pt (pág. 139), #1241=10.5 pt (pág. 162), #1242=10.5 pt (pág. 162), #1243=10.5 pt (pág. 162), #1244=10.5 pt (pág. 162), #1245=10.5 pt (pág. 162), #1246=10.5 pt (pág. 162), #1247=10.5 pt (pág. 162), #1248=10.5 pt (pág. 162), #1249=10.5 pt (pág. 162), #1250=10.5 pt (pág. 162), #1251=10.5 pt (pág. 162), #1252=10.5 pt (pág. 162), #1253=10.5 pt (pág. 162), #1254=10.5 pt (pág. 162), #1255=10.5 pt (pág. 162), #1256=10.5 pt (pág. 162), #1257=10.5 pt (pág. 162), #1258=10.5 pt (pág. 162), #1259=10.5 pt (pág. 162), #1260=10.5 pt (pág. 162), #1261=10.5 pt (pág. 162), #1262=10.5 pt (pág. 162), #1263=10.5 pt (pág. 162), #1267=11 pt (pág. 163), #1268=11 pt (pág. 163), #1269=11 pt (pág. 163), #1270=11 pt (pág. 163), #1271=11 pt (pág. 163), #1272=11 pt (pág. 163), #1273=11 pt (pág. 163), #1274=11 pt (pág. 163), #1275=11 pt (pág. 163), #1276=11 pt (pág. 163), #1277=11 pt (pág. 163), #1278=11 pt (pág. 163), #1279=11 pt (pág. 163), #1280=11 pt (pág. 163), #1281=11 pt (pág. 163), #1282=11 pt (pág. 163), #1283=11 pt (pág. 163), #1284=11 pt (pág. 163), #1285=11 pt (pág. 163), #1286=11 pt (pág. 163), #1287=11 pt (pág. 164), #1288=11 pt (pág. 164), #1289=11 pt (pág. 164), #1290=11 pt (pág. 164), #1291=11 pt (pág. 164), #1292=11 pt (pág. 164), #1293=11 pt (pág. 164), #1294=11 pt (pág. 164), #1295=11 pt (pág. 164), #1296=11 pt (pág. 164), #1297=11 pt (pág. 164), #1298=11 pt (pág. 164), #1299=11 pt (pág. 164), #1300=11 pt (pág. 164), #1301=11 pt (pág. 164), #1302=11 pt (pág. 164), #1303=11 pt (pág. 164), #1304=11 pt (pág. 164), #1305=11 pt (pág. 164), #1306=11 pt (pág. 164), #1307=11 pt (pág. 164), #1308=11 pt (pág. 164), #1309=11 pt (pág. 164), #1383=9 pt (pág. 170), #1384=9 pt (pág. 170), #1385=9 pt (pág. 170), #1386=9 pt (pág. 170), #1387=9 pt (pág. 170), #1388=9 pt (pág. 170), #1389=9 pt (pág. 170), #1390=9 pt (pág. 170), #1391=9 pt (pág. 170), #1392=9 pt (pág. 170), #1393=9 pt (pág. 170), #1394=9 pt (pág. 170), #1395=9 pt (pág. 170), #1396=11 pt (pág. 171), #1397=11 pt (pág. 171), #1398=11 pt (pág. 171), #1399=11 pt (pág. 171), #1400=11 pt (pág. 171), #1401=11 pt (pág. 171), #1402=11 pt (pág. 171), #1403=11 pt (pág. 171), #1404=11 pt (pág. 171), #1405=11 pt (pág. 171), #1406=11 pt (pág. 171), #1407=11 pt (pág. 171), #1408=9 pt (pág. 171), #1409=9 pt (pág. 171), #1410=9 pt (pág. 171), #1411=9 pt (pág. 171), #1412=9 pt (pág. 171), #1413=9 pt (pág. 171), #1414=11 pt (pág. 171), #1415=11 pt (pág. 171), #1416=11 pt (pág. 171); esperado=12 pt\n- Cita del reglamento: \"Times New Roman: 12 puntos\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "caratula_universidad_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del nombre de la Universidad en carátula\n- Valor esperado según el reglamento: 18pt\n- Lo que encontró el validador: @w:val=[] esperado=36\n- Cita del reglamento: \"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del nombre de la Universidad en carátula\n- Valor esperado según el reglamento: 18pt\n- Lo que encontró el validador: @w:val: sin valores que comparar; esperado=18 pt\n- Cita del reglamento: \"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "caratula_facultad_escuela_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de Facultad y Escuela Profesional en carátula\n- Valor esperado según el reglamento: 13pt\n- Lo que encontró el validador: @w:val=[44] esperado=26\n- Cita del reglamento: \"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de Facultad y Escuela Profesional en carátula\n- Valor esperado según el reglamento: 13pt\n- Lo que encontró el validador: @w:val: 1 valores evaluados, 1 incumplen: #1=22 pt (pág. 1); esperado=13 pt\n- Cita del reglamento: \"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "caratula_titulo_trabajo_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del título del trabajo en carátula\n- Valor esperado según el reglamento: 14pt\n- Lo que encontró el validador: @w:val=[] esperado=28\n- Cita del reglamento: \"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
-    },
-    {
-      "rule_id": "caratula_optar_grado_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de la línea \"Trabajo de Investigación para optar el grado de Bachiller en...\"\n- Valor esperado según el reglamento: 13pt\n- Lo que encontró el validador: @w:val=[] esperado=26\n- Cita del reglamento: \"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del título del trabajo en carátula\n- Valor esperado según el reglamento: 14pt\n- Lo que encontró el validador: @w:val: sin valores que comparar; esperado=14 pt\n- Cita del reglamento: \"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "caratula_autores_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula\n- Valor esperado según el reglamento: 12pt\n- Lo que encontró el validador: @w:val=[] esperado=24\n- Cita del reglamento: \"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula\n- Valor esperado según el reglamento: 12pt\n- Lo que encontró el validador: @w:val: sin valores que comparar; esperado=12 pt\n- Cita del reglamento: \"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "interlineado",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)\n- Valor esperado según el reglamento: 1.5 (ONE_POINT_FIVE)\n- Lo que encontró el validador: @w:line esperado=360; incumplen=[#11=259, #397=259, #847=259]; muestra=[360, 360, 360]\n- Cita del reglamento: \"Interlineado: 1.5 puntos\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)\n- Valor esperado según el reglamento: 1.5 (ONE_POINT_FIVE)\n- Lo que encontró el validador: @w:line: 1346 valores evaluados, 32 incumplen: #11=259 (pág. 8), #397=259 (pág. 54), #847=259 (pág. 104), #848=259 (pág. 105), #950=259 (pág. 115), #951=259 (pág. 116), #1158=259 (pág. 143), #1199=259 (pág. 148), #1200=259 (pág. 148), #1228=240 (pág. 156), #1306=276 (pág. 166), #1307=276 (pág. 166), #1308=276 (pág. 166), #1309=480 (pág. 166), #1310=480 (pág. 166), #1311=480 (pág. 166), #1312=480 (pág. 166), #1313=480 (pág. 166), #1314=480 (pág. 166), #1315=480 (pág. 166), #1316=480 (pág. 166), #1317=480 (pág. 166), #1318=480 (pág. 166), #1319=480 (pág. 166), #1320=480 (pág. 166), #1321=480 (pág. 166), #1322=480 (pág. 166), #1323=480 (pág. 166), #1324=480 (pág. 166), #1345=276 (pág. 170), #1346=276 (pág. 170), #1354=276 (pág. 170); esperado=360\n- Cita del reglamento: \"Interlineado: 1.5 puntos\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "alineacion_cuerpo",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El cuerpo del texto debe estar justificado\n- Valor esperado según el reglamento: justificada\n- Lo que encontró el validador: @w:val esperado=both; incumplen=[#11=center, #38=center, #39=center]; muestra=[both, both, both]\n- Cita del reglamento: \"Alineación: Justificada\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: El cuerpo del texto debe estar justificado\n- Valor esperado según el reglamento: justificada\n- Lo que encontró el validador: @w:val: 1274 valores evaluados, 119 incumplen: #11=center (pág. 8), #38=center (pág. 13), #39=center (pág. 13), #40=center (pág. 13), #41=center (pág. 13), #42=center (pág. 13), #43=center (pág. 13), #44=center (pág. 13), #45=center (pág. 13), #46=center (pág. 13), #47=center (pág. 13), #48=center (pág. 13), #49=center (pág. 13), #50=center (pág. 13), #51=center (pág. 13), #52=center (pág. 13), #53=center (pág. 13), #54=center (pág. 13), #55=center (pág. 13), #56=center (pág. 13), #278=center (pág. 43), #279=center (pág. 43), #280=center (pág. 43), #281=center (pág. 43), #282=center (pág. 43), #283=center (pág. 43), #284=center (pág. 43), #285=center (pág. 43), #286=center (pág. 43), #287=center (pág. 43), #288=center (pág. 43), #289=center (pág. 43), #290=center (pág. 43), #291=center (pág. 43), #292=center (pág. 43), #293=center (pág. 43), #294=center (pág. 43), #295=center (pág. 43), #296=center (pág. 43), #362=center (pág. 54), #388=center (pág. 60), #389=center (pág. 60), #390=center (pág. 60), #391=center (pág. 60), #392=center (pág. 60), #393=center (pág. 60), #394=center (pág. 60), #395=center (pág. 60), #396=center (pág. 60), #397=center (pág. 60), #398=center (pág. 60), #399=center (pág. 60), #400=center (pág. 60), #401=center (pág. 60), #402=center (pág. 60), #403=center (pág. 60), #404=center (pág. 60), #405=center (pág. 60), #406=center (pág. 60), #407=center (pág. 60), #423=center (pág. 62), #583=center (pág. 80), #734=center (pág. 101), #735=center (pág. 101), #736=center (pág. 101), #737=center (pág. 101), #738=center (pág. 101), #739=center (pág. 101), #740=center (pág. 101), #741=center (pág. 101), #742=center (pág. 101), #743=center (pág. 101), #744=center (pág. 101), #745=center (pág. 101), #746=center (pág. 101), #747=center (pág. 101), #748=center (pág. 101), #749=center (pág. 101), #750=center (pág. 101), #751=center (pág. 101), #752=center (pág. 101), #753=center (pág. 101), #754=center (pág. 101), #755=center (pág. 101), #959=center (pág. 134), #960=center (pág. 134), #961=center (pág. 134), #962=center (pág. 134), #963=center (pág. 134), #964=center (pág. 134), #965=center (pág. 134), #966=center (pág. 134), #967=center (pág. 134), #968=center (pág. 134), #969=center (pág. 134), #970=center (pág. 134), #971=center (pág. 134), #972=center (pág. 134), #973=center (pág. 134), #974=center (pág. 134), #975=center (pág. 134), #976=center (pág. 134), #977=center (pág. 134), #978=center (pág. 134), #1041=center (pág. 143), #1042=center (pág. 143), #1087=right (pág. 156), #1129=right (pág. 160), #1130=center (pág. 162), #1131=right (pág. 162), #1132=right (pág. 162), #1133=right (pág. 162), #1154=center (pág. 163), #1155=right (pág. 163), #1156=right (pág. 163), #1177=center (pág. 164), #1178=right (pág. 164), #1179=right (pág. 164), #1269=right (pág. 170); esperado=both\n- Cita del reglamento: \"Alineación: Justificada\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "alineacion_caratula_todos_elementos",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Todos los elementos de la carátula deben estar centrados\n- Valor esperado según el reglamento: centrado\n- Lo que encontró el validador: @w:val esperado=center; incumplen=[#1=right]; muestra=[right]\n- Cita del reglamento: \"Nombre de la Universidad: Centrado...\", \"Facultad y Escuela Profesional: Centrado...\", \"Título del Trabajo...: Centrado...\", etc.\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Todos los elementos de la carátula deben estar centrados\n- Valor esperado según el reglamento: centrado\n- Lo que encontró el validador: @w:val: 1 valores evaluados, 1 incumplen: #1=right (pág. 1); esperado=center\n- Cita del reglamento: \"Nombre de la Universidad: Centrado...\", \"Facultad y Escuela Profesional: Centrado...\", \"Título del Trabajo...: Centrado...\", etc.\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "margen_superior",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Margen superior del documento\n- Valor esperado según el reglamento: 2.5 cm\n- Lo que encontró el validador: @w:top esperado=1418; incumplen=[#1=1417, #2=1417, #3=1417]; muestra=[1417, 1417, 1417]\n- Cita del reglamento: \"Superior: 2.5 cm\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Margen superior del documento\n- Valor esperado según el reglamento: 2.5 cm\n- Lo que encontró el validador: @w:top: 6 valores evaluados, 4 incumplen: #1=2.50 cm (pág. 24), #2=2.50 cm (pág. 139), #3=2.50 cm (pág. 148), #4=2.50 cm (pág. 151); esperado=2.50 cm\n- Cita del reglamento: \"Superior: 2.5 cm\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "margen_inferior",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Margen inferior del documento\n- Valor esperado según el reglamento: 2.5 cm\n- Lo que encontró el validador: @w:bottom esperado=1418; incumplen=[#1=1417, #2=1417, #3=1417]; muestra=[1417, 1417, 1417]\n- Cita del reglamento: \"Inferior: 2.5 cm\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Margen inferior del documento\n- Valor esperado según el reglamento: 2.5 cm\n- Lo que encontró el validador: @w:bottom: 6 valores evaluados, 4 incumplen: #1=2.50 cm (pág. 24), #2=2.50 cm (pág. 139), #3=2.50 cm (pág. 148), #4=2.50 cm (pág. 151); esperado=2.50 cm\n- Cita del reglamento: \"Inferior: 2.5 cm\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "margen_derecho",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Margen derecho del documento\n- Valor esperado según el reglamento: 2.5 cm\n- Lo que encontró el validador: @w:right esperado=1418; incumplen=[#1=1701, #2=1701, #3=1701]; muestra=[1701, 1701, 1701]\n- Cita del reglamento: \"Derecho: 2.5 cm\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Margen derecho del documento\n- Valor esperado según el reglamento: 2.5 cm\n- Lo que encontró el validador: @w:right: 6 valores evaluados, 6 incumplen: #1=3.00 cm (pág. 24), #2=3.00 cm (pág. 139), #3=3.00 cm (pág. 148), #4=3.00 cm (pág. 151), #5=3.00 cm (pág. 154), #6=3.00 cm; esperado=2.50 cm\n- Cita del reglamento: \"Derecho: 2.5 cm\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "sangria_parrafo",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: La primera línea de cada párrafo debe tener sangría de 1.27 cm\n- Valor esperado según el reglamento: 1.27 cm (½ pulgada)\n- Lo que encontró el validador: @w:firstLine esperado=720; incumplen=[#34=436, #36=436, #38=436]; muestra=[708, 436, 436]\n- Cita del reglamento: \"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo.\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: La primera línea de cada párrafo debe tener sangría de 1.27 cm\n- Valor esperado según el reglamento: 1.27 cm (½ pulgada)\n- Lo que encontró el validador: @w:firstLine: 104 valores evaluados, 87 incumplen: #34=0.77 cm (pág. 15), #36=0.77 cm (pág. 16), #38=0.77 cm (pág. 16), #40=0.77 cm (pág. 16), #102=1.25 cm (pág. 22), #104=1.25 cm (pág. 22), #131=1.73 cm (pág. 23), #132=1.73 cm (pág. 23), #141=1.00 cm (pág. 24), #221=1.00 cm (pág. 34), #264=0.77 cm (pág. 46), #266=0.77 cm (pág. 47), #268=0.77 cm (pág. 47), #270=0.77 cm (pág. 47), #417=1.77 cm (pág. 69), #476=0.98 cm (pág. 74), #477=0.98 cm (pág. 74), #480=0.98 cm (pág. 74), #481=0.98 cm (pág. 74), #483=0.75 cm (pág. 74), #484=0.75 cm (pág. 74), #489=1.00 cm (pág. 74), #490=1.00 cm (pág. 74), #499=0.75 cm (pág. 75), #500=0.75 cm (pág. 75), #501=0.75 cm (pág. 75), #502=0.75 cm (pág. 75), #507=0.75 cm (pág. 75), #508=0.75 cm (pág. 75), #510=0.75 cm (pág. 75), #511=0.75 cm (pág. 75), #512=0.75 cm (pág. 75), #513=0.75 cm (pág. 75), #514=0.75 cm (pág. 75), #516=0.75 cm (pág. 75), #517=0.75 cm (pág. 76), #518=0.75 cm (pág. 76), #519=0.75 cm (pág. 76), #520=0.75 cm (pág. 76), #521=1.00 cm (pág. 76), #522=1.00 cm (pág. 76), #601=0.98 cm (pág. 89), #602=0.98 cm (pág. 89), #605=0.98 cm (pág. 89), #606=0.98 cm (pág. 89), #608=0.75 cm (pág. 89), #609=0.75 cm (pág. 89), #614=1.00 cm (pág. 89), #615=1.00 cm (pág. 89), #623=1.12 cm (pág. 90), #628=1.12 cm (pág. 90), #631=1.12 cm (pág. 90), #636=1.12 cm (pág. 91), #643=0.25 cm (pág. 91), #644=1.00 cm (pág. 91), #745=0.50 cm (pág. 111), #746=0.50 cm (pág. 111), #747=0.50 cm (pág. 111), #748=0.50 cm (pág. 111), #749=0.50 cm (pág. 111), #758=0.50 cm (pág. 111), #759=0.50 cm (pág. 111), #824=0.50 cm (pág. 121), #825=0.50 cm (pág. 121), #914=0.48 cm (pág. 143), #919=0.48 cm (pág. 143), #923=0.48 cm (pág. 143), #924=0.48 cm (pág. 143), #925=0.48 cm (pág. 143), #930=1.12 cm (pág. 144), #931=1.12 cm (pág. 144), #933=1.12 cm (pág. 144), #934=1.12 cm (pág. 144), #1006=0.00 cm (pág. 166), #1007=0.00 cm (pág. 166), #1008=0.00 cm (pág. 166), #1009=0.00 cm (pág. 166), #1010=0.00 cm (pág. 166), #1013=0.00 cm (pág. 166), #1014=0.00 cm (pág. 166), #1016=0.00 cm (pág. 166), #1017=0.00 cm (pág. 166), #1018=0.60 cm (pág. 166), #1019=0.60 cm (pág. 166), #1020=0.60 cm (pág. 166), #1021=0.37 cm (pág. 166), #1030=0.62 cm (pág. 167); tolerancia ±0.02 cm; esperado=1.27 cm\n- Cita del reglamento: \"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo.\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "numeracion_posicion",
@@ -565,7 +525,7 @@
     },
     {
       "rule_id": "numeracion_preliminares_romano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Las páginas preliminares se numeran en romanos minúsculos; la carátula no se enumera pero se cuenta; la Dedicatoria inicia con \"ii\"\n- Valor esperado según el reglamento: romanos minúsculos (ii, iii, iv...); carátula = i (sin mostrar)\n- Lo que encontró el validador: @w:fmt=[] esperado=lowerRoman\n- Cita del reglamento: \"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos (\"ii\") en romano...\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Las páginas preliminares se numeran en romanos minúsculos; la carátula no se enumera pero se cuenta; la Dedicatoria inicia con \"ii\"\n- Valor esperado según el reglamento: romanos minúsculos (ii, iii, iv...); carátula = i (sin mostrar)\n- Lo que encontró el validador: @w:fmt: sin valores que comparar; esperado=lowerRoman\n- Cita del reglamento: \"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos (\"ii\") en romano...\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "caratula_no_se_enumera",
@@ -597,7 +557,7 @@
     },
     {
       "rule_id": "caratula_linea_investigacion",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT\n- Valor esperado según el reglamento: Línea de investigación aprobada (RCU-N°220-2022/UNT)\n- Lo que encontró el validador: textos=['(times new román 12 puntos)'] en_lista_faltan=['(times new román 12 puntos)']\n- Cita del reglamento: \"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT\n- Valor esperado según el reglamento: Línea de investigación aprobada (RCU-N°220-2022/UNT)\n- Lo que encontró el validador: textos: 1 evaluados, 1 en_lista_faltan: #1=(times new román 12 puntos)\n- Cita del reglamento: \"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "resumen_longitud",
