@@ -539,6 +539,56 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-34 | Int1 | **cerrado** (claves entre comillas en el escáner) | `efca435` (PR #71) |
 | Nuevo: cache compilado por hilo | Int3 | **decidido: no se implementa** (0.1 % de mejora medida; §12.3) | — |
 
+### Seguimiento de correctitud — 2026-11-12
+
+Tareas, dependencias y aceptación para los tres integrantes en
+[`HANDOVER_CORRECTITUD_2026-11-12.md`](HANDOVER_CORRECTITUD_2026-11-12.md).
+Los ID `VA` no reemplazan los `AUD`. Esta documentación no cierra los defectos.
+VA-13 corresponde a AUD-24 a AUD-27; PR #75 sigue abierto y con conflictos en
+la consulta del 2026-11-12. VA-20 añade la verificación del relleno Angular.
+VA-21 es un riesgo de restauración/autofill reportado por el usuario y pendiente
+de comprobar en el navegador real. retblast implementa solo la parte de Int1.
+
+| ID | Responsable | Estado | Tarea del nuevo handover |
+|----|-------------|--------|-------------------------|
+| VA-01 | Int3 | pendiente | M1: todos los runs |
+| VA-02 | Int3 | pendiente | M1: formato efectivo |
+| VA-03 | Int3 | pendiente | M2: A4 en secciones |
+| VA-04 | Int3 | pendiente | M3: paginación |
+| VA-05 | Int3 | pendiente | M4: declaraciones múltiples |
+| VA-06 | Int3 | pendiente | M5: límites del Resumen |
+| VA-07 | Int3 | pendiente | M5: Abstract y palabras clave |
+| VA-08 | Int1 | pendiente | B4: filas sobrantes |
+| VA-09 | Int1 + Int2 | pendiente | B2 + F2: identidad de trámite |
+| VA-10 | Int2 | pendiente | F1: identidad del resguardo |
+| VA-11 | Int3 + Int1 | pendiente | M1a + B5: documento inválido |
+| VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
+| VA-13 | Int3 | pendiente de integración | M0: PR #75, AUD-24 a AUD-27 |
+| VA-14 | Int3 | pendiente | M6: «Base de datos» |
+| VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
+| VA-16 | Int3 | pendiente | M8: ORCID |
+| VA-17 | Int1 + Int3 | pendiente | B6: ejemplos; M11: factory |
+| VA-18 | Int1 + Int3 | pendiente | B7 + M10: conteos |
+| VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
+| VA-20 | Int1 | pendiente | B3 y puerta Angular de Int1: antes del piloto |
+| VA-21 | Int1 + Int2 | riesgo pendiente de verificar | B8 + F5: autofill y restauración |
+
+### Ampliación normativa — 2026-11-12
+
+Evidencia y fuentes en [AUDITORIA_NORMATIVA_2026-11-12.md](AUDITORIA_NORMATIVA_2026-11-12.md).
+No se cerraron defectos con esta documentación. Los detalles están en M12 de Int3.
+
+| ID | Responsable | Estado | Trabajo |
+|---|---|---|---|
+| NM-01 | Int3 | pendiente | M12a: numeración y pies |
+| NM-02 | Int3 | pendiente | M12b: bloques de carátula |
+| NM-03 | Int3; Int2 comunica límites | pendiente | M12c y F3: esquemas y alcance |
+| NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |
+| NM-05 | Int3 | pendiente | M12e: referencias por ámbito |
+| NM-06 | Int3 + decisión del encargado | pendiente | M12f: anexos |
+| NM-07 | Int3 | pendiente | M12g: origen de las reglas |
+| NM-08 | Int1 | decidido por usuario 2026-11-12 | Emular acceso abierto; B3 comprueba persistencia |
+
 ---
 
 ## 12. Propuestas de Int1 para el área de Int3
@@ -604,7 +654,6 @@ Diff propuesto (`validator/exportador.py`):
 ```diff
 @@ -29,6 +29,24 @@ import markdown
  _EMOJIS = {"rojo": "🔴", "verde": "🟢"}
-
 
 +def _escapar_md(texto: object) -> str:
 +    """Escapa el texto que viene del documento antes de interpolarlo.
