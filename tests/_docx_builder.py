@@ -201,10 +201,30 @@ def _heading(texto: str) -> str:
     return f'<w:p><w:pPr><w:pStyle w:val="Ttulo{nivel}"/></w:pPr>{_run(texto)}</w:p>'
 
 
+def _run_tabs(texto: str, rpr_inner: str = "") -> str:
+    """Run que traduce `\\t` a `<w:tab/>`, como el índice real de Word.
+
+    `text_of()` solo concatena `w:t`, así que el tabulador entre título y
+    página desaparece al extraer. Este helper permite construir fixtures con
+    la estructura real y comprobar que `_entradas_indice` lo preserva
+    (AUD-01/AUD-20).
+    """
+    if "\\t" not in texto:
+        return _run(texto, rpr_inner)
+    rpr = f"<w:rPr>{rpr_inner}</w:rPr>" if rpr_inner else ""
+    piezas: list[str] = []
+    for i, parte in enumerate(texto.split("\\t")):
+        if i:
+            piezas.append("<w:tab/>")
+        if parte:
+            piezas.append(f'<w:t xml:space="preserve">{parte}</w:t>')
+    return f"<w:r>{rpr}{''.join(piezas)}</w:r>"
+
+
 def _tdc_para(entrada: tuple) -> str:
     """Párrafo del índice de contenidos (estilo TDC{nivel}, no es heading)."""
     nivel, texto = entrada
-    return f'<w:p><w:pPr><w:pStyle w:val="TDC{nivel}"/></w:pPr>{_run(texto)}</w:p>'
+    return f'<w:p><w:pPr><w:pStyle w:val="TDC{nivel}"/></w:pPr>{_run_tabs(texto)}</w:p>'
 
 
 def _logo() -> str:
@@ -315,12 +335,68 @@ def configuracion_base() -> dict:
         "palabras_clave_n": 3,
         "referencias_n": 30,
         "anexos_items": list(ANEXOS_BASE),
+        "anexos_como_titulos": False,
         "indices_paginas_separadas": True,
         "header_logo": True,
         "header_fuente": "Times New Roman",
         "notas_pie_ids": [],
         "tdc_entradas": list(TDC_ENTRADAS_BASE),
     }
+
+
+def configuracion_anexos_titulos() -> dict:
+    """Fixture AUD-02/AUD-20: anexos con la estructura real de la plantilla.
+
+    En los DOCX reales cada "Anexo N. <ítem>" es un Título1, no un párrafo
+    del cuerpo. Antes de AUD-02 el analizador de lista obligatoria solo leía
+    párrafos, así que no encontraba ninguno de estos anexos.
+    """
+    cfg = configuracion_base()
+    cfg["anexos_como_titulos"] = True
+    return cfg
+
+
+def configuracion_titulo_romano() -> dict:
+    """Fixture AUD-01/AUD-20: título que acaba en letra romana.
+
+    "GENERAL" termina en "L" (letra romana). Con el heurístico antiguo, el
+    título del cuerpo perdía esa letra ("GENERA") mientras la entrada del
+    índice se normalizaba a "GENERAL": el match fallaba y
+    `indice_apunta_secciones` daba un falso positivo.
+    """
+    cfg = configuracion_base()
+    idx = cfg["headings"].index("OBJETIVOS")
+    cfg["headings"].insert(idx + 1, "GENERAL")
+    for i, (_nivel, texto) in enumerate(cfg["tdc_entradas"]):
+        if texto == "1.4. OBJETIVOS 9":
+            cfg["tdc_entradas"].insert(i + 1, (2, "1.4.1. GENERAL 9"))
+            break
+    return cfg
+
+
+def configuracion_indice_tabs() -> dict:
+    """Fixture AUD-01/AUD-20: índice con la estructura real de Word.
+
+    Cada entrada separa título y página con un `w:tab` (no con espacios), y
+    algunas páginas van pegadas a palabras de una sola letra
+    (`RESUMEN<tab>x`). `text_of()` ignora el tabulador, así que sin el
+    arreglo la entrada se extraía como `1.2.1.GENERAL9` y no encontraba su
+    sección. Con `_entradas_indice` preservando el tabulador como espacio,
+    el recorte de página vuelve a funcionar.
+    """
+    cfg = configuracion_titulo_romano()
+    reemplazos = {
+        "1.4.1. GENERAL 9": "1.4.1.\\tGENERAL\\t9",
+        "PRESENTACIÓN iii": "PRESENTACIÓN\\tiii",
+        "RESUMEN v": "RESUMEN\\tx",
+        "ABSTRACT vii": "ABSTRACT\\txi",
+        "I. INTRODUCCIÓN 1": "I.\\tINTRODUCCIÓN\\t1",
+        "1.1. SITUACIÓN PROBLEMÁTICA 2": "1.1.\\tSITUACIÓN PROBLEMÁTICA\\t2",
+    }
+    cfg["tdc_entradas"] = [
+        (nivel, reemplazos.get(texto, texto)) for nivel, texto in cfg["tdc_entradas"]
+    ]
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -397,9 +473,17 @@ def _document_xml(cfg: dict) -> str:
                 for i in range(cfg["referencias_n"])
             )
         if h == "ANEXOS":
-            paras.extend(
-                _body_para(f"Anexo {i + 1}. {item}") for i, item in enumerate(cfg["anexos_items"])
-            )
+            if cfg.get("anexos_como_titulos"):
+                # Estructura real de las plantillas: cada "Anexo N." es un
+                # Título1, no un párrafo del cuerpo (AUD-02/AUD-20).
+                paras.extend(
+                    _heading(f"Anexo {i + 1}. {item}") for i, item in enumerate(cfg["anexos_items"])
+                )
+            else:
+                paras.extend(
+                    _body_para(f"Anexo {i + 1}. {item}")
+                    for i, item in enumerate(cfg["anexos_items"])
+                )
 
     # Marcador de sección (fin de preliminares); la prosa del cuerpo ya se
     # insertó tras el heading "INTRODUCCIÓN". Los párrafos que siguen al

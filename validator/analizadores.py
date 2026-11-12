@@ -95,6 +95,11 @@ class Analizador(ABC):
         # `AnalizadorExtraccion` y los analizadores con `extraccion` anidada lo
         # rellenan.
         self.ficha: list[dict] = []
+        # Marca que el analizador determinó que la regla NO APLICA a este
+        # documento (p. ej. `n_a_si_sin_nodos` o `n_a_si_ausente`). El
+        # compilador la usa para devolver `aplicable=False` en vez de un
+        # "cumple" engañoso (AUD-07).
+        self.no_aplica = False
 
     @abstractmethod
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]: ...
@@ -135,6 +140,7 @@ class AnalizadorXML(Analizador):
         parte = self.config.get("parte", "document")
         contexto = self.config.get("contexto", "todos")
         comp = self.config.get("comparacion", "exists")
+        self.no_aplica = False
 
         try:
             nodes = self._nodos(extracted, parte, contexto)
@@ -142,6 +148,7 @@ class AnalizadorXML(Analizador):
             # La parte no existe (p. ej. tesis sin header*.xml): si la regla
             # declara `n_a_si_ausente`, el incumplimiento no aplica (n/a).
             if self.config.get("n_a_si_ausente"):
+                self.no_aplica = True
                 return True, f"no aplica (parte '{parte}' ausente)"
             raise
 
@@ -150,6 +157,14 @@ class AnalizadorXML(Analizador):
             if comp == "exists":
                 return len(nodes) > 0, f"exists {len(nodes)} nodos"
             return len(nodes) == 0, f"not_exists {len(nodes)} nodos"
+
+        # Sin nodos no hay atributo que comparar. `n_a_si_sin_nodos` permite
+        # declarar que la regla no aplica (p. ej. una línea de carátula que
+        # solo existe en cierto tipo de título), en vez de fallar con
+        # `@w:val=[] esperado=...` (AUD-07).
+        if not nodes and self.config.get("n_a_si_sin_nodos"):
+            self.no_aplica = True
+            return True, "no aplica (sin nodos)"
 
         # Atributo
         atributo = self.config.get("atributo")
@@ -384,8 +399,15 @@ class AnalizadorListaObligatoria(Analizador):
     def _texto(self, extracted: ExtractedDocx) -> str:
         sec = self.config.get("seccion")
         if sec:
-            corte = seccion(tokenizar(extracted), sec["inicio"], sec.get("fin"))
-            return " ".join(t.texto for t in corte if t.tipo == PARRAFO)
+            corte = seccion(
+                tokenizar(extracted),
+                sec["inicio"],
+                sec.get("fin"),
+                hasta_final=bool(sec.get("hasta_final")),
+            )
+            return " ".join(
+                t.texto for t in corte if t.tipo in (PARRAFO, TITULO) and t.texto.strip()
+            )
         nodos = self._nodos(
             extracted,
             self.config.get("parte", "document"),
@@ -404,9 +426,10 @@ class AnalizadorListaObligatoria(Analizador):
 
         texto_norm = _norm(texto)
         faltan = [it for it in items if _norm(it) not in texto_norm]
+        encontrados = len(items) - len(faltan)
         if not faltan:
-            return True, f"items_obligatorios={len(items)} completo"
-        return False, f"items_obligatorios={len(items)} faltan={faltan[:8]}"
+            return True, f"items_obligatorios={len(items)} encontrados={encontrados} completo"
+        return False, (f"items_obligatorios={len(items)} encontrados={encontrados} faltan={faltan}")
 
 
 class AnalizadorPaginacion(Analizador):
@@ -565,28 +588,82 @@ def _sin_acentos(s: str) -> str:
     return s.translate(_MAP_ACENTOS)
 
 
-def _norm_indice(texto: str) -> str:
-    """Texto de una entrada de índice normalizado para MATCHING (ítem 11).
-
-    Quita el prefijo de numeración (romano "I." o decimal "1.1."), el número
-    de página al final (arábigo "10" o romano "ii"), separadores sueltos,
-    tildes y colapsa el whitespace, en mayúsculas.
-    """
+def _normalizar_base_indice(texto: str) -> str:
     s = texto.strip()
     s = re.sub(r"^\s*(?:[IVXLC]+\s*\.|(?:\d+)+(?:\.\d+)*\s*\.?\s*)", "", s)
-    s = re.sub(r"\s*[ivxlc]{1,5}\s*$", "", s)
-    s = re.sub(r"\s*\d+\s*$", "", s)
     s = re.sub(r"[()\[\],;:¿?¡!.]", " ", s)
     s = s.translate(_MAP_ACENTOS)
     return re.sub(r"\s+", " ", s).upper().strip()
 
 
+def _norm_titulo_cuerpo(texto: str) -> str:
+    """Título del cuerpo: sin numeración, pero SIN recortar sufijo romano.
+
+    Los títulos de sección (p.ej. "General") no llevan número de página, así
+    que no deben perder su última letra por el heurístico de páginas romanas.
+    """
+    return _normalizar_base_indice(texto)
+
+
+def _norm_indice(texto: str) -> str:
+    """Texto de una entrada de índice normalizado para MATCHING (ítem 11).
+
+    Quita el prefijo de numeración (romano "I." o decimal "1.1."), el número
+    de página al final (arábigo "10" o romano "ii"), separadores sueltos,
+    tildes y colapsa el whitespace.
+
+    La página se recorta aunque venga PEGADA al título (`1.2.1.General17`,
+    `Dedicatoriaii`): en los índices reales de Word el tabulador que separa
+    título y página no llega a `text_of`, y exigir whitespace dejaba 21
+    entradas sin sección (AUD-01). El título del CUERPO usa
+    `_norm_titulo_cuerpo`, que no recorta sufijo romano, así que este
+    heurístico no puede volver a borrar la `l` de "General".
+    """
+    s = texto.strip()
+    s = re.sub(r"^\s*(?:[IVXLC]+\s*\.|(?:\d+)+(?:\.\d+)*\s*\.?\s*)", "", s)
+    s = re.sub(r"[()\[\],;:¿?¡!.]", " ", s)
+    s = s.translate(_MAP_ACENTOS)
+    s = re.sub(r"\s+", " ", s).strip().upper()
+    # Página romana y arábiga, separadas o pegadas. El romano va primero:
+    # si se quitara el arábigo antes, `1.2.1.General17` quedaría `GENERAL` y
+    # el recorte romano volvería a comerse la `l` (el bug original).
+    s = re.sub(r"\s*[IVXLC]{1,5}\s*$", "", s)
+    s = re.sub(r"\s*\d+\s*$", "", s)
+    return s.strip()
+
+
 def _sigpalabra(s: str) -> str:
-    """Primera palabra con >=4 caracteres de un texto normalizado (o vacío)."""
+    """Primera palabra con >=4 caracteres de un texto normalizado (o vacío).
+
+    Respaldo de `indice_apunta_secciones` (AUD-06): la comprobación principal
+    es la igualdad del título normalizado; este heurístico solo se usa cuando
+    ese título tiene menos de 4 caracteres y no alcanza para exigir igualdad.
+    El umbral descarta tokens de numeración o romanos ("I", "1.2", "A") como
+    señal de contenido. Si no hay ninguna palabra de 4+ caracteres, se
+    devuelve "" y el chequeo omite la entrada: no hay señal suficiente para
+    verificar que apunte a una sección real.
+    """
     for tk in s.split():
         if len(tk) >= 4:
             return tk
     return ""
+
+
+def _texto_con_tabs(nodo) -> str:
+    """Texto de un párrafo preservando `w:tab` como espacio.
+
+    `text_of()` solo concatena `w:t`, así que en un índice de Word el
+    tabulador que separa título y página desaparece y ambos quedan pegados
+    (`1.2.1.General17`). Para normalizar entradas del índice necesitamos ese
+    separador (AUD-01); los saltos de línea también se tratan como espacio.
+    """
+    partes: list[str] = []
+    for hijo in nodo.iter():
+        if hijo.tag == W + "t":
+            partes.append(hijo.text or "")
+        elif hijo.tag in (W + "tab", W + "br", W + "cr"):
+            partes.append(" ")
+    return "".join(partes)
 
 
 def _entradas_indice(extracted: ExtractedDocx, regex_indice: str = REFERENCIA_INDICE) -> list[dict]:
@@ -607,7 +684,7 @@ def _entradas_indice(extracted: ExtractedDocx, regex_indice: str = REFERENCIA_IN
     for p in body.findall(W + "p"):
         st = p.find(f"{W}pPr/{W}pStyle")
         estilo = st.get(W + "val") if st is not None else ""
-        texto = text_of(p).strip()
+        texto = _texto_con_tabs(p).strip()
         if es_heading(estilo):
             en_region = bool(rx.search(_sin_acentos(texto)))
             continue
@@ -628,7 +705,7 @@ def _títulos_cuerpo(extracted: ExtractedDocx) -> set[str]:
         if es_heading(estilo):
             texto = text_of(p).strip()
             if texto:
-                titulos.add(_norm_indice(texto))
+                titulos.add(_norm_titulo_cuerpo(texto))
     return titulos
 
 
@@ -656,10 +733,12 @@ class AnalizadorTocApunta(Analizador):
     """Verifica que el índice apunte a secciones reales del documento (ítem 11).
 
     Sección DSL `toc_apunta`, `operacion: entradas_corresponden`: cada
-    entrada de la región del índice de contenidos debe tener su palabra
-    significativa (>=4 caracteres, sin numeración, número de página, tildes
-    ni separadores) como subcadena de ALGÚN título del cuerpo. Un documento
-    sin región de índice pasa (n/a documentado).
+    entrada de la región del índice de contenidos debe coincidir —tras
+    normalizar numeración, página, tildes y separadores— con ALGÚN título
+    del cuerpo (igualdad, no subcadena; AUD-06). Cuando el título
+    normalizado tiene menos de 4 caracteres no hay señal fiable y se usa
+    `_sigpalabra` como respaldo (auto-pase). Un documento sin región de
+    índice pasa (n/a documentado).
 
     Fiel al manual (párr. 194): "Lista estructurada de los segmentos que
     integran la investigación, según orden de presentación". NO prohíbe
@@ -680,9 +759,18 @@ class AnalizadorTocApunta(Analizador):
         self.ultimo_nodo = None
         for e in entradas:
             norm = _norm_indice(e["texto"])
-            sig = _sigpalabra(norm)
-            if not sig or any(sig in t for t in titulos):
+            # AUD-06: igualdad del título normalizado, no subcadena. El match
+            # por subcadena ocultaba una sección faltante cuando su palabra
+            # aparecía dentro de otro título ("OBJETIVOS" dentro de
+            # "OBJETIVOS ESPECÍFICOS"). `_sigpalabra` queda como respaldo solo
+            # cuando el título normalizado es demasiado corto (<4 caracteres)
+            # para ser una señal fiable; ahí se conserva el auto-pase.
+            if norm in titulos:
                 continue
+            if len(norm) < 4:
+                sig = _sigpalabra(norm)
+                if not sig or any(sig in t for t in titulos):
+                    continue
             if self.ultimo_nodo is None:
                 self.ultimo_nodo = e["nodo"]
             faltan.append(e["texto"][:60])

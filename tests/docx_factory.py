@@ -27,7 +27,10 @@ Uso desde tests:
 from _docx_builder import (
     ANEXOS_BASE,
     compilar_docx,
+    configuracion_anexos_titulos,
     configuracion_base,
+    configuracion_indice_tabs,
+    configuracion_titulo_romano,
 )
 from _mutations import (
     DESVIOS_BASE,
@@ -51,7 +54,10 @@ __all__ = [
     "TOTAL_REGLAS",
     "aplicar_mutacion",
     "compilar_docx",
+    "configuracion_anexos_titulos",
     "configuracion_base",
+    "configuracion_indice_tabs",
+    "configuracion_titulo_romano",
 ]
 
 
