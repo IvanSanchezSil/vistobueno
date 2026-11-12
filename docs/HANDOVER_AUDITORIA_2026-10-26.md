@@ -310,8 +310,8 @@ oficiales.
 |---|------|----------|--------------|
 | 1 | Sangría (`sangria_parrafo`) | Se mantiene la regla literal. **No** se eximen estilos de cita en bloque. | Nota `EVALUADO` en el YAML. Las citas en bloque usan `w:left` sin `firstLine`, así que la comparación ya las ignora. Sin cambio de código. |
 | 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | Cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`. El efecto se ve cuando AUD-02 lea la sección de anexos. Sigue siendo `warning`. |
-| 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. Cambio en el YAML y, si hace falta, en el analizador de atributos. |
-| 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | Cambio en `analizadores.py`. **Depende de AUD-01** (PR #73, abierto): hoy la normalización borra la última letra de títulos como «General» y cualquier endurecimiento falla. |
+| 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. **Implementado en el PR #73**: XPath del bloque de autores (todos los runs con texto, desde «AUTORES:» hasta antes de «ASESOR(A):», con las líneas ORCID) y comparación `all_eq`. |
+| 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | **Implementado en el PR #73** (con AUD-01 ya estable): el match por subcadena se sustituye por igualdad del título normalizado; `_sigpalabra` solo se usa para títulos de <4 caracteres. |
 | 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | El manual exige 13 pt en la línea «para optar» (párr. 1056 y 1076), pero la tesis aprobada de la auditoría y las 5 plantillas oficiales usan 12 pt. Se sigue el manual: el XPath queda amplio (`para optar`, sin acotar a «Bachiller») y el desvío se reporta como **warning**, sin cambiar el semáforo. | Se cierra AUD-07 en el PR #73. `n_a_si_sin_nodos` solo cubre los documentos que no tienen esa línea. El desvío de la tesis/plantillas se documenta en la nota `EVALUADO` de AUD-04. |
 | 6 | `palabras_clave_minimo` | Se mantiene `error`. | Las 5 plantillas oficiales siguen en rojo. Es intencional: sus palabras clave no cumplen el mínimo. No es un bug del motor ni del frontend. |
 | 7 | Cache compilado por hilo (§12.3) | **No se implementa.** Medición del 2026-11-08: compilar tarda 5.6 ms de 5.0 s (0.1 %) con la tesis real, y 4.9 ms de 89 ms (5.6 %) con el documento del factory. | Se retira de pendientes. Si se retoma el rendimiento, el objetivo es `tokenizar()`: 6 llamadas, 1.64 s de 4.24 s, no la compilación. |
@@ -491,11 +491,13 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > **Actualizado (2026-11-10, Int3)**: el **PR #73** cierra AUD-01 (índice con
 > tabuladores y página pegada), AUD-02 (`hasta_final` documentado, validado
 > por el linter y con conteo `encontrados=N/M`), AUD-04 (notas `EVALUADO` con
-> fecha) y AUD-20 (fixture con `w:tab` y regresión). AUD-05 y AUD-06 quedan
-> **decididos y documentados** en este PR: el endurecimiento de selectores y
-> la igualdad normalizada no se implementan aquí. AUD-07 sigue la decisión
-> del 2026-11-08: XPath amplio de «para optar» y warning en la línea de
-> 12 pt; `n_a_si_sin_nodos` solo para documentos sin esa línea.
+> fecha) y AUD-20 (fixture con `w:tab` y regresión). **AUD-05 y AUD-06
+> quedan cerrados** en este PR (revisión 2026-11-11): `caratula_autores_tamano`
+> valida todos los runs con texto del bloque de autores con `all_eq`, y
+> `indice_apunta_secciones` usa igualdad del título normalizado (con
+> `_sigpalabra` solo como respaldo para títulos de <4 caracteres). AUD-07
+> sigue la decisión del 2026-11-08: XPath amplio de «para optar» y warning en
+> la línea de 12 pt; `n_a_si_sin_nodos` solo para documentos sin esa línea.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -503,8 +505,8 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-02 | Int3 | **cerrado** (`hasta_final` en DSL/linter + `encontrados=N/M`) | PR #73 |
 | AUD-03 | Int3 | **cerrado** (opción 1: módulo único `validator/detalle.py`) | PR #78 |
 | AUD-04 | Int3 | **cerrado** (notas `EVALUADO` con fecha y decisión) | PR #73 |
-| AUD-05 | Int3 | **decidido y documentado**: selectores frágiles con nota `EVALUADO`; endurecimiento diferido | PR #73 |
-| AUD-06 | Int3 | **decidido y documentado**: umbral `>= 4` mantenido; igualdad normalizada no se implementa aquí | PR #73 |
+| AUD-05 | Int3 | **cerrado**: todos los runs con texto y todos los párrafos de autores (hasta ASESOR/ORCID) con `all_eq`; las reglas `warning` conservan su selector | PR #73 |
+| AUD-06 | Int3 | **cerrado**: igualdad del título normalizado; `_sigpalabra` solo como respaldo para títulos de <4 caracteres | PR #73 |
 | AUD-07 | Int3 | **cerrado**: XPath amplio de «para optar» y warning del desvío 12 vs 13 pt; n/a solo si falta la línea | PR #73 |
 | AUD-09 | Int1 | **cerrado** | PR #66 |
 | AUD-10 | Int1 | **cerrado** | PR #66 |

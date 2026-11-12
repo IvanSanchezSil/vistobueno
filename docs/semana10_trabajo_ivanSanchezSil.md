@@ -19,8 +19,8 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 | AUD-02 | Alta | `validator/analizadores.py`, `validator/dsl_check.py`, `docs/DSL.md`, `reglas_unt.yaml` | Arreglar `anexos_minimos_*`: `seccion(hasta_final)`, incluir títulos `Anexo N.` en `_texto()`, mostrar **todos** los faltantes y añadir `encontrados=N/M`. Documentar `hasta_final` y validarlo en el linter. | Hecho (PR #73; revisión 2026-11-10) |
 | AUD-03 | Media | `validator/analizadores.py`, `validator/checks.py`, `tests/test_auditoria_motor.py` | `encontrado` legible: culpables primero, valores sin repr crudo, página del nodo infractor. Formato replicado en el motor legacy (paridad literal). | Hecho (166553f) |
 | AUD-04 | Media | `reglas_unt.yaml` | Notas `EVALUADO (2026-10-27):` con decisión en `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Hecho (PR #73; revisión 2026-11-10) |
-| AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Hecho: documentado y diferido (nota EVALUADO en el bloque de carátula) |
-| AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Hecho: umbral mantenido y documentado en el docstring + test |
+| AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Hecho (PR #73, revisión 2026-11-11): todos los runs con texto del bloque de autores con `all_eq`; las reglas `warning` conservan su selector |
+| AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Hecho (PR #73, revisión 2026-11-11): igualdad del título normalizado; `_sigpalabra` como respaldo para <4 caracteres |
 | AUD-07 | Baja | `reglas_unt.yaml` | Mantener el XPath amplio de "para optar" y reportar el desvío 12 vs 13 pt como warning; `n_a_si_sin_nodos` solo si falta la línea. | Hecho (PR #73; ampliación de la revisión 2026-11-11) |
 | AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", índice con `w:tab` y página pegada) y tests de regresión para AUD-01/AUD-02. | Hecho (PR #73; revisión 2026-11-10) |
 | AUD-15 | Media | `validator/exportador.py` | Escape de `&`, `<`, `>` y `|` en `message`/`found`/`expected`; el prompt de IA **no** se escapa (va en bloque de código). | Hecho (integrado desde `master`, PR #78) |
@@ -37,7 +37,7 @@ Orden propuesto:
 4. **AUD-20** — Blindar AUD-01/AUD-02 con fixtures de estructura real y tests de regresión. (Hecho)
 5. **AUD-03** — Culpables primero, valores legibles y página del nodo infractor; paridad legacy↔DSL verificada. (Hecho)
 6. **AUD-04** — Notas `EVALUADO:` en los tamaños de carátula, verificadas contra la plantilla oficial. (Hecho)
-7. **AUD-05/AUD-06/AUD-07** — Decisiones tomadas: documentar y diferir los selectores frágiles (AUD-05), mantener el umbral `>= 4` documentado (AUD-06) y seguir el manual en la regla de "optar" (13 pt) advirtiendo el desvío de 12 pt (AUD-07). (Hecho)
+7. **AUD-05/AUD-06/AUD-07** — Decisiones tomadas: endurecer el bloque de autores con `all_eq` (AUD-05), igualdad del título normalizado con respaldo `_sigpalabra` para <4 caracteres (AUD-06) y seguir el manual en la regla de "optar" (13 pt) advirtiendo el desvío de 12 pt (AUD-07). (Hecho)
 8. **AUD-15** — Escape HTML en `message`/`found`/`expected`/`prompt` en `validator/exportador.py` para prevenir rotura de tablas Markdown y XSS en PDF. (Hecho)
 
 ## Criterios de aceptación
@@ -47,8 +47,8 @@ Orden propuesto:
 - [x] AUD-20: fixtures de estructura real y tests de regresión para AUD-01/AUD-02
 - [x] AUD-03: `encontrado` legible, culpables primero, página correcta
 - [x] AUD-04: notas `EVALUADO:` añadidas
-- [x] AUD-05: selectores frágiles documentados (endurecimiento diferido)
-- [x] AUD-06: umbral `>= 4` mantenido y documentado
+- [x] AUD-05: bloque de autores con todos los runs con texto y `all_eq`
+- [x] AUD-06: igualdad del título normalizado con respaldo `_sigpalabra` para <4 caracteres
 - [x] AUD-07: `caratula_optar_grado_tamano` con XPath amplio de "para optar" y warning del desvío 12 vs 13 pt (n/a solo si falta la línea)
 - [x] AUD-15: `message`/`found`/`expected` escapados (`&`, `<`, `>`, `|`); el prompt de IA no se escapa
 - [x] `tests/_mutations.py` sin cambios: no se agregaron reglas nuevas (no requiere sincronización)
@@ -100,10 +100,11 @@ correcciones:
 
 Verificación sobre el merge con `master` (`20e0fe5`): **757 passed,
 4 skipped, 6 xfailed**. Tras la ampliación de la revisión (2026-11-11) se
-fusionó `upstream/master` (`1e797ba`, PR #72) y la suite quedó en **815
-passed, 4 skipped, 6 xfailed**. `ruff check`, `ruff format --check` y
-`mypy validator/ scripts/` OK; linter DSL limpio en los tres rulesets.
-`tests/_mutations.py` no necesitó cambios: no se agregaron reglas nuevas.
+fusionó `upstream/master` (`e9d541f`, que incluye #72, #91 y #92) y, con
+AUD-05 y AUD-06 implementados, la suite quedó en **824 passed, 4 skipped,
+6 xfailed**. `ruff check`, `ruff format --check` y `mypy validator/ scripts/`
+OK; linter DSL limpio en los tres rulesets. `tests/_mutations.py` no
+necesitó cambios: no se agregaron reglas nuevas.
 
 ### Ampliación de la revisión (2026-11-11) — AUD-07
 
@@ -118,3 +119,26 @@ regla se evalúa en cualquier titulación y reporta el desvío como **warning**
 (no cambia el semáforo). `n_a_si_sin_nodos` se conserva solo para documentos
 que no tienen esa línea. En la tesis real el resultado pasa de n/a a
 `12 pt vs 13 pt (warning)`; el MANUAL no tiene la línea y sigue n/a.
+
+### Implementación de AUD-05 y AUD-06 (2026-11-11)
+
+La revisión operativa de `retblast` pidió implementar los dos hallazgos que
+seguían solo documentados:
+
+- **AUD-05** (`caratula_autores_tamano`, `error`): el XPath ahora cubre todos
+  los runs con texto de todos los párrafos del bloque de autores, desde
+  «AUTORES:» hasta antes de «ASESOR(A):», incluidas las líneas ORCID. La
+  comparación pasa a `all_eq`. Antes solo se leía el primer run del primer
+  párrafo: un run vacío, un ORCID intercalado o un segundo autor con otro
+  tamaño pasaban inadvertidos. Las reglas `warning` de carátula conservan su
+  selector, con la limitación documentada.
+- **AUD-06** (`indice_apunta_secciones`): la comprobación pasa de subcadena a
+  igualdad del título normalizado. Así una entrada «OBJETIVOS» ya no se
+  satisface con el título «OBJETIVOS ESPECÍFICOS». `_sigpalabra` queda como
+  respaldo solo cuando el título normalizado tiene menos de 4 caracteres.
+
+Tests nuevos: tres de AUD-05 (segundo autor tras ORCID, runs vacíos/asesor
+fuera del bloque y nombre partido en varios runs) y tres de AUD-06 (la
+subcadena ya no oculta un faltante, la igualdad tolera mayúsculas/tildes y
+una entrada corta se omite). La tesis real sigue en verde en ambas reglas y
+las 5 plantillas oficiales también.

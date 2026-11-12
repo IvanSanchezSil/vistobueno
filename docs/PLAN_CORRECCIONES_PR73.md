@@ -22,6 +22,8 @@ enfoque. Commits atómicos por hallazgo, mensajes en español, **sin
 | AUD-02 | Parcial | Documentar/registrar `hasta_final` y añadir conteo de hallados |
 | AUD-04 | Parcial | Añadir fecha a las notas `EVALUADO` |
 | AUD-07 | Decidido | XPath amplio de «para optar» y warning del desvío 12 vs 13 pt; n/a solo si falta la línea |
+| AUD-05 | Decidido | Endurecer solo `caratula_autores_tamano`: todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID, con `all_eq` |
+| AUD-06 | Decidido | Igualdad del título normalizado; `_sigpalabra` como respaldo para títulos de <4 caracteres |
 | AUD-20 | Parcial | Fixtures con estructura real (tabuladores) + regresión |
 | Cierre | Parcial | Handover §11, `AGENTS.md`, `docs/CONTRATO_API.md`, conteos y `_mutations.py` |
 
@@ -101,8 +103,8 @@ de una sola palabra con página romana pegada.
 
 ### Cierre documental
 
-- Handover §11: marcar AUD-01/02/03/04/15/20 cerrados con el PR #73 y las
-  decisiones de dominio AUD-05/06/07.
+- Handover §11: marcar AUD-01/02/03/04/15/20 y AUD-05/06/07 cerrados con
+  el PR #73.
 - `AGENTS.md`: actualizar el aviso (no borrarlo si quedan otros hallazgos).
 - `docs/CONTRATO_API.md`: corregir el ejemplo `@w:val=['26']` al formato
   real de `detalle.py`.
@@ -120,7 +122,9 @@ de una sola palabra con página romana pegada.
 5. AUD-04 fechas.
 6. AUD-20 fixture real + regresión.
 7. Cierre documental (handover, AGENTS, CONTRATO_API, bitácora).
-8. Verificación final y push al fork.
+8. AUD-05 + tests (bloque de autores con `all_eq`).
+9. AUD-06 + tests (igualdad del título normalizado).
+10. Verificación final y push al fork.
 
 ## Verificación
 
@@ -134,21 +138,23 @@ PYTHONPATH=/tmp/opencode/pylibs:.:tests python3 -m pytest tests/ -q
 Además: linter DSL sobre `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y
 `reglas_ficha.yaml`.
 
-## Estado final (2026-11-10)
+## Estado final (2026-11-11)
 
 | Paso | Estado | Evidencia |
 |------|--------|-----------|
 | Merge con `origin/master` (`20e0fe5`) | Hecho | merge `85fc141` |
-| Merge con `upstream/master` (`1e797ba`, PR #72) | Hecho | merge de la ampliación 2026-11-11 |
+| Merge con `upstream/master` (`e9d541f`, PR #72/#91/#92) | Hecho | merge de la ampliación 2026-11-11 |
 | AUD-01 + tests de tabuladores | Hecho | `624db11` |
 | AUD-07 + tests (evaluación y n/a) | Hecho | `624db11` + ampliación 2026-11-11 |
 | AUD-02 + docs/linter + conteo | Hecho | `624db11` |
 | AUD-04 fechas | Hecho | `ed630b3` |
 | AUD-20 fixture real + regresión | Hecho | `624db11` |
+| AUD-05 bloque de autores + `all_eq` | Hecho | revisión 2026-11-11 |
+| AUD-06 igualdad del título normalizado | Hecho | revisión 2026-11-11 |
 | Cierre documental | Hecho | commit de documentación de esta revisión |
-| Verificación final | Hecho | 757 passed, 4 skipped, 6 xfailed; ruff/mypy OK |
+| Verificación final | Hecho | 824 passed, 4 skipped, 6 xfailed; ruff/mypy OK |
 
-La suite se ejecutó con `PYTHONPATH=/tmp/opencode/pylibs:.:tests`. El linter
+La suite se ejecutó con `PYTHONPATH=/home/ivan/pylibs:.:tests`. El linter
 DSL quedó cubierto por `test_yaml_de_produccion_pasa_el_linter` sobre los tres
 rulesets. `nix flake check` no se ejecutó en este entorno (no hay `nix`); queda
 a cargo del CI.
@@ -156,5 +162,5 @@ a cargo del CI.
 ## Notas
 
 - Sin `Co-Authored-By`.
-- No tocar `~/proyectos/vistobueno_src`; se trabaja en `/tmp/opencode/vb`.
+- No tocar `~/proyectos/vistobueno_src`; se trabaja en `/home/ivan/vb-work`.
 - `origin` (retblast) es de solo lectura; el push va a `fork`.

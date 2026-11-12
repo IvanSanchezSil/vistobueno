@@ -19,10 +19,12 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   quedaron cerrados** con el PR #73 (índice con tabuladores/página pegada,
 >   `hasta_final` documentado y validado, notas `EVALUADO` con fecha y
 >   fixture con estructura real). **AUD-03 y AUD-15** los cerró el PR #78.
->   **AUD-05, AUD-06 y AUD-07** quedan decididos y documentados en el PR #73
->   (§8 del handover): AUD-05 y AUD-06 no cambian el motor en este PR;
->   AUD-07 mantiene el XPath amplio de «para optar» y reporta warning en la
->   línea de 12 pt (el manual exige 13 pt), con n/a solo si falta la línea. Siguen abiertos **AUD-24 a AUD-27** (las capturas
+>   **AUD-05, AUD-06 y AUD-07** quedan cerrados en el PR #73 (§8 del
+>   handover): AUD-05 valida todos los runs con texto del bloque de autores
+>   con `all_eq`; AUD-06 usa igualdad del título normalizado (`_sigpalabra`
+>   solo como respaldo para títulos de <4 caracteres); AUD-07 mantiene el
+>   XPath amplio de «para optar» y reporta warning en la línea de 12 pt (el
+>   manual exige 13 pt), con n/a solo si falta la línea. Siguen abiertos **AUD-24 a AUD-27** (las capturas
 >   de la ficha: los autores se parten, el asesor llega vacío y el año sale
 >   del título). **Más un hallazgo nuevo**: `palabras_clave_minimo` queda en
 >   `error` por decisión del 2026-11-08; las 5 plantillas oficiales siguen en
@@ -46,10 +48,11 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   `frontend/src/components/FichaDeposito.jsx` (lógica de flujo en
 >   `frontend/src/ficha.js`) y el mock de ejemplo queda **solo en desarrollo**.
 > - **Decisiones de dominio resueltas el 2026-11-08**: sangría (sin exención
->   por estilo), anexos («Base de datos»), AUD-05 (selectores frágiles
->   documentados; endurecimiento diferido), AUD-06 (umbral `>= 4` mantenido;
->   igualdad normalizada no se implementa aquí), AUD-07 (XPath amplio de
->   «para optar» y warning del desvío 12 vs 13 pt) y `palabras_clave_minimo` (se
+>   por estilo), anexos («Base de datos»), AUD-05 (bloque de autores con
+>   todos los runs con texto y `all_eq`), AUD-06 (igualdad del título
+>   normalizado; `_sigpalabra` como respaldo para <4 caracteres), AUD-07
+>   (XPath amplio de «para optar» y warning del desvío 12 vs 13 pt) y
+>   `palabras_clave_minimo` (se
 >   mantiene `error`). Detalle: §8 del handover. (AUD-18 ya estaba decidido:
 >   el mock de reporte **no** se activa en producción.)
 >
@@ -678,7 +681,7 @@ Al revisar un PR, verificar que:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
 2. **Int3**: correctitud del motor contra la tesis real — **AUD-01, AUD-02,
    AUD-04 y AUD-20 cerrados** con el PR #73; **AUD-03 y AUD-15** con el
-   PR #78; **AUD-05, AUD-06 y AUD-07** decididos y documentados en el PR #73.
+   PR #78; **AUD-05, AUD-06 y AUD-07** cerrados en el PR #73.
    Quedan AUD-24 a AUD-27 (capturas de la ficha). Las decisiones de dominio
    están en §8 del handover. Criterios de aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
