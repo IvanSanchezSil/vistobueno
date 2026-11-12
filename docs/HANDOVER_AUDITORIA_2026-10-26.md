@@ -573,6 +573,22 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-20 | Int1 | pendiente | B3 y puerta Angular de Int1: antes del piloto |
 | VA-21 | Int1 + Int2 | riesgo pendiente de verificar | B8 + F5: autofill y restauración |
 
+### Ampliación normativa — 2026-11-12
+
+Evidencia y fuentes en [AUDITORIA_NORMATIVA_2026-11-12.md](AUDITORIA_NORMATIVA_2026-11-12.md).
+No se cerraron defectos con esta documentación. Los detalles están en M12 de Int3.
+
+| ID | Responsable | Estado | Trabajo |
+|---|---|---|---|
+| NM-01 | Int3 | pendiente | M12a: numeración y pies |
+| NM-02 | Int3 | pendiente | M12b: bloques de carátula |
+| NM-03 | Int3; Int2 comunica límites | pendiente | M12c y F3: esquemas y alcance |
+| NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |
+| NM-05 | Int3 | pendiente | M12e: referencias por ámbito |
+| NM-06 | Int3 + decisión del encargado | pendiente | M12f: anexos |
+| NM-07 | Int3 | pendiente | M12g: origen de las reglas |
+| NM-08 | Int1 | decidido por usuario 2026-11-12 | Emular acceso abierto; B3 comprueba persistencia |
+
 ---
 
 ## 12. Propuestas de Int1 para el área de Int3
@@ -638,7 +654,6 @@ Diff propuesto (`validator/exportador.py`):
 ```diff
 @@ -29,6 +29,24 @@ import markdown
  _EMOJIS = {"rojo": "🔴", "verde": "🟢"}
-
 
 +def _escapar_md(texto: object) -> str:
 +    """Escapa el texto que viene del documento antes de interpolarlo.

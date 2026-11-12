@@ -150,3 +150,25 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
   de relaciones internas existen; mutaciones y reglas mantienen su intención.
 - Entregar el PR/commit y el comando de regeneración a Int1. B6 continúa
   después de esta entrega. No encargar a retblast el arreglo del builder.
+
+### M12. Cerrar brechas normativas — NM-01 a NM-07
+
+**Dueño exclusivo de implementación:** Int3. Leer primero
+[AUDITORIA_NORMATIVA_2026-11-12.md](AUDITORIA_NORMATIVA_2026-11-12.md) y sus CSV.
+Esta tarea amplía M1, M3, M5 y M6. No duplica sus arreglos. Dividir en PR por
+subtarea. Retblast no implementa estas reglas ni sus fixtures.
+
+| Orden | Archivos / tarea | Aceptación concreta |
+|---|---|---|
+| M12a — P1 | `reglas_unt.yaml`, `analizadores.py`, `extractor.py` si requiere contexto; ampliar M3 | Decimal explícito correcto no falla por existir. Reinicio romano 99 falla. PAGE a la izquierda no cumple por otro párrafo derecho. `titlePg=0` no significa primera página diferente. Probar continuidad y pie activo; declarar límites de página sin render. |
+| M12b — P1 | `reglas_unt.yaml`, selectores de carátula; ampliar M1 | Eliminar escuela falla aunque exista facultad. Asesor 36 pt falla aunque la etiqueta esté correcta. Probar cada bloque y cada propiedad exigida, con estilos y múltiples runs. |
+| M12c — P1 | Reglas de detección y estructura; `reglas_unt_pendientes.yaml`; `tests/test_tipo_documento.py` | Encargado ratifica tesis/informe/TINV. No afirmar soporte de ocho tipos. Para cualitativo, eliminar cada apartado obligatorio produce fallo. Tipos ambiguos y no soportados quedan explícitos. No activar pendientes sin documento real. |
+| M12d — P2 | Reglas y pruebas de carátula | Ratificar límite inferior del título por tipo; probar 14/15/20/21 palabras según decisión. Probar dos autores en orden e invertidos. Confirmar vigencia de máximo de autores antes de bloquear. No cambiar desvío acordado de mayúsculas sin decisión. |
+| M12e — P2 | Reglas de referencias y analizador de cantidad | Probar mínimos 20/30/20 TINV; 30 por proyecto/informe cuando se soporten. TSP separa mínimo 20 del informe y máximo 10 de sesión. Una entrada partida no cuenta como varias referencias; texto ajeno no suma. APA y correspondencia semántica no se declaran comprobados por conteo. |
+| M12f — P2 | Reglas de anexos; ampliar M6 | Encargado ratifica contradicciones REQ-51 a REQ-55. Eliminar cada anexo requerido falla en el tipo correcto. No acreditar firma ni porcentaje real por título del anexo. |
+| M12g — P2 | `fuente`, `cita`, `ubicacion` en YAML y mensajes/prompts | Cada cita literal existe en la fuente. Paráfrasis marcada como tal. Seguimiento y notas se presentan como calidad técnica; encabezados como derivados de plantilla. Corregir conteo documental 46→50 sin alterar catálogo válido. |
+
+En cada PR: agregar regresiones antes del arreglo, sincronizar mutaciones,
+verificar documentos reales aplicables y actualizar matriz REQ con prueba y
+límite. Si una decisión falta, registrar el requisito como pendiente; no elegir
+un estándar por intuición ni convertirlo en «cumple». No tocar API o SPA.

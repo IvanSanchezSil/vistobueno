@@ -191,3 +191,24 @@ La revisión de los tres PRs mergeados encontró dos problemas:
   conocidas, no criterios de aceptación cumplidos.
 - Siguiente paso: ejecutar los lotes del handover y registrar evidencia de
   cierre. Int1 coordina el contrato del trámite y el ensayo previo de Angular.
+
+## Actualización 2026-11-12 — Revisión normativa completa de fuentes disponibles
+
+- Se contrastaron manual, tablas, ocho rúbricas, cinco plantillas y las dos
+  RCU locales con el motor. Se conservaron SHA-256 y localizadores de fuente.
+- Se entregaron auditoría normativa, matriz de 66 grupos de requisitos,
+  inventario de 226 criterios y catálogo inverso de 49 reglas activas.
+  No se afirma revisión visual de todas las páginas ni vigencia legal actual.
+- Se ejecutaron ocho casos XML desde el factory para paginación y carátula.
+  Se registraron falsos verdes y un falso rojo; el factory conserva VA-17.
+- NM-01 a NM-07 se asignaron a Int3 en M12. Int2 amplía la comunicación de
+  alcance en F3. Retblast mantiene únicamente B1–B8, sin implementar motor.
+- El usuario confirmó que el jefe siempre elige acceso abierto. NM-08 registra
+  esa política como decidida. No se pide selector ni trabajo funcional B9.
+  El plan node fuerza abierto; comprobar guardado Angular sigue dentro de B3.
+- Verificación actual: `nix develop -c pytest tests/ -q` → 824 passed,
+  4 skipped, 6 xfailed, 1 warning. Hay recursos/build locales ausentes en este
+  worktree; los omitidos no se presentan como comprobados. No cambió código.
+- Validación documental: conteos e ID únicos de los CSV, correspondencia de las
+  226 filas con fuente, enlaces y cercas Markdown correctos. API local:
+  `/docs` y `/openapi.json` respondieron 200. Diff sin errores de espacios.

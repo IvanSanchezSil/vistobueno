@@ -39,16 +39,24 @@ declarado. No equivale a certificar todo el manual ni el contenido académico.
 
 - **retblast / Int1:** [API y userscript; ejecutar B1–B8](HANDOVER_CORRECTITUD_INT1_2026-11-12.md).
 - **Int2:** [frontend; ejecutar F1–F5](HANDOVER_CORRECTITUD_INT2_2026-11-12.md).
-- **Int3:** [motor; ejecutar M0–M11 y M1a](HANDOVER_CORRECTITUD_INT3_2026-11-12.md).
+- **Int3:** [motor; ejecutar M0–M12 y M1a](HANDOVER_CORRECTITUD_INT3_2026-11-12.md).
 
 La puerta de Angular está en §2 del documento de Int1. No se ha implementado
 el diagnóstico ni se ha ejecutado la prueba real: son entregables pendientes.
 
+## Ampliación normativa
+
+La [auditoría del manual y plantillas](AUDITORIA_NORMATIVA_2026-11-12.md)
+incluye 66 grupos de requisitos, 226 criterios de rúbricas y 49 reglas activas.
+NM-01 a NM-07 son trabajo de Int3 / M12. Int2 amplía F3 para comunicar alcance.
+NM-08 registra la política confirmada: emular siempre acceso abierto en el
+piloto. Int1 verifica su persistencia en B3. Su lista propia sigue siendo B1–B8.
+
 ## 2. Estado por hallazgo
 
 `P1`: resolver antes del piloto. `P2`: resolver antes de declarar el alcance
-completo. Cada documento por integrante indica archivos y aceptación. Todos los hallazgos
-están pendientes de integración y verificación final.
+completo. Cada documento por integrante indica archivos y aceptación. Los defectos
+están pendientes de integración y verificación final. NM-08 registra una política decidida.
 
 | ID | Prioridad | Problema | Tarea / dueño | Estado |
 |---|---|---|---|---|
@@ -73,6 +81,14 @@ están pendientes de integración y verificación final.
 | VA-19 | P1 | Un archivo real bloquea la siguiente validación | B1 + F4 / Int1, Int2 | Pendiente |
 | VA-20 | P1 | Éxito de relleno sin comprobar aceptación de Angular | B3 / Int1 | Pendiente |
 | VA-21 | P1 | Autofill y restauración del navegador pueden recuperar datos ajenos | B8 + F5 / Int1, Int2 | Riesgo reportado; verificar en navegador real |
+| NM-01 | P1 | Paginación normativa incorrecta | M12a / Int3 | Pendiente |
+| NM-02 | P1 | Carátula acepta escuela ausente y asesor 36 pt | M12b / Int3 | Pendiente |
+| NM-03 | P1 | Esquemas y alcance sin correspondencia demostrada | M12c / Int3; F3 / Int2 | Pendiente |
+| NM-04 | P2 | Longitud de título y orden de autores | M12d / Int3 | Pendiente de decisiones y reglas |
+| NM-05 | P2 | Conteo y mínimos de referencias por ámbito | M12e / Int3 | Pendiente |
+| NM-06 | P2 | Anexos incompletos y fuentes contradictorias | M12f / Int3 | Pendiente de decisiones y reglas |
+| NM-07 | P2 | Citas normativas sin origen literal comprobado | M12g / Int3 | Pendiente |
+| NM-08 | Decisión | Acceso abierto fijo reproduce al jefe | B3 / Int1 | Política decidida 2026-11-12; persistencia pendiente en B3 |
 
 ## 3. Orden de integración y cierre
 
@@ -81,7 +97,7 @@ están pendientes de integración y verificación final.
 | A | M0 y M11 por Int3; B1 y contrato B2 por Int1 | B6 espera M11; no cambiar ramas de otro autor |
 | B | M1a+B5; M1; M2; F1 | Fixtures válidos; coordinación de extractor |
 | C | B2+F2; B3+B4+B8; F4+F5 | Contrato publicado en el PR, todos los consumidores adaptados |
-| D | M3–M10 por Int3; B7 por Int1; F3 por Int2 | Decisiones de dominio con fuente |
+| D | M3–M10 y M12 por Int3; B7 por Int1; F3 por Int2 | Decisiones de dominio con fuente |
 | E | Regresión real, ensayo Angular de Int1 y piloto | Ningún P1 pendiente |
 
 Pueden avanzar tareas independientes. No integrar una mitad del nuevo contrato
@@ -89,7 +105,7 @@ dejando el userscript o la SPA incompatibles. Un PR de documentación no cierra
 un defecto funcional.
 
 **Lista ejecutable de retblast:** B1, B2, B3, B4, B5 cuando Int3 entregue M1a,
-B6 cuando Int3 entregue M11, B7 y B8. F1–F5 y M0–M11 son entregas de otros
+B6 cuando Int3 entregue M11, B7 y B8. F1–F5 y M0–M12 son entregas de otros
 integrantes. Retblast puede revisar sus resultados; no implementarlos.
 
 Antes de cada cierre, ejecutar las comprobaciones del área y la suite completa:

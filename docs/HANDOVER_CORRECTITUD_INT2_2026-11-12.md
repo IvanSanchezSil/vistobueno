@@ -71,3 +71,13 @@ Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 - **Aceptación:** recarga y restauración con documento distinto, resguardo
   vencido, perfil con autofill y valores insertados sin eventos. El trámite
   nuevo no recupera ni publica datos de otro estudiante.
+
+## Ampliación de F3: alcance normativo
+
+Leer [auditoría normativa](AUDITORIA_NORMATIVA_2026-11-12.md), NM-03.
+No anunciar ocho tipos validados porque existan ocho nombres o cinco plantillas.
+Mostrar el tipo realmente evaluado y los límites que entregue Int3 mediante el
+contrato acordado con Int1. «Verde» no aprueba las 226 condiciones académicas de
+las rúbricas. No implementar reglas ni cambiar el contrato unilateralmente.
+La política de acceso abierto fue confirmada por el usuario; no agregar una
+selección de derechos como parte de esta auditoría.

@@ -225,3 +225,17 @@ escribe; rellenar también puede escribir en el servidor.
 **Qué prueba cada nivel:** HTML guardado = selectores históricos; jsdom =
 lógica DOM; lectura posterior = valores visibles; guardar y recargar =
 persistencia en esa instancia. Ningún nivel anterior sustituye al último.
+
+## 3. Aclaración de derechos — NM-08 decidido
+
+El usuario confirmó el 2026-11-12 que el jefe siempre selecciona **Acceso
+abierto** y que el userscript debe emularlo. Mantener esa política en el piloto.
+No crear una tarea B9 ni pedir un selector adicional en la ficha.
+El Anexo 11 permite otras opciones, pero no son el flujo acordado para este
+piloto. La autorización documental la revisa el encargado fuera del motor.
+
+**Aceptación de B3 para derechos:** la opción abierta usa el valor canónico del
+vocabulario de esa instancia y sigue seleccionada después de guardar y recargar.
+Una etiqueta visible o un plan correcto en node no prueba persistencia Angular.
+Ver [auditoría normativa](AUDITORIA_NORMATIVA_2026-11-12.md), NM-08.
+Int1 no corrige NM-01 a NM-07: son trabajo de motor de Int3.
