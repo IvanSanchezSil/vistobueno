@@ -165,3 +165,29 @@ La revisión de los tres PRs mergeados encontró dos problemas:
    #73, que está en conflicto.
 6. Quitar las marcas `xfail` cuando Int3 cierre AUD-24 a AUD-27 y
    actualizar las cifras de la suite en el mismo commit.
+
+## Actualización 2026-11-12 — Handover de correctitud
+
+- Se creó `docs/HANDOVER_CORRECTITUD_2026-11-12.md` con tareas para los tres
+  integrantes: dueño, archivos, dependencias y criterios de aceptación.
+  El índice enlaza tres documentos separados, uno por integrante.
+  retblast ejecuta solo las tareas B1–B8 de Int1. Los cambios de frontend
+  pertenecen a Int2; extractor, motor y factory pertenecen a Int3.
+- Se registraron VA-01 a VA-21 en el seguimiento de §11 del handover de la
+  auditoría. Los defectos siguen pendientes; escribir el plan no los cierra.
+- Se confirmó que PR #73 ya está mergeado y PR #75 sigue abierto, con
+  conflictos. Se conserva el historial anterior de esta bitácora.
+- Se añadió una puerta previa al piloto: diagnóstico del formulario, lectura
+  posterior al relleno y persistencia en un borrador autorizado de DSpace.
+  El HTML guardado declara Angular 17.3.12. Un mock DOM no demuestra que el
+  formulario reactivo real conserve los datos.
+- Se reprodujo que el ejecutor informa éxito con controles deshabilitados,
+  readonly o con un listener que restaura el valor anterior. La restauración
+  y el autofill del navegador requieren además verificación real.
+- Se incluyeron el alcance de «verde» y las pruebas que faltan para declarar
+  listo el producto. No se modificó código, contrato, CI ni `AGENTS.md`.
+- Verificación de la base: `nix develop -c pytest tests/ -v -p no:cacheprovider`
+  → 828 passed, 6 xfailed, 1 warning. Los seis xfail siguen siendo limitaciones
+  conocidas, no criterios de aceptación cumplidos.
+- Siguiente paso: ejecutar los lotes del handover y registrar evidencia de
+  cierre. Int1 coordina el contrato del trámite y el ensayo previo de Angular.
