@@ -136,3 +136,145 @@ test("operación sobre selector ausente queda como fallida, no explota", async (
 	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
 	assert.deepStrictEqual(resumen.fallidos, ["texto", "filas", "qualdrop"]);
 });
+
+// ---------------------------------------------------------------------------
+// Filas repetibles: el botón "+" real (ds-form-add-more) dentro de #N_array
+// ---------------------------------------------------------------------------
+
+function domConFilasRepetibles() {
+	// Estructura mínima equivalente al DOM real de "Editar envío":
+	// cada campo repetible tiene su contenedor #N_array con la lista de
+	// filas y su botón "+".
+	const dom = new JSDOM(`<!doctype html><html><body>
+		<div id="11_array">
+			<div class="cdk-drop-list">
+				<div class="cdk-drag form-row"><input type="text" name="dc.contributor.author"></div>
+			</div>
+			<div class="cdk-drag form-row"><div class="btn-group"><button type="button" class="ds-form-add-more"></button></div></div>
+		</div>
+		<div id="13_array">
+			<div class="cdk-drop-list">
+				<div class="cdk-drag form-row">
+					<select name="renati.author_QUALDROP_METADATA">
+						<option value="0: renati.author.dni">DNI</option>
+					</select>
+					<input type="text" name="renati.author_QUALDROP_VALUE">
+				</div>
+			</div>
+			<div class="cdk-drag form-row"><div class="btn-group"><button type="button" class="ds-form-add-more"></button></div></div>
+		</div>
+		<div id="99_array"><button type="button" class="ds-form-add-more" id="ajeno"></button></div>
+	</body></html>`);
+	const doc = dom.window.document;
+	let ajeno = 0;
+	doc.getElementById("ajeno").addEventListener("click", () => ajeno++);
+	// Los ids reales empiezan con dígito (#11_array): no son válidos como
+	// selector CSS, se buscan por atributo.
+	doc.querySelectorAll('[id="11_array"], [id="13_array"]').forEach((array) => {
+		const lista = array.querySelector(".cdk-drop-list");
+		const fila = lista.querySelector(".cdk-drag.form-row");
+		array.querySelector(".ds-form-add-more").addEventListener("click", () => {
+			lista.appendChild(fila.cloneNode(true));
+		});
+	});
+	return { doc, ajeno: () => ajeno };
+}
+
+test("el botón + real agrega filas dentro de su propia array", async () => {
+	const { doc, ajeno } = domConFilasRepetibles();
+	const plan = {
+		operaciones: [
+			{ tipo: "filas", selector: 'input[name="dc.contributor.author"]', valores: ["A", "B", "C"] },
+		],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+
+	assert.deepStrictEqual(resumen.exitosos, ["filas"]);
+	const valores = Array.from(doc.querySelectorAll('input[name="dc.contributor.author"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(valores, ["A", "B", "C"]);
+	// El "+" de otro contenedor no se pulsó (scope por #N_array).
+	assert.strictEqual(ajeno(), 0);
+});
+
+test("autores y DNI crecen en arrays distintas y quedan alineados", async () => {
+	const { doc } = domConFilasRepetibles();
+	const plan = {
+		operaciones: [
+			{ tipo: "filas", selector: 'input[name="dc.contributor.author"]', valores: ["A", "B"] },
+			{
+				tipo: "qualdrop",
+				selectorMeta: 'select[name="renati.author_QUALDROP_METADATA"]',
+				opcionSufijo: "renati.author.dni",
+				selectorValor: 'input[name="renati.author_QUALDROP_VALUE"]',
+				valores: ["11111111", "22222222"],
+			},
+		],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+
+	assert.deepStrictEqual(resumen.fallidos, []);
+	const metas = Array.from(
+		doc.querySelectorAll('select[name="renati.author_QUALDROP_METADATA"]')
+	).map((el) => el.value);
+	const valores = Array.from(doc.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(metas, ["0: renati.author.dni", "0: renati.author.dni"]);
+	assert.deepStrictEqual(valores, ["11111111", "22222222"]);
+});
+
+// ---------------------------------------------------------------------------
+// El DOM real: render asíncrono de Angular (revisión PR #71, M4)
+// ---------------------------------------------------------------------------
+
+function domFormularioReal() {
+	// Fixture con la estructura real (#N_array + ds-form-add-more) y el
+	// render asíncrono de Angular: la fila aparece DESPUÉS del clic.
+	const html = fs.readFileSync(path.join(__dirname, "fixtures", "form-array.html"), "utf8");
+	return new JSDOM(html, { runScripts: "dangerously" });
+}
+
+test("el + que renderiza de forma asíncrona igual agrega la fila", async () => {
+	const dom = domFormularioReal();
+	const doc = dom.window.document;
+	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
+
+	// El render del fixture tarda 50 ms: el ejecutor debe esperarlo.
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, {
+		dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
+	});
+
+	assert.ok(resumen.exitosos.includes("filas"), "las filas repetidas no se llenaron");
+	const autores = Array.from(doc.querySelectorAll('input[name="dc.contributor.author"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(autores, ["Cerna Vidal Kassiel", "Varas Vega Cinthya"]);
+	const palabras = Array.from(doc.querySelectorAll('input[name="dc.subject"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(palabras, ["títeres", "lectura"]);
+});
+
+test("con render asíncrono los DNI de los dos autores quedan alineados", async () => {
+	const dom = domFormularioReal();
+	const doc = dom.window.document;
+	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
+
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, {
+		dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
+	});
+
+	assert.ok(resumen.exitosos.includes("qualdrop"), "el QUALDROP no se llenó");
+	const valores = Array.from(doc.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(valores, ["12345678", "87654321"]);
+	const metas = Array.from(
+		doc.querySelectorAll('select[name="renati.author_QUALDROP_METADATA"]')
+	).map((el) => el.value);
+	assert.deepStrictEqual(metas, ["0: renati.author.dni", "0: renati.author.dni"]);
+});

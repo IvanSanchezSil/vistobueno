@@ -1,0 +1,695 @@
+{
+  "semaforo": "verde",
+  "notificacion": {
+    "estado": "sin_correo",
+    "detalle": null
+  },
+  "deposito": {
+    "estado": "sin_solicitud",
+    "detalle": null
+  },
+  "ficha_deposito": {
+    "extraidos": [
+      {
+        "campo": "dc.title",
+        "valor": "Título del trabajo de investigación: Estrategias lúdicas para el desarrollo de la motricidad fina.",
+        "pagina": 1,
+        "detectado": true
+      },
+      {
+        "campo": "dc.contributor.author",
+        "valor": [
+          "Ana María Pérez García"
+        ],
+        "pagina": 1,
+        "detectado": true
+      },
+      {
+        "campo": "dc.contributor.advisor",
+        "valor": "Mag. Carlos Alberto RODRÍGUEZ MIRANDA",
+        "pagina": 1,
+        "detectado": true
+      },
+      {
+        "campo": "dc.description.abstract",
+        "valor": "resumen0 resumen1 resumen2 resumen3 resumen4 resumen5 resumen6 resumen7 resumen8 resumen9 resumen10 resumen11 resumen12 resumen13 resumen14 resumen15 resumen16 resumen17 resumen18 resumen19 resumen20 resumen21 resumen22 resumen23 resumen24 resumen25 resumen26 resumen27 resumen28 resumen29 resumen30 resumen31 resumen32 resumen33 resumen34 resumen35 resumen36 resumen37 resumen38 resumen39 resumen40 resumen41 resumen42 resumen43 resumen44 resumen45 resumen46 resumen47 resumen48 resumen49 resumen50 resumen51 resumen52 resumen53 resumen54 resumen55 resumen56 resumen57 resumen58 resumen59 resumen60 resumen61 resumen62 resumen63 resumen64 resumen65 resumen66 resumen67 resumen68 resumen69 resumen70 resumen71 resumen72 resumen73 resumen74 resumen75 resumen76 resumen77 resumen78 resumen79 resumen80 resumen81 resumen82 resumen83 resumen84 resumen85 resumen86 resumen87 resumen88 resumen89 resumen90 resumen91 resumen92 resumen93 resumen94 resumen95 resumen96 resumen97 resumen98 resumen99 resumen100 resumen101 resumen102 resumen103 resumen104 resumen105 resumen106 resumen107 resumen108 resumen109 resumen110 resumen111 resumen112 resumen113 resumen114 resumen115 resumen116 resumen117 resumen118 resumen119 resumen120 resumen121 resumen122 resumen123 resumen124 resumen125 resumen126 resumen127 resumen128 resumen129 resumen130 resumen131 resumen132 resumen133 resumen134 resumen135 resumen136 resumen137 resumen138 resumen139 resumen140 resumen141 resumen142 resumen143 resumen144 resumen145 resumen146 resumen147 resumen148 resumen149 resumen150 resumen151 resumen152 resumen153 resumen154 resumen155 resumen156 resumen157 resumen158 resumen159 resumen160 resumen161 resumen162 resumen163 resumen164 resumen165 resumen166 resumen167 resumen168 resumen169 resumen170 resumen171 resumen172 resumen173 resumen174",
+        "pagina": 4,
+        "detectado": true
+      },
+      {
+        "campo": "dc.subject",
+        "valor": [
+          "clave0",
+          "clave1",
+          "clave2"
+        ],
+        "pagina": 4,
+        "detectado": true
+      },
+      {
+        "campo": "dc.date.issued",
+        "valor": "2026",
+        "pagina": 1,
+        "detectado": true
+      },
+      {
+        "campo": "escuela",
+        "valor": "ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL",
+        "pagina": 1,
+        "detectado": true
+      },
+      {
+        "campo": "renati.juror",
+        "valor": null,
+        "pagina": null,
+        "detectado": false
+      }
+    ],
+    "manuales": [
+      {
+        "campo": "matricula",
+        "valor": null
+      },
+      {
+        "campo": "renati.author.dni",
+        "valor": null
+      },
+      {
+        "campo": "renati.advisor.dni",
+        "valor": null
+      },
+      {
+        "campo": "renati.advisor.orcid",
+        "valor": null
+      }
+    ]
+  },
+  "resumen": {
+    "total": 49,
+    "total_evaluadas": 43,
+    "reglas_no_aplicables": 6,
+    "fallidos_error": 0,
+    "fallidos_warning": 0
+  },
+  "resultados": [
+    {
+      "rule_id": "deteccion_tipo_documento",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Determina a qué tipo de documento pertenece la tesis",
+      "esperado": "uno de: tinv_cuantitativo, tinv_cualitativo, tinv_revision_literatura, proyecto_cuantitativo, proyecto_cualitativo, informe_cuantitativo, informe_cualitativo, tsp",
+      "encontrado": "inferido=tinv_cuantitativo (\"VARIABLE\", \"POBLACIÓN Y MUESTRA\", \"INSTRUMENTO\")",
+      "ubicacion": "Capítulo II — esquemas formales por tipo de título (párr. 75-90)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Cada título profesional exige un esquema formal distinto",
+      "aplicable": true
+    },
+    {
+      "rule_id": "papel_tamano",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El tamaño del papel debe ser A4",
+      "esperado": "210 x 297 mm",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 124-125 para Trabajo de Investigación Cuantitativo; se repite idéntico en párr. 443-444, 593-594 para otros tipos)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Tamaño A4/papel (210x297 cm)\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "fuente_principal",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "La fuente del cuerpo del texto debe ser Times New Roman",
+      "esperado": "Times New Roman",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 126-127)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Times New Roman: 12 puntos\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "tamano_cuerpo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El tamaño de letra del cuerpo del texto debe ser 12 puntos",
+      "esperado": "12pt",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 126-127)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Times New Roman: 12 puntos\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_universidad_tamano",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Tamaño de letra del nombre de la Universidad en carátula",
+      "esperado": "18pt",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 174); nota indicativa en párr. 153: \"(Times New Román 18 puntos/13 puntos/13 puntos)\"",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_facultad_escuela_tamano",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Tamaño de letra de Facultad y Escuela Profesional en carátula",
+      "esperado": "13pt",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 175)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_titulo_trabajo_tamano",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Tamaño de letra del título del trabajo en carátula",
+      "esperado": "14pt",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 177)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_optar_grado_tamano",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Tamaño de letra de la línea \"Trabajo de Investigación para optar el grado de Bachiller en...\"",
+      "esperado": "13pt",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 178)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_autores_tamano",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula",
+      "esperado": "12pt",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 161, 168, 179-183)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_logotipo_tamano",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Tamaño del logotipo de la Universidad en carátula",
+      "esperado": "4.84 cm alto x 6.73 cm ancho",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 176)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Logotipo de la Universidad: Centrado, tamaño: 4.84 cm de alto x 6.73 cm de ancho.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "interlineado",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)",
+      "esperado": "1.5 (ONE_POINT_FIVE)",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 128-129)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Interlineado: 1.5 puntos\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "alineacion_cuerpo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El cuerpo del texto debe estar justificado",
+      "esperado": "justificada",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 130-131)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Alineación: Justificada\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "alineacion_caratula_todos_elementos",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Todos los elementos de la carátula deben estar centrados",
+      "esperado": "centrado",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 174-183)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Nombre de la Universidad: Centrado...\", \"Facultad y Escuela Profesional: Centrado...\", \"Título del Trabajo...: Centrado...\", etc.",
+      "aplicable": true
+    },
+    {
+      "rule_id": "margen_superior",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Margen superior del documento",
+      "esperado": "2.5 cm",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 132-133)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Superior: 2.5 cm\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "margen_inferior",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Margen inferior del documento",
+      "esperado": "2.5 cm",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 132-134)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Inferior: 2.5 cm\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "margen_derecho",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Margen derecho del documento",
+      "esperado": "2.5 cm",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 132-135)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Derecho: 2.5 cm\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "margen_izquierdo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Margen izquierdo del documento",
+      "esperado": "3.0 cm",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 132-136)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Izquierdo: 3.0 cm\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "sangria_parrafo",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "La primera línea de cada párrafo debe tener sangría de 1.27 cm",
+      "esperado": "1.27 cm (½ pulgada)",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 141)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Sangría de párrafo: La primera línea de cada párrafo del texto debe tener un sangrado de 1,27 cm (½ pulgada) desde el margen izquierdo.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "numeracion_posicion",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "La numeración de página se ubica en el margen inferior derecho",
+      "esperado": "margen inferior derecho",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 137-138)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Numeración de la página: Margen inferior derecho.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "numeracion_preliminares_romano",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Las páginas preliminares se numeran en romanos minúsculos; la carátula no se enumera pero se cuenta; la Dedicatoria inicia con \"ii\"",
+      "esperado": "romanos minúsculos (ii, iii, iv...); carátula = i (sin mostrar)",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 139)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos (\"ii\") en romano...\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "numeracion_cuerpo_arabigo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "La numeración en arábigos se inicia en la Introducción, continuando el correlativo desde los romanos",
+      "esperado": "arábigos consecutivos desde Introducción",
+      "encontrado": "cumple",
+      "ubicacion": "Sección \"Formato general\" (párr. 140)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"La numeración en arábigos se inicia en la introducción contando el número de páginas en romanos (por ejemplo, si la numeración de las páginas preliminares termina en \"xi\", corresponde a la primera página de la Introducción el número 12).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_no_se_enumera",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "La carátula (página i) no muestra número visible",
+      "esperado": "oculta",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 184)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"La página número i, se cuenta, pero no se enumera.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_universidad_negrita_mayusculas",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El nombre de la Universidad en carátula debe ser con negrita y mayúsculas",
+      "esperado": "negrita + MAYÚSCULAS",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 174)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_facultad_negrita_mayusculas",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Facultad y Escuela en carátula: negrita y mayúsculas",
+      "esperado": "negrita + MAYÚSCULAS",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 175)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_titulo_negrita_mixta",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El título del trabajo en carátula: negrita con mayúsculas y minúsculas (no todo mayúsculas)",
+      "esperado": "negrita + Mayúsculas y minúsculas",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 177)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas (tamaño de letra, 14 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_autores_mayusculas_sin_negrita",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Los apellidos y nombres del autor en carátula: no todo en mayúsculas (altas y bajas), sin negrita",
+      "esperado": "no todo en mayúsculas, sin negrita",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 179)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_asesor_negrita",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "El asesor en carátula: con negrita",
+      "esperado": "negrita",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 180)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas...\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_ciudad_pais_negrita",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Ciudad y país en carátula: centrado, con negrita, mayúsculas y minúsculas",
+      "esperado": "negrita + Mayúsculas y minúsculas",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 182)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "caratula_linea_investigacion",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT",
+      "esperado": "Línea de investigación aprobada (RCU-N°220-2022/UNT)",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, campo \"Línea de Investigación\"",
+      "fuente": "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf",
+      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "estructura_tinv_cuantitativo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Estructura obligatoria del Trabajo de Investigación (Cuantitativo). El orden debe ser exacto.\n",
+      "esperado": "Carátula; Dedicatoria (opcional); Jurado evaluador; Agradecimiento (opcional); Índice; Presentación; Resumen; Abstract; Introducción;   El Problema;     Situación problemática;     Enunciado del problema;     Justificación o importancia;   Objetivos;   Variable(s) y operacionalización; MARCO TEÓRICO;   Antecedentes (Estado del arte);   Bases teóricas; METODOLOGÍA;   Población y muestra;   Diseño de investigación;   Instrumento(s) usado(s) en la recolección de datos;   Métodos, técnicas y procedimientos usados en el análisis e interpretación de datos; RESULTADOS; CONCLUSIONES; REFERENCIAS; ANEXOS",
+      "encontrado": "cumple",
+      "ubicacion": "Esquema del Trabajo de Investigación Cuantitativo (párr. 275-319)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Esquema enumerado en párr. 276-319 del manual",
+      "aplicable": true
+    },
+    {
+      "rule_id": "estructura_tinv_cualitativo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Estructura obligatoria del Trabajo de Investigación (Cualitativo). Diferencia clave: incluye \"Categorías, matriz de categorización y unidad de análisis\" y termina con \"ANÁLISIS Y DISCUSIÓN DE RESULTADOS\" en vez de solo \"RESULTADOS\".\n",
+      "esperado": "Carátula; Dedicatoria (opcional); Jurado evaluador; Agradecimiento (opcional); Índice; Presentación; Resumen; Abstract; Introducción;   El Problema;   Objetivos;   Categorías, matriz de categorización y unidad de análisis; MARCO TEÓRICO; METODOLOGÍA;   Participantes;   Diseño;   Instrumentos usados en la recolección de información;   Métodos, técnicas, procedimientos y estrategias usadas en el análisis e interpretación de datos; ANÁLISIS Y DISCUSIÓN DE RESULTADOS; CONCLUSIONES; REFERENCIAS; ANEXOS",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Esquema del Trabajo de Investigación Cualitativo (párr. 380-420)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Esquema enumerado en párr. 381-420 del manual",
+      "aplicable": false
+    },
+    {
+      "rule_id": "estructura_tinv_revision_literatura",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Estructura obligatoria del Trabajo de Investigación basado en Revisión de la Literatura.\n",
+      "esperado": "Carátula; Dedicatoria (opcional); Jurado evaluador; Agradecimiento (opcional); Índice; Presentación; Resumen; Abstract; INTRODUCCIÓN; METODOLOGÍA DE REVISIÓN; DESARROLLO O ANÁLISIS CRÍTICO DE LA LITERATURA; CONCLUSIONES Y RECOMENDACIONES; REFERENCIAS; ANEXOS",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Esquema del Trabajo de Revisión de la Literatura (párr. 536-559)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Esquema enumerado en párr. 537-559 del manual",
+      "aplicable": false
+    },
+    {
+      "rule_id": "indice_subdivisiones",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El Índice se subdivide en: índice de contenidos, índice de tablas y índice de figuras; cada uno en página separada",
+      "esperado": "índice de contenidos + índice de tablas + índice de figuras, en páginas separadas",
+      "encontrado": "cumple",
+      "ubicacion": "Sección Índice (párr. 192-196)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "resumen_longitud",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El Resumen debe tener una extensión mínima de 159 palabras",
+      "esperado": ">= 159 palabras",
+      "encontrado": "cumple",
+      "ubicacion": "Sección Resumen (párr. 201)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Su extensión mínima 159 y su extensión máxima...\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "palabras_clave_minimo",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "Resumen y Abstract deben incluir mínimo 3 palabras clave",
+      "esperado": ">= 3 palabras clave",
+      "encontrado": "cumple",
+      "ubicacion": "Plantilla Resumen (párr. 86 de la plantilla Educación Inicial)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Palabras clave: (mínimo 03 palabras clave)\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "referencias_minimo_cuantitativo",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Mínimo de referencias bibliográficas para Trabajo de Investigación Cuantitativo",
+      "esperado": ">= 20 referencias",
+      "encontrado": "cumple",
+      "ubicacion": "Sección Referencias del Trabajo Cuantitativo (párr. 271)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Debe haber revisado un mínimo de 20 referencias.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "referencias_minimo_cualitativo",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Mínimo de referencias bibliográficas para Trabajo de Investigación Cualitativo",
+      "esperado": ">= 30 referencias",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Sección Referencias del Trabajo Cualitativo (párr. 376)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Debe haber revisado un mínimo de 30 referencias.\"",
+      "aplicable": false
+    },
+    {
+      "rule_id": "referencias_minimo_revision",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Mínimo de referencias bibliográficas para Trabajo de Revisión de la Literatura",
+      "esperado": ">= 20 referencias",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Sección Referencias del Trabajo de Revisión (párr. 532)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Debe haber revisado un mínimo de 20 referencias.\"",
+      "aplicable": false
+    },
+    {
+      "rule_id": "anexos_minimos_cuantitativo",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Anexos obligatorios para Trabajo de Investigación Cuantitativo",
+      "esperado": "Matriz de consistencia; Instrumento(s) de recolección de datos; Ficha técnica del instrumento; Consentimiento informado; Base de datos cuantitativa; Reporte de similitud; Carta de autorización institucional; Declaración jurada; Carta de autorización de publicación",
+      "encontrado": "cumple",
+      "ubicacion": "Esquema del Trabajo Cuantitativo (párr. 311-319)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Lista de anexos en párr. 311-319",
+      "aplicable": true
+    },
+    {
+      "rule_id": "anexos_minimos_cualitativo",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Anexos obligatorios para Trabajo de Investigación Cualitativo",
+      "esperado": "Matriz de consistencia; Instrumento(s) de recolección de datos; Consentimiento informado; Juicio de expertos; Base de datos cualitativa; Carta de autorización institucional; Declaración jurada; Carta de autorización de publicación",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Esquema del Trabajo Cualitativo (párr. 413-420)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Lista de anexos en párr. 413-420",
+      "aplicable": false
+    },
+    {
+      "rule_id": "caratula_orcid",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El código ORCID del autor y asesor se muestra como hipervínculo, entre paréntesis, debajo del nombre",
+      "esperado": "https://orcid.org/XXXXXXXXXXXX",
+      "encontrado": "cumple",
+      "ubicacion": "Carátula, especificaciones (párr. 179-180)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos...\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "proyecto_caratula_texto",
+      "paso": true,
+      "severidad": "error",
+      "mensaje": "En la carátula del Proyecto, la línea de tipo dice \"Proyecto de Investigación\" (no \"Trabajo de Investigación para optar...\")",
+      "esperado": "Proyecto de Investigación",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Carátula del Proyecto (párr. 618, 641)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Proyecto de Investigación: Centrado, con negrita y con mayúsculas (tamaño de letra, 13 puntos).\"",
+      "aplicable": false
+    },
+    {
+      "rule_id": "indice_paginas_separadas",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).",
+      "esperado": "índice de contenidos + índice de tablas + índice de figuras en páginas distintas",
+      "encontrado": "cumple",
+      "ubicacion": "Sección Índice (párr. 193, 1066, 2600, 3495)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas).\" — Manual, párrafo 193.",
+      "aplicable": true
+    },
+    {
+      "rule_id": "encabezado_membrete",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El encabezado repite el membrete institucional con el logotipo de la UNT",
+      "esperado": "imagen (dibujo) en el encabezado",
+      "encontrado": "cumple",
+      "ubicacion": "Encabezado de página (estándar institucional UNT)",
+      "fuente": "Formato institucional UNT (plantillas oficiales)",
+      "cita": "\"Membrete institucional: logotipo de la UNT repetido en el encabezado de página.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "encabezado_formato",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El texto del encabezado usa la misma familia tipográfica que el cuerpo (Times New Roman)",
+      "esperado": "Times New Roman",
+      "encontrado": "cumple",
+      "ubicacion": "Encabezado de página (estándar institucional UNT)",
+      "fuente": "Formato institucional UNT (plantillas oficiales)",
+      "cita": "\"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "notas_al_pie_consistencia",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Las notas al pie se numeran de forma consecutiva (sin saltos ni repeticiones)",
+      "esperado": "IDs 1..N consecutivos y definidos",
+      "encontrado": "cumple",
+      "ubicacion": "Notas al pie (pies de página del cuerpo)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Práctica estándar Word: las notas al pie se numeran correlativamente (1, 2, 3...).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "track_changes_sin_resolver",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El documento no debe contener cambios con seguimiento sin aceptar/rechazar",
+      "esperado": "0 marcas de inserción/eliminación pendientes",
+      "encontrado": "cumple",
+      "ubicacion": "Todo el documento (función \"Control de cambios\" de Word)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"El documento debe entregarse con los cambios aceptados (sin control de cambios pendiente).\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "indice_apunta_secciones",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Los títulos listados en el índice de contenidos corresponden a secciones reales del documento",
+      "esperado": "Cada entrada del índice tiene su título en el cuerpo",
+      "encontrado": "cumple",
+      "ubicacion": "Índice de contenidos (párr. 194: \"Lista estructurada de los segmentos que integran la investigación\")",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Índice de contenidos: Lista estructurada de los segmentos que integran la investigación, según orden de presentación.\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "indice_numeracion_jerarquica",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "La numeración de los títulos del índice respeta la jerarquía (capítulos romanos consecutivos; subsecciones decimales en preorder bajo su capítulo)",
+      "esperado": "Capítulos I, II... consecutivos y subsecciones K.1, K.1.1... en orden",
+      "encontrado": "cumple",
+      "ubicacion": "Índice de contenidos (párr. 194: \"Lista estructurada de los segmentos que integran la investigación\")",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "\"Índice de contenidos: Lista estructurada de los segmentos que integran la investigación, según orden de presentación.\"",
+      "aplicable": true
+    }
+  ],
+  "como_preguntar_a_una_ia": [],
+  "metadatos": {
+    "archivo_nombre": "doc_bueno.docx",
+    "archivo_tamano_bytes": 4506,
+    "reglas_evaluadas": 43,
+    "reglas_totales": 49,
+    "version_esquema": "2026-09-01",
+    "tipo_documento_declarado": null,
+    "tipo_documento_inferido": "tinv_cuantitativo",
+    "tipo_documento_estado": "vigente"
+  }
+}

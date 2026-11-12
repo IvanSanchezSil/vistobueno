@@ -143,13 +143,14 @@ def test_caratula_desalineada_falla():
 
 def test_titulo_real_sin_placeholder():
     """Título real (sin la frase 'título del trabajo'): se encuentra por
-    posición y se mide su tamaño real (sz 26), en vez de morir con []."""
+    posición y se mide su tamaño real (sz 26 = 13 pt), en vez de morir con []."""
     path = _docx(cuerpo_both=True, titulo_real=True)
     try:
         r = _regla(path, "caratula_titulo_trabajo_tamano")
         assert r is not None
         assert r.found != "@w:val=[]", "título no localizado"
-        assert "26" in r.found, r.found
+        # El detalle muestra el tamaño en puntos (sz 26 = 13 pt), no en twips.
+        assert "13 pt" in r.found, r.found
     finally:
         os.unlink(path)
 
