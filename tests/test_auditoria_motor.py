@@ -256,17 +256,37 @@ def test_aud07_linea_bachiller_se_evalua():
     )
 
 
-def test_aud07_otras_titulaciones_son_no_aplicables():
-    """AUD-07: la línea de Licenciatura deja la regla como NO APLICABLE.
+def test_aud07_otras_titulaciones_tambien_se_evaluan():
+    """AUD-07: la línea de Licenciatura se evalúa y advierte el desvío.
 
-    El contrato de la API exige `aplicable=False` y el texto
-    "no aplica a este documento" para una regla que no le toca al documento;
-    un "cumple" haría creer que se evaluó.
+    La tesis aprobada de la auditoría y las 5 plantillas oficiales usan 12 pt
+    en esa línea, pero el manual exige 13 pt (párr. 1056 y 1076). La decisión
+    del equipo (2026-11-08) es seguir el manual, así que la regla debe
+    advertir (warning) en vez de declararse no aplicable.
     """
     path = _docx_caratula(
         "Para Optar el Título Profesional de Licenciada en Educación Inicial",
         "24",
     )
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_optar_grado_tamano"]
+    assert not regla.passed
+    assert regla.aplicable
+    assert regla.found == (
+        "@w:val: 1 valores evaluados, 1 incumplen: #1=12 pt (pág. 1); esperado=13 pt"
+    )
+
+
+def test_aud07_sin_linea_para_optar_es_no_aplicable():
+    """AUD-07: sin la línea "para optar", la regla sí queda como n/a.
+
+    `n_a_si_sin_nodos` se conserva para los documentos que no llevan la
+    línea; el camino n/a exige `aplicable=False` y el texto del contrato.
+    """
+    path = _docx_caratula("Documento sin la línea de grado", "24")
     try:
         res = _por_regla(validate_docx(path, RULES))
     finally:
