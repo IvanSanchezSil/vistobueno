@@ -4,61 +4,68 @@
 
 - **Integrante:** IvanSanchezSil
 - **Semana:** 11
-- **Fechas:** 2026-11-03 a 2026-11-09
+- **Fechas:** 2026-11-03 a 2026-11-09 (cierre el 2026-11-11)
 - **Rol:** Motor de reglas / Procesamiento (Int3)
-- **Rama de trabajo:** `semana11-motor-ficha` (por crear desde `master`)
-- **Estado:** Implementación y pruebas completadas (F-1). Pruebas pendientes: F-2, F-3, F-4, F-5, F-6, F-7.
+- **Rama de trabajo:** `semana11-motor-ficha`
+- **Estado:** **Completada** (F-1 a F-7). Suite en verde: `823 passed, 4 skipped`, sin `xfail`.
 
 ## Objetivos de la semana
 
-Cerrar las tareas pendientes del módulo de captura de ficha según el handover §6.3, sobre la base de la auditoría 2026-10-26:
+Cerrar las tareas pendientes del módulo de captura de ficha según el handover de la auditoría 2026-10-26 (AUD-24 a AUD-27) y el handover operativo `docs/HANDOVER_PENDIENTES_2026-11-11.md` §3:
 
 1. Implementar contexto `caratula_ficha` en `validator/extractor.py`.
 2. Implementar `seleccion` y `quitar_sufijo` en `validator/analizadores.py`.
-3. Definir reglas `ficha_anio`, `ficha_titulo`, `ficha_autores`, `ficha_asesor`, `ficha_palabras_clave` en `reglas_ficha.yaml`.
-4. Actualizar `validator/compilador.py` para que `_ficha` marque `detectado` solo con valor no vacío.
+3. Definir las reglas de captura en `reglas_ficha.yaml`.
+4. Actualizar `validator/compilador.py` para que `_ficha` marque `detectado` solo con valor utilizable.
 5. Crear/actualizar pruebas: `tests/_caratula_real.py`, `tests/test_captura_ficha.py`, `tests/test_constancia.py`.
 6. Actualizar `scripts/eval_contra_plantillas.py` para aceptar `reglas` y `rules`.
-7. Resolver decisión de dominio sobre `palabras_clave_minimo` (error vs warning vs exención).
+7. Resolver la decisión de dominio sobre `palabras_clave_minimo`.
 
 ## Actividades realizadas
 
 | Fecha | Actividad | Evidencia |
 |-------|-----------|-----------|
-| 2026-11-03 | Implementación de contexto `caratula_ficha` en `validator/extractor.py` | Commit `c6f7ed3` (F-1) |
-| 2026-11-03 | Definición de reglas en `reglas_ficha.yaml` (F-3) | Commit `c6f7ed3` (F-3) |
-| 2026-11-03 | Actualización de pruebas en `tests/` (F-5) | Commit `c6f7ed3` (F-5) |
-| 2026-11-03 | Actualización de compilador (`validator/compilador.py`) (F-4) | Commit `c6f7ed3` (F-4) |
-| 2026-11-03 | Actualización de scripts (`scripts/eval_contra_plantillas.py`) (F-6) | Commit `c6f7ed3` (F-6) |
-| 2026-11-03 | Actualización de plan (`PLAN_SEMANA11_MOTOR_FICHA.md`) | Commit `c6f7ed3` (F-1) |
+| 2026-11-03 | Plan de la semana 11 | Commit `73e9445` |
+| 2026-11-03 | Contexto `caratula_ficha` en `validator/extractor.py` (F-1) | Commit `0447530` |
+| 2026-11-03 | `seleccion` / `quitar_sufijo` en `validator/analizadores.py` (F-2) | Commit `21b08f2` |
+| 2026-11-03 | Reglas iniciales de ficha (F-3) | Commit `833ec39` |
+| 2026-11-03 | `detectado=false` para valores vacíos (F-4) | Commit `f6d3810` |
+| 2026-11-11 | Cierre de AUD-24 a AUD-27: autores, asesor, año, palabras clave y fixture real | Commit `a2c753d` |
+| 2026-11-11 | `eval_contra_plantillas.py` acepta `reglas` y `rules` (F-6) | Commit `212d192` |
+| 2026-11-11 | Actualización de plan, bitácora y estado de la auditoría | Commit de docs de esta rama |
 
 ## Evidencias producidas
 
 | Archivo | Commit | Descripción |
 |---------|--------|-------------|
-| `validator/extractor.py` | `c6f7ed3` | Añadido `_caratula_ficha_paras()`, `is_caratula_ficha()` y soporte `contexto="caratula_ficha"` |
-| `reglas_ficha.yaml` | `c6f7ed3` | Definición de `ficha_anio`, `ficha_titulo`, `ficha_autores`, `ficha_asesor`, `ficha_palabras_clave` |
-| `tests/_caratula_real.py` | `c6f7ed3` | Fixture con dos autores, año con `sectPr`, prefijo/sufijo, palabras clave con punto |
-| `tests/test_captura_ficha.py` | `c6f7ed3` | Pruebas de captura de ficha |
-| `tests/test_constancia.py` | `c6f7ed3` | Pruebas de constancia |
-| `validator/compilador.py` | `c6f7ed3` | Ajuste de `_ficha` para marcar `detectado` solo con valor no vacío |
-| `scripts/eval_contra_plantillas.py` | `c6f7ed3` | Soporte para `reglas`/`rules`
+| `validator/extractor.py` | `0447530` | `_caratula_ficha_paras()`, `is_caratula_ficha()` y `contexto="caratula_ficha"` |
+| `validator/analizadores.py` | `21b08f2`, `a2c753d` | `seleccion: primero \| ultimo \| primero_no_vacio` y `quitar_sufijo` |
+| `reglas_ficha.yaml` | `833ec39`, `a2c753d` | Autores por párrafo, asesor del párrafo siguiente, año de portada y palabras clave limpias |
+| `validator/compilador.py` | `f6d3810`, `a2c753d` | `_valor_utilizable`: cadena vacía, solo espacios y lista vacía → `valor=None`, `pagina=None`, `detectado=false` |
+| `tests/_caratula_real.py` | `a2c753d` | Carátula real con `RESUMEN` como Título1, abstract y palabras clave |
+| `tests/test_captura_ficha.py` | `a2c753d` | Contrato de AUD-24 a AUD-27 sin `xfail`; título, abstract y valores inservibles |
+| `tests/test_constancia.py` | `a2c753d` | Una constancia por autor real, sin `xfail` |
+| `scripts/eval_contra_plantillas.py` | `212d192` | `_reglas_de` / `_total_mecanizadas` aceptan `reglas` y `rules` |
+| `tests/test_eval_contra_plantillas.py` | `212d192` | Tests de F-6 con ambos formatos |
 
-## Relación con competencias curriculares
+## Verificación
 
-| Competencia | Evidencia esperada |
-|-------------|-------------------|
-| Ingeniería de Software II | Arquitectura del extractor, análisis de contexto, manejo de casos borde |
-| Estructura de Datos | Modelado de contexto de extracción, mapeo nodo → página |
-| Redes de Computadoras I | (No aplica directamente; motor puro) |
-| Ingeniería de Software I | Bitácora semanal, documentación de planificación |
+- `pytest tests/ -q` → `823 passed, 4 skipped` (sin `xfail`).
+- Tesis real (`TESIS_LINARES_AZAÑERO_Y_MORALES_SALDAÑA_2026`): dos autores, `Dra. Vásquez Mondragón, Cecilia Del Pilar`, año `2026`, abstract completo y `['Educación', 'Cultura', 'Identidad cultural']`.
+- `scripts/eval_contra_plantillas.py` → funciona con `reglas_ficha.yaml` (clave `reglas`) y con `unt_format_rules_schema.yaml` (clave `rules`).
+- `ruff check`, `ruff format --check` y `mypy validator/ scripts/` → limpios.
+- Linter DSL → 0 errores en `reglas_ficha.yaml` y `reglas_unt.yaml`.
 
 ## Dificultades y aprendizajes
 
-(Por completar durante la semana)
+- El contexto `caratula_ficha` incluye todo el body cuando el DOCX no tiene un `sectPr` que cierre la carátula (el factory no lo tiene). Por eso el filtro del año debe exigir una **línea de portada** (año suelto o ciudad+año), no cualquier año: así no gana el 2024 del título ni los años de las referencias.
+- El fixture `_caratula_real.py` tenía `RESUMEN` como párrafo normal; `seccion()` necesita un estilo de encabezado. Corregir el fixture (no el analizador) fue lo correcto.
+- El nombre de archivo de la constancia se sanea (sin comas ni acentos); el **contenido** conserva el nombre real del autor. Los tests ahora distinguen ambos.
+- El asesor se resuelve con `primero_no_vacio`: sirve tanto si la etiqueta está en un párrafo aparte como si comparte párrafo con el nombre.
+- `palabras_clave_minimo` se mantiene en `error` por decisión del 2026-11-08; las 5 plantillas oficiales siguen en rojo a propósito.
 
 ## Plan de la semana siguiente
 
-- Verificar que las pruebas de captura de ficha pasen contra documentos reales.
-- Revisar paridad con el motor legacy si es necesario.
-- Documentar decisiones tomadas en `docs/HANDOVER_AUDITORIA_2026-10-26.md` o bitácora correspondiente.
+- Cerrar los hallazgos restantes de Int3: AUD-01, AUD-02, AUD-04, AUD-05, AUD-06 y AUD-20.
+- Revisar el bloque de aviso de `AGENTS.md` cuando estén cerrados todos los hallazgos de la tabla §11.
+- Mantener la verificación contra la tesis real y las 5 plantillas en cada cambio del motor.

@@ -192,6 +192,11 @@ El checklist cubre:
 - `dc.title` puede conservar el prefijo «Título del trabajo:».
 - `palabras_clave_minimo` vuelve roja a las plantillas oficiales vacías.
 
+> **Actualización (2026-11-11)**: AUD-24 a AUD-27 quedaron cerrados en el
+> PR #75. El kit del operador (`docs/PILOTO_OPERADOR.md` §7) ya no los
+> lista como abiertos; solo quedan el jurado no capturado, las plantillas
+> vacías y las limitaciones de infraestructura (16 campos, DSpace y buzón).
+
 También: enlace desde `README.md`, enlace desde
 `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md` y actualización de
 `docs/semana10_trabajo_retblast.md`.
@@ -316,8 +321,8 @@ limpio.
 
 ## Notas de coordinación
 
-- Los hallazgos de auditoría que siguen abiertos pertenecen a Int3. No se
-  quitan las marcas `xfail` hasta que Int3 corrija AUD-24 a AUD-27.
+- Los hallazgos de auditoría que siguen abiertos pertenecen a Int3. Int3
+  corrigió AUD-24 a AUD-27 en el PR #75 y retiró las marcas `xfail`.
 - El bloque de aviso de `AGENTS.md` no se borra hasta que todos los
   hallazgos de la tabla §11 del handover estén cerrados o decididos.
 - `AGENTS.md` solo se modifica con aprobación explícita del responsable del

@@ -3,8 +3,8 @@
 **Fecha:** 2026-11-03  
 **Responsable:** IvanSanchezSil (Motor de reglas / Procesamiento)  
 **Base:** `origin/master` (después de mergear PR #73)  
-**Rama:** `semana11-motor-ficha` (a crear desde `master`)  
-**Fuente:** `docs/HANDOVER_AUDITORIA_2026-10-26.md` §6.3 y §12
+**Rama:** `semana11-motor-ficha`  
+**Fuente:** `docs/HANDOVER_AUDITORIA_2026-10-26.md` §4 (AUD-24 a AUD-27), §6 y §12; handover operativo del PR: `docs/HANDOVER_PENDIENTES_2026-11-11.md` §3
 
 ---
 
@@ -14,17 +14,17 @@ Documentar y planificar primero. Sin tocar código hasta tener claro el enfoque.
 
 ---
 
-## Alcance (tareas del handover §6.3)
+## Alcance (tareas de AUD-24 a AUD-27)
 
 | ID | Sev | Archivos | Acción |
 |----|-----|----------|--------|
-| F-1 | Alta | `validator/extractor.py` | ✅ **HECHO**: Añadir contexto `caratula_ficha`: incluye el párrafo que porta `w:pPr/w:sectPr` sin tocar `_caratula` ni las 49 reglas normales. Añadir `is_caratula_ficha` y soporte `contexto="caratula_ficha"` en `xpath`. |
-| F-2 | Alta | `validator/analizadores.py` | ✅ **HECHO**: `AnalizadorExtraccion` con `seleccion: primero | ultimo` (tras `filtro`) y `quitar_sufijo` (regex). |
-| F-3 | Alta | `reglas_ficha.yaml` | ✅ **HECHO**: `ficha_anio` (`seleccion: ultimo`), `ficha_titulo` (`quitar_prefijo`), `ficha_autores` (`etiqueta: autores`, modo lista), `ficha_asesor` (sin cambios), `ficha_palabras_clave` (`quitar_sufijo: \s*\.\s*$`). |
-| F-4 | Media | `validator/compilador.py` | Pendiente |
-| F-5 | Alta | `tests/_caratula_real.py`, `tests/test_captura_ficha.py`, `tests/test_constancia.py` | Pendiente |
-| F-6 | Media | `scripts/eval_contra_plantillas.py` | Pendiente |
-| F-7 | Media | Decisión de dominio | Pendiente |
+| F-1 | Alta | `validator/extractor.py` | ✅ **HECHO**: contexto `caratula_ficha`: incluye el párrafo que porta `w:pPr/w:sectPr` sin tocar `_caratula` ni las 49 reglas normales. `is_caratula_ficha` y soporte `contexto="caratula_ficha"` en `xpath`. |
+| F-2 | Alta | `validator/analizadores.py` | ✅ **HECHO**: `AnalizadorExtraccion` con `seleccion: primero \| ultimo \| primero_no_vacio` (tras `filtro`) y `quitar_sufijo` (regex). |
+| F-3 | Alta | `reglas_ficha.yaml` | ✅ **HECHO**: `ficha_autores` recorre todos los párrafos de autor (salta ORCID, corta en ASESOR/Línea); `ficha_asesor` prefiere el párrafo siguiente con `seleccion: primero_no_vacio`; `ficha_anio` filtra la línea de portada y toma la última; `ficha_titulo` quita el prefijo; `ficha_palabras_clave` quita la puntuación final. |
+| F-4 | Media | `validator/compilador.py` | ✅ **HECHO**: `_valor_utilizable` publica `detectado=false`, `valor=None`, `pagina=None` para cadena vacía, solo espacios, `None` y lista vacía. |
+| F-5 | Alta | `tests/_caratula_real.py`, `tests/test_captura_ficha.py`, `tests/test_constancia.py` | ✅ **HECHO**: fixture con `RESUMEN` como Título1 y abstract real; contrato de captura sin `xfail`; constancia de los dos autores. |
+| F-6 | Media | `scripts/eval_contra_plantillas.py` | ✅ **HECHO**: `_reglas_de` acepta `reglas` y `rules`; `_total_mecanizadas` cuenta según el formato. Test en `tests/test_eval_contra_plantillas.py`. |
+| F-7 | Media | Decisión de dominio | ✅ **DECIDIDO** (2026-11-08): `palabras_clave_minimo` se mantiene en `error`; las 5 plantillas oficiales siguen en rojo a propósito. |
 
 ---
 
@@ -40,30 +40,29 @@ Documentar y planificar primero. Sin tocar código hasta tener claro el enfoque.
 - Limpieza de palabras clave: quitar punto final y entradas vacías tras normalización.
 
 ### F-3: Reglas de ficha en `reglas_ficha.yaml`
-- Cada regla declara `contexto: caratula_ficha`, `filtro` (regex), `seleccion` y, opcionalmente, `quitar_sufijo`.
-- `ficha_anio`: filtro `\b(19|20)\d{2}\b`, `seleccion: ultimo`.
-- `ficha_titulo`: `quitar_sufijo` opcional (desactivado por ahora).
-- `ficha_autores`: un párrafo = una persona; normalizar quitando etiqueta "Autores:".
-- `ficha_asesor`: si el nodo extraído es vacío, `detectado=false`.
-- `ficha_palabras_clave`: limpiar punto final y entradas vacías.
+- Cada regla declara `contexto: caratula_ficha`, `filtro` (regex), `seleccion` y, opcionalmente, `quitar_prefijo`/`quitar_sufijo`.
+- `ficha_anio`: filtro de línea de portada (año suelto o ciudad+año), `seleccion: ultimo`; así 2026 gana sobre el 2024 del título y sobre las referencias.
+- `ficha_titulo`: `quitar_prefijo` para «Título del trabajo de investigación:»; el sufijo `, Trujillo 2024` se conserva (decisión 5.2).
+- `ficha_autores`: un párrafo = una persona; recorre todos los párrafos tras `AUTORES:`/`AUTORA:`, salta ORCID e instrucciones entre paréntesis y corta en `ASESOR(A):`/`Línea de investigación:`.
+- `ficha_asesor`: `seleccion: primero_no_vacio` sobre la etiqueta y el párrafo siguiente; cubre ambos formatos.
+- `ficha_palabras_clave`: limpia la puntuación final y las entradas vacías.
 
 ### F-4: Compilador — `_ficha`
 - El dict `ficha` que se incluye en el reporte debe poner `detectado=true` solo si hay valor no vacío; en caso contrario `detectado=false`, `valor=None`, `pagina=None`.
 
 ### F-5: Tests
-- `tests/_caratula_real.py`: fixture con estructura real (dos autores, `sectPr` con año, prefijo/sufijo, palabras clave con punto, sin asesor).
-- `tests/test_captura_ficha.py`: expectativas — año 2026, dos autores, título sin prefijo, palabras clave limpias, asesor vacío `detectado=false`.
-- `tests/test_constancia.py`: quitar `xfail(strict=True)` tras corrección.
-- Regresión explícita: el año 2024 del título no debe ganar sobre 2026 de la portada.
+- `tests/_caratula_real.py`: fixture con estructura real (dos autores, etiqueta `ASESORA:` en párrafo aparte, año 2026, `RESUMEN` como Título1 con abstract y palabras clave).
+- `tests/test_captura_ficha.py`: expectativas — título sin prefijo, dos autores, asesora, año 2026, abstract, palabras clave limpias y `detectado=false` para valores inservibles.
+- `tests/test_constancia.py`: `xfail(strict=True)` eliminado; una constancia por autor real.
+- Regresión explícita: el año 2024 del título no gana sobre 2026 de la portada.
 
 ### F-6: `scripts/eval_contra_plantillas.py`
-- Actualmente usa `rules_data["rules"]`; el DSL usa clave `reglas`. Hacer que acepte ambos (`rules_data.get("reglas") or rules_data.get("rules")`). Mantener `carpeta` obligatorio. Añadir test de integración con `reglas_unt.yaml`.
+- Antes usaba `rules_data["rules"]`; el DSL usa la clave `reglas`. Ahora `_reglas_de` acepta ambos formatos y `_total_mecanizadas` cuenta según corresponda. Tests en `tests/test_eval_contra_plantillas.py` (helpers y `main()` con ambos formatos).
 
 ### F-7: Decisión `palabras_clave_minimo`
-- Hoy es `error` y falla las 5 plantillas oficiales.
-- AGENTS.md: decisión de dominio abierta.
-- Handover §4: mantener `error` (las plantillas pueden fallar porque son plantillas).
-- **Reunir al equipo** o decidir antes de cerrar las pruebas de ficha.
+- **Decidido el 2026-11-08**: se mantiene en `error`.
+- Las 5 plantillas oficiales siguen en rojo a propósito (son plantillas, no tesis).
+- No requiere cambio de código ni de reglas.
 
 ---
 
@@ -100,10 +99,10 @@ Documentar y planificar primero. Sin tocar código hasta tener claro el enfoque.
 
 ---
 
-## Decisiones pendientes del equipo
+## Decisiones del equipo (resueltas)
 
-1. `palabras_clave_minimo`: ¿`error` / `warning` / exención plantillas?
-2. Sufijo del título (decisión 5.2): ¿quitar siempre / conservar / solo si es última línea de portada?
+1. `palabras_clave_minimo`: se mantiene en `error` (decisión 2026-11-08).
+2. Sufijo del título (decisión 5.2): se conserva `, Trujillo 2024` (el handover §3.2 lo fija como valor esperado).
 
 ---
 
