@@ -635,10 +635,13 @@ def _norm_indice(texto: str) -> str:
 def _sigpalabra(s: str) -> str:
     """Primera palabra con >=4 caracteres de un texto normalizado (o vacío).
 
+    Respaldo de `indice_apunta_secciones` (AUD-06): la comprobación principal
+    es la igualdad del título normalizado; este heurístico solo se usa cuando
+    ese título tiene menos de 4 caracteres y no alcanza para exigir igualdad.
     El umbral descarta tokens de numeración o romanos ("I", "1.2", "A") como
-    señal de contenido. Si la entrada no tiene ninguna palabra de 4+
-    caracteres, se devuelve "" y el chequeo la omite: no hay señal suficiente
-    para verificar que apunte a una sección real (AUD-06).
+    señal de contenido. Si no hay ninguna palabra de 4+ caracteres, se
+    devuelve "" y el chequeo omite la entrada: no hay señal suficiente para
+    verificar que apunte a una sección real.
     """
     for tk in s.split():
         if len(tk) >= 4:
@@ -730,10 +733,12 @@ class AnalizadorTocApunta(Analizador):
     """Verifica que el índice apunte a secciones reales del documento (ítem 11).
 
     Sección DSL `toc_apunta`, `operacion: entradas_corresponden`: cada
-    entrada de la región del índice de contenidos debe tener su palabra
-    significativa (>=4 caracteres, sin numeración, número de página, tildes
-    ni separadores) como subcadena de ALGÚN título del cuerpo. Un documento
-    sin región de índice pasa (n/a documentado).
+    entrada de la región del índice de contenidos debe coincidir —tras
+    normalizar numeración, página, tildes y separadores— con ALGÚN título
+    del cuerpo (igualdad, no subcadena; AUD-06). Cuando el título
+    normalizado tiene menos de 4 caracteres no hay señal fiable y se usa
+    `_sigpalabra` como respaldo (auto-pase). Un documento sin región de
+    índice pasa (n/a documentado).
 
     Fiel al manual (párr. 194): "Lista estructurada de los segmentos que
     integran la investigación, según orden de presentación". NO prohíbe
@@ -754,9 +759,18 @@ class AnalizadorTocApunta(Analizador):
         self.ultimo_nodo = None
         for e in entradas:
             norm = _norm_indice(e["texto"])
-            sig = _sigpalabra(norm)
-            if not sig or any(sig in t for t in titulos):
+            # AUD-06: igualdad del título normalizado, no subcadena. El match
+            # por subcadena ocultaba una sección faltante cuando su palabra
+            # aparecía dentro de otro título ("OBJETIVOS" dentro de
+            # "OBJETIVOS ESPECÍFICOS"). `_sigpalabra` queda como respaldo solo
+            # cuando el título normalizado es demasiado corto (<4 caracteres)
+            # para ser una señal fiable; ahí se conserva el auto-pase.
+            if norm in titulos:
                 continue
+            if len(norm) < 4:
+                sig = _sigpalabra(norm)
+                if not sig or any(sig in t for t in titulos):
+                    continue
             if self.ultimo_nodo is None:
                 self.ultimo_nodo = e["nodo"]
             faltan.append(e["texto"][:60])

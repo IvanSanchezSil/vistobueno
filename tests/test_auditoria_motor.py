@@ -21,6 +21,7 @@ from pathlib import Path
 from docx_factory import (
     compilar_docx,
     configuracion_anexos_titulos,
+    configuracion_base,
     configuracion_indice_tabs,
     configuracion_titulo_romano,
 )
@@ -343,6 +344,56 @@ def test_aud06_entrada_sin_palabra_larga_se_omite():
     """AUD-06: sin token de 4+ caracteres no hay señal para verificar."""
     assert _sigpalabra("1.2 IV") == ""
     assert _sigpalabra("FASE I") == "FASE"
+
+
+def test_aud06_igualdad_no_oculta_seccion_bajo_otro_titulo():
+    """AUD-06: la subcadena ocultaba una sección faltante.
+
+    La entrada «1.4. OBJETIVOS» coincide por subcadena con el título
+    «OBJETIVOS ESPECÍFICOS», pero no apunta a esa sección. Con igualdad
+    normalizada el faltante se reporta.
+    """
+    cfg = configuracion_base()
+    cfg["headings"] = ["OBJETIVOS ESPECÍFICOS" if h == "OBJETIVOS" else h for h in cfg["headings"]]
+    path = compilar_docx(cfg)
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["indice_apunta_secciones"]
+    assert not regla.passed
+    assert "OBJETIVOS" in regla.found
+
+
+def test_aud06_igualdad_normalizada_tolera_mayusculas_y_tildes():
+    """AUD-06: la igualdad compara títulos normalizados, no el texto crudo."""
+    cfg = configuracion_base()
+    cfg["tdc_entradas"] = [
+        (nivel, "2.2. Bases Teoricas 17" if texto == "2.2. BASES TEÓRICAS 17" else texto)
+        for nivel, texto in cfg["tdc_entradas"]
+    ]
+    path = compilar_docx(cfg)
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    assert res["indice_apunta_secciones"].passed, res["indice_apunta_secciones"].found
+
+
+def test_aud06_entrada_corta_usa_el_respaldo_y_se_omite():
+    """AUD-06: con menos de 4 caracteres no hay señal y se omite.
+
+    El respaldo `_sigpalabra` conserva el auto-pase para entradas como
+    «1.6. IV» que no alcanzan para exigir igualdad con un título.
+    """
+    cfg = configuracion_base()
+    cfg["tdc_entradas"].append((2, "1.6. IV 40"))
+    path = compilar_docx(cfg)
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    assert res["indice_apunta_secciones"].passed, res["indice_apunta_secciones"].found
 
 
 def test_aud07_linea_bachiller_se_evalua():
