@@ -181,6 +181,39 @@ def _docx_caratula(texto: str, sz: str) -> str:
     return path
 
 
+def _para_runs(runs: list[tuple[str, str]]) -> str:
+    """Párrafo con varios runs; cada run lleva su texto y su `w:sz`."""
+    out = ["<w:p>"]
+    for texto, sz in runs:
+        out.append(
+            "<w:r><w:rPr>"
+            '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>'
+            f'<w:sz w:val="{sz}"/><w:szCs w:val="{sz}"/>'
+            "</w:rPr>"
+            f'<w:t xml:space="preserve">{texto}</w:t></w:r>'
+        )
+    out.append("</w:p>")
+    return "".join(out)
+
+
+def _docx_caratula_runs(paras: list[list[tuple[str, str]]]) -> str:
+    """DOCX de carátula con párrafos de varios runs (texto, sz)."""
+    body = "".join(_para_runs(p) for p in paras)
+    body += "<w:p><w:pPr><w:sectPr/></w:pPr></w:p>"
+    body += '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>'
+    doc = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{WNS}"><w:body>{body}</w:body></w:document>'
+    )
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+        path = f.name
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", CONTENT_TYPES)
+        z.writestr("_rels/.rels", RELS)
+        z.writestr("word/document.xml", doc)
+    return path
+
+
 def _regla_sz(comparacion: str = "all_eq", esperado: str = "24") -> dict:
     return {
         "id": "sz_test",
@@ -230,6 +263,80 @@ def test_aud03_valores_en_puntos_sin_repr_crudo():
     assert r.found == (
         "@w:val: 3 valores evaluados, 1 incumplen: #1=12 pt (pág. 1); esperado=13 pt"
     )
+
+
+def test_aud05_valida_todos_los_autores_y_sus_runs():
+    """AUD-05: el segundo autor (tras un ORCID) también se evalúa.
+
+    Antes solo se leía el primer run del párrafo siguiente a «AUTORES:», así
+    que un segundo autor con otro tamaño pasaba inadvertido. El asesor no
+    entra: el bloque de autores termina en «ASESOR(A):».
+    """
+    path = _docx_caratula_runs(
+        [
+            [("UNIVERSIDAD NACIONAL DE TRUJILLO", "36")],
+            [("AUTORES:", "24")],
+            [("Br. Linares Azañero, Angie Lizbeth", "24")],
+            [("https://orcid.org/0009-0000-0910-930X", "24")],
+            [("Br. Morales Saldaña, Victor Alberto", "20")],
+            [("https://orcid.org/0009-0006-6563-9579", "24")],
+            [("ASESORA:", "24")],
+            [("Dra. Vásquez Mondragón, Cecilia Del Pilar", "20")],
+        ]
+    )
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_autores_tamano"]
+    assert not regla.passed
+    assert regla.aplicable
+    assert "1 incumplen" in regla.found
+    assert "#3=10 pt" in regla.found
+
+
+def test_aud05_ignora_runs_sin_texto_y_no_mira_al_asesor():
+    """AUD-05: un run vacío inicial no se evalúa y el asesor no entra.
+
+    El run vacío lleva 14 pt (sz 28) a propósito: si se leyera, la regla
+    fallaría. El asesor lleva 10 pt (sz 20) para probar que el bloque de
+    autores termina antes de «ASESOR(A):».
+    """
+    path = _docx_caratula_runs(
+        [
+            [("UNIVERSIDAD NACIONAL DE TRUJILLO", "36")],
+            [("AUTORES:", "24")],
+            [("", "28"), ("Ana María Pérez García", "24")],
+            [("ASESORA:", "24")],
+            [("Dra. Cecilia Del Pilar Vásquez Mondragón", "20")],
+        ]
+    )
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_autores_tamano"]
+    assert regla.passed, regla.found
+    assert regla.found == "cumple"
+
+
+def test_aud05_valida_los_runs_intermedios_del_mismo_autor():
+    """AUD-05: si Word parte el nombre, se valida cada run con texto."""
+    path = _docx_caratula_runs(
+        [
+            [("AUTORES:", "24")],
+            [("Ana María ", "24"), ("Pérez García", "20")],
+            [("ASESOR:", "24")],
+        ]
+    )
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_autores_tamano"]
+    assert not regla.passed
+    assert "1 incumplen" in regla.found
+    assert "#2=10 pt" in regla.found
 
 
 def test_aud06_entrada_sin_palabra_larga_se_omite():

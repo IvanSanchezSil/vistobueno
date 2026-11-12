@@ -281,13 +281,19 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"(Times New Román 12 puntos)" para autores; "Línea de investigación, con letras mayúsculas y
     minúsculas (tamaño de letra, 12 puntos)."'
+  # EVALUADO (2026-11-11): AUD-05. Al ser la única regla `error` de carátula,
+  # se endurece el muestreo: todos los runs con texto de todos los párrafos
+  # del bloque de autores (desde «AUTORES:» hasta antes de «ASESOR(A):»,
+  # incluidas las líneas ORCID) y comparación `all_eq`. Antes se leía solo el
+  # primer run del primer párrafo: un run vacío, un ORCID intercalado o un
+  # segundo autor con otro tamaño pasaban inadvertidos. Las reglas `warning`
+  # de carátula conservan su selector (decisión §8 del handover).
   atributo_xml:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:sz
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]/w:r[normalize-space(.) != '']/w:rPr/w:sz
     atributo: '@w:val'
-    comparacion: eq
+    comparacion: all_eq
     esperado: '24'
 - id: caratula_logotipo_tamano
   tipo: imagen
