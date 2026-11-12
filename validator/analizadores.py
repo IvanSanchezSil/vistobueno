@@ -1053,9 +1053,11 @@ class AnalizadorExtraccion(Analizador):
                        "Asesor(a): ").
        quitar_sufijo:  regex que se elimina del final del texto (p. ej. ", Trujillo
                        2026").
-       seleccion:      `primero` o `ultimo`: con más de un match, elige la pieza
-                       #1 o la última (p. ej. para el año vs título). Aplica DESPUÉS
-                       de `filtro`, NO tras `etiqueta`/`patron`.
+       seleccion:      `primero`, `ultimo` o `primero_no_vacio`: con más de un
+                       match, elige la pieza #1, la última (p. ej. para el año
+                       vs título) o la primera cuyo texto limpio no quede vacío
+                       (asesor con la etiqueta en un párrafo aparte). Aplica
+                       DESPUÉS de `filtro`, NO tras `etiqueta`/`patron`.
     """
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
@@ -1114,6 +1116,12 @@ class AnalizadorExtraccion(Analizador):
             piezas = piezas[-1:]
         elif seleccion == "primero" and piezas:
             piezas = piezas[:1]
+        elif seleccion == "primero_no_vacio" and piezas:
+            # El asesor puede venir como «ASESOR(A):» en un párrafo y el
+            # nombre en el siguiente, o ambos en el mismo párrafo. Se queda
+            # con la primera pieza que, ya limpiada, no quede vacía (AUD-25).
+            elegida = next((p for p in piezas if self._limpiar(p)), None)
+            piezas = [elegida] if elegida is not None else piezas[:1]
         # Con `seccion` los tokens no traen su nodo; para poder publicar la
         # página se resuelve el `w:p` por texto exacto (mapa por texto).
         if sec and piezas:

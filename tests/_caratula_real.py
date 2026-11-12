@@ -56,17 +56,29 @@ PORTADA = [
 
 # --- Resumen: las palabras clave viven aquí, no en la carátula ------------
 
-RESUMEN = [
-    "RESUMEN",
-    "Palabras Clave: Educación, Cultura, Identidad cultural.",
-]
+RESUMEN_TEXTO = (
+    "El presente estudio analiza la relación entre las estrategias lúdicas "
+    "y la identidad cultural en estudiantes de primaria."
+)
+
+PALABRAS_CLAVE = "Palabras Clave: Educación, Cultura, Identidad cultural."
 
 
 def crear_docx_caratula() -> str:
-    """Escribe el DOCX de la carátula real y devuelve su ruta."""
+    """Escribe el DOCX de la carátula real y devuelve su ruta.
+
+    `RESUMEN` se emite como Título1 (`add_heading`) porque en los DOCX
+    reales —y en `docs/ejemplos/doc_bueno.docx`— es un párrafo con estilo de
+    encabezado, no un párrafo normal. Sin eso, `seccion()` no encuentra la
+    sección y la captura del abstract y de las palabras clave queda vacía
+    (handover `HANDOVER_PENDIENTES_2026-11-11.md` §3.3).
+    """
     documento = Document()
-    for linea in PORTADA + RESUMEN:
+    for linea in PORTADA:
         documento.add_paragraph(linea)
+    documento.add_heading("RESUMEN", level=1)
+    documento.add_paragraph(RESUMEN_TEXTO)
+    documento.add_paragraph(PALABRAS_CLAVE)
     with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
         ruta = tmp.name
     documento.save(ruta)

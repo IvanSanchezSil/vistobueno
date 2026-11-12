@@ -48,7 +48,11 @@ reglas:
     campo: dc.contributor.author
     modo: lista
     etiqueta: autores
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]
+    # AUD-24: todos los párrafos de autor tras «AUTORES:»/«AUTORA:», sin
+    # partir por la coma interna de «Apellidos, Nombres». Se saltan las
+    # líneas de ORCID y las instrucciones entre paréntesis de las plantillas,
+    # y se corta en «ASESOR(A):» o «Línea de investigación:».
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'linea')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid')) and not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid.org')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), '(')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'linea')])]
 
 - id: ficha_asesor
   tipo: estructura
@@ -64,7 +68,12 @@ reglas:
     campo: dc.contributor.advisor
     modo: texto
     quitar_prefijo: ^\s*asesor\(a\)\s*:?\s*|^\s*asesor(?:a)?\s*:?\s*
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1]
+    # AUD-25: la etiqueta «ASESOR(A):» suele ir en su propio párrafo y el
+    # nombre en el siguiente; si van juntos, la propia etiqueta trae el
+    # nombre. `primero_no_vacio` elige la primera pieza que, tras limpiar el
+    # prefijo, no quede vacía.
+    seleccion: primero_no_vacio
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1] | //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1]/following-sibling::w:p[1]
 
 - id: ficha_escuela
   tipo: estructura
@@ -89,18 +98,20 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   ubicacion: Carátula, Ciudad y año (párr. 182)
   cita: '"Ciudad y país"'
-  # Se busca la línea "TRUJILLO - PERÚ, 2026" y se extrae el año con `patron`.
-  # El XPath excluye la línea "UNIVERSIDAD NACIONAL DE TRUJILLO" (contiene
-  # "trujillo"): se pide que la línea también traiga un año de 4 dígitos
-  # (quirk heredado del reglamento, handover issue #4).
+  # AUD-26: el título puede terminar en ", Trujillo 2024" y el año de
+  # portada (2026) vive en otro párrafo, a veces el que porta el `sectPr`.
+  # El filtro exige una línea de portada: el año suelto o con la ciudad
+  # delante («Trujillo - Perú, 2026»), nunca una frase larga como el título
+  # ni una referencia. Entre las que quedan se toma la última.
   extraccion:
     parte: document
     contexto: caratula_ficha
     campo: dc.date.issued
     modo: texto
-    patron: \b(?:19|20)\d{2}\b
+    filtro: ^\s*(?:\S+\s+){0,4}(?:19|20)\d{2}\s*[.]?\s*$
     seleccion: ultimo
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo') and translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü') != 'universidad nacional de trujillo'][1]
+    patron: \b(?:19|20)\d{2}\b
+    xpath: //w:body/w:p
 
 - id: ficha_resumen
   tipo: estructura

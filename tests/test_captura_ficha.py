@@ -11,10 +11,9 @@ etiqueta `AUTORES:` en su propio párrafo, un autor por párrafo, líneas
 de ORCID intercaladas, la etiqueta `ASESORA:` en su propio párrafo y el
 año en la última línea de la portada.
 
-Los tests marcados `xfail(strict=True)` fallan hoy: son la especificación
-del arreglo de Int3. Cuando el motor los cumpla, el `XPASS` estricto
-pone el CI en rojo hasta que Int1 quite la marca (ver
-`docs/HANDOVER_AUDITORIA_2026-10-26.md` §6).
+Los criterios de aceptación quedaron cubiertos por el arreglo de Int3
+(semana 11): las capturas se contrastan aquí contra la estructura real,
+no contra el factory idealizado (AUD-20).
 
 Uso:
     pytest tests/test_captura_ficha.py -v
@@ -43,14 +42,6 @@ def ficha() -> dict:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "AUD-24: la captura parte cada autor por la coma de 'Apellidos, "
-        "Nombres' y se queda con un solo párrafo. Ver "
-        "docs/HANDOVER_AUDITORIA_2026-10-26.md §4 (AUD-24)."
-    ),
-)
 def test_autores_un_por_parrafo(ficha):
     """Dos párrafos de autor → DOS autores, sin partir por la coma."""
     assert valor(ficha, "dc.contributor.author") == [
@@ -64,14 +55,6 @@ def test_autores_un_por_parrafo(ficha):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "AUD-25: la etiqueta 'ASESORA:' va en su propio párrafo; el nombre "
-        "está en el siguiente. La captura toma la etiqueta y devuelve ''. "
-        "Ver docs/HANDOVER_AUDITORIA_2026-10-26.md §4 (AUD-25)."
-    ),
-)
 def test_asesor_toma_el_parrafo_siguiente(ficha):
     """El asesor es el párrafo que sigue a la etiqueta."""
     assert valor(ficha, "dc.contributor.advisor") == "Dra. Apellido, Nombre"
@@ -82,14 +65,6 @@ def test_asesor_toma_el_parrafo_siguiente(ficha):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "AUD-26: el ancla 'trujillo' casa el párrafo del título (que "
-        "termina en ', Trujillo 2024') en vez de la línea de portada. "
-        "Ver docs/HANDOVER_AUDITORIA_2026-10-26.md §4 (AUD-26)."
-    ),
-)
 def test_anio_toma_el_anio_de_portada(ficha):
     """El año es el de la portada (2026), no el que aparece en el título."""
     assert valor(ficha, "dc.date.issued") == "2026"
@@ -100,34 +75,72 @@ def test_anio_toma_el_anio_de_portada(ficha):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "AUD-27: la última palabra clave conserva el punto final de la "
-        "línea APA. Ver docs/HANDOVER_AUDITORIA_2026-10-26.md §4 (AUD-27)."
-    ),
-)
 def test_palabras_clave_sin_puntuacion_final(ficha):
     """Las palabras clave van limpias de puntuación final."""
     assert valor(ficha, "dc.subject") == ["Educación", "Cultura", "Identidad cultural"]
 
 
 # ---------------------------------------------------------------------------
-# Lo que Int1 SÍ garantiza hoy: la API no publica un valor inservible
+# Título y resumen: el prefijo se recorta y la sección se encuentra
 # ---------------------------------------------------------------------------
 
 
-def test_el_motor_no_marca_el_asesor_vacio_como_detectado(ficha):
-    """Un valor vacío no puede viajar como detectado.
+def test_titulo_sin_prefijo(ficha):
+    """El título llega sin la etiqueta «Título del trabajo de investigación:»."""
+    titulo = valor(ficha, "dc.title")
+    assert titulo == (
+        "Estrategias lúdicas para mejorar la identidad cultural en estudiantes "
+        "de primaria de una institución educativa, Trujillo 2024"
+    )
+    assert "Título del trabajo de investigación" not in titulo
 
-    Hoy el motor publica `detectado=True` con `valor=''`: ese dato
-    llega al formulario de DSpace, a la constancia y al registro. La
-    API lo degrada (ver `TestContratoFichaUtilizable`), pero el
-    arreglo de fondo es del motor.
+
+def test_resumen_capturado(ficha):
+    """El abstract es el texto de la sección RESUMEN, no la carátula."""
+    assert valor(ficha, "dc.description.abstract") == (
+        "El presente estudio analiza la relación entre las estrategias lúdicas "
+        "y la identidad cultural en estudiantes de primaria."
+    )
+
+
+# ---------------------------------------------------------------------------
+# F-4 — el motor no publica un valor inservible como detectado
+# ---------------------------------------------------------------------------
+
+
+class _AnalizadorFalso:
+    """Analizador mínimo que deja un único item en `ficha`."""
+
+    def __init__(self, valor):
+        self.ficha = [{"campo": "dc.contributor.author", "valor": valor, "nodo": object()}]
+
+
+class _ExtraidoFalso:
+    """ExtractedDocx mínimo: solo resuelve la página de un nodo."""
+
+    def pagina_de(self, nodo):
+        return 1
+
+
+@pytest.mark.parametrize("valor", ["", "   ", [], None])
+def test_el_motor_no_publica_valores_inservibles(valor):
+    """Cadena vacía, solo espacios o lista vacía → `detectado=False`.
+
+    El contrato exige que un valor inservible viaje como `None` y sin
+    página: el formulario de DSpace, la constancia y el registro no deben
+    recibir un dato fantasma (AUD-24 y AUD-25).
     """
-    asesor = ficha.get("dc.contributor.advisor") or {}
-    assert asesor.get("detectado") is False
-    assert asesor.get("valor") in (None, "")
+    from validator.compilador import ReglaCompilada
+
+    regla = ReglaCompilada(rule={"id": "ficha_autores"}, analizadores=[_AnalizadorFalso(valor)])
+    assert regla._ficha(_ExtraidoFalso()) == [
+        {
+            "campo": "dc.contributor.author",
+            "valor": None,
+            "pagina": None,
+            "detectado": False,
+        }
+    ]
 
 
 def test_la_api_degrada_el_valor_inservible_a_no_detectado():

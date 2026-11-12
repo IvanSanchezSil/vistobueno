@@ -636,15 +636,34 @@ class ReglaCompilada:
             for item in getattr(an, "ficha", []):
                 nodo = item.get("nodo")
                 valor = item.get("valor")
+                utilizable = self._valor_utilizable(valor)
                 capturado.append(
                     {
                         "campo": item.get("campo", ""),
-                        "valor": valor,
-                        "pagina": extracted.pagina_de(nodo) if nodo is not None else None,
-                        "detectado": valor is not None and valor != "",
+                        "valor": valor if utilizable else None,
+                        "pagina": (
+                            extracted.pagina_de(nodo) if utilizable and nodo is not None else None
+                        ),
+                        "detectado": utilizable,
                     }
                 )
         return capturado
+
+    @staticmethod
+    def _valor_utilizable(valor) -> bool:
+        """¿El valor capturado sirve para pre-llenar la ficha?
+
+        Una cadena vacía o solo espacios no sirve; una lista vacía tampoco
+        (AUD-24: sin autores no se publica `detectado=True` con `[]`). Para
+        un valor inservible el contrato exige `valor=None` y `pagina=None`.
+        """
+        if valor is None:
+            return False
+        if isinstance(valor, str):
+            return bool(valor.strip())
+        if isinstance(valor, (list, tuple, dict, set)):
+            return len(valor) > 0
+        return True
 
 
 # Los dos estados en que la detección NO pudo clasificar el documento. Son
