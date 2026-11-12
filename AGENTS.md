@@ -21,8 +21,8 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   fixture con estructura real). **AUD-03 y AUD-15** los cerró el PR #78.
 >   **AUD-05, AUD-06 y AUD-07** quedan decididos y documentados en el PR #73
 >   (§8 del handover): AUD-05 y AUD-06 no cambian el motor en este PR;
->   AUD-07 acota `caratula_optar_grado_tamano` a «bachiller» y devuelve n/a
->   en otras titulaciones. Siguen abiertos **AUD-24 a AUD-27** (las capturas
+>   AUD-07 mantiene el XPath amplio de «para optar» y reporta warning en la
+>   línea de 12 pt (el manual exige 13 pt), con n/a solo si falta la línea. Siguen abiertos **AUD-24 a AUD-27** (las capturas
 >   de la ficha: los autores se parten, el asesor llega vacío y el año sale
 >   del título). **Más un hallazgo nuevo**: `palabras_clave_minimo` queda en
 >   `error` por decisión del 2026-11-08; las 5 plantillas oficiales siguen en
@@ -48,8 +48,8 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 > - **Decisiones de dominio resueltas el 2026-11-08**: sangría (sin exención
 >   por estilo), anexos («Base de datos»), AUD-05 (selectores frágiles
 >   documentados; endurecimiento diferido), AUD-06 (umbral `>= 4` mantenido;
->   igualdad normalizada no se implementa aquí), AUD-07 (regla acotada a
->   «bachiller»; n/a en otras titulaciones) y `palabras_clave_minimo` (se
+>   igualdad normalizada no se implementa aquí), AUD-07 (XPath amplio de
+>   «para optar» y warning del desvío 12 vs 13 pt) y `palabras_clave_minimo` (se
 >   mantiene `error`). Detalle: §8 del handover. (AUD-18 ya estaba decidido:
 >   el mock de reporte **no** se activa en producción.)
 >

@@ -21,7 +21,7 @@ Corregir los hallazgos de la auditoría que corresponden a  (Motor/Reglas), docu
 | AUD-04 | Media | `reglas_unt.yaml` | Notas `EVALUADO (2026-10-27):` con decisión en `caratula_titulo_trabajo_tamano` y `caratula_optar_grado_tamano` (plantilla usa 13pt/12pt). | Hecho (PR #73; revisión 2026-11-10) |
 | AUD-05 | Media | `reglas_unt.yaml` / analizadores | Decisión: endurecer selectores frágiles (`/w:r[1]`, `following-sibling::w:p[1]`) o documentar. | Hecho: documentado y diferido (nota EVALUADO en el bloque de carátula) |
 | AUD-06 | Baja | `validator/analizadores.py` (`_sigpalabra`) | Decisión: revisar umbral `>= 4` auto-pasa entradas cortas. | Hecho: umbral mantenido y documentado en el docstring + test |
-| AUD-07 | Baja | `reglas_unt.yaml`, `validator/compilador.py` | Acotar `caratula_optar_grado_tamano` a "bachiller" y propagar el n/a real: `aplicable=False`, `found="no aplica a este documento"`. | Hecho (PR #73; revisión 2026-11-10) |
+| AUD-07 | Baja | `reglas_unt.yaml` | Mantener el XPath amplio de "para optar" y reportar el desvío 12 vs 13 pt como warning; `n_a_si_sin_nodos` solo si falta la línea. | Hecho (PR #73; ampliación de la revisión 2026-11-11) |
 | AUD-20 | Media | `tests/_docx_builder.py`, `tests/docx_factory.py`, `tests/test_auditoria_motor.py` | Fixtures con estructura real (anexos Título1 "Anexo N.", índice con `w:tab` y página pegada) y tests de regresión para AUD-01/AUD-02. | Hecho (PR #73; revisión 2026-11-10) |
 | AUD-15 | Media | `validator/exportador.py` | Escape de `&`, `<`, `>` y `|` en `message`/`found`/`expected`; el prompt de IA **no** se escapa (va en bloque de código). | Hecho (integrado desde `master`, PR #78) |
 
@@ -37,7 +37,7 @@ Orden propuesto:
 4. **AUD-20** — Blindar AUD-01/AUD-02 con fixtures de estructura real y tests de regresión. (Hecho)
 5. **AUD-03** — Culpables primero, valores legibles y página del nodo infractor; paridad legacy↔DSL verificada. (Hecho)
 6. **AUD-04** — Notas `EVALUADO:` en los tamaños de carátula, verificadas contra la plantilla oficial. (Hecho)
-7. **AUD-05/AUD-06/AUD-07** — Decisiones tomadas: documentar y diferir los selectores frágiles (AUD-05), mantener el umbral `>= 4` documentado (AUD-06) y acotar la regla de "optar" a "bachiller" (AUD-07). (Hecho)
+7. **AUD-05/AUD-06/AUD-07** — Decisiones tomadas: documentar y diferir los selectores frágiles (AUD-05), mantener el umbral `>= 4` documentado (AUD-06) y seguir el manual en la regla de "optar" (13 pt) advirtiendo el desvío de 12 pt (AUD-07). (Hecho)
 8. **AUD-15** — Escape HTML en `message`/`found`/`expected`/`prompt` en `validator/exportador.py` para prevenir rotura de tablas Markdown y XSS en PDF. (Hecho)
 
 ## Criterios de aceptación
@@ -49,7 +49,7 @@ Orden propuesto:
 - [x] AUD-04: notas `EVALUADO:` añadidas
 - [x] AUD-05: selectores frágiles documentados (endurecimiento diferido)
 - [x] AUD-06: umbral `>= 4` mantenido y documentado
-- [x] AUD-07: `caratula_optar_grado_tamano` acotada a "bachiller" (n/a en otras titulaciones)
+- [x] AUD-07: `caratula_optar_grado_tamano` con XPath amplio de "para optar" y warning del desvío 12 vs 13 pt (n/a solo si falta la línea)
 - [x] AUD-15: `message`/`found`/`expected` escapados (`&`, `<`, `>`, `|`); el prompt de IA no se escapa
 - [x] `tests/_mutations.py` sin cambios: no se agregaron reglas nuevas (no requiere sincronización)
 - [x] `pytest tests/ -q` tras el merge con `master`: **757 passed, 4 skipped, 6 xfailed**
@@ -91,13 +91,30 @@ correcciones:
 - **AUD-02**: `hasta_final` documentado en `docs/DSL.md`, validado por el
   linter y con conteo `encontrados=N/M`.
 - **AUD-04**: fecha en las notas `EVALUADO`.
-- **AUD-07**: la regla acotada a «bachiller» usa el camino n/a existente
-  (`aplicable=False`, `found="no aplica a este documento"`).
+- **AUD-07**: tras la ampliación de la revisión (2026-11-11) se mantiene el
+  XPath amplio de «para optar» y el desvío 12 vs 13 pt se reporta como
+  warning; `n_a_si_sin_nodos` solo cubre documentos sin esa línea.
 - **AUD-20**: fixture con tabuladores reales y regresión.
 - **Cierre documental**: handover §11, aviso de `AGENTS.md`,
   `docs/CONTRATO_API.md`, este documento y el ejemplo del motor.
 
-Verificación final sobre el merge: **757 passed, 4 skipped, 6 xfailed**;
-`ruff check`, `ruff format --check` y `mypy validator/ scripts/` OK; linter
-DSL limpio en los tres rulesets. `tests/_mutations.py` no necesitó cambios:
-no se agregaron reglas nuevas.
+Verificación sobre el merge con `master` (`20e0fe5`): **757 passed,
+4 skipped, 6 xfailed**. Tras la ampliación de la revisión (2026-11-11) se
+fusionó `upstream/master` (`1e797ba`, PR #72) y la suite quedó en **815
+passed, 4 skipped, 6 xfailed**. `ruff check`, `ruff format --check` y
+`mypy validator/ scripts/` OK; linter DSL limpio en los tres rulesets.
+`tests/_mutations.py` no necesitó cambios: no se agregaron reglas nuevas.
+
+### Ampliación de la revisión (2026-11-11) — AUD-07
+
+`retblast` verificó la tesis oficialmente aprobada: su línea «Para Optar el
+Título Profesional de Licenciado en Educación Primaria» está en **12 pt**,
+igual que las 5 plantillas oficiales, mientras que el manual exige **13 pt**
+(párr. 1056 y 1076). El XPath acotado a «bachiller» dejaba fuera justo ese
+caso y lo convertía en n/a, silenciando el desvío.
+
+Se revierte el alcance: el XPath vuelve a ser el amplio de «para optar», la
+regla se evalúa en cualquier titulación y reporta el desvío como **warning**
+(no cambia el semáforo). `n_a_si_sin_nodos` se conserva solo para documentos
+que no tienen esa línea. En la tesis real el resultado pasa de n/a a
+`12 pt vs 13 pt (warning)`; el MANUAL no tiene la línea y sigue n/a.

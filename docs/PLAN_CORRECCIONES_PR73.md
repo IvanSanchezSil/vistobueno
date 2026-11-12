@@ -21,7 +21,7 @@ enfoque. Commits atómicos por hallazgo, mensajes en español, **sin
 | AUD-15 | Importante | Adoptar el escape de `master` (`& < > |`, sin escapar el prompt) + sus tests |
 | AUD-02 | Parcial | Documentar/registrar `hasta_final` y añadir conteo de hallados |
 | AUD-04 | Parcial | Añadir fecha a las notas `EVALUADO` |
-| AUD-07 | Parcial/bloqueante | Propagar la señal n/a: `aplicable=False`, `found="no aplica a este documento"` |
+| AUD-07 | Decidido | XPath amplio de «para optar» y warning del desvío 12 vs 13 pt; n/a solo si falta la línea |
 | AUD-20 | Parcial | Fixtures con estructura real (tabuladores) + regresión |
 | Cierre | Parcial | Handover §11, `AGENTS.md`, `docs/CONTRATO_API.md`, conteos y `_mutations.py` |
 
@@ -72,6 +72,11 @@ El contrato exige `aplicable=False` y `found="no aplica a este documento"`.
 `n_a_si_sin_nodos` y `n_a_si_ausente`; `ejecutar` devuelve
 `self.no_aplicable()` si no hay fallos y algún analizador la activó.
 
+**Decisión final (2026-11-11):** la ampliación de la revisión mostró que la
+tesis aprobada y las 5 plantillas usan 12 pt, así que el XPath se mantiene
+amplio («para optar») y el desvío se reporta como warning. El camino n/a
+sigue existiendo solo para documentos sin esa línea.
+
 ### AUD-02 — `hasta_final` y conteo
 
 `hasta_final` funciona en `seccion()`, pero no está documentado en
@@ -110,7 +115,7 @@ de una sola palabra con página romana pegada.
    `checks.py`, `exportador.py` y tests de `master`; reincorporar
    AUD-01/AUD-02/AUD-07).
 2. AUD-01 + tests de tabuladores.
-3. AUD-07 + tests n/a.
+3. AUD-07 + tests de evaluación y de n/a sin línea.
 4. AUD-02 + docs/linter + conteo.
 5. AUD-04 fechas.
 6. AUD-20 fixture real + regresión.
@@ -134,8 +139,9 @@ Además: linter DSL sobre `reglas_unt.yaml`, `reglas_unt_pendientes.yaml` y
 | Paso | Estado | Evidencia |
 |------|--------|-----------|
 | Merge con `origin/master` (`20e0fe5`) | Hecho | merge `85fc141` |
+| Merge con `upstream/master` (`1e797ba`, PR #72) | Hecho | merge de la ampliación 2026-11-11 |
 | AUD-01 + tests de tabuladores | Hecho | `624db11` |
-| AUD-07 + tests n/a | Hecho | `624db11` |
+| AUD-07 + tests (evaluación y n/a) | Hecho | `624db11` + ampliación 2026-11-11 |
 | AUD-02 + docs/linter + conteo | Hecho | `624db11` |
 | AUD-04 fechas | Hecho | `ed630b3` |
 | AUD-20 fixture real + regresión | Hecho | `624db11` |

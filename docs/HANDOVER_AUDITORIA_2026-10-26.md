@@ -312,7 +312,7 @@ oficiales.
 | 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | Cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`. El efecto se ve cuando AUD-02 lea la sección de anexos. Sigue siendo `warning`. |
 | 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. Cambio en el YAML y, si hace falta, en el analizador de atributos. |
 | 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | Cambio en `analizadores.py`. **Depende de AUD-01** (PR #73, abierto): hoy la normalización borra la última letra de títulos como «General» y cualquier endurecimiento falla. |
-| 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | El manual exige 13 pt también para la línea «Tesis para optar el Título Profesional de Licenciado» (párr. 1058 y 1076), pero la plantilla oficial usa 12 pt. La regla se acota a la línea de «Bachiller» y las demás titulaciones quedan como **no aplicables** (`aplicable=False`). | Se cierra AUD-07 en el PR #73. El desvío de la plantilla se documenta en la nota `EVALUADO` de AUD-04. |
+| 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | El manual exige 13 pt en la línea «para optar» (párr. 1056 y 1076), pero la tesis aprobada de la auditoría y las 5 plantillas oficiales usan 12 pt. Se sigue el manual: el XPath queda amplio (`para optar`, sin acotar a «Bachiller») y el desvío se reporta como **warning**, sin cambiar el semáforo. | Se cierra AUD-07 en el PR #73. `n_a_si_sin_nodos` solo cubre los documentos que no tienen esa línea. El desvío de la tesis/plantillas se documenta en la nota `EVALUADO` de AUD-04. |
 | 6 | `palabras_clave_minimo` | Se mantiene `error`. | Las 5 plantillas oficiales siguen en rojo. Es intencional: sus palabras clave no cumplen el mínimo. No es un bug del motor ni del frontend. |
 | 7 | Cache compilado por hilo (§12.3) | **No se implementa.** Medición del 2026-11-08: compilar tarda 5.6 ms de 5.0 s (0.1 %) con la tesis real, y 4.9 ms de 89 ms (5.6 %) con el documento del factory. | Se retira de pendientes. Si se retoma el rendimiento, el objetivo es `tokenizar()`: 6 llamadas, 1.64 s de 4.24 s, no la compilación. |
 | 8 | `formato` en `POST /validar` | **No se agrega.** `/validar` sigue devolviendo solo JSON. | El ítem 16 de `docs/PLAN_BACKLOG_FUTURO.md` queda rechazado para el piloto. Si se retoma, va en `POST /reporte` (`md`/`pdf`), con `run_in_threadpool` y medidor de CPU. |
@@ -329,7 +329,8 @@ Notas de evidencia:
   Reporte de similitud, Carta de autorización institucional, Declaración
   jurada y Carta de autorización de publicación.
 - **AUD-07**: la cita del párr. 178 es de la línea del Bachiller, pero el
-  manual también fija 13 pt para la línea de la Tesis (párr. 1058 y 1076).
+  manual fija 13 pt para toda la línea «para optar» (párr. 1056 y 1076). La
+  tesis aprobada y las 5 plantillas usan 12 pt: se reporta como warning.
 
 **AUD-18** ya estaba decidido el 2026-10-28 (Int2, PR #68): el fallback al
 reporte de ejemplo queda solo en el build de desarrollo; en producción se
@@ -492,9 +493,9 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > por el linter y con conteo `encontrados=N/M`), AUD-04 (notas `EVALUADO` con
 > fecha) y AUD-20 (fixture con `w:tab` y regresión). AUD-05 y AUD-06 quedan
 > **decididos y documentados** en este PR: el endurecimiento de selectores y
-> la igualdad normalizada no se implementan aquí. AUD-07 se implementa
-> acotando la regla a «bachiller» y usando el camino n/a existente
-> (`aplicable=False`, `found="no aplica a este documento"`).
+> la igualdad normalizada no se implementan aquí. AUD-07 sigue la decisión
+> del 2026-11-08: XPath amplio de «para optar» y warning en la línea de
+> 12 pt; `n_a_si_sin_nodos` solo para documentos sin esa línea.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -504,7 +505,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-04 | Int3 | **cerrado** (notas `EVALUADO` con fecha y decisión) | PR #73 |
 | AUD-05 | Int3 | **decidido y documentado**: selectores frágiles con nota `EVALUADO`; endurecimiento diferido | PR #73 |
 | AUD-06 | Int3 | **decidido y documentado**: umbral `>= 4` mantenido; igualdad normalizada no se implementa aquí | PR #73 |
-| AUD-07 | Int3 | **cerrado**: regla acotada a «bachiller»; n/a real en otras titulaciones | PR #73 |
+| AUD-07 | Int3 | **cerrado**: XPath amplio de «para optar» y warning del desvío 12 vs 13 pt; n/a solo si falta la línea | PR #73 |
 | AUD-09 | Int1 | **cerrado** | PR #66 |
 | AUD-10 | Int1 | **cerrado** | PR #66 |
 | AUD-11 | Int1 | **cerrado: no aplica** (decisión 2026-10-28) | — |
@@ -553,10 +554,10 @@ el diff exacto, para que Int3 las implemente, las descarte o las aplique.
 ### 12.1 AUD-04 — notas `EVALUADO` para las dos reglas de carátula
 
 > **Aplicada en el PR #73.** Las notas `EVALUADO` incluyen fecha y decisión.
-> AUD-07 se implementa en el mismo PR acotando la regla a «bachiller» y
-> devolviendo n/a en las demás titulaciones; la nota documenta que el manual
-> también exige 13 pt para la línea de la Tesis (párr. 1058 y 1076), así que
-> el desvío es de la plantilla oficial (12 pt), no del estudiante.
+> AUD-07 se mantiene con el XPath amplio de «para optar» y reporta warning
+> cuando la línea está en 12 pt: la nota documenta que el manual exige 13 pt
+> (párr. 1056 y 1076) y que la tesis aprobada y las 5 plantillas usan 12 pt,
+> así que el desvío es sistémico y visible, no silenciado como n/a.
 
 **Criterio de aceptación**: nota `EVALUADO` con fecha y decisión en
 `reglas_unt.yaml`, como la tiene `sangria_parrafo`.
