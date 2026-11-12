@@ -133,6 +133,7 @@ Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semá
 | **Tests exportador** | `tests/test_exportador.py` | Tests de exportación Markdown/PDF |
 | **Tests notificación** | `tests/test_notificacion.py` | Tests unitarios + E2E con sink SMTP (aiosmtpd) |
 | **Tests IA** | `tests/test_llm.py`, `tests/test_asistente.py` | Cliente LLM y asistente, con `StubLLM` (sin red ni GPU) |
+| **Tests linter** | `tests/test_t2_linter.py`, `tests/test_f4_ingenieria.py` | Tests del linter DSL: controles en carga (T2) y controles en runtime (F4) |
 | **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP, DSpace y del buzón en commits (pre-commit + CI); además detecta nombres genéricos en mayúsculas (`*_PASSWORD`, `*_TOKEN`, `*_API_KEY`), URLs con credenciales embebidas y bloques YAML multilínea |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
 | **Reglas DSL (producción)** | `reglas_unt.yaml` | 49 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
@@ -533,6 +534,7 @@ vistobueno/
 │   ├── test_f2_automatas.py           # Tests F2: tokenizer, PDA, automata_pila
 │   ├── test_f3_mecanizacion.py        # Tests F3: reglas no deterministas
 │   ├── test_f4_ingenieria.py          # Tests F4: linter, cache, traza
+│   ├── test_t2_linter.py              # Tests T2: endurecimiento del linter (controles "antes" y nuevos)
 │   ├── test_paridad_formatos.py       # Paridad legacy vs DSL
 │   ├── test_propiedad.py              # Tests de propiedad (factory + mutaciones)
 │   ├── test_exportador.py             # Tests de exportación a Markdown/PDF

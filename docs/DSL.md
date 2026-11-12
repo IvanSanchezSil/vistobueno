@@ -573,3 +573,41 @@ Para agregar un tipo de analizador nuevo:
    `validator/compilador.py`.
 3. Agregar un ejemplo en `reglas_dsl_ejemplo.yaml` y un test en
    `tests/test_dsl.py`.
+
+---
+
+## Linter del DSL
+
+El linter (`validator/dsl_check.py`) valida la configuración de las reglas en
+tiempo de carga. Detecta:
+
+- **XPath no evaluables**: valida la expresión completa con el compilador de
+  lxml (`etree.XPath(expr, namespaces=NS)`), así que distingue los literales
+  entre comillas (`'Palabras clave:'`) de los prefijos de namespace y detecta
+  también la sintaxis inválida (p. ej. `//wp:ind` o `//w:p[`). Evita que la
+  regla reviente con `XPathEvalError` en tiempo de ejecución.
+- **Claves desconocidas a nivel de regla**: el conjunto de claves válidas es
+  **cerrado** (29 en total: las 18 secciones de analizador más los 11 campos
+  de regla). Cualquier otra clave —una sección mal escrita (`atributo_xmls`) o
+  un truncamiento (`conteo`)— se reporta; antes la regla desaparecía del
+  reporte en silencio. La similitud difusa solo se usa para sugerir la sección
+  correcta.
+- **Configuraciones de sección que no son diccionario** (p. ej.
+  `lista_obligatoria: "x"`) — antes causaban `AttributeError` en runtime.
+- **Errores de autómatas** (`automata_secuencia`, `automata_pila`): estados
+  duplicados, transiciones imposibles y ciclos épsilon.
+- **Severidades fuera del catálogo** `error`/`warning` (derivado de
+  `validator.models.Severity`).
+- **Valores de `aplicar_si`** que no son un tipo documental declarado. Los
+  centinelas `sin_determinar` y `contradictorio` son valores legítimos.
+- **`id` de regla duplicado** — doble conteo en el resumen y observaciones
+  indistinguibles.
+
+Los hallazgos se devuelven como `DSLValidationError` con un mensaje legible
+para el usuario. Ejemplos reales:
+
+```text
+[r1] atributo_xml: XPath inválido '//wp:ind': prefijo de namespace desconocido ['wp'] (prefijos válidos: ['a', 'pic', 'r', 'w'])
+[r1] sección desconocida 'atributo_xmls' (¿quiso decir 'atributo_xml'?)
+[r1] severidad: 'aviso' no es válida (valores admitidos: ['error', 'warning'])
+```

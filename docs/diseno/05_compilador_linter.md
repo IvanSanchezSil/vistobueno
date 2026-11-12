@@ -189,17 +189,30 @@ El ciclo de ε-transiciones es el más delicado: sin detección, un
 `reconocer()`. El detector DFS de `dsl_check` acota la complejidad a
 `O(|transiciones|)` en tiempo de carga, no en cada validación.
 
+### Controles adicionales (F4 — linter endurecido)
+
+Además de los errores de autómatas, el linter valida:
+
+| Control | Qué detecta |
+|---------|-------------|
+| XPath no evaluable | Prefijos de namespace desconocidos (e.g., `wp:`) y sintaxis XPath inválida; usa `lxml.etree.XPath` contra un árbol vacío con `NS` del extractor. |
+| Claves de regla desconocidas | Cualquier clave al nivel de la regla que no esté en `_CLAVES_VALIDAS` (secciones conocidas + campos de regla); usa similitud difusa solo para sugerir. |
+| Configuración no-diccionario | Secciones cuyo valor no es un `dict` (e.g., string) — antes causaba `AttributeError` en runtime. |
+| Centinelas de tipo | `sin_determinar` y `contradictorio` son valores válidos en `aplicar_si` (publicados por `DeteccionTipo`). |
+| IDs duplicados | `id` de regla repetido se reporta una vez. |
+
 ## 5. Decisiones de diseño y justificación
 
 | # | Decisión | Alternativa descartada | Justificación |
 |---|----------|------------------------|---------------|
 | C1 | Lint en tiempo de **carga** (F4) | Validar contra cada documento | Un error de configuración es estático; detectarlo al cargar evita reportes engañosos y loops en runtime |
 | C2 | `_FABRICAS` y `_SECCIONES` como tuplas/diccionarios del módulo | Configuración externa | La lista de analizadores es cerrada; un mapping estático es explícito, testable y auto-documentado |
-| C3 | `SECCIONES_ANALIZADOR` duplicada en `compilador` y `dsl_check` | Import cruzado o archivo compartido | El módulo `dsl_check` no puede importar a `compilador` (ciclo); la duplicación es pequeña (12 strings) y se mantiene sincronizada por tests (`test_linter_reglas_unt_pasan`) |
+| C3 | `SECCIONES_ANALIZADOR` duplicada en `compilador` y `dsl_check` | Import cruzado o archivo compartido | El módulo `dsl_check` no puede importar a `compilador` (ciclo); la duplicación es de **18 entradas** y se mantiene sincronizada por tests (`test_yaml_de_produccion_pasa_el_linter` y `test_secciones_del_linter_sincronizadas_con_el_compilador`). El linter sí importa `NS` de `.extractor` y `Severity` de `.models`, que no generan ciclo |
 | C4 | Regla sin analizadores → se omite silenciosamente | Error | Migración incremental: una regla sin mecanismo no produce error, solo se salta. El `engine._validate_legacy` ya manejaba esta semántica |
 | C5 | `ejecutar()` propaga excepciones como fallos individuales (no tumba el resto) | Excepción global | Un documento con XML inesperado en un nudo no puede anular las otras 44 reglas — hay que loguear el error y continuar |
 | C6 | `found` = `"; "` de los fallos individuales de todos los analizadores | Primer fallo nada más | Un reporte completo acelera el diagnóstico del usuario (p. ej., una regla de portada puede fallar por negrita Y por tamaño: los dos motivos son útiles) |
 | C7 | El order de secciones del YAML se preserva en la compilación | Orden fijo alfabético | La semántica de `found` (string) depende del orden de los fallos; si se reordenaran, el reporte de paridad legacy↔DSL dejaría de funcionar |
+| C8 | Conjunto **cerrado** de claves de regla (`_CLAVES_VALIDAS`, 29 claves) | Aceptar claves desconocidas | Una clave desconocida hace que el compilador ignore la regla y esta desaparezca del reporte; el linter la rechaza y un test compara el conjunto con las claves que leen `engine.py` y `compilador.py` para evitar la deriva |
 
 ## 6. Mapeo académico (LFA / Compiladores)
 
