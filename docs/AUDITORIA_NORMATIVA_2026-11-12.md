@@ -101,7 +101,7 @@ sigue abierta; no se afirma que estos archivos hayan sido renderizados por Word.
 | missing_school | Eliminar el párrafo con ESCUELA PROFESIONAL | Verde | Escuela obligatoria, independiente de facultad |
 | advisor_36pt | Cambiar a `w:sz w:val="72"` los runs del nombre tras Asesor | Verde | Nombre del asesor a 12 pt |
 | page_number_left | Conservar párrafo derecho sin PAGE; añadir párrafo izquierdo con PAGE | Verde | Alineación del párrafo que contiene PAGE |
-| authors_uppercase_manual | Convertir a mayúsculas el nombre tras Autor | Rojo: `caratula_autores_mayusculas_sin_negrita` | Desvío conocido y registrado; ratificar, no cambiar sin decisión |
+| authors_uppercase_manual | Convertir a mayúsculas el nombre tras Autor | Rojo: `caratula_autores_mayusculas_sin_negrita` | Desvío confirmado por el usuario: usar mixtas como la tesis aprobada por el jefe |
 
 Para repetir, abrir el DOCX del factory como ZIP, copiar sus partes, modificar
 solo el nodo descrito con lxml, reconstruir el ZIP y ejecutar el motor. Comparar
@@ -174,8 +174,8 @@ a decidir la política antes de modificar los clientes.
 - Carátula general: título mixto y 14 pt; descripción de informe: mayúsculas;
   plantillas: 13 pt. Motivo: manual 13 pt y plantillas 12 pt.
 - Manual: autores en mayúsculas. Plantillas y regla acordada: mixtas. El YAML
-  ya registra el desvío. La prueba en mayúsculas confirma la discrepancia,
-  no autoriza a revertir una decisión anterior.
+  ya registra el desvío. El usuario confirmó el 2026-11-12 que el jefe aprueba
+  mixtas según la tesis buena. La decisión queda resuelta: mantener mixtas.
 - Manual: año en curso. Plantillas: año de sustentación. No confundir con el
   error de capturar el año desde el título, tratado por VA-13 / PR #75.
 - El manual escribe A4 como 210x297 cm: la unidad es un error de la fuente.
@@ -197,3 +197,10 @@ respuesta del encargado registrada con fecha. Int2 ajusta sus mensajes cuando
 Int3 entregue el alcance verificado. Int1 verifica contrato y transporte de esa
 información sin editar el motor. El piloto sigue bloqueado por los P1 del
 handover general y por los nuevos P1 de esta revisión.
+
+## Aclaración posterior del usuario — 2026-11-12
+
+La persistencia Angular se ensaya en DSpace real **local**, no mediante borradores
+experimentales en UNT. El [plan del laboratorio](PLAN_LAB_DSPACE_LOCAL_2026-11-12.md)
+define qué capturar en otra observación y los límites de una réplica aproximada.
+Mantener autores en mixtas y acceso abierto según las decisiones confirmadas.

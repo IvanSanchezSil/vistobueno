@@ -212,3 +212,19 @@ La revisión de los tres PRs mergeados encontró dos problemas:
 - Validación documental: conteos e ID únicos de los CSV, correspondencia de las
   226 filas con fuente, enlaces y cercas Markdown correctos. API local:
   `/docs` y `/openapi.json` respondieron 200. Diff sin errores de espacios.
+
+
+## Aclaración 2026-11-12 — Laboratorio y observación DSpace
+
+- El usuario confirmó nombres mixtos como referencia aprobada por el jefe.
+  Se actualizó REQ-20 como decisión resuelta, sin cambiar código del motor.
+- Se sustituyó el ensayo en borrador institucional por un laboratorio local.
+  No se permiten guardados experimentales en UNT.
+- Se escribió `PLAN_LAB_DSPACE_LOCAL_2026-11-12.md`: evidencia ya disponible,
+  checklist para otra observación, límites del HAR, fuentes oficiales, setup
+  por fases y aceptación. No se instaló, construyó ni inició el laboratorio.
+- Se comprobó que Docker y su daemon responden. No se modificaron servicios,
+  NixOS, userscript, aplicación, CI ni configuración del navegador del jefe.
+- Verificación de esta entrega: enlaces, matrices y Markdown correctos;
+  `git diff --check` sin errores. Suite: 824 passed, 4 skipped, 6 xfailed,
+  1 warning. No se presenta la suite como prueba del lab aún no implementado.

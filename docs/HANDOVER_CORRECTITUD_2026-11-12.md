@@ -42,7 +42,10 @@ declarado. No equivale a certificar todo el manual ni el contenido académico.
 - **Int3:** [motor; ejecutar M0–M12 y M1a](HANDOVER_CORRECTITUD_INT3_2026-11-12.md).
 
 La puerta de Angular está en §2 del documento de Int1. No se ha implementado
-el diagnóstico ni se ha ejecutado la prueba real: son entregables pendientes.
+el diagnóstico ni se ha ejecutado el laboratorio Angular: son entregables pendientes.
+Ver [plan de captura y laboratorio local](PLAN_LAB_DSPACE_LOCAL_2026-11-12.md).
+No se realizan guardados experimentales en UNT. Los nombres mixtos están
+confirmados por el usuario según la tesis aprobada por el jefe.
 
 ## Ampliación normativa
 
@@ -147,7 +150,7 @@ Antes de declarar listo el producto, el equipo debe completar esta matriz:
 | Pares DOCX equivalentes con formato directo y estilos | Int3 | Mismo resultado; mutaciones incorrectas detectadas |
 | Corpus real autorizado con revisión independiente | Int3 + encargado | Explicar cada falso positivo y negativo; no solo obtener verde en una tesis |
 | API y clientes con el mismo contrato | Int1 + Int2 | Ningún resultado de otro trámite genera papeleo |
-| Relleno Angular persistido, §2 de Int1 | Int1 + encargado | Todos los campos objetivo sobreviven a recarga |
+| Relleno Angular persistido localmente, §2 de Int1 | Int1 | Campos sobreviven a recarga en DSpace local; diferencias con UNT documentadas |
 | Recuperación y uso en máquina del operador | Int2 + Int1 | Windows/WSL, tiempos, recarga y segunda tesis comprobados |
 | Comunicación del alcance | Int2; revisan Int1 e Int3 | Verde significa ausencia de errores en controles ejecutados, no aprobación académica |
 

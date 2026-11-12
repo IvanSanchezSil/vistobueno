@@ -86,8 +86,8 @@ Construir tres comprobaciones separadas:
    no demuestra que Angular seleccionó su URI. Considerar blur solo cuando el
    control lo requiera; no simular Enter ni submit. No depender de `window.ng`:
    los métodos de depuración pueden no existir en producción.
-3. **Persistencia en borrador autorizado.** Seguir §2 de este documento. Solo esta prueba demuestra
-   que el servidor conservó los metadatos de esta versión del formulario.
+3. **Persistencia en DSpace local real.** Seguir §2. Se comprueba el build y
+   configuración del laboratorio. No guardar borradores de prueba en UNT.
 
 El resultado debe nombrar el campo, la fase y el motivo. Estados mínimos:
 `compatible`, `pendiente`, `incompatible`, `verificado_en_dom`.
@@ -180,51 +180,28 @@ La prueba local puede simular restauración cambiando `value` sin evento.
 La prueba real debe hacerse con un perfil de prueba con datos ficticios;
 un perfil vacío o una ventana privada no demuestran que el caso esté resuelto.
 
-## 2. Puerta de Angular antes del piloto
+## 2. Puerta de Angular: laboratorio local, sin pruebas de escritura en UNT
 
-El diagnóstico de B3 se implementa primero. La compatibilidad completa queda
-pendiente hasta ejecutar el siguiente ensayo **antes del piloto con estudiantes**.
+**Responsable:** Int1. Leer el [plan de laboratorio y captura](PLAN_LAB_DSPACE_LOCAL_2026-11-12.md).
+El usuario indicó que guardar pruebas en UNT es perjudicial y está desaconsejado.
+Queda sustituida la instrucción anterior de usar un borrador institucional descartable.
 
-```mermaid
-flowchart LR
-    A[Diagnóstico sin escritura] -->|Controles compatibles| B[Relleno de borrador autorizado]
-    B -->|Lectura posterior correcta| C[Guardar borrador con la interfaz]
-    C -->|Guardado confirmado| D[Recargar el mismo borrador]
-    D -->|Valores completos conservados| E[Registrar evidencia de compatibilidad]
-```
+1. Recoger configuración, vocabularios, DOM y versiones mediante observación
+   de trabajo legítimo, sin provocar ediciones ni guardar pruebas. Ver §3 del plan.
+2. Preparar DSpace y Angular reales locales con esa configuración. El mock
+   actual se conserva para regresiones rápidas; no demuestra comportamiento Angular.
+3. Ejecutar B3/B4/B8 con navegador real y Tampermonkey contra el laboratorio.
+   Guardar y recargar solo allí. Verificar cada valor, fila y URI de derechos.
+4. En la máquina del jefe, limitar cualquier preflight a lectura de controles
+   existentes. No entrar en «Nuevo envío», crear filas, escribir, seleccionar,
+   desenfocar controles ni guardar para experimentar. No exigir esa observación
+   como prueba de persistencia: sirve para comparar la interfaz con el lab.
+5. Registrar versión del build local y diferencias conocidas con UNT. Una réplica
+   aproximada debe decirlo. Si faltan datos críticos, mantener el campo manual.
 
-El diagrama ordena las pruebas; cada flecha exige la evidencia indicada.
-
-**Responsable:** Int1. **Apoyo:** Int2 comprueba ficha y recuperación; Int3
-comprueba que los valores de origen son los esperados. No usar una tesis real
-de estudiante para el primer ensayo. Acordar borrador y colección de prueba
-con el encargado. No pulsar Depositar. La instancia puede guardar mientras se
-escribe; rellenar también puede escribir en el servidor.
-
-1. Usar la versión exacta de `dist/` del PR y Tampermonkey en el navegador del
-   operador. Ejecutar el diagnóstico con la página aún sin rellenar.
-2. En un borrador autorizado, probar título, dos autores, sus dos DNI en orden,
-   asesor/DNI/ORCID, resumen, palabras clave, año y derechos.
-3. Confirmar que no hay errores de esos campos. Completar a mano los campos
-   fuera del userscript, como OCDE. No confundirlos con fallos del rellenador.
-4. Guardar mediante la interfaz, según el flujo real. Esperar confirmación de
-   DSpace. Recargar o reabrir el mismo borrador y comparar **todos** los valores,
-   orden y número de filas. Para derechos, comprobar el valor canónico, no solo
-   la etiqueta. No copiar tokens ni cuerpos de login a la evidencia.
-5. Repetir con una autora y un DNI. Ninguna fila antigua puede sobrevivir.
-   Repetir tras navegación interna, carga lenta y edición manual del operador.
-   Usar también un perfil de prueba con autofill/historial, restaurar una
-   pestaña y navegar Atrás/Adelante. Ejecutar B8/F5 con datos ficticios. El
-   diagnóstico debe detectar datos previos y cambios tardíos antes de continuar.
-6. Registrar fecha, versión del userscript, navegador, versión de DSpace,
-   colección y resultado por campo sin PII. Si cambia el formulario, repetir.
-7. Cualquier valor perdido, cambiado, duplicado o no persistido bloquea el
-   inicio del piloto. Eliminar el borrador solo mediante el procedimiento
-   autorizado del encargado; no automatizar la eliminación.
-
-**Qué prueba cada nivel:** HTML guardado = selectores históricos; jsdom =
-lógica DOM; lectura posterior = valores visibles; guardar y recargar =
-persistencia en esa instancia. Ningún nivel anterior sustituye al último.
+**Aceptación:** evidencia local de guardado y recarga de todos los campos;
+comparación con la configuración observada de UNT; ninguna escritura experimental
+a UNT. No declarar identidad exacta si se desconoce su código personalizado.
 
 ## 3. Aclaración de derechos — NM-08 decidido
 
