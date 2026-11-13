@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-11-03  
 **Responsable:** IvanSanchezSil (Motor de reglas / Procesamiento)  
-**Base:** `origin/master` (después de mergear PR #73)  
+**Base:** `upstream/master` `9fdfc57` (PR #73) + merge de `master` en la rama del PR #75  
 **Rama:** `semana11-motor-ficha`  
 **Fuente:** `docs/HANDOVER_AUDITORIA_2026-10-26.md` §4 (AUD-24 a AUD-27), §6 y §12; handover operativo del PR: `docs/HANDOVER_PENDIENTES_2026-11-11.md` §3
 

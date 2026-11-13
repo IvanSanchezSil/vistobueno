@@ -79,7 +79,7 @@ Resultado esperado: **la suite termina en verde**. El conteo exacto depende
 de las carpetas locales `recursos/` y `frontend/dist`; los tests que las
 necesitan se marcan como `skipped` cuando faltan, y eso **no es un fallo de
 la instalación**. Referencia medida en un clon sin esas carpetas:
-`823 passed, 4 skipped` (sin `xfail`).
+`857 passed, 4 skipped` (sin `xfail`).
 
 Levanta la API:
 

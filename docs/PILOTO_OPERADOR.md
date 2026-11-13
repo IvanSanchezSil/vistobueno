@@ -65,7 +65,7 @@ la sede.
 | Mock de DSpace | Listo | Para ensayo sin tocar la instancia real |
 | Constancia (Modelo B) y fila del registro | Listo | Requiere `VISTOBUENO_FIRMA` y la plantilla oficial |
 | Hallazgos AUD-24 a AUD-27 del motor | **Cerrados** | PR #75: autores completos, asesora, año de portada y palabras clave limpias; ver §7 |
-| Pruebas automatizadas | En verde, sin `xfail` | Referencia en un clon sin `recursos/` ni `frontend/dist`: `823 passed, 4 skipped` (los `skipped` no son fallos) |
+| Pruebas automatizadas | En verde, sin `xfail` | Referencia en un clon sin `recursos/` ni `frontend/dist`: `857 passed, 4 skipped` (los `skipped` no son fallos) |
 
 ---
 

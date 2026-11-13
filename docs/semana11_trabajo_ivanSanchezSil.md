@@ -7,7 +7,7 @@
 - **Fechas:** 2026-11-03 a 2026-11-09 (cierre el 2026-11-11)
 - **Rol:** Motor de reglas / Procesamiento (Int3)
 - **Rama de trabajo:** `semana11-motor-ficha`
-- **Estado:** **Completada** (F-1 a F-7). Suite en verde: `823 passed, 4 skipped`, sin `xfail`.
+- **Estado:** **Completada** (F-1 a F-7). Suite en verde: `857 passed, 4 skipped`, sin `xfail`.
 
 ## Objetivos de la semana
 
@@ -33,6 +33,9 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 | 2026-11-11 | Cierre de AUD-24 a AUD-27: autores, asesor, año, palabras clave y fixture real | Commit `a2c753d` |
 | 2026-11-11 | `eval_contra_plantillas.py` acepta `reglas` y `rules` (F-6) | Commit `212d192` |
 | 2026-11-11 | Actualización de plan, bitácora y estado de la auditoría | Commit de docs de esta rama |
+| 2026-11-12 | Merge de `upstream/master` `9fdfc57` (PR #73) sin retroceder la auditoría | Commit `1569a61` |
+| 2026-11-12 | Correcciones de la revisión del PR #75: tildes, autores, asesor, año y valores inservibles | Commit `b060566` |
+| 2026-11-12 | Linter de `extraccion`: regex de `quitar_prefijo`/`quitar_sufijo` y `seleccion` | Commit `6602c90` |
 
 ## Evidencias producidas
 
@@ -47,11 +50,14 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 | `tests/test_constancia.py` | `a2c753d` | Una constancia por autor real, sin `xfail` |
 | `scripts/eval_contra_plantillas.py` | `212d192` | `_reglas_de` / `_total_mecanizadas` aceptan `reglas` y `rules` |
 | `tests/test_eval_contra_plantillas.py` | `212d192` | Tests de F-6 con ambos formatos |
+| `validator/extractor.py` | `b060566` | Sin `sectPr`, `caratula_ficha` corta en el primer encabezado |
+| `validator/dsl_check.py` | `6602c90` | Valida regex de `quitar_prefijo`/`quitar_sufijo` y `seleccion` |
+| `tests/test_captura_ficha.py` | `b060566` | Casos límite: tilde sin asesor, etiqueta y autor juntos, asesor con párrafo vacío, año frente a referencias |
 
 ## Verificación
 
-- `pytest tests/ -q` → `823 passed, 4 skipped` (sin `xfail`).
-- Tesis real (`TESIS_LINARES_AZAÑERO_Y_MORALES_SALDAÑA_2026`): dos autores, `Dra. Vásquez Mondragón, Cecilia Del Pilar`, año `2026`, abstract completo y `['Educación', 'Cultura', 'Identidad cultural']`.
+- `pytest tests/ -q` → `857 passed, 4 skipped` (sin `xfail`).
+- Tesis real de la auditoría: dos autores, `Dra. Apellido, Nombre`, año `2026`, abstract completo y `['Educación', 'Cultura', 'Identidad cultural']`.
 - `scripts/eval_contra_plantillas.py` → funciona con `reglas_ficha.yaml` (clave `reglas`) y con `unt_format_rules_schema.yaml` (clave `rules`).
 - `ruff check`, `ruff format --check` y `mypy validator/ scripts/` → limpios.
 - Linter DSL → 0 errores en `reglas_ficha.yaml` y `reglas_unt.yaml`.
