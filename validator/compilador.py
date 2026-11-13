@@ -601,6 +601,13 @@ class ReglaCompilada:
                 if pagina is None and getattr(an, "ultimo_nodo", None) is not None:
                     pagina = extracted.pagina_de(an.ultimo_nodo)
 
+        # Una regla cuyos analizadores declararon "no aplica" no se evaluó:
+        # debe salir con `aplicable=False` y `found="no aplica a este
+        # documento"`, no como un "cumple" engañoso (AUD-07). Si además hubo
+        # un fallo, el fallo manda: no se puede ocultar un incumplimiento.
+        if not fallos and any(getattr(an, "no_aplica", False) for an in self.analizadores):
+            return self.no_aplicable()
+
         esperados = self.rule.get("valor_esperado", "")
         if isinstance(esperados, list):
             esperados = "; ".join(map(str, esperados))

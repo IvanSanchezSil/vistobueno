@@ -129,7 +129,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
   "como_preguntar_a_una_ia": [
     {
       "rule_id": "caratula_titulo_trabajo_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del título del trabajo en carátula\n- Valor esperado según el reglamento: 14pt\n- Lo que encontró el validador: @w:val=['26'] esperado=28\n- Cita del reglamento: \"Título del Trabajo...\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra del título del trabajo en carátula\n- Valor esperado según el reglamento: 14pt\n- Lo que encontró el validador: @w:val: 1 valores evaluados, 1 incumplen: #1=13 pt (pág. 1); esperado=14 pt\n- Cita del reglamento: \"Título del Trabajo...\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     }
   ],
   "metadatos": {

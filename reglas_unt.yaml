@@ -178,6 +178,12 @@ reglas:
     atributo: '@w:val'
     comparacion: all_eq
     esperado: '24'
+# EVALUADO (AUD-05): las reglas de carátula usan `w:r[1]` y
+# `following-sibling::w:p[1]`, asumiendo que el texto relevante está en el
+# primer run y en el párrafo inmediatamente siguiente. Word puede partir el
+# texto en varios runs o intercalar párrafos vacíos, así que la regla podría
+# leer otro run/párrafo. Se documenta la limitación y se difiere el
+# endurecimiento hasta contar con documentos reales que la manifiesten.
 - id: caratula_universidad_tamano
   tipo: atributo_xml
   descripcion: Tamaño de letra del nombre de la Universidad en carátula
@@ -229,6 +235,10 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas
     (tamaño de letra, 14 puntos)."'
+  # EVALUADO (2026-10-27): el manual pide 14 pt (sz 28), pero la plantilla
+  # oficial de EDUCACIÓN INICIAL usa 13 pt (sz 26). Se mantiene el valor del
+  # manual como warning: no bloquea la entrega y deja documentado el desvío
+  # (AUD-04).
   atributo_xml:
     parte: document
     contexto: caratula
@@ -238,14 +248,21 @@ reglas:
     esperado: '28'
 - id: caratula_optar_grado_tamano
   tipo: atributo_xml
-  descripcion: Tamaño de letra de la línea "Trabajo de Investigación para optar el grado de Bachiller
-    en..."
+  descripcion: Tamaño de letra de la línea "Trabajo de Investigación para optar el grado o título
+    profesional"
   valor_esperado: 13pt
   severidad: warning
   ubicacion: Carátula, especificaciones (párr. 178)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Trabajo de Investigación para optar el grado de Bachiller: Centrado, con negrita y con mayúsculas
     (tamaño de letra, 13 puntos)."'
+  # EVALUADO (2026-11-11): el manual exige 13 pt (sz 26) en la línea "para
+  # optar" (párr. 1056 y 1076), pero la tesis aprobada de la auditoría y las
+  # 5 plantillas oficiales usan 12 pt (sz 24) en la línea de Licenciatura.
+  # Decisión del equipo (2026-11-08): seguir el manual. Por eso el XPath se
+  # mantiene amplio ("para optar", sin acotar a "bachiller") y el desvío se
+  # reporta como warning; no cambia el semáforo. `n_a_si_sin_nodos` solo
+  # cubre los documentos que no tienen esa línea (AUD-07; ver también AUD-04).
   atributo_xml:
     parte: document
     contexto: caratula
@@ -254,6 +271,7 @@ reglas:
     atributo: '@w:val'
     comparacion: eq
     esperado: '26'
+    n_a_si_sin_nodos: true
 - id: caratula_autores_tamano
   tipo: atributo_xml
   descripcion: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula
@@ -263,13 +281,19 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"(Times New Román 12 puntos)" para autores; "Línea de investigación, con letras mayúsculas y
     minúsculas (tamaño de letra, 12 puntos)."'
+  # EVALUADO (2026-11-11): AUD-05. Al ser la única regla `error` de carátula,
+  # se endurece el muestreo: todos los runs con texto de todos los párrafos
+  # del bloque de autores (desde «AUTORES:» hasta antes de «ASESOR(A):»,
+  # incluidas las líneas ORCID) y comparación `all_eq`. Antes se leía solo el
+  # primer run del primer párrafo: un run vacío, un ORCID intercalado o un
+  # segundo autor con otro tamaño pasaban inadvertidos. Las reglas `warning`
+  # de carátula conservan su selector (decisión §8 del handover).
   atributo_xml:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:sz
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]/w:r[normalize-space(.) != '']/w:rPr/w:sz
     atributo: '@w:val'
-    comparacion: eq
+    comparacion: all_eq
     esperado: '24'
 - id: caratula_logotipo_tamano
   tipo: imagen
@@ -1187,6 +1211,7 @@ reglas:
   lista_obligatoria:
     seccion:
       inicio: anexo
+      hasta_final: true
     ignore_case: true
     items:
     - Matriz de consistencia
@@ -1220,6 +1245,7 @@ reglas:
   lista_obligatoria:
     seccion:
       inicio: anexo
+      hasta_final: true
     ignore_case: true
     items:
     - Matriz de consistencia

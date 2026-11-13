@@ -85,7 +85,14 @@ Todas las secciones de analizador aceptan:
 seccion:
   inicio: resumen      # regex sobre el texto del TITULO que abre la sección
   fin: anexos          # opcional: regex del TITULO que la cierra
+  hasta_final: false   # opcional: si no hay `fin`, ir hasta el final del doc
 ```
+
+- `hasta_final` (booleano, por defecto `false`): cuando la sección no tiene
+  un título de cierre (o `fin` no matchea), `true` hace que abarque hasta el
+  final del documento en vez de cortar en el primer `TITULO` posterior. Se
+  usa en los anexos, donde cada "Anexo N." es un `TITULO` y no hay un
+  encabezado que cierre la sección (AUD-02).
 
 ### 1. `atributo_xml` / `presencia_xml` → `AnalizadorXML`
 
@@ -117,6 +124,12 @@ atributo_xml:
   toman todos los párrafos del cuerpo. Sirve para reglas que en el manual
   aplican solo a la portada y que, evaluadas sobre todo el documento,
   producirían falsos positivos.
+- `n_a_si_ausente` (opcional): si la parte XML no existe, la regla se
+  considera n/a en vez de fallar.
+- `n_a_si_sin_nodos` (opcional): en comparaciones de atributo, si el XPath no
+  encuentra ningún nodo, la regla se considera n/a (`no aplica (sin nodos)`).
+  Se usa para reglas acotadas a un tipo de título cuya línea puede no existir
+  en otros documentos (p. ej. `caratula_optar_grado_tamano`, AUD-07).
 
 ### 2. `patron_texto` → `AnalizadorRegex`
 
@@ -291,7 +304,7 @@ subcadena normalizada) aparezca en la sección:
 
 ```yaml
 lista_obligatoria:
-  seccion: { inicio: anexo }
+  seccion: { inicio: anexo, hasta_final: true }
   ignore_case: true
   items:
     - Matriz de consistencia
@@ -300,6 +313,11 @@ lista_obligatoria:
 
 - Cada ítem se busca como subcadena (normalizada a minúsculas) en el texto
   de la sección. Usado por las reglas de *anexos mínimos*.
+- `hasta_final: true` es necesario en anexos: sin él, `seccion()` cortaría
+  en el primer `TITULO` posterior (el siguiente "Anexo N.") y solo se
+  revisaría el primero. Con él, el slice llega al final del documento.
+- El `found` de un fallo reporta `encontrados=N/M` además de la lista de
+  faltantes, para distinguir "no hay ninguno" de "faltan algunos".
 
 ### 11. `hipervinculo_texto` → `AnalizadorHipervinculo` (F3)
 
