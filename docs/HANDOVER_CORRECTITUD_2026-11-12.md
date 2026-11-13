@@ -73,7 +73,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-08 | P1 | Permanecen filas de autores/DNI anteriores | B4 / Int1 | Pendiente |
 | VA-09 | P1 | Ficha y depósito sin identidad de trámite | B2 + F2 / Int1, Int2 | Pendiente |
 | VA-10 | P1 | Resguardo identificado solo por filename | F1 / Int2 | Pendiente |
-| VA-11 | P2 | DOCX malformado devuelve 500 | M1a + B5 / Int3, Int1 | Pendiente |
+| VA-11 | P2 | DOCX malformado devuelve 500 | M1a + B5 / Int3, Int1 | M1a corregido (PR 12.2, `3d3e24c`): el extractor valida XML, raíz y cuerpo con `InvalidDocumentError`; B5 de Int1 pendiente |
 | VA-12 | P2 | Markdown activo en el PDF | M9 / Int3 | Pendiente |
 | VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | PR #75 abierto |
 | VA-14 | P2 | «Base de datos» acordado, pero no aplicado | M6 / Int3 | Pendiente |
