@@ -115,5 +115,5 @@ def test_is_caratula_ficha_incluye_cierre():
             cierre = p
             break
 
-    if cierre is not None:
-        assert doc.is_caratula_ficha(cierre) is True
+    assert cierre is not None, "el DOCX de fábrica debe traer un cierre de sección"
+    assert doc.is_caratula_ficha(cierre) is True

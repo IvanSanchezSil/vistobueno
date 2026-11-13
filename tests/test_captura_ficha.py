@@ -37,6 +37,28 @@ def ficha() -> dict:
         Path(ruta).unlink(missing_ok=True)
 
 
+def _ficha_de(portada: list[str], **kwargs) -> dict:
+    """Captura la ficha de una portada alternativa (casos límite del PR #75)."""
+    ruta = crear_docx_caratula(portada=portada, **kwargs)
+    try:
+        return capturar_ficha(ruta)
+    finally:
+        Path(ruta).unlink(missing_ok=True)
+
+
+# Portada mínima realista: título, "para optar" (lo usa la regla del título)
+# y autores. El resto de líneas lo agrega cada test.
+def _portada(*lineas: str) -> list[str]:
+    return [
+        "UNIVERSIDAD NACIONAL DE TRUJILLO",
+        "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
+        "Título del trabajo de investigación: Estrategias lúdicas, Trujillo 2024",
+        "TESIS",
+        "Para Optar el Título Profesional de Licenciado en Educación Primaria",
+        *lineas,
+    ]
+
+
 # ---------------------------------------------------------------------------
 # AUD-24 — los autores se parten por la coma de "Apellidos, Nombres"
 # ---------------------------------------------------------------------------
@@ -104,6 +126,89 @@ def test_resumen_capturado(ficha):
 
 
 # ---------------------------------------------------------------------------
+# Revisión del PR #75 — casos límite de la carátula
+# ---------------------------------------------------------------------------
+
+
+def test_autores_cortan_en_linea_con_tilde_sin_asesor():
+    """«Línea de Investigación:» (con tilde) corta aunque no haya ASESOR.
+
+    Antes el `translate` solo normalizaba mayúsculas: la comparación
+    `'linea'` no casaba con «línea» y la captura seguía hasta el final de la
+    carátula, tomando la línea, el año y el resumen como autores.
+    """
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación y Ciencias de la Comunicación y Desarrollo Sostenible",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.author") == ["Br. Apellido, Nombre"]
+
+
+@pytest.mark.parametrize("etiqueta", ["AUTORES:", "AUTORA:"])
+def test_autores_en_el_mismo_parrafo_de_la_etiqueta(etiqueta):
+    """«AUTORES: Br. Apellido, Nombre» no pierde al primer autor."""
+    ficha = _ficha_de(
+        _portada(
+            f"{etiqueta} Br. Apellido, Nombre",
+            "ASESORA:",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.author") == ["Br. Apellido, Nombre"]
+
+
+def test_asesor_salta_parrafos_vacios():
+    """Un párrafo vacío entre «ASESORA:» y el nombre no pierde al asesor."""
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "ASESORA:",
+            "",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.advisor") == "Dra. Apellido, Nombre"
+
+
+def test_anio_ignora_referencias_sin_salto_de_seccion():
+    """Sin `sectPr`, una referencia «López, J. 2024.» no le gana al año.
+
+    El fixture de python-docx no trae saltos de sección, así que
+    `caratula_ficha` cae al fallback: se corta en el primer encabezado
+    (RESUMEN/REFERENCIAS) y las referencias quedan fuera del contexto.
+    """
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "ASESORA:",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        ),
+        referencias=["López, J. 2024."],
+    )
+    assert valor(ficha, "dc.date.issued") == "2026"
+
+
+# ---------------------------------------------------------------------------
 # F-4 — el motor no publica un valor inservible como detectado
 # ---------------------------------------------------------------------------
 
@@ -122,7 +227,7 @@ class _ExtraidoFalso:
         return 1
 
 
-@pytest.mark.parametrize("valor", ["", "   ", [], None])
+@pytest.mark.parametrize("valor", ["", "   ", [], [""], ["  "], None])
 def test_el_motor_no_publica_valores_inservibles(valor):
     """Cadena vacía, solo espacios o lista vacía → `detectado=False`.
 

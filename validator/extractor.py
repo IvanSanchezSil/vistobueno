@@ -257,6 +257,20 @@ def _caratula_ficha_paras(doc) -> set:
         if pPr is not None and pPr.find(W + "sectPr") is not None:
             limite = i + 1
             break
+    else:
+        # Sin salto de sección no hay forma estructural de delimitar la
+        # carátula. Se corta en el primer encabezado (RESUMEN, DEDICATORIA,
+        # ÍNDICE...): lo que sigue ya es cuerpo y no debe competir por el
+        # año de portada (AUD-26: una referencia «López, J. 2024.» no puede
+        # ganarle al año de la carátula). Sin encabezados, todo el body sigue
+        # siendo candidato (fallback robusto).
+        for i, p in enumerate(paras):
+            pPr = p.find(W + "pPr")
+            st = pPr.find(W + "pStyle") if pPr is not None else None
+            val = st.get(W + "val") if st is not None else ""
+            if es_heading(val):
+                limite = i
+                break
     return set(paras[:limite])
 
 

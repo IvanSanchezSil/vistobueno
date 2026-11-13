@@ -64,7 +64,11 @@ RESUMEN_TEXTO = (
 PALABRAS_CLAVE = "Palabras Clave: Educación, Cultura, Identidad cultural."
 
 
-def crear_docx_caratula() -> str:
+def crear_docx_caratula(
+    portada: list[str] | None = None,
+    con_resumen: bool = True,
+    referencias: list[str] | None = None,
+) -> str:
     """Escribe el DOCX de la carátula real y devuelve su ruta.
 
     `RESUMEN` se emite como Título1 (`add_heading`) porque en los DOCX
@@ -72,13 +76,22 @@ def crear_docx_caratula() -> str:
     encabezado, no un párrafo normal. Sin eso, `seccion()` no encuentra la
     sección y la captura del abstract y de las palabras clave queda vacía
     (handover `HANDOVER_PENDIENTES_2026-11-11.md` §3.3).
+
+    Los parámetros permiten reproducir los casos límite de la revisión del
+    PR #75 sin duplicar el documento: una portada alternativa, un cuerpo sin
+    resumen y referencias después de un encabezado.
     """
     documento = Document()
-    for linea in PORTADA:
+    for linea in PORTADA if portada is None else portada:
         documento.add_paragraph(linea)
-    documento.add_heading("RESUMEN", level=1)
-    documento.add_paragraph(RESUMEN_TEXTO)
-    documento.add_paragraph(PALABRAS_CLAVE)
+    if con_resumen:
+        documento.add_heading("RESUMEN", level=1)
+        documento.add_paragraph(RESUMEN_TEXTO)
+        documento.add_paragraph(PALABRAS_CLAVE)
+    if referencias is not None:
+        documento.add_heading("REFERENCIAS", level=1)
+        for linea in referencias:
+            documento.add_paragraph(linea)
     with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
         ruta = tmp.name
     documento.save(ruta)

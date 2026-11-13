@@ -668,7 +668,13 @@ class ReglaCompilada:
             return False
         if isinstance(valor, str):
             return bool(valor.strip())
-        if isinstance(valor, (list, tuple, dict, set)):
+        if isinstance(valor, (list, tuple)):
+            # Alineado con la API: una lista con solo cadenas vacías (`[""]`)
+            # no es un valor utilizable, aunque su longitud sea > 0. Si el
+            # motor publicara `detectado=True`, la API lo degradaría después
+            # y el contrato mentiría en el reporte del motor.
+            return any(isinstance(item, str) and item.strip() for item in valor)
+        if isinstance(valor, (dict, set)):
             return len(valor) > 0
         return True
 
