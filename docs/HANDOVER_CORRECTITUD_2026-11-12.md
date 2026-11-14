@@ -63,8 +63,8 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 
 | ID | Prioridad | Problema | Tarea / dueño | Estado |
 |---|---|---|---|---|
-| VA-01 | P1 | Solo se revisa el primer run | M1 / Int3 | Pendiente |
-| VA-02 | P1 | Formato heredado y propiedades omitidas | M1 / Int3 | Pendiente |
+| VA-01 | P1 | Solo se revisa el primer run | M1 / Int3 | M1 corregido (PR #100, `2635879`): todos los runs con texto, incluidos hipervínculos |
+| VA-02 | P1 | Formato heredado y propiedades omitidas | M1 / Int3 | M1 corregido (PR #100, `2635879`): formato efectivo con `styles.xml`, `basedOn` y `docDefaults`; límites declarados |
 | VA-03 | P1 | Papel incorrecto en secciones posteriores | M2 / Int3 | Pendiente |
 | VA-04 | P2 | Paginación incorrecta | M3 / Int3 | Pendiente |
 | VA-05 | P2 | Dos tipos declarados: gana el primero | M4 / Int3 | Pendiente |
