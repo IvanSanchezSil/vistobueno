@@ -315,6 +315,237 @@ def _caratula_paras(doc) -> set:
     return set(paras[:limite])
 
 
+class CicloEstilosError(ValueError):
+    """Ciclo en la cadena `basedOn` de los estilos de Word.
+
+    Un ciclo no debe tumbar la validación completa: el analizador que
+    resuelve el formato lo captura y reporta el ciclo como incumplimiento,
+    porque un documento con estilos cíclicos no permite conocer el formato
+    efectivo y, por tanto, no puede darse por bueno.
+    """
+
+
+@dataclass
+class _Estilo:
+    """Estilo de Word reducido a lo que necesita el resolvedor de formato."""
+
+    tipo: str
+    based_on: str | None
+    rpr: etree._Element | None
+    ppr: etree._Element | None
+
+
+def _qname(nombre: str) -> str:
+    """Convierte `w:rFonts` en `{namespace}rFonts`."""
+    if ":" in nombre:
+        prefijo, local = nombre.split(":", 1)
+        uri = NS.get(prefijo)
+        if uri is None:
+            raise ValueError(f"prefijo de namespace desconocido en propiedad: {prefijo}")
+        return "{" + uri + "}" + local
+    return W + nombre
+
+
+def _parsear_propiedad(propiedad: str) -> tuple[str, str | None]:
+    """Separa `w:rFonts/@w:ascii` en (tag, atributo).
+
+    Sin `/@`, la propiedad es un toggle OOXML (`w:b`): su sola presencia
+    activa el valor y `w:val="0"` lo desactiva.
+    """
+    if "/@" in propiedad:
+        elemento, atributo = propiedad.split("/@", 1)
+        return _qname(elemento), _qname(atributo)
+    return _qname(propiedad), None
+
+
+def _apagado(valor: str | None) -> bool:
+    """Valor OOXML de un toggle apagado (`0`, `false`, `off`)."""
+    return valor is not None and str(valor).strip().lower() in ("0", "false", "off")
+
+
+class ResolvedorFormato:
+    """Resuelve el formato efectivo de un run o párrafo según Word.
+
+    Precedencia (de mayor a menor):
+
+    1. formato directo (`w:rPr` del run / `w:pPr` del párrafo);
+    2. estilo de carácter del run (`w:rStyle`) y su cadena `basedOn`;
+    3. estilo de párrafo (`w:pStyle`, o el estilo de párrafo por defecto)
+       y su cadena `basedOn` (sus `w:rPr`/`w:pPr`);
+    4. `w:docDefaults` (`w:rPrDefault`/`w:pPrDefault`).
+
+    Límites declarados (M1/VA-02): no resuelve temas (`w:asciiTheme`),
+    numeración (`w:numPr`), formato condicional de tablas, estilos de tabla
+    ni cambios de formato con seguimiento (`w:rPrChange`/`w:pPrChange`).
+    Si la propiedad no aparece en ninguna capa devuelve `None` (el analizador
+    la reporta como `(ausente)`), salvo los toggles, que Word considera
+    apagados por defecto y devuelven `"0"`.
+
+    Un ciclo en `basedOn` lanza `CicloEstilosError`: no se puede inventar un
+    formato efectivo para un documento cuyos estilos se referencian en
+    círculo.
+    """
+
+    def __init__(self, styles: etree._Element | None):
+        self._estilos: dict[str, _Estilo] = {}
+        self._doc_rpr: etree._Element | None = None
+        self._doc_ppr: etree._Element | None = None
+        self._defecto_parrafo: str | None = None
+        self._defecto_caracter: str | None = None
+        if styles is not None:
+            self._cargar(styles)
+
+    def _cargar(self, styles: etree._Element) -> None:
+        dd = styles.find(W + "docDefaults")
+        if dd is not None:
+            rpr_default = dd.find(W + "rPrDefault")
+            if rpr_default is not None:
+                self._doc_rpr = rpr_default.find(W + "rPr")
+            ppr_default = dd.find(W + "pPrDefault")
+            if ppr_default is not None:
+                self._doc_ppr = ppr_default.find(W + "pPr")
+
+        for st in styles.findall(W + "style"):
+            sid = st.get(W + "styleId")
+            if not sid:
+                continue
+            based = st.find(W + "basedOn")
+            self._estilos[sid] = _Estilo(
+                tipo=st.get(W + "type", ""),
+                based_on=based.get(W + "val") if based is not None else None,
+                rpr=st.find(W + "rPr"),
+                ppr=st.find(W + "pPr"),
+            )
+            if _apagado(st.get(W + "default")) or st.get(W + "default") not in (
+                "1",
+                "true",
+                "on",
+            ):
+                continue
+            if st.get(W + "type") == "paragraph":
+                self._defecto_parrafo = sid
+            elif st.get(W + "type") == "character":
+                self._defecto_caracter = sid
+
+    def _cadena(self, style_id: str | None) -> list[_Estilo]:
+        """Estilos de una cadena `basedOn`, con detección de ciclos."""
+        cadena: list[_Estilo] = []
+        vistos: set[str] = set()
+        orden: list[str] = []
+        actual = style_id
+        while actual:
+            if actual in vistos:
+                orden.append(actual)
+                raise CicloEstilosError("ciclo de estilos: " + " -> ".join(orden))
+            vistos.add(actual)
+            orden.append(actual)
+            estilo = self._estilos.get(actual)
+            if estilo is None:
+                break
+            cadena.append(estilo)
+            actual = estilo.based_on
+        return cadena
+
+    @staticmethod
+    def _leer(pr, tag: str, atributo: str | None) -> str | None:
+        """Lee una propiedad de un `w:rPr`/`w:pPr` (o devuelve `None`)."""
+        if pr is None:
+            return None
+        el = pr.find(tag)
+        if el is None:
+            return None
+        if atributo is None:
+            return "0" if _apagado(el.get(W + "val")) else "1"
+        return el.get(atributo)
+
+    def _leer_en_cadena(
+        self, cadena: list[_Estilo], tag: str, atributo: str | None, *, run: bool
+    ) -> str | None:
+        for estilo in cadena:
+            pr = estilo.rpr if run else estilo.ppr
+            valor = self._leer(pr, tag, atributo)
+            if valor is not None:
+                return valor
+        return None
+
+    def _resolver_run(self, run, tag: str, atributo: str | None) -> str | None:
+        rpr = run.find(W + "rPr")
+        valor = self._leer(rpr, tag, atributo)
+        if valor is not None:
+            return valor
+
+        # Estilo de carácter explícito (o el estilo de carácter por defecto).
+        style_id = None
+        if rpr is not None:
+            rstyle = rpr.find(W + "rStyle")
+            if rstyle is not None:
+                style_id = rstyle.get(W + "val")
+        if style_id is None:
+            style_id = self._defecto_caracter
+        valor = self._leer_en_cadena(self._cadena(style_id), tag, atributo, run=True)
+        if valor is not None:
+            return valor
+
+        # Estilo de párrafo (o el estilo de párrafo por defecto).
+        parrafo = _para_ancestor(run)
+        style_id = None
+        if parrafo is not None:
+            ppr = parrafo.find(W + "pPr")
+            if ppr is not None:
+                pstyle = ppr.find(W + "pStyle")
+                if pstyle is not None:
+                    style_id = pstyle.get(W + "val")
+        if style_id is None:
+            style_id = self._defecto_parrafo
+        valor = self._leer_en_cadena(self._cadena(style_id), tag, atributo, run=True)
+        if valor is not None:
+            return valor
+
+        valor = self._leer(self._doc_rpr, tag, atributo)
+        if valor is not None:
+            return valor
+        return "0" if atributo is None else None
+
+    def _resolver_parrafo(self, parrafo, tag: str, atributo: str | None) -> str | None:
+        ppr = parrafo.find(W + "pPr")
+        valor = self._leer(ppr, tag, atributo)
+        if valor is not None:
+            return valor
+
+        style_id = None
+        if ppr is not None:
+            pstyle = ppr.find(W + "pStyle")
+            if pstyle is not None:
+                style_id = pstyle.get(W + "val")
+        if style_id is None:
+            style_id = self._defecto_parrafo
+        valor = self._leer_en_cadena(self._cadena(style_id), tag, atributo, run=False)
+        if valor is not None:
+            return valor
+
+        valor = self._leer(self._doc_ppr, tag, atributo)
+        if valor is not None:
+            return valor
+        return "0" if atributo is None else None
+
+    def formato_efectivo(self, nodo, propiedad: str) -> str | None:
+        """Valor efectivo de `propiedad` para un run o párrafo."""
+        tag, atributo = _parsear_propiedad(propiedad)
+        if nodo.tag == W + "r":
+            return self._resolver_run(nodo, tag, atributo)
+        if nodo.tag == W + "p":
+            return self._resolver_parrafo(nodo, tag, atributo)
+        run = nodo
+        while run is not None and run.tag != W + "r":
+            run = run.getparent()
+        if run is not None:
+            return self._resolver_run(run, tag, atributo)
+        parrafo = _para_ancestor(nodo)
+        if parrafo is not None:
+            return self._resolver_parrafo(parrafo, tag, atributo)
+        return None
+
+
 def _paginacion_para(document) -> dict[int, int]:
     """Calcula el mapa de paginación real (párrafo -> página física).
 
@@ -374,6 +605,30 @@ class ExtractedDocx:
     # Paginación real (ítem 1 de la Fase 2): párrafo -> número físico de
     # página, calculada a partir de los saltos que Word persiste en el XML.
     _paginacion: dict = field(default_factory=dict, repr=False)
+    # `word/styles.xml` (opcional): de aquí sale el formato heredado de los
+    # estilos de párrafo/carácter y de `docDefaults` (M1/VA-02). Si la parte
+    # falta o está mal formada, queda `None` y las reglas afectadas reportan
+    # la propiedad como `(ausente)` en vez de tumbar la validación.
+    styles: etree._Element | None = None
+    # Resolvedor de formato efectivo, construido una vez por documento.
+    _resolvedor: ResolvedorFormato | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        self._resolvedor = ResolvedorFormato(self.styles)
+
+    def formato_efectivo(self, nodo, propiedad: str) -> str | None:
+        """Valor efectivo de una propiedad de formato para un run o párrafo.
+
+        Delega en `ResolvedorFormato`: formato directo → estilo de carácter →
+        cadena del estilo de párrafo (`basedOn`) → `docDefaults`. Devuelve
+        `None` cuando la propiedad no aparece en ninguna capa (el analizador
+        la reporta como `(ausente)`).
+        """
+        if self._resolvedor is None:  # pragma: no cover - defensivo
+            self._resolvedor = ResolvedorFormato(self.styles)
+        return self._resolvedor.formato_efectivo(nodo, propiedad)
 
     @property
     def header(self) -> etree._Element | None:
@@ -485,6 +740,23 @@ class ExtractedDocx:
         return nodos
 
 
+def _parsear_opcional(xml_bytes: bytes | None) -> etree._Element | None:
+    """Parsea una parte OPC opcional del DOCX.
+
+    `word/styles.xml` no es obligatorio y un archivo mal formado no debe
+    tumbar la validación completa (M1/VA-02): si falta o no parsea, se
+    devuelve `None` y las reglas de formato reportan `(ausente)`. El parser
+    desactiva entidades y red para no abrir XXE en partes no confiables.
+    """
+    if not xml_bytes:
+        return None
+    try:
+        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+        return etree.fromstring(xml_bytes, parser=parser)
+    except etree.XMLSyntaxError:
+        return None
+
+
 def extract(docx_path: str) -> ExtractedDocx:
     """Extrae y normaliza un DOCX para el motor de reglas.
 
@@ -535,6 +807,9 @@ def extract(docx_path: str) -> ExtractedDocx:
             if footnotes_xml and len(footnotes_xml) > 0
             else None
         )
+        styles = _parsear_opcional(
+            _leer_parte(z, "word/styles.xml") if "word/styles.xml" in names else None
+        )
 
     return ExtractedDocx(
         document=document,
@@ -545,4 +820,5 @@ def extract(docx_path: str) -> ExtractedDocx:
         _caratula=_caratula_paras(document),
         _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),
+        styles=styles,
     )
