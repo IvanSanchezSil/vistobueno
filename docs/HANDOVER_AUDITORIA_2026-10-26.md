@@ -551,8 +551,8 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 
 | ID | Responsable | Estado | Tarea del nuevo handover |
 |----|-------------|--------|-------------------------|
-| VA-01 | Int3 | pendiente | M1: todos los runs |
-| VA-02 | Int3 | pendiente | M1: formato efectivo |
+| VA-01 | Int3 | M1 corregido (PR #100, `2635879`): todos los runs con texto | M1: todos los runs |
+| VA-02 | Int3 | M1 corregido (PR #100, `2635879`): formato efectivo con límites declarados | M1: formato efectivo |
 | VA-03 | Int3 | pendiente | M2: A4 en secciones |
 | VA-04 | Int3 | pendiente | M3: paginación |
 | VA-05 | Int3 | pendiente | M4: declaraciones múltiples |
