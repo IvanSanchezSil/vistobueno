@@ -89,7 +89,7 @@ PYTHONPATH=/home/ivan/pylibs python3 -m mypy validator/ scripts/
 - Commit `85690c5` (rama `semana12-m11-factory-opc`, PR 12.1).
 - Comando de regeneración: `python scripts/ejemplo_bueno_malo.py`.
 
-### 2026-11-16 — M1 / VA-01, VA-02: formato efectivo y todo el texto (PR 12.3)
+### 2026-11-13 a 2026-11-16 — M1 / VA-01, VA-02: formato efectivo y todo el texto (PR 12.3)
 
 **Arreglo**
 
@@ -164,6 +164,52 @@ PYTHONPATH=/home/ivan/pylibs:.:tests python3 -m pytest tests/ -q
 
 - Commits `2635879`, `0cac33e` y `f7a4795` (rama `semana12-m1-formato-efectivo`,
   PR 12.3).
+### 2026-11-14 — M4 / VA-05: declaraciones múltiples (PR #103)
+
+**Reproducción previa al arreglo:** los 6 casos nuevos de
+`TestDeclaracionesMultiples` fallaban con el código anterior; las 3
+declaraciones del mismo tipo ya pasaban.
+
+**Arreglo:** `DeteccionTipo._tipo_declarado` devuelve todas las casillas
+marcadas; `analizar` agrupa por tipo. Dos tipos distintos publican
+`TIPO_CONTRADICTORIO` y el centinela `tipo_documento_contradictorio`; repetir
+el mismo tipo no cambia la decisión. La evidencia queda ordenada por tipo.
+
+**Verificación:** `924 passed, 4 skipped`; ruff, ruff format, mypy y linter
+limpios; CI verde y PR `MERGEABLE`/`CLEAN`.
+
+**Entrega:** commits `23a1314` (código, tests y DSL) y `75f2705` (handovers),
+rama `semana12-m4-tipo-declarado`, PR #103 apilado sobre #75.
+
+### 2026-11-15 — M5 / VA-06, VA-07: Resumen, Abstract y palabras clave
+
+**Reproducción previa al arreglo:** `resumen_longitud` solo tenía mínimo 159 y
+contaba la línea de palabras clave como prosa; `palabras_clave_minimo` solo
+revisaba el Resumen, contaba tras el primer `:` global y no tenía máximo; no
+existía ninguna regla que detectara un Abstract sin cuerpo.
+
+**Arreglo:**
+
+- `resumen_longitud`: 159–220 palabras; `excluir` descarta la línea de palabras
+  clave antes de contar.
+- `palabras_clave_minimo`: 3–5 claves; `secciones` cuenta Resumen y Abstract
+  por separado; admite las etiquetas `Palabras clave` y `Keywords`.
+- `abstract_contenido`: nuevo warning que exige al menos una palabra de cuerpo
+  en el Abstract, sin contar su línea de claves.
+- `patron_cantidad`: admite `secciones`, `excluir` y `cantidad_maxima`;
+  `count_entries` cuenta por párrafo. El linter valida la forma nueva.
+
+**Verificación:** `935 passed, 4 skipped`; 50 reglas (44 evaluadas en el
+documento base); ruff, ruff format, mypy y linter limpios; ejemplos
+regenerados.
+
+**Decisiones pendientes:** ratificar la tokenización `\w+` del Resumen y la
+severidad `warning` de `abstract_contenido`; confirmar si ambos idiomas son
+obligatorios y si `Keywords` es la etiqueta inglesa documentada. El manual
+local no está en el repo.
+
+**Entrega:** commit `d85c6e0`, rama `semana12-m5-resumen-abstract`, PR apilado
+sobre #103.
 
 ---
 
@@ -175,8 +221,12 @@ PYTHONPATH=/home/ivan/pylibs:.:tests python3 -m pytest tests/ -q
 | Reproducción de M11 | `KeyError: media/logo.png` con `python-docx` |
 | Regresión | `tests/test_docx_factory_opc.py` (12 casos) |
 | Arreglo | `tests/_xml_constants.py`, `tests/_docx_builder.py` |
-| Suite | 836 passed, 4 skipped, 6 xfailed |
-| Estado del hallazgo | §2 de `HANDOVER_CORRECTITUD_2026-11-12.md` |
+| Suite M11 | 836 passed, 4 skipped, 6 xfailed |
+| Regresión M4 | `tests/test_tipo_documento.py::TestDeclaracionesMultiples` (9 casos) |
+| Regresión M5 | `tests/test_f3_mecanizacion.py::TestM5ResumenAbstract` (10 casos) |
+| Suite M4 | 924 passed, 4 skipped |
+| Suite M5 | 935 passed, 4 skipped |
+| Estado de los hallazgos | §2 de `HANDOVER_CORRECTITUD_2026-11-12.md` |
 
 ---
 

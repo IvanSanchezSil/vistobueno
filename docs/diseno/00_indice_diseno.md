@@ -151,7 +151,7 @@ flowchart LR
 ## 3. Convenciones
 
 - **Fuente de verdad**: las configuraciones mostradas en los diagramas de
-  estados provienen de `reglas_unt.yaml` (49 reglas) y de los tests
+  estados provienen de `reglas_unt.yaml` (50 reglas) y de los tests
    `test_f2_automatas.py`; los nombres de módulos y clases reflejan el código
    real en `validator/`.
 - **Fases del plan**: se referencian las fases F1–F6 de `docs/PLAN_DSL.md`
