@@ -31,7 +31,9 @@ reglas:
     contexto: caratula
     campo: dc.title
     modo: texto
-    quitar_prefijo: ^Título del trabajo de investigación\s*[:]?\s*
+    # Cubre «Título del trabajo:» de las plantillas oficiales y la variante
+    # «Título del trabajo de investigación:» de la tesis real (seguimiento #75).
+    quitar_prefijo: ^T[íi]tulo del trabajo(?:\s+de\s+investigaci[óo]n)?\s*:?\s*
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'tesis') and string-length(normalize-space(.)) < 40)][1]
 
 - id: ficha_autores
@@ -48,8 +50,9 @@ reglas:
     campo: dc.contributor.author
     modo: lista
     etiqueta: autores
-    # La etiqueta literal no cubre «AUTORA:»; el prefijo sí (AUD-24).
-    quitar_prefijo: ^\s*autoras?\s*:?\s*
+    # La etiqueta literal no cubre «AUTORA:» ni «AUTOR(A):»; el prefijo sí
+    # (AUD-24 y seguimiento del PR #75 sobre las plantillas oficiales).
+    quitar_prefijo: ^\s*autor\s*(?:\([^)]*\)|as?|es)?\s*:?\s*
     # AUD-24: todos los párrafos de autor tras «AUTORES:»/«AUTORA:», sin
     # partir por la coma interna de «Apellidos, Nombres». Se saltan las
     # líneas de ORCID y las instrucciones entre paréntesis de las plantillas,

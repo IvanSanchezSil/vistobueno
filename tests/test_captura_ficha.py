@@ -208,6 +208,56 @@ def test_anio_ignora_referencias_sin_salto_de_seccion():
     assert valor(ficha, "dc.date.issued") == "2026"
 
 
+def test_autor_a_en_el_mismo_parrafo_no_publica_la_etiqueta():
+    """«AUTOR(A): Br. Apellido, Nombre» captura el nombre, no la etiqueta.
+
+    Es el caso de un template lleno: si el prefijo no cubre «AUTOR(A):», la
+    ficha publica la etiqueta como autor y la constancia sale falsa.
+    """
+    ficha = _ficha_de(
+        _portada(
+            "AUTOR(A): Br. Apellido, Nombre",
+            "ASESOR(A):",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.author") == ["Br. Apellido, Nombre"]
+
+
+def test_estructura_de_los_templates_oficiales():
+    """Las plantillas oficiales usan «Título del trabajo:» y «AUTOR(A):».
+
+    Seguimiento del PR #75: el prefijo del título solo cubría la variante
+    «de investigación» y el de autores no cubría «AUTOR(A):». En un template
+    lleno, la etiqueta se publicaba como un autor falso.
+    """
+    ficha = _ficha_de(
+        [
+            "UNIVERSIDAD NACIONAL DE TRUJILLO",
+            "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
+            "ESCUELA PROFESIONAL DE EDUCACIÓN PRIMARIA",
+            "Título del trabajo: Título de la investigación",
+            "TESIS",
+            "Para Optar el Título Profesional de Licenciado en Educación Primaria",
+            "AUTOR(A):",
+            "(Apellidos completos, Nombres completos)",
+            "ASESOR(A):",
+            "(Dr. o Mg. o Lic.) (Apellidos completos, Nombres completos)",
+            "Línea de Investigación:",
+            "Educación y Ciencias de la Comunicación y Desarrollo Sostenible",
+            "Trujillo – Perú",
+            "2026",
+        ]
+    )
+    assert valor(ficha, "dc.title") == "Título de la investigación"
+    assert valor(ficha, "dc.contributor.author") is None
+    assert ficha["dc.contributor.author"]["detectado"] is False
+
+
 # ---------------------------------------------------------------------------
 # F-4 — el motor no publica un valor inservible como detectado
 # ---------------------------------------------------------------------------
