@@ -285,24 +285,37 @@ Reglas de reconocimiento (compartidas con el DFA):
 ### 8. `patron_cantidad` → `AnalizadorCantidadPatron` (F3)
 
 Cuenta palabras, matches de regex o entradas estructuradas y verifica un
-valor mínimo:
+rango (`cantidad_minima`/`cantidad_maxima`):
 
 ```yaml
 patron_cantidad:
-  seccion: { inicio: resumen }        # opcional: acota el texto contado
+  seccion: { inicio: resumen }        # una sola sección
+  # — o, para contar cada idioma por separado —
+  secciones:
+    - { nombre: resumen, inicio: resumen }
+    - { nombre: abstract, inicio: abstract }
   operacion: count_words | count_matches | count_entries
   patron: "..."                       # solo count_matches
   filtro: "^palabras clave"           # opcional: párrafos que cuentan
+  excluir: "^(palabras clave|keywords)\b"  # opcional: párrafos que NO cuentan
   ignore_case: true
   cantidad_minima: 159
+  cantidad_maxima: 220
 ```
 
 - `count_words`: palabras (`\w+`) del texto contado (regla *resumen
-  ≥ 159 palabras*).
+  159–220 palabras*). `excluir` permite separar la prosa de la línea de
+  palabras clave.
 - `count_matches`: matches de `patron` en el texto.
 - `count_entries`: entradas separadas por `,` o `;` del texto posterior al
-  primer `:` (p. ej. `Palabras clave: a, b, c` → 3). Útil con `filtro`
-  sobre el párrafo de etiqueta.
+  primer `:` de **cada párrafo** (p. ej. `Palabras clave: a, b, c` → 3).
+  Útil con `filtro` sobre el párrafo de etiqueta.
+- `secciones`: lista de secciones; cada una se cuenta y evalúa por separado
+  y el detalle las nombra (`resumen=3 abstract=2`). No se puede combinar con
+  `seccion`.
+- `excluir` y `filtro` se aplican por párrafo antes de contar; primero se
+  descartan los párrafos que matchean `excluir` y luego se conservan los que
+  matchean `filtro`.
 
 ### 9. `conteo_nodos` → `AnalizadorConteoNodos` (F3)
 
@@ -665,7 +678,7 @@ de tabla y figura (estilo `Caption`) y leyendas (`---: ...`). Se usa en
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |
-| `reglas_unt.yaml` | — | 49 reglas de producción, incluidas `deteccion_tipo_documento` y `track_changes_sin_resolver` |
+| `reglas_unt.yaml` | — | 50 reglas de producción, incluidas `deteccion_tipo_documento` y `track_changes_sin_resolver` |
 | `reglas_unt_pendientes.yaml` | — | 5 estructuras implementadas y **sin** probar contra documentos reales (no hay plantillas de esos tipos); no lo carga la API |
 
 ---

@@ -43,7 +43,7 @@ def test_evaluar_corpus_agrega_por_regla(tmp_path):
             "semaforo": "verde",
             "fallidos_error": 0,
             "fallidos_warning": 0,
-            "evaluadas": 43,
+            "evaluadas": 44,
         }
     ]
     assert medicion["por_regla"], "debe haber reglas evaluadas"

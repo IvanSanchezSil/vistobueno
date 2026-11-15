@@ -94,8 +94,8 @@ El archivo se procesó correctamente y se evaluaron las reglas.
     ]
   },
   "resumen": {
-    "total": 49,
-    "total_evaluadas": 43,
+    "total": 50,
+    "total_evaluadas": 44,
     "reglas_no_aplicables": 6,
     "fallidos_error": 0,
     "fallidos_warning": 2
@@ -135,8 +135,8 @@ El archivo se procesó correctamente y se evaluaron las reglas.
   "metadatos": {
     "archivo_nombre": "tesis.docx",
     "archivo_tamano_bytes": 123456,
-    "reglas_evaluadas": 43,
-    "reglas_totales": 49,
+    "reglas_evaluadas": 44,
+    "reglas_totales": 50,
     "version_esquema": "2026-09-01",
     "tipo_documento_declarado": null,
     "tipo_documento_inferido": "tinv_cuantitativo",
@@ -147,7 +147,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 
 > **Nota sobre los conteos**: el ejemplo muestra un plan cuantitativo conforme,
 > donde las 6 reglas de otros tipos de documento no aplican. Por eso
-> `total` (49) ≠ `total_evaluadas` (43) y `reglas_no_aplicables` = 6.
+> `total` (50) ≠ `total_evaluadas` (44) y `reglas_no_aplicables` = 6.
 
 ### Descripción de campos de respuesta
 
