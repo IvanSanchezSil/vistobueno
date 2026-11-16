@@ -523,6 +523,9 @@ class AnalizadorImagen(AnalizadorConteoNodos):
         )
         if len(nodos) < minimo:
             return False, f"imagenes={len(nodos)} minimo={minimo}"
+        maximo = self.config.get("cantidad_maxima")
+        if maximo is not None and len(nodos) > maximo:
+            return False, f"imagenes={len(nodos)} maximo={maximo}"
 
         medidas = [self._dimensiones(n) for n in nodos]
         esperado = f"{ancho_esperado:.2f}x{alto_esperado:.2f}±{tolerancia:.2f}cm"

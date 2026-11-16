@@ -660,6 +660,8 @@ def test_secciones_del_linter_sincronizadas_con_el_compilador():
     from validator import compilador, dsl_check
 
     assert set(dsl_check._SECCIONES) == set(compilador.SECCIONES_ANALIZADOR)
+
+
 # M7/VA-15: medición del dibujo en `imagen`
 # ---------------------------------------------------------------------------
 
