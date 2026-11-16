@@ -551,8 +551,9 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 Tareas, dependencias y aceptación para los tres integrantes en
 [`HANDOVER_CORRECTITUD_2026-11-12.md`](HANDOVER_CORRECTITUD_2026-11-12.md).
 Los ID `VA` no reemplazan los `AUD`. Esta documentación no cierra los defectos.
-VA-13 corresponde a AUD-24 a AUD-27; PR #75 sigue abierto y con conflictos en
-la consulta del 2026-11-12. VA-20 añade la verificación del relleno Angular.
+VA-13 corresponde a AUD-24 a AUD-27; PR #75 sigue abierto, con los comentarios
+de revisión atendidos y el diff limitado al trabajo de la ficha (rebase sobre
+`730f968` el 2026-11-16). VA-20 añade la verificación del relleno Angular.
 VA-21 es un riesgo de restauración/autofill reportado por el usuario y pendiente
 de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 
@@ -570,7 +571,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
 | VA-11 | Int3 + Int1 | pendiente | M1a + B5: documento inválido |
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
-| VA-13 | Int3 | pendiente de integración | M0: PR #75, AUD-24 a AUD-27 |
+| VA-13 | Int3 | corregido (PR #75), pendiente de integración | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | pendiente | M6: «Base de datos» |
 | VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |

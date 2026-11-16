@@ -58,14 +58,14 @@ la sede.
 
 | Componente | Estado | Nota |
 |---|---|---|
-| API de validación | Listo | Contrato v1.12.0 |
+| API de validación | Listo | Contrato v1.13.0 |
 | Pantalla de ficha de depósito | Listo | Verificada contra la API real el 2026-11-04 |
 | Buzón de una ranura | Listo | TTL 1 h, "última gana", un solo worker |
 | Userscript de relleno | Listo | Versión 1.1.0, `@connect localhost` |
 | Mock de DSpace | Listo | Para ensayo sin tocar la instancia real |
 | Constancia (Modelo B) y fila del registro | Listo | Requiere `VISTOBUENO_FIRMA` y la plantilla oficial |
 | Hallazgos AUD-24 a AUD-27 del motor | **Cerrados** | PR #75: autores completos, asesora, año de portada y palabras clave limpias; ver §7 |
-| Pruebas automatizadas | En verde, sin `xfail` | Referencia en un clon sin `recursos/` ni `frontend/dist`: `857 passed, 4 skipped` (los `skipped` no son fallos) |
+| Pruebas automatizadas | En verde, sin `xfail` | Referencia en un clon sin `recursos/` ni `frontend/dist`: `879 passed, 4 skipped` (los `skipped` no son fallos) |
 
 ---
 
@@ -139,7 +139,8 @@ cada uno, en el mismo orden.
 Se corrige lo que haga falta y se pulsa **«Preparar depósito»**.
 
 **Esperado:** la pantalla entra en el panel de espera y la API responde
-`204` a `POST /ficha-pendiente`.
+**`201`** `POST /ficha-pendiente` con `{tramite_id, vence_en}`. La SPA
+conserva esa identidad y solo acepta un depósito del mismo trámite.
 
 Comprobación por terminal:
 
@@ -147,7 +148,8 @@ Comprobación por terminal:
 curl -s http://127.0.0.1:8000/ficha-pendiente | head -c 400
 ```
 
-**Esperado:** la ficha editada, con los valores corregidos del paso 4.
+**Esperado:** el sobre `{ficha, tramite_id, vence_en}`. La ficha contiene
+los valores corregidos del paso 4.
 
 ### Paso 6 — Rellenar el formulario de DSpace
 
@@ -169,16 +171,20 @@ El userscript **no** toca el selector de archivos. El operador adjunta el
 
 Se pulsa **Depositar**.
 
-**Esperado:** el userscript reporta el handle y el timestamp al buzón:
+**Esperado:** el userscript reporta el handle, el trámite, el título
+observado y el timestamp al buzón:
 
 ```bash
 curl -s http://127.0.0.1:8000/deposito
 ```
 
-**Esperado:** `handle`, `titulo` y `timestamp` (ISO 8601, hora de Perú).
+**Esperado:** `handle`, `tramite_id`, `titulo_observado` y `timestamp`
+(ISO 8601, hora de Perú). El campo `titulo` se conserva como alias
+deprecado.
 
-La SPA coteja el `titulo` recibido con la ficha en vuelo. Si no coinciden,
-avisa y no usa el handle: es la defensa contra un handle ajeno.
+La SPA coteja el `titulo_observado` recibido con la ficha en vuelo por
+igualdad normalizada. La coincidencia por inclusión no basta. Si no
+coinciden, avisa y no usa el handle: es la defensa contra un handle ajeno.
 
 ### Paso 9 — Generar la constancia
 
@@ -189,6 +195,10 @@ reemplazar (el texto se ve como texto plano, no como campos de Word).
 
 Con `?formato=zip` la descarga trae la constancia **y** la fila del
 registro del autor en `registro.csv`.
+
+La API usa la ficha publicada y el depósito vigente del servidor. Si la
+solicitud no coincide con ese estado, responde **409**: prepare y
+deposite de nuevo en lugar de editar el timestamp o el handle.
 
 > Si la API responde **500**, casi siempre es que falta `VISTOBUENO_FIRMA`
 > o la plantilla del Modelo B. El mensaje en el `detail` nombra cuál de

@@ -7,7 +7,7 @@
 - **Fechas:** 2026-11-03 a 2026-11-09 (cierre el 2026-11-11)
 - **Rol:** Motor de reglas / Procesamiento (Int3)
 - **Rama de trabajo:** `semana11-motor-ficha`
-- **Estado:** **Completada** (F-1 a F-7). Suite en verde: `857 passed, 4 skipped`, sin `xfail`.
+- **Estado:** **Completada** (F-1 a F-7). Suite en verde: `879 passed, 4 skipped`, sin `xfail`.
 
 ## Objetivos de la semana
 
@@ -56,7 +56,7 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 
 ## Verificación
 
-- `pytest tests/ -q` → `857 passed, 4 skipped` (sin `xfail`).
+- `pytest tests/ -q` → `879 passed, 4 skipped` (sin `xfail`).
 - Tesis real de la auditoría: dos autores, `Dra. Apellido, Nombre`, año `2026`, abstract completo y `['Educación', 'Cultura', 'Identidad cultural']`.
 - `scripts/eval_contra_plantillas.py` → funciona con `reglas_ficha.yaml` (clave `reglas`) y con `unt_format_rules_schema.yaml` (clave `rules`).
 - `ruff check`, `ruff format --check` y `mypy validator/ scripts/` → limpios.

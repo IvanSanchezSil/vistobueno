@@ -7,7 +7,9 @@
 **Resuelto**: 2026-11-03 (PR #68). La pantalla quedó implementada en
 `frontend/src/components/FichaDeposito.jsx` (vista) y `frontend/src/ficha.js`
 (lógica de flujo pura), con cobertura en `frontend/src/ficha.test.js`.
-**Contrato vigente**: `docs/CONTRATO_API.md` (v1.12.0). La SPA envía el token
+La integración con la identidad del trámite se revisó el 2026-11-16 en el
+PR #95.
+**Contrato vigente**: `docs/CONTRATO_API.md` (v1.13.0). La SPA envía el token
 compartido opcional (`VITE_API_TOKEN` → `X-VistoBueno-Token`) cuando está
 configurado; en loopback no hace falta.
 **Limitaciones conocidas del motor** (no de la UI): AUD-24 a AUD-27
@@ -64,8 +66,10 @@ servidor: es un resguardo de cliente.
 
 `POST /ficha-pendiente` con la ficha editada (el mismo objeto
 `extraidos` + `manuales`, tal cual llegó en la respuesta de /validar).
-Respuesta 204. Desde ese momento el userscript (en el navegador del
-operador, sobre las páginas de DSpace) puede leer la ficha del buzón.
+Respuesta `201` con `{tramite_id, vence_en}`. La SPA conserva ambos
+valores para identificar el trámite en vuelo. Desde ese momento el
+userscript (en el navegador del operador, sobre las páginas de DSpace)
+puede leer la ficha del buzón.
 
 Nota operativa: el buzón tiene **una sola ranura con TTL de 1 hora** —
 preparar de nuevo reemplaza la ficha anterior ("última gana"). Si la
@@ -76,24 +80,28 @@ API se reinicia, el buzón se vacía: re-preparar.
 Sondear `GET /deposito` cada ~3 s mientras el panel esté abierto:
 
 - **404** = aún no hay nada: seguir esperando, en silencio (no es error).
-- **200** = el userscript reportó el depósito: `{handle, titulo,
-  timestamp}`. Cotejar `titulo` contra la ficha preparada (normalizar:
-  minúsculas sin acentos, comparar por inclusión — el título del ítem
-  puede traer ediciones menores). Si NO coincide: mostrar el recibido
-  con el botón de aceptar/rechazar — nunca usarlo a ciegas.
+- **200** = el userscript reportó el depósito: `{tramite_id, handle,
+  titulo_observado, timestamp}`. Ignorar el reporte si su `tramite_id`
+  no coincide con el trámite actual o si el trámite venció. Cotejar
+  `titulo_observado` contra la ficha preparada por igualdad normalizada
+  (minúsculas, sin acentos y sin espacios extras). La inclusión no
+  identifica una tesis. Si NO coincide: mostrar el recibido con el
+  botón de aceptar/rechazar — nunca usarlo a ciegas.
 
-Al recibir: mostrar handle, fecha y hora (derivar del `timestamp`,
-editables por si el operador quiera corregir).
+Al recibir: mostrar handle, fecha y hora. El timestamp es de solo lectura:
+el servidor conserva el valor reportado por el userscript.
 
 ### 2.4 Panel de papeleo
 
-- **Constancias**: `POST /constancia` con `{ficha, handle, timestamp,
-  indice_autor}` — UNA DESCARGA POR AUTOR (iterar `indice_autor` 0..N-1).
+- **Constancias**: `POST /constancia` con `{ficha, tramite_id, handle,
+  timestamp, indice_autor}` — UNA DESCARGA POR AUTOR (iterar
+  `indice_autor` 0..N-1).
   La respuesta es el `.docx` binario (attachment con el nombre del autor).
   Con `?formato=zip` devuelve un **paquete por autor** con la constancia
   .docx y su fila del registro como `registro.csv` — una descarga = todo
   el papeleo del estudiante (sugerido como opción "Descargar todo").
-- **Registro**: `POST /fila-registro` con `{ficha, handle, timestamp}`:
+- **Registro**: `POST /fila-registro` con `{ficha, tramite_id, handle,
+  timestamp}`:
   - `formato=json` (default): `{"filas": ["\tTesis…", …]}` — para el
     botón "copiar fila" al portapapeles.
   - `?formato=tsv | csv | xlsx`: **archivo descargable** directo al
@@ -107,7 +115,8 @@ editables por si el operador quiera corregir).
 
 | HTTP | Cuándo | UI |
 |------|--------|-----|
-| 422 | falta un dato de la ficha / índice fuera de rango / timestamp mal | mostrar `detail`, volver a la ficha |
+| 409 | el depósito venció o la ficha, el trámite, el handle o el timestamp no coinciden | mostrar `detail`, volver a preparar y depositar |
+| 422 | falta un dato de la ficha canónica / índice fuera de rango / timestamp canónico mal | mostrar `detail`, volver a la ficha |
 | 500 | `VISTOBUENO_FIRMA` sin configurar, plantilla ausente | mostrar `detail` como nota de configuración |
 
 ## 4. Lo que NO se pide
@@ -165,7 +174,7 @@ pantalla se verificó contra la API real, no contra mocks sueltos.
 | 2 | La ficha viaja solo con verde | `ficha_deposito` presente en verde y `null` en rojo |
 | 3 | Editar título, autores, asesor, año y palabras clave | Los valores editados llegan tal cual en `POST /ficha-pendiente` |
 | 4 | Completar los campos manuales | Matrícula y DNI del autor se alinean por posición con los autores |
-| 5 | «Preparar depósito» | `POST /ficha-pendiente` → 204 |
+| 5 | «Preparar depósito» | `POST /ficha-pendiente` → 204 (contrato v1.12.0 en esa corrida) |
 | 6 | Panel de espera y viaje al buzón | `GET /ficha-pendiente` devuelve la ficha editada; `GET /deposito` responde 404 en silencio mientras no hay depósito |
 | 7 | Aceptar el handle | `POST /deposito` → 204 y `GET /deposito` devuelve `handle`, `titulo` y `timestamp` |
 | 8 | Constancia y fila del registro | `POST /constancia` → DOCX de 137 KB con los MERGEFIELD del Modelo B ya reemplazados; `?formato=zip` devuelve la constancia + `registro.csv`; `POST /fila-registro` responde en `tsv`, `csv`, `xlsx` y `json` |
