@@ -1,6 +1,8 @@
 # Handover Integrante 1 — retblast: API y userscript — 2026-11-12
 
-**Estado:** tareas pendientes. Implementar solo los archivos asignados a este integrante.
+**Estado:** B2 y B7 entregados; otras tareas pendientes. Implementar solo los archivos asignados a este integrante.
+La [auditoría del userscript de 2026-11-16](HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md)
+precisa B3/B4/B8 y las limitaciones observadas del flujo después de B2.
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
 Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
@@ -27,11 +29,15 @@ No implementar tareas F ni M.
 
 ### B2. Identificar el trámite de depósito — VA-09
 
+**Entregado:** PR #95, contrato v1.13.0. La tabla siguiente describe lo ya
+implementado; no volver a agregar `tramite_id`. US-07 a US-12 precisan otros
+límites de contexto y reporte que ese ID por sí solo no resuelve.
+
 **Archivos:** `validator/buzon.py`, `api.py`, `api_models.py`,
 `tools/dspace-fill/src/{wrapper,compuertas}.js`, tests de API/buzón/userscript.
 **Dependencia compartida:** F2. Int1 fija el contrato antes de que Int2 implemente.
 
-Contrato objetivo propuesto; todavía no es el contrato vigente:
+Contrato implementado; ver `CONTRATO_API.md`:
 
 | Operación | Cambio que debe documentar Int1 |
 |---|---|
@@ -139,6 +145,8 @@ Int1 no modifica `tests/_xml_constants.py` ni el builder del motor.
   dañado o una ficha desactualizada hace fallar la guardia.
 
 ### B7. Contar reglas evaluadas en el correo — VA-18
+
+**Entregado:** PR #93. El correo ya usa `total_evaluadas`. No repetir el arreglo.
 
 **Archivos:** `validator/notificacion.py`, `tests/test_notificacion.py`.
 Usar `total_evaluadas`, no `total`, bajo la etiqueta «evaluadas».

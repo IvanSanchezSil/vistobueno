@@ -343,3 +343,26 @@ validaciones consecutivas sin limpiar el limitador.
 - Verificación de esta entrega: enlaces, matrices y Markdown correctos;
   `git diff --check` sin errores. Suite: 824 passed, 4 skipped, 6 xfailed,
   1 warning. No se presenta la suite como prueba del lab aún no implementado.
+
+
+## Actualización 2026-11-16 — Auditoría offline del userscript
+
+- Base `c9e5499`. Se contrastaron seis módulos, pruebas, mock/driver y frontera
+  API con HAR, DOM, configuración y bundles capturados. No hubo acceso a UNT.
+- Se registraron 17 hallazgos US, todos de Int1, con archivos y aceptación.
+  Se conservaron B2/PR #95 y B7/PR #93 como entregados; no se repiten esos arreglos.
+- Se entregaron matriz de 38 filas, extractos de tres métodos de widget y del
+  flujo, cuatro scripts de reproducción y sus resultados con datos ficticios.
+- La suite existente del userscript pasa 46/46. Los contraejemplos confirman
+  21 casos Node, uno de contrato del dropdown, seis de API/flujo canónico y dos de inyección
+  del mock. No equivalen a integración real con Angular o servidor DSpace.
+- Se verificó main idéntico al de la captura previa, dropdown con mousedown,
+  navegación a MyDSpace y timer autosave desactivado en la configuración capturada.
+- No se cambiaron módulos de aplicación, motor, frontend, CI, dist ni AGENTS.
+  No se instaló ni arrancó el laboratorio. HAR/DOM/bundles completos siguen
+  privados bajo `recursos/`, sin versionar.
+- Comprobación de la base en el worktree: 844 passed, 4 skipped, 6 xfailed,
+  1 warning. Se verificó dist sin reconstruirlo; no hay cambio del instalable.
+- Se comprobaron sintaxis de los scripts, enlaces, conteos de matrices y
+  privacidad de fixtures. Escáner de secretos sin hallazgos. API local:
+  `/docs` y `/openapi.json` respondieron 200. Diff sin errores de espacios.

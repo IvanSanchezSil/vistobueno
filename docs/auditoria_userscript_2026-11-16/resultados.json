@@ -1,0 +1,111 @@
+{
+  "base": "c9e5499",
+  "scope": "Offline; DOM/GM simulados; no ejecuta el servidor ni la aplicación Angular completa",
+  "cases": [
+    {
+      "id": "EX-01",
+      "status": "reproducido",
+      "details": "Control disabled: informa éxito."
+    },
+    {
+      "id": "EX-02",
+      "status": "reproducido",
+      "details": "Listener restaura valor; el ejecutor informa éxito."
+    },
+    {
+      "id": "EX-03",
+      "status": "reproducido",
+      "details": "Selector duplicado: rellena el oculto y deja el visible vacío."
+    },
+    {
+      "id": "EX-04",
+      "status": "reproducido",
+      "details": "Reemplazo de input tras change: escribe en el nodo desconectado y declara éxito. Simula render; no afirma que ocurra siempre en UNT."
+    },
+    {
+      "id": "EX-05",
+      "status": "reproducido",
+      "details": "2→1 filas: conserva datos sobrantes y declara éxito."
+    },
+    {
+      "id": "EX-06",
+      "status": "reproducido",
+      "details": "El DNI de la posición 2 pasa a posición 1; no hay validación del par autor/DNI."
+    },
+    {
+      "id": "EX-07",
+      "status": "reproducido",
+      "details": "Falta opción DNI: falla, pero sobrescribe el número conservando tipo Pasaporte."
+    },
+    {
+      "id": "EX-08",
+      "status": "reproducido",
+      "details": "Fallo del combobox borra el texto previo en vez de restaurarlo. La política abierta está aprobada; el problema es recuperación del fallo."
+    },
+    {
+      "id": "EX-09",
+      "status": "reproducido",
+      "details": "El resumen solo identifica tipos: no distingue qué campo texto falló y cuál pasó."
+    },
+    {
+      "id": "WR-01",
+      "status": "reproducido",
+      "details": "Fallo parcial se guarda como lleno; el botón no permite completar el campo aparecido tarde."
+    },
+    {
+      "id": "WR-02",
+      "status": "reproducido",
+      "details": "Fallo inicial de red deja el formulario sin botón de rescate ni nueva consulta."
+    },
+    {
+      "id": "WR-03",
+      "status": "reproducido",
+      "details": "Auto-relleno sobrescribe un formulario con título ajeno sin diagnóstico ni confirmación."
+    },
+    {
+      "id": "WR-04",
+      "status": "reproducido",
+      "details": "Dos rellenos simultáneos: callback viejo termina después y reemplaza el trámite nuevo."
+    },
+    {
+      "id": "WR-05",
+      "status": "reproducido",
+      "details": "Respuesta pendiente del buzón rellena otro workspace tras navegar."
+    },
+    {
+      "id": "WR-06",
+      "status": "reproducido",
+      "details": "Clic de otro formulario pone timestamp en el envío global anterior."
+    },
+    {
+      "id": "WR-07",
+      "status": "reproducido",
+      "details": "Se reporta el primer enlace hdl global, aunque corresponda a una referencia ajena."
+    },
+    {
+      "id": "WR-08",
+      "status": "reproducido",
+      "details": "Handle marcado visto antes de validar: el título que llega después no permite reportar, aun con otra mutación DOM."
+    },
+    {
+      "id": "WR-09",
+      "status": "reproducido",
+      "details": "Botón persiste fuera del formulario y registra un nuevo envío aunque no haya controles."
+    },
+    {
+      "id": "WR-10",
+      "status": "reproducido",
+      "details": "Peticiones GM sin plazo ni manejador timeout; inspección de las opciones emitidas, no simulación de red real."
+    },
+    {
+      "id": "WR-11",
+      "status": "reproducido",
+      "details": "Ficha sin título modifica otros campos y se registra como envío, pero no podrá reportar el depósito."
+    },
+    {
+      "id": "WR-12",
+      "status": "reproducido",
+      "details": "Título como lista válido para el DTO genérico hace fallar el wrapper antes de crear el botón."
+    }
+  ]
+}
