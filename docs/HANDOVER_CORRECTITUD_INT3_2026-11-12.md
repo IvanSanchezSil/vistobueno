@@ -32,6 +32,11 @@ Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
   `except Exception` que convierta defectos del servidor en entradas inválidas.
 - **Aceptación:** XML truncado, raíz ajena y cuerpo ausente fallan de forma
   controlada; documentos admitidos y fixtures válidos siguen extrayéndose.
+- **Decisión (2026-11-15):** una parte opcional presente pero mal formada
+  (encabezado, pie o notas al pie) también invalida el documento completo
+  (`422`). Es defendible porque Word tampoco abriría ese archivo y evita
+  validar un documento con partes corruptas; queda declarado aquí, no solo
+  en el docstring del extractor.
 
 ### M1. Resolver formato efectivo y revisar todo el texto — VA-01, VA-02
 
