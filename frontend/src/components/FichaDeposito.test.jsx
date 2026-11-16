@@ -53,26 +53,47 @@ const REPORTE_VERDE = {
   ficha_deposito: FICHA,
 }
 
-// Instala una API simulada. `depósito` controla lo que responde el buzón:
+// Instala una API simulada. `deposito` controla lo que responde el buzón:
 // null = todavía no hay depósito (404), objeto = reporte del userscript.
-function instalarApi({ deposito = null } = {}) {
+// `tramites` enumera las identidades que devuelve cada publicación.
+function instalarApi({
+  deposito = null,
+  tramites = ['tramite-1'],
+  venceEn = new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+} = {}) {
   const llamadas = []
+  let publicaciones = 0
   const responder = async (res) => res
   globalThis.fetch = vi.fn(async (url, opciones = {}) => {
     llamadas.push({ url, opciones })
     const ruta = String(url)
 
     if (ruta.includes('/ficha-pendiente')) {
-      return { ok: true, status: 204, json: async () => null, headers: new Headers() }
+      const indice = Math.min(publicaciones, tramites.length - 1)
+      const tramiteId = tramites[indice]
+      publicaciones += 1
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ tramite_id: tramiteId, vence_en: venceEn }),
+        headers: new Headers(),
+      }
     }
     if (ruta.includes('/deposito')) {
-      if (!deposito) {
+      const indice = Math.max(0, publicaciones - 1)
+      const tramiteId = tramites[Math.min(indice, tramites.length - 1)]
+      const respuesta = typeof deposito === 'function' ? deposito({ indice, tramiteId }) : deposito
+      if (!respuesta) {
         return { ok: false, status: 404, json: async () => null, headers: new Headers() }
+      }
+      const cuerpo = {
+        tramite_id: tramiteId,
+        ...respuesta,
       }
       return {
         ok: true,
         status: 200,
-        json: async () => deposito,
+        json: async () => cuerpo,
         headers: new Headers(),
       }
     }
@@ -248,6 +269,62 @@ describe('FichaDeposito — flujo de la Actividad 15', () => {
     expect(screen.getByRole('button', { name: /Rechazar y volver/i })).toBeTruthy()
   })
 
+  it('ignora un depósito de otro trámite', async () => {
+    const llamadas = instalarApi({
+      deposito: {
+        tramite_id: 'tramite-anterior',
+        handle: HANDLE,
+        titulo_observado: 'Estrategias ludicas para la motricidad',
+        timestamp: TIMESTAMP,
+      },
+    })
+    const { container } = render(<FichaDeposito data={REPORTE_VERDE} apiUrl="" onBack={() => {}} />)
+
+    completarDatosOperador(container)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Preparar depósito/i })).not.toBeDisabled()
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Preparar depósito/i }))
+
+    await waitFor(() =>
+      expect(llamadas.some((c) => c.url.includes('/deposito'))).toBe(true)
+    )
+    expect(screen.queryByRole('button', { name: /Aceptar depósito/i })).toBeNull()
+  })
+
+  it('un trámite nuevo borra el handle y el papeleo anterior', async () => {
+    const llamadas = instalarApi({
+      tramites: ['tramite-1', 'tramite-2'],
+      deposito: {
+        tramite_id: 'tramite-1',
+        handle: HANDLE,
+        titulo_observado: 'Estrategias ludicas para la motricidad',
+        timestamp: TIMESTAMP,
+      },
+    })
+    const { container } = render(<FichaDeposito data={REPORTE_VERDE} apiUrl="" onBack={() => {}} />)
+
+    completarDatosOperador(container)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Preparar depósito/i })).not.toBeDisabled()
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Preparar depósito/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Aceptar depósito/i })).toBeTruthy()
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Aceptar depósito/i }))
+    await waitFor(() => expect(screen.getByText(/Papeleo/i)).toBeTruthy())
+    expect(screen.getByText(HANDLE)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Preparar depósito/i }))
+    await waitFor(() =>
+      expect(llamadas.filter((c) => c.url.includes('/ficha-pendiente')).length).toBe(2)
+    )
+    expect(screen.queryByText(/Papeleo/i)).toBeNull()
+    expect(screen.queryByText(HANDLE)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Aceptar depósito/i })).toBeNull()
+  })
+
   it('descarga la constancia del autor y la fila del registro', async () => {
     const llamadas = instalarApi({
       deposito: { handle: HANDLE, titulo: 'Estrategias ludicas para la motricidad', timestamp: TIMESTAMP },
@@ -277,6 +354,7 @@ describe('FichaDeposito — flujo de la Actividad 15', () => {
     const cuerpo = JSON.parse(peticionConstancia.opciones.body)
     expect(cuerpo.handle).toBe(HANDLE)
     expect(cuerpo.timestamp).toBe(TIMESTAMP)
+    expect(cuerpo.tramite_id).toBe('tramite-1')
     expect(cuerpo.indice_autor).toBe(0)
 
     // La fila en JSON se muestra en pantalla para copiar o pegar.
