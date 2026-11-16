@@ -78,12 +78,23 @@ function FichaDeposito({ data, apiUrl, onBack }) {
   const [timestamp, setTimestamp] = useState('')
   const [filas, setFilas] = useState([])
   const [copiado, setCopiado] = useState(false)
+  const [tramiteId, setTramiteId] = useState('')
+  const [venceEn, setVenceEn] = useState('')
   const timerRef = useRef(null)
   // Reporte ya rechazado por el operador (handle + timestamp). El buzón es
   // "última gana": sin esta marca la app volvería a mostrar el mismo reporte
   // descartado en cada sondeo. Cancelar la espera limpia la marca (el
   // operador puede así volver a ver el estado actual del buzón).
   const rechazadoRef = useRef(null)
+
+  const limpiarEstadoDeposito = useCallback(() => {
+    setHandle('')
+    setTituloRecibido(null)
+    setTimestamp('')
+    setFilas([])
+    setCopiado(false)
+    rechazadoRef.current = null
+  }, [])
 
   const autores = useMemo(() => autoresDe(ficha), [ficha])
   const plan = useMemo(() => planDeDescargas(ficha), [ficha])
@@ -104,20 +115,41 @@ function FichaDeposito({ data, apiUrl, onBack }) {
   // Sondeo del buzón mientras el panel de espera está abierto.
   useEffect(() => {
     if (fase !== 'esperando') return undefined
+    if (!tramiteId || !venceEn) {
+      setError('El trámite publicado no tiene identidad válida. Vuelve a preparar el depósito.')
+      setFase('edicion')
+      return undefined
+    }
     let vivo = true
+    let sondeando = false
+    const esperado = tramiteId
+    const limite = venceEn
     const sondear = async () => {
+      if (sondeando) return
+      sondeando = true
       try {
-        const resultado = await sondearDeposito(apiUrl, tokenBuzon)
+        const resultado = await sondearDeposito(apiUrl, tokenBuzon, {
+          tramiteId: esperado,
+          venceEn: limite,
+        })
         if (!vivo) return
-        if (resultado.estado === 'esperando') return
-        if (resultado.estado === 'error') {
+        if (resultado.estado === 'esperando' || resultado.estado === 'ajeno') return
+        if (resultado.estado === 'error' || resultado.estado === 'expirado' || resultado.estado === 'invalido') {
           setError(resultado.mensaje)
+          limpiarEstadoDeposito()
+          setTramiteId('')
+          setVenceEn('')
           setFase('edicion')
           return
         }
         // Reporte ya rechazado por el operador: seguir esperando en silencio.
         const rechazado = rechazadoRef.current
-        if (rechazado && rechazado.handle === resultado.handle && rechazado.timestamp === resultado.timestamp) {
+        if (
+          rechazado &&
+          rechazado.tramiteId === resultado.tramiteId &&
+          rechazado.handle === resultado.handle &&
+          rechazado.timestamp === resultado.timestamp
+        ) {
           return
         }
         setHandle(resultado.handle || '')
@@ -127,7 +159,12 @@ function FichaDeposito({ data, apiUrl, onBack }) {
       } catch (e) {
         if (!vivo) return
         setError(`No se pudo consultar el buzón: ${e.message}`)
+        limpiarEstadoDeposito()
+        setTramiteId('')
+        setVenceEn('')
         setFase('edicion')
+      } finally {
+        sondeando = false
       }
     }
     sondear()
@@ -136,7 +173,7 @@ function FichaDeposito({ data, apiUrl, onBack }) {
       vivo = false
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [apiUrl, fase, tokenBuzon])
+  }, [apiUrl, fase, limpiarEstadoDeposito, tokenBuzon, tramiteId, venceEn])
 
   const preparar = async () => {
     if (faltantes.length > 0 || ocupado) return
@@ -144,7 +181,10 @@ function FichaDeposito({ data, apiUrl, onBack }) {
     setError(null)
     setAviso(null)
     try {
-      await publicarFicha(apiUrl, ficha, tokenBuzon)
+      const publicado = await publicarFicha(apiUrl, ficha, tokenBuzon)
+      limpiarEstadoDeposito()
+      setTramiteId(publicado.tramite_id)
+      setVenceEn(publicado.vence_en)
       setFase('esperando')
       setAviso('Ficha publicada en el buzón. El userscript ya puede leerla.')
     } catch (e) {
@@ -156,7 +196,9 @@ function FichaDeposito({ data, apiUrl, onBack }) {
 
   const cancelarEspera = () => {
     setFase('edicion')
-    rechazadoRef.current = null
+    limpiarEstadoDeposito()
+    setTramiteId('')
+    setVenceEn('')
     setAviso('Se canceló la espera. La ficha sigue en el buzón (vigencia: 1 hora).')
   }
 
@@ -167,25 +209,31 @@ function FichaDeposito({ data, apiUrl, onBack }) {
   )
 
   const aceptar = () => {
+    if (fase !== 'recibido' || !tramiteId) return
     setFase('listo')
     setAviso('Depósito aceptado. Ya puede descargar la constancia y la fila del registro.')
   }
 
   const rechazar = () => {
     setFase('edicion')
-    rechazadoRef.current = { handle, timestamp }
+    rechazadoRef.current = { tramiteId, handle, timestamp }
     setHandle('')
     setTituloRecibido(null)
     setTimestamp('')
+    setFilas([])
     setError('El título recibido no coincide con la ficha. No se usó el handle: revise la ficha y prepare de nuevo.')
   }
 
   const descargar = async (indiceAutor, formato) => {
     if (ocupado) return
+    if (!tramiteId) {
+      setError('No hay un trámite vigente para generar la constancia.')
+      return
+    }
     setOcupado(true)
     setError(null)
     try {
-      const cuerpo = construirCuerpoConstancia(ficha, handle, timestamp, indiceAutor)
+      const cuerpo = construirCuerpoConstancia(ficha, handle, timestamp, indiceAutor, tramiteId)
       await descargarConstancia(apiUrl, cuerpo, formato, tokenBuzon)
     } catch (e) {
       setError(e.message)
@@ -196,10 +244,14 @@ function FichaDeposito({ data, apiUrl, onBack }) {
 
   const generarFila = async (formato) => {
     if (ocupado) return
+    if (!tramiteId) {
+      setError('No hay un trámite vigente para generar la fila del registro.')
+      return
+    }
     setOcupado(true)
     setError(null)
     try {
-      const cuerpo = construirCuerpoFilaRegistro(ficha, handle, timestamp)
+      const cuerpo = construirCuerpoFilaRegistro(ficha, handle, timestamp, tramiteId)
       const resultado = await generarFilaRegistro(apiUrl, cuerpo, formato, tokenBuzon)
       if (formato === 'json') setFilas(resultado)
     } catch (e) {
@@ -443,10 +495,11 @@ function FichaDeposito({ data, apiUrl, onBack }) {
                 id="ficha-timestamp"
                 type="text"
                 value={timestamp}
-                onChange={(e) => setTimestamp(e.target.value)}
+                readOnly
               />
               <p className="campo-ayuda">
-                Del clic «Depositar»: {momento.fecha} {momento.hora}. Edítelo si necesita corregirlo.
+                Del clic «Depositar»: {momento.fecha} {momento.hora}. El servidor conserva esta hora
+                como parte del depósito vigente.
               </p>
             </div>
           </div>

@@ -265,8 +265,9 @@ class StubLLM:
 ## 9. Testing y CI
 
 - **`StubLLM`**: respuestas JSON fijas por feature → tests de contrato y unit
-  sin GPU ni descargas. La suite actual (755 tests recolectados: 749 pasan y
-  6 xfail estrictos con `recursos/` y `frontend/dist`) debe seguir en verde.
+  sin GPU ni descargas. La suite actual (854 tests recolectados: 845 pasan,
+  3 se omiten y 6 quedan en xfail estrictos en la verificación local) debe
+  seguir en verde.
 - Marco de pruebas: tests de **prompt building** (sin red), tests de **parsing
   JSON→DTO** (torturas: llaves rotas, arrays vacíos, campos de más), tests de
   **contrato de endpoint** (Con `StubLLM` inyectado vía `app.dependency_overrides`).
