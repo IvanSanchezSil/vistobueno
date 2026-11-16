@@ -249,7 +249,7 @@ tamaño correcto, tamaño incorrecto y logo solo en el cuerpo); linter con 5
 pruebas (8 casos) para la forma de `imagen`; ruff, ruff format, mypy y
 linter limpios; ejemplos regenerados.
 
-**Entrega:** commit `08bf067`, rama `semana12-m7-logo`, PR apilado
+**Entrega:** commit `b92f7f3`, rama `semana12-m7-logo`, PR apilado
 sobre #105.
 
 ---

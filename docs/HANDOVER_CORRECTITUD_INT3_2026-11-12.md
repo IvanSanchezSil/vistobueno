@@ -153,7 +153,7 @@ No identificar visualmente el logo si no existe ese mecanismo.
 incorrectas generan warning. Si solo se implementa presencia, renombrar la
 descripción y dejar la medición expresamente pendiente, no «cerrada».
 
-- **Estado 2026-11-15:** corregido en `08bf067`. `AnalizadorImagen`
+- **Estado 2026-11-15:** corregido en `b92f7f3`. `AnalizadorImagen`
   mide el `wp:extent` del `wp:inline`/`wp:anchor` que contiene cada blip
   (ancho = `cx`, alto = `cy`, 360000 EMU por cm). La regla declara
   `contexto: caratula` (primera sección), `ancho_cm: 6.73`, `alto_cm: 4.84`
