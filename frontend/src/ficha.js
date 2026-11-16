@@ -109,13 +109,14 @@ export const listaDe = (ficha, campo) => {
   return []
 }
 
-// Cotejo de títulos: comparación por inclusión (el título del ítem puede traer
-// ediciones menores). Si falta alguno de los dos, no se puede cotejar.
+// Cotejo de títulos: igualdad normalizada. La inclusión no identifica una
+// tesis: "Educación" también es parte de "Educación y cultura en otra
+// institución". Si falta alguno de los dos, no se puede cotejar.
 export const tituloCoincide = (preparado, recibido) => {
   const a = normalizar(preparado)
   const b = normalizar(recibido)
   if (!a || !b) return false
-  return b.includes(a) || a.includes(b)
+  return a === b
 }
 
 // La pantalla de ficha SOLO existe con semáforo verde y ficha en la respuesta
@@ -125,16 +126,58 @@ export const debeMostrarFicha = (data) =>
   data?.ficha_deposito != null &&
   Array.isArray(data?.ficha_deposito?.extraidos)
 
+// Un timestamp de depósito debe ser una fecha ISO válida. La API aplica la
+// zona de Perú al convertirla; la SPA solo decide si puede habilitar el
+// papeleo.
+export const timestampEsValido = (iso) => {
+  if (typeof iso !== 'string') return false
+  const iso8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/
+  if (!iso8601.test(iso)) return false
+  const momento = new Date(iso)
+  return !Number.isNaN(momento.getTime())
+}
+
 // Resultado del sondeo del buzón.
 // 404 = todavía no hay depósito (NO es un error: se sigue esperando en silencio).
-export const interpretarSondeo = (status, cuerpo) => {
+// Un depósito de otro trámite se ignora. Uno vencido o incompleto no habilita
+// el papeleo.
+export const interpretarSondeo = (status, cuerpo, tramite = {}) => {
+  const tramiteId = tramite.tramiteId ?? ''
+  const venceEn = tramite.venceEn ?? ''
+  const fin = venceEn ? new Date(venceEn).getTime() : Number.NaN
+  if (!venceEn || Number.isNaN(fin)) {
+    return {
+      estado: 'invalido',
+      mensaje: 'El servidor no devolvió un vencimiento válido para este trámite.',
+    }
+  }
+  if (fin <= Date.now()) {
+    return {
+      estado: 'expirado',
+      mensaje: 'El trámite de la ficha expiró. Vuelve a preparar el depósito.',
+    }
+  }
   if (status === 404) return { estado: 'esperando' }
   if (status >= 200 && status < 300) {
+    const tramiteRecibido = cuerpo?.tramite_id ?? ''
+    if (!tramiteId || tramiteRecibido !== tramiteId) {
+      return {
+        estado: 'ajeno',
+        mensaje: 'El depósito pertenece a otro trámite y se ignoró.',
+      }
+    }
+    if (!cuerpo?.handle || !timestampEsValido(cuerpo?.timestamp)) {
+      return {
+        estado: 'invalido',
+        mensaje: 'El depósito no tiene handle o timestamp válido; no se habilitó el papeleo.',
+      }
+    }
     return {
       estado: 'recibido',
-      handle: cuerpo?.handle ?? '',
-      titulo: cuerpo?.titulo ?? null,
-      timestamp: cuerpo?.timestamp ?? '',
+      tramiteId: tramiteRecibido,
+      handle: cuerpo.handle,
+      titulo: cuerpo.titulo_observado ?? cuerpo.titulo ?? null,
+      timestamp: cuerpo.timestamp,
     }
   }
   const detalle = cuerpo?.detail ?? cuerpo?.message
@@ -192,15 +235,23 @@ export const planDeDescargas = (ficha) => {
   }
 }
 
-export const construirCuerpoConstancia = (ficha, handle, timestamp, indiceAutor) => ({
+export const construirCuerpoConstancia = (
   ficha,
+  handle,
+  timestamp,
+  indiceAutor,
+  tramiteId
+) => ({
+  ficha,
+  tramite_id: tramiteId,
   handle,
   timestamp,
   indice_autor: indiceAutor,
 })
 
-export const construirCuerpoFilaRegistro = (ficha, handle, timestamp) => ({
+export const construirCuerpoFilaRegistro = (ficha, handle, timestamp, tramiteId) => ({
   ficha,
+  tramite_id: tramiteId,
   handle,
   timestamp,
 })
@@ -228,7 +279,8 @@ export const cabecerasBuzon = (token, extra = {}) => ({
   ...(token ? { 'X-VistoBueno-Token': token } : {}),
 })
 
-// Publica la ficha editada en el buzón (POST /ficha-pendiente, 204).
+// Publica la ficha editada en el buzón (POST /ficha-pendiente, 201).
+// Devuelve el trámite y su vencimiento: ambos identifican esta ficha.
 export const publicarFicha = async (apiUrl, ficha, token = '') => {
   const res = await fetch(`${apiUrl}/ficha-pendiente`, {
     method: 'POST',
@@ -239,11 +291,20 @@ export const publicarFicha = async (apiUrl, ficha, token = '') => {
     const detalle = await detalleDe(res)
     throw new Error(detalle ?? `El servidor rechazó la ficha (HTTP ${res.status}).`)
   }
-  return true
+  let cuerpo = null
+  try {
+    cuerpo = await res.json()
+  } catch {
+    cuerpo = null
+  }
+  if (!cuerpo?.tramite_id || !cuerpo?.vence_en) {
+    throw new Error('El servidor no devolvió la identidad del trámite; publica la ficha de nuevo.')
+  }
+  return cuerpo
 }
 
 // Sondeo del buzón (GET /deposito): 404 = aún no hay depósito.
-export const sondearDeposito = async (apiUrl, token = '') => {
+export const sondearDeposito = async (apiUrl, token = '', tramite = {}) => {
   const res = await fetch(`${apiUrl}/deposito`, { headers: cabecerasBuzon(token) })
   let cuerpo = null
   try {
@@ -251,7 +312,7 @@ export const sondearDeposito = async (apiUrl, token = '') => {
   } catch {
     cuerpo = null
   }
-  return interpretarSondeo(res.status, cuerpo)
+  return interpretarSondeo(res.status, cuerpo, tramite)
 }
 
 const nombreDeDescarga = (res, porDefecto) => {
