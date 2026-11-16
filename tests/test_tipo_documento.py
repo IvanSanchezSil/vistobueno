@@ -447,13 +447,17 @@ class TestSinCambioDeComportamiento:
     semáforo solo lo mueven las reglas que de verdad aplican.
     """
 
-    @staticmethod
-    def _ruta_plantilla():
-        return (
-            Path(__file__).resolve().parents[1]
-            / "recursos"
-            / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
-        )
+    PLANTILLAS = [
+        "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx",
+        "PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx",
+        "PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx",
+        "TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx",
+        "TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx",
+    ]
+
+    @classmethod
+    def _ruta_plantilla(cls, nombre: str | None = None):
+        return Path(__file__).resolve().parents[1] / "recursos" / (nombre or cls.PLANTILLAS[0])
 
     def test_solo_las_reglas_tipo_especificas_se_condicionan(self):
         reglas = load_rules(str(RUTA_REGLAS))["reglas"]
@@ -485,10 +489,11 @@ class TestSinCambioDeComportamiento:
     def test_plantilla_oficial_no_reporta_esquemas_imposibles(self):
         """Los errores imposibles de corregir desaparecieron: la plantilla es
         cuantitativa, así que los esquemas cualitativo y de revisión, sus
-        mínimos y la carátula del Proyecto no le aplican. Queda 1 error real
-        (palabras clave). Los autores cumplen: la regla exige que el nombre
-        no esté todo en mayúsculas (altas y bajas), patrón que sí usa el
-        placeholder de la plantilla (EVALUADO 2026-10-12).
+        mínimos y la carátula del Proyecto no le aplican. Quedan 2 errores
+        reales: palabras clave y el título de instrucción, que mezcla negrita
+        (decisión de la revisión del PR #100). Los autores cumplen: la regla
+        exige que el nombre no esté todo en mayúsculas (altas y bajas),
+        patrón que sí usa el placeholder de la plantilla (EVALUADO 2026-10-12).
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
         plantilla no existe y el test se omite.
@@ -500,7 +505,25 @@ class TestSinCambioDeComportamiento:
         assert len(res) == 49
         fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
         assert not fallidos & TIPO_ESPECIFICAS
-        assert len(fallidos) == 1
+        assert fallidos == {"palabras_clave_minimo", "caratula_titulo_negrita_mixta"}
+        assert build_report(res)["semaforo"] == "rojo"
+
+    @pytest.mark.parametrize("nombre", PLANTILLAS)
+    def test_plantillas_oficiales_resultado_orientativo(self, nombre):
+        """Fija el resultado de las 5 plantillas (revisión del PR #100).
+
+        Son documentos de instrucción con texto de relleno: el título va en
+        rojo y mezcla negrita, así que `caratula_titulo_negrita_mixta` las
+        marca a propósito. La evaluación es orientativa; no es un bug.
+        """
+        base = self._ruta_plantilla(nombre)
+        if not base.exists():
+            pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
+        res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
+        errores = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
+        warnings = [r for r in res if not r.passed and r.severity.value == "warning"]
+        assert errores == {"palabras_clave_minimo", "caratula_titulo_negrita_mixta"}
+        assert len(warnings) == 6, [r.rule_id for r in warnings]
         assert build_report(res)["semaforo"] == "rojo"
 
 
