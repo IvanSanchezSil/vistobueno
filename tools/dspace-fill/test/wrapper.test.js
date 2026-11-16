@@ -47,6 +47,12 @@ function montarItem({ envio, respuestas, tituloItem }) {
 		if (Array.isArray(configuracion)) {
 			configuracion = configuracion.length > 1 ? configuracion.shift() : configuracion[0];
 		}
+		if (configuracion.error) {
+			if (opciones.onerror) {
+				opciones.onerror({ error: "network-error" });
+			}
+			return;
+		}
 		if (opciones.onload) {
 			opciones.onload({
 				status: configuracion.status,
@@ -92,6 +98,21 @@ test("un ítem con otro título no se reporta", async () => {
 		!peticiones.some((p) => p.metodo === "POST" && p.ruta === "/deposito"),
 		"el userscript reportó un ítem con título distinto"
 	);
+});
+
+test("un envío sin título esperado no se reporta", async () => {
+	const { ventana, peticiones } = montarItem({
+		envio: { tramite_id: "tramite-1", titulo: null, timestamp: "2026-11-12T10:00:00" },
+		respuestas: { "POST /deposito": { status: 204, body: "" } },
+	});
+	await dormir(50);
+
+	assert.ok(
+		!peticiones.some((p) => p.metodo === "POST" && p.ruta === "/deposito"),
+		"el userscript reportó un envío sin título esperado"
+	);
+	const toast = ventana.document.getElementById("vb-toast");
+	assert.ok(toast && /título/.test(toast.textContent), "no avisó que falta el título esperado");
 });
 
 test("sin clic en Depositar no se inventa una hora", async () => {
@@ -165,5 +186,68 @@ test("el reintento es acotado: tras tres fallos no sigue insistiendo", async () 
 	const reportes = peticiones.filter((p) => p.metodo === "POST" && p.ruta === "/deposito");
 	assert.strictEqual(reportes.length, 3, "el reintento no se detuvo tras tres intentos");
 	// El envío sigue en el almacenamiento: una recarga puede reintentarlo.
+	assert.notStrictEqual(ventana.localStorage.getItem("vb:vb_envio"), "null");
+});
+
+test("un fallo de red reintenta con el mismo payload", async () => {
+	const { ventana, peticiones } = montarItem({
+		envio: { tramite_id: "tramite-1", titulo: TITULO_FICHA, timestamp: "2026-11-12T10:00:00" },
+		respuestas: {
+			"POST /deposito": [
+				{ error: true },
+				{ status: 204, body: "" },
+			],
+		},
+	});
+	await dormir(1400);
+
+	const reportes = peticiones.filter((p) => p.metodo === "POST" && p.ruta === "/deposito");
+	assert.strictEqual(reportes.length, 2, "el wrapper no reintentó tras el fallo de red");
+	assert.deepStrictEqual(reportes[0].cuerpo, reportes[1].cuerpo);
+	assert.strictEqual(reportes[0].cuerpo.tramite_id, "tramite-1");
+	assert.strictEqual(ventana.localStorage.getItem("vb:vb_envio"), "null");
+});
+
+test("el reintento conserva el trámite aunque el almacenamiento cambie", async () => {
+	const { ventana, peticiones } = montarItem({
+		envio: { tramite_id: "tramite-1", titulo: TITULO_FICHA, timestamp: "2026-11-12T10:00:00" },
+		respuestas: {
+			"POST /deposito": [
+				{ error: true },
+				{ status: 204, body: "" },
+			],
+		},
+	});
+	await dormir(50);
+	ventana.localStorage.setItem(
+		"vb:vb_envio",
+		JSON.stringify({
+			tramite_id: "tramite-2",
+			titulo: "Tesis posterior",
+			timestamp: "2026-11-12T11:00:00",
+		})
+	);
+	await dormir(1400);
+
+	const reportes = peticiones.filter((p) => p.metodo === "POST" && p.ruta === "/deposito");
+	assert.strictEqual(reportes.length, 2);
+	assert.strictEqual(reportes[0].cuerpo.tramite_id, "tramite-1");
+	assert.strictEqual(reportes[1].cuerpo.tramite_id, "tramite-1");
+	assert.strictEqual(reportes[1].cuerpo.timestamp, "2026-11-12T10:00:00");
+	// El envío nuevo no se borra cuando termina el reporte anterior.
+	const envioActual = JSON.parse(ventana.localStorage.getItem("vb:vb_envio"));
+	assert.strictEqual(envioActual.tramite_id, "tramite-2");
+});
+
+test("un fallo de red repetido se detiene tras tres intentos", async () => {
+	const { ventana, peticiones } = montarItem({
+		envio: { tramite_id: "tramite-1", titulo: TITULO_FICHA, timestamp: "2026-11-12T10:00:00" },
+		respuestas: { "POST /deposito": { error: true } },
+	});
+	await dormir(4000);
+
+	const reportes = peticiones.filter((p) => p.metodo === "POST" && p.ruta === "/deposito");
+	assert.strictEqual(reportes.length, 3, "el fallo de red no se detuvo tras tres intentos");
+	assert.ok(reportes.every((p) => p.cuerpo.tramite_id === "tramite-1"));
 	assert.notStrictEqual(ventana.localStorage.getItem("vb:vb_envio"), "null");
 });

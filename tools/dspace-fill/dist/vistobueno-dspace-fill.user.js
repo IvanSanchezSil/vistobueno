@@ -503,12 +503,16 @@ if (typeof module !== "undefined" && module.exports) {
 	const BASE = esShim ? "/api-proxy" : "http://localhost:8000";
 	const CLAVE_ENVIO = "vb_envio";
 
-	function pedir(ruta, metodo, cuerpo, alResponder) {
+	function pedir(ruta, metodo, cuerpo, alResponder, alFallar) {
 		const opciones = {
 			method: metodo,
 			url: BASE + ruta,
 			onload: alResponder,
-			onerror: function () {
+			onerror: function (error) {
+				if (alFallar) {
+					alFallar(error);
+					return;
+				}
 				mostrarToast("VistoBueno no responde en " + BASE + " — ¿está corriendo la app?");
 			},
 		};
@@ -545,12 +549,86 @@ if (typeof module !== "undefined" && module.exports) {
 		return (VBMapeador.valorExtraido(sobre.ficha, "dc.title") || "").trim();
 	}
 
-	function reportarDeposito(handle, intento) {
+	function _limpiarEnvioSiPertenece(tramiteId) {
+		const actual = GM_getValue(CLAVE_ENVIO, null);
+		if (actual && actual.tramite_id === tramiteId) {
+			GM_setValue(CLAVE_ENVIO, null);
+		}
+	}
+
+	function _reintentarReporte(payload, intento, motivo) {
+		if (intento < 2) {
+			// Fallo temporal: hasta tres intentos con espera breve. El
+			// payload y su trámite no se releen: el reintento pertenece al
+			// mismo depósito aunque el almacenamiento cambie mientras tanto.
+			setTimeout(function () {
+				_reportarDeposito(payload, intento + 1);
+			}, 1000 * (intento + 1));
+			return;
+		}
+		mostrarToast(motivo);
+		// Libera el handle para un reintento posterior, con enfriamiento:
+		// el propio toast muta el DOM y dispararía el observador otra vez
+		// (bucle de reintentos). El envío sigue guardado para una recarga.
+		visto.handle = null;
+		visto.reintentoNoAntes = Date.now() + 30000;
+	}
+
+	function _reportarDeposito(payload, intento) {
+		pedir(
+			"/deposito",
+			"POST",
+			payload,
+			function (respuesta) {
+				if (respuesta.status === 204 || respuesta.status === 200) {
+					_limpiarEnvioSiPertenece(payload.tramite_id);
+					visto.reintentoNoAntes = 0;
+					mostrarToast("Handle enviado a VistoBueno ✓ (" + payload.handle + ")");
+					return;
+				}
+				if (respuesta.status === 404 || respuesta.status === 409) {
+					// El trámite ya no está vigente: reintentar no ayudaría.
+					_limpiarEnvioSiPertenece(payload.tramite_id);
+					mostrarToast(
+						"La ficha de este depósito ya no está vigente (HTTP " +
+							respuesta.status +
+							"); vuelve a prepararla."
+					);
+					return;
+				}
+				_reintentarReporte(
+					payload,
+					intento,
+					"No se pudo reportar el handle a VistoBueno (HTTP " +
+						respuesta.status +
+						"). Se reintentará al cambiar la página."
+				);
+			},
+			function () {
+				_reintentarReporte(
+					payload,
+					intento,
+					"No se pudo contactar con VistoBueno para reportar el handle. Se reintentará al cambiar la página."
+				);
+			}
+		);
+	}
+
+	function reportarDeposito(handle) {
 		const envio = GM_getValue(CLAVE_ENVIO, null);
 		if (!envio) return;
-		if (!envio.tramite_id) {
+		const tramiteId = String(envio.tramite_id || "").trim();
+		if (!tramiteId) {
 			mostrarToast(
 				"El envío en curso no tiene trámite: vuelve a preparar la ficha en VistoBueno."
+			);
+			return;
+		}
+		const tituloEsperado =
+			typeof envio.titulo === "string" ? envio.titulo.trim() : "";
+		if (!tituloEsperado) {
+			mostrarToast(
+				"El envío en curso no tiene el título esperado: vuelve a preparar la ficha en VistoBueno."
 			);
 			return;
 		}
@@ -561,7 +639,7 @@ if (typeof module !== "undefined" && module.exports) {
 			mostrarToast("La página del ítem no declara su título; no se reportó a VistoBueno.");
 			return;
 		}
-		if (envio.titulo && !VBCompuertas.titulosCoinciden(envio.titulo, tituloItem)) {
+		if (!VBCompuertas.titulosCoinciden(tituloEsperado, tituloItem)) {
 			mostrarToast(
 				"El ítem abierto no coincide con la tesis preparada; no se reportó a VistoBueno."
 			);
@@ -569,58 +647,20 @@ if (typeof module !== "undefined" && module.exports) {
 		}
 		// Sin el clic en "Depositar" no hay hora del depósito: no se
 		// inventa una al abrir la página del ítem.
-		if (!envio.timestamp) {
+		const timestamp = String(envio.timestamp || "").trim();
+		if (!timestamp) {
 			mostrarToast(
 				"No se registró el clic en Depositar; el handle no se reportó a VistoBueno."
 			);
 			return;
 		}
-		pedir(
-			"/deposito",
-			"POST",
-			{
-				tramite_id: envio.tramite_id,
-				handle: handle,
-				titulo_observado: tituloItem,
-				timestamp: envio.timestamp,
-			},
-			function (respuesta) {
-				if (respuesta.status === 204 || respuesta.status === 200) {
-					GM_setValue(CLAVE_ENVIO, null);
-					visto.reintentoNoAntes = 0;
-					mostrarToast("Handle enviado a VistoBueno ✓ (" + handle + ")");
-					return;
-				}
-				if (respuesta.status === 404 || respuesta.status === 409) {
-					// El trámite ya no está vigente: reintentar no ayudaría.
-					GM_setValue(CLAVE_ENVIO, null);
-					mostrarToast(
-						"La ficha de este depósito ya no está vigente (HTTP " +
-							respuesta.status +
-							"); vuelve a prepararla."
-					);
-					return;
-				}
-				const intentoActual = intento || 0;
-				if (intentoActual < 2) {
-					// Fallo temporal: hasta tres intentos con espera breve.
-					setTimeout(function () {
-						reportarDeposito(handle, intentoActual + 1);
-					}, 1000 * (intentoActual + 1));
-					return;
-				}
-				mostrarToast(
-					"No se pudo reportar el handle a VistoBueno (HTTP " +
-						respuesta.status +
-						"). Se reintentará al cambiar la página."
-				);
-				// Libera el handle para un reintento posterior, con
-				// enfriamiento: el propio toast muta el DOM y dispararía
-				// el observador otra vez (bucle de reintentos).
-				visto.handle = null;
-				visto.reintentoNoAntes = Date.now() + 30000;
-			}
-		);
+		const payload = Object.freeze({
+			tramite_id: tramiteId,
+			handle: handle,
+			titulo_observado: tituloItem,
+			timestamp: timestamp,
+		});
+		_reportarDeposito(payload, 0);
 	}
 
 	// --- UI mínima: toast y botón flotante ---
