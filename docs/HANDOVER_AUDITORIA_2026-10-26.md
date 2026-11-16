@@ -317,7 +317,7 @@ oficiales.
 | # | Tema | Decisión | Consecuencia |
 |---|------|----------|--------------|
 | 1 | Sangría (`sangria_parrafo`) | Se mantiene la regla literal. **No** se eximen estilos de cita en bloque. | Nota `EVALUADO` en el YAML. Las citas en bloque usan `w:left` sin `firstLine`, así que la comparación ya las ignora. Sin cambio de código. |
-| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | **Implementado en M6 (`8fe6f8e`)**: cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`; el título real se reconoce y su ausencia se informa. Sigue siendo `warning`. |
+| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | **Implementado en M6 (`c2eb680`)**: cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`; el título real se reconoce y su ausencia se informa. Sigue siendo `warning`. |
 | 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. **Implementado en el PR #73**: XPath del bloque de autores (todos los runs con texto, desde «AUTORES:» hasta antes de «ASESOR(A):», con las líneas ORCID) y comparación `all_eq`. |
 | 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | **Implementado en el PR #73** (con AUD-01 ya estable): el match por subcadena se sustituye por igualdad del título normalizado; `_sigpalabra` solo se usa para títulos de <4 caracteres. |
 | 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | El manual exige 13 pt en la línea «para optar» (párr. 1056 y 1076), pero la tesis aprobada de la auditoría y las 5 plantillas oficiales usan 12 pt. Se sigue el manual: el XPath queda amplio (`para optar`, sin acotar a «Bachiller») y el desvío se reporta como **warning**, sin cambiar el semáforo. | Se cierra AUD-07 en el PR #73. `n_a_si_sin_nodos` solo cubre los documentos que no tienen esa línea. El desvío de la tesis/plantillas se documenta en la nota `EVALUADO` de AUD-04. |
@@ -572,7 +572,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-11 | Int3 + Int1 | M1a corregido (PR 12.2, `3d3e24c`); B5 pendiente | M1a + B5: documento inválido |
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | corregido (PR #75, `b060566` + `6602c90` + `a7bdc54`); el diff queda limitado a la ficha y se mergeará tras #102 | M0: PR #75, AUD-24 a AUD-27 |
-| VA-14 | Int3 | M6 corregido (`8fe6f8e`): ítem 5 «Base de datos»; título real reconocido y ausencia informada | M6: «Base de datos» |
+| VA-14 | Int3 | M6 corregido (`c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada | M6: «Base de datos» |
 | VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |
 | VA-17 | Int1 + Int3 | M11 corregido (PR 12.1, `85690c5`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |

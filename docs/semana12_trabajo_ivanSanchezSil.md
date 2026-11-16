@@ -227,7 +227,7 @@ imagen requiere revisión manual) y que la comparación por subcadena hace que
 reconocido y ausencia informada); ruff, ruff format, mypy y linter limpios;
 ejemplos regenerados con el valor esperado nuevo.
 
-**Entrega:** commit `8fe6f8e`, rama `semana12-m6-anexo-base-datos`, PR apilado
+**Entrega:** commit `c2eb680`, rama `semana12-m6-anexo-base-datos`, PR apilado
 sobre #104.
 
 ---
