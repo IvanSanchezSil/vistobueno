@@ -578,14 +578,17 @@ pegar, sin sesiones: **una ranura en memoria del proceso, TTL de 1 hora,
 
 | Endpoint | Método | Quién llama | Qué hace |
 |----------|--------|-------------|----------|
-| `/ficha-pendiente` | `POST` (204) | la SPA | Publica la ficha completada (reemplaza la anterior) |
-| `/ficha-pendiente` | `GET` → `FichaDeposito` | el userscript | Lee la ficha a rellenar; `404` si vacía o expirada |
-| `/deposito` | `POST` (204) | el userscript | Reporta `{handle, titulo, timestamp}` del ítem archivado |
+| `/ficha-pendiente` | `POST` (201) | la SPA | Publica la ficha completada y devuelve `{tramite_id, vence_en}`; reemplaza la anterior |
+| `/ficha-pendiente` | `GET` → `{ficha, tramite_id, vence_en}` | el userscript | Lee la ficha a rellenar y su identidad; `404` si vacía o expirada |
+| `/deposito` | `POST` (204) | el userscript | Reporta `{tramite_id, handle, titulo_observado, timestamp}` del ítem archivado |
 | `/deposito` | `GET` → `DepositoRecibido` | la SPA | Sondea el reporte; `404` si vacío o expirado |
 
+- `FichaPendientePublicada.tramite_id`: identifica una publicación
+  concreta. `vence_en` indica cuándo expira.
 - `DepositoRecibido.handle`: URI del ítem (`https://hdl.handle.net/…`).
-- `DepositoRecibido.titulo`: la SPA lo **coteja con la ficha en vuelo**
-  antes de usar el handle (defensa contra un handle ajeno).
+- `DepositoRecibido.titulo_observado`: la SPA lo **coteja por igualdad
+  normalizada** con la ficha en vuelo antes de usar el handle. La
+  coincidencia por inclusión no identifica una tesis.
 - `DepositoRecibido.timestamp`: momento del clic en "Depositar"
   capturado por el userscript (ISO 8601, hora de pared del Perú);
   alimenta la columna HORA del registro y la constancia. Un timestamp
@@ -690,13 +693,18 @@ API se expone fuera de la máquina, el límite real va en el reverse proxy
 ## Constancia de depósito (Semana 8, v1.7.0)
 
 Los dos endpoints que producen el papeleo del registro a partir de la
-ficha completada y del reporte del buzón. Entrada común
-(`FilaRegistroRequest`): la `ficha` (extraídos corregidos + manuales
-llenos), el `handle` del ítem y el `timestamp` del clic en Depositar
-(ISO 8601; alimenta DD/MM/AA, HORA, AÑO y la fecha del documento). El
-timestamp se normaliza a `America/Lima`: sin offset se interpreta como
-hora peruana, con offset se convierte. Así el papeleo no cambia según la
-zona horaria del navegador o del servidor (AUD-32).
+ficha publicada y del reporte del buzón. Entrada común
+(`FilaRegistroRequest`): `ficha` (extraídos corregidos + manuales
+llenos), `tramite_id`, `handle` y `timestamp` (ISO 8601; alimenta
+DD/MM/AA, HORA, AÑO y la fecha del documento).
+
+La API compara los cuatro campos con una instantánea atómica del buzón.
+Si el trámite, la ficha, el handle o el timestamp no coinciden, responde
+`409`. El papeleo se genera con la ficha publicada y el depósito vigente
+del servidor; el cliente no puede sustituirlos. El timestamp canónico se
+normaliza a `America/Lima`: sin offset se interpreta como hora peruana,
+con offset se convierte. Así el papeleo no cambia según la zona horaria
+del navegador o del servidor (AUD-32).
 
 **Convención por autor** (evidencia del registro oficial): una fila y
 una constancia POR ESTUDIANTE. `matricula` y `renati.author.dni`
@@ -715,8 +723,10 @@ dos autores generan dos constancias y dos filas con el mismo handle.
   incluirlo"): un paquete por autor con la constancia .docx y SU fila
   del registro como `registro.csv` (BOM UTF-8, separador `;`). Una
   descarga = todo el papeleo del estudiante.
-- 422: timestamp inválido, falta un dato de la ficha (título, autores,
-  matrículas alineadas) o `indice_autor` fuera de rango.
+- 409: no hay depósito vigente o alguno de `tramite_id`, `ficha`,
+  `handle` o `timestamp` no coincide con el estado canónico.
+- 422: timestamp canónico inválido, falta un dato de la ficha (título,
+  autores, matrículas alineadas) o `indice_autor` fuera de rango.
 - 500: configuración del servidor — `VISTOBUENO_FIRMA` (columna FIRMA)
   o plantilla ausente; el `detail` nombra exactamente qué falta.
 
@@ -735,6 +745,10 @@ dos autores generan dos constancias y dos filas con el mismo handle.
     y citas RFC 4180 para los campos que contienen `;`.
   - `xlsx`: libro de una hoja con la fila de encabezado
     (`COLUMNAS_REGISTRO`, 13 columnas).
+- 409: no hay depósito vigente o alguno de `tramite_id`, `ficha`,
+  `handle` o `timestamp` no coincide con el estado canónico.
+- 422: el timestamp canónico no es ISO 8601 o la ficha no tiene los
+  datos obligatorios.
 - La columna N° va vacía: la numeración pertenece al registro de la
   biblioteca. DD y MM llevan barra final ("20/", "01/") y HORA va en
   24 h, igual que las celdas existentes.
@@ -743,7 +757,7 @@ dos autores generan dos constancias y dos filas con el mismo handle.
 
 ## Changelog
 
-### v1.13.0 (2026-11-12 — trámite del depósito y título observado)
+### v1.13.0 (2026-11-16 — trámite del depósito, estado canónico y título observado)
 
 - **Nuevo trámite `tramite_id` en el buzón de ficha y depósito** (v1.13.0):
   `POST /ficha-pendiente` ahora responde `201` con
@@ -758,13 +772,24 @@ dos autores generan dos constancias y dos filas con el mismo handle.
   y no se reporta. El antiguo `{handle, titulo, timestamp}` responde
   `422` (cierre de contrato v1.12.0).
 - **Nuevos códigos para papeleo**: `POST /constancia` y
-  `POST /fila-registro` exigen el depósito vigente. Sin depósito o con
-  trámite/ajuste ajeno devuelven `409`.
+  `POST /fila-registro` exigen el depósito vigente. Sin depósito o si
+  `tramite_id`, `ficha`, `handle` o `timestamp` no coinciden con el estado
+  canónico devuelven `409`.
+- **Papeleo con estado canónico**: la API lee la ficha publicada y el
+  depósito vigente en una instantánea atómica. Genera la constancia y la
+  fila con esos valores; no usa los campos equivalentes del cliente.
+- **SPA integrada con la identidad del trámite**: guarda el
+  `tramite_id` y `vence_en` devueltos al publicar. Ignora depósitos de
+  otro trámite, no habilita papeleo vencido o sin timestamp válido y
+  limpia el handle y las filas al preparar un trámite nuevo.
 - **Título observado**: `DepositoRecibido.titulo_observado` es el valor
   leído del ítem. El alias `titulo` se conserva una versión como
   deprecado; el input nuevo nunca acepta `titulo`.
 - **Límite de papeleo**: `POST /deposito` responde `404` si no hay ficha
   vigente y `409` si el trámite no coincide.
+- **Reporte del userscript fail-closed**: sin título esperado no reporta
+  el handle. Los reintentos de red usan el mismo payload congelado y el
+  mismo `tramite_id`, con un máximo de tres intentos.
 
 ### v1.12.0 (2026-10-30 — hora de Perú en el papeleo)
 

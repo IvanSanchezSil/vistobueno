@@ -1542,18 +1542,21 @@ def _nombre_archivo_constancia(datos: DatosConstancia) -> str:
     summary="Descargar la constancia de UN autor (Modelo B lleno, o paquete zip)",
     description=(
         "Genera la constancia de depósito del Modelo B con los MERGEFIELD "
-        "reemplazados por los valores de la ficha. Una constancia POR "
-        "AUTOR: la SPA descarga una por cada estudiante iterando "
-        "`indice_autor`. Devuelve el .docx como descarga binaria. Con "
-        "`formato=zip` devuelve en su lugar un paquete con la constancia "
+        "reemplazados por los valores canónicos de la ficha publicada. Una "
+        "constancia POR AUTOR: la SPA descarga una por cada estudiante "
+        "iterando `indice_autor`. Devuelve el .docx como descarga binaria. "
+        "Con `formato=zip` devuelve en su lugar un paquete con la constancia "
         ".docx y la fila del registro del autor como .csv (hallazgo 11: "
         '"POST /constancia podría incluirlo").'
     ),
     responses={
         200: {"description": "Constancia .docx (o paquete .zip con formato=zip)"},
         403: {"description": "Petición desde otro equipo o sin token válido"},
+        409: {
+            "description": "El trámite, la ficha, el handle o el timestamp no coinciden con el depósito vigente"
+        },
         422: {
-            "description": "Timestamp inválido, falta un dato de la ficha o índice fuera de rango"
+            "description": "Timestamp canónico inválido, falta un dato de la ficha o índice fuera de rango"
         },
         429: {"description": "Demasiadas generaciones de documentos seguidas"},
         500: {"description": "Firma o plantilla sin configurar en el servidor"},
@@ -1622,16 +1625,22 @@ async def descargar_constancia(
     description=(
         "Devuelve las filas listas para pegar en el registro oficial de la "
         "biblioteca (XLSX): una por autor, en el orden exacto de columnas. "
-        "La app JAMÁS escribe el registro oficial: el operador pega la fila. "
-        "Con `formato` en `tsv`, `csv` o `xlsx` devuelve en su lugar un "
-        "ARCHIVO descargable listo para abrir en Excel/LibreOffice "
-        "(hallazgo 11 de la revisión del PR #55): elimina los errores de "
-        "pegado (encoding, tabs perdidos, columnas desalineadas)."
+        "Usa la ficha publicada y el depósito vigente del servidor. La app "
+        "JAMÁS escribe el registro oficial: el operador pega la fila. Con "
+        "`formato` en `tsv`, `csv` o `xlsx` devuelve en su lugar un ARCHIVO "
+        "descargable listo para abrir en Excel/LibreOffice (hallazgo 11 de "
+        "la revisión del PR #55): elimina los errores de pegado (encoding, "
+        "tabs perdidos, columnas desalineadas)."
     ),
     responses={
         200: {"description": "Lista de filas TSV (json) o archivo descargable (tsv/csv/xlsx)"},
         403: {"description": "Petición desde otro equipo o sin token válido"},
-        422: {"description": "Timestamp inválido, falta un dato de la ficha o formato desconocido"},
+        409: {
+            "description": "El trámite, la ficha, el handle o el timestamp no coinciden con el depósito vigente"
+        },
+        422: {
+            "description": "Timestamp canónico inválido, falta un dato de la ficha o formato desconocido"
+        },
         429: {"description": "Demasiadas generaciones de documentos seguidas"},
         500: {"description": "Firma sin configurar en el servidor"},
     },

@@ -243,9 +243,9 @@ pytest tests/ --cov=validator --cov-report=term-missing
 nix flake check
 ```
 
-La suite (**755 tests recolectados: 749 pasan y 6 xfail estrictos** con
-`recursos/` y `frontend/dist`; en un clon limpio, 745 pasan, 4 se omiten y 6
-quedan en xfail) incluye los **tests de propiedad** (F6): un factory
+La suite actual (**854 tests recolectados: 845 pasan, 3 se omiten y 6
+quedan en xfail estrictos** en la verificación local) incluye los **tests
+de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en
 `tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
 este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)
@@ -493,20 +493,24 @@ operador presente). El kit del piloto está en `docs/PILOTO_OPERADOR.md`.
 1. Validar el DOCX: con semáforo verde, la respuesta trae la ficha
    (`ficha_deposito`) con los valores detectados.
 2. El operador revisa la ficha, completa los manuales (matrícula, DNIs,
-   ORCID) y la publica al buzón (`POST /ficha-pendiente`; la UI de este
-   paso llega con el slice del frontend).
+   ORCID) y la publica al buzón (`POST /ficha-pendiente`). La API
+   devuelve `tramite_id` y `vence_en`; la SPA conserva ambos para
+   distinguir el trámite en vuelo.
 3. En DSpace, el userscript pre-llena el formulario (toast con el
    resumen: lleno / a mano / sin dato) y corrige el nivel de acceso
    ("Acceso abierto").
 4. El operador arrastra el .docx, marca "Confirmo la licencia" y pulsa
    Depositar; el clic queda registrado como timestamp (hora de Perú).
 5. Al abrir el ítem, el userscript reporta el handle al buzón
-   (`POST /deposito`).
-6. Con la ficha + handle + timestamp: `POST /fila-registro` (filas TSV
-   para pegar en el XLSX oficial — la app JAMÁS escribe el registro) y
-   `POST /constancia` (una descarga por autor). Con `?formato=tsv |
-   csv | xlsx`, `/fila-registro` devuelve el archivo descargable
-   directo.
+   (`POST /deposito`) con el `tramite_id`, el título observado y el
+   timestamp del clic.
+6. Con `tramite_id` + ficha + handle + timestamp:
+   `POST /fila-registro` (filas TSV para pegar en el XLSX oficial — la
+   app JAMÁS escribe el registro) y `POST /constancia` (una descarga por
+   autor). La API comprueba que esos datos coincidan con la ficha
+   publicada y el depósito vigente; el papeleo usa esos valores
+   canónicos. Con `?formato=tsv | csv | xlsx`, `/fila-registro` devuelve
+   el archivo descargable directo.
 
 Nota de seguridad operativa: los `.har` exportados del navegador traen
 cookies, tokens y cuerpos POST completos (incluso con el export

@@ -313,16 +313,17 @@ class DepositoRecibido(DepositoReportado):
 class FilaRegistroRequest(BaseModel):
     """Solicitud de la fila de registro (v1.7.0; trámite desde v1.13.0).
 
-    La SPA la envía cuando el buzón reporta el depósito (handle +
-    timestamp del clic en Depositar). El `tramite_id` debe ser el de la
-    ficha vigente: la API rechaza el papeleo de un trámite anterior. El
-    timestamp alimenta DD/MM/AA, HORA, AÑO y la fecha del documento,
-    igual que en el registro oficial de la biblioteca.
+    La SPA la envía cuando el buzón reporta el depósito. La API compara
+    `ficha`, `tramite_id`, `handle` y `timestamp` con el estado canónico
+    del servidor. Si algo no coincide, responde 409. El papeleo se genera
+    con la ficha publicada y el depósito vigente, no con los valores del
+    cliente. El timestamp alimenta DD/MM/AA, HORA, AÑO y la fecha del
+    documento, igual que en el registro oficial de la biblioteca.
     """
 
     ficha: FichaDeposito = Field(
         ...,
-        description="La ficha completada por el operador (extraídos corregidos + manuales llenos)",
+        description="La ficha completada por el operador; debe coincidir con la ficha publicada",
     )
     tramite_id: str = Field(
         ..., min_length=1, description="Trámite de la ficha que produjo este depósito"

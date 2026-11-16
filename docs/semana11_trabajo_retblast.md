@@ -2,7 +2,7 @@
 
 - **Integrante**: retblast (Integrante 1 — Backend / API)
 - **Semana**: 11
-- **Fechas**: 2026-11-08 → 2026-11-14 (semana en curso)
+- **Fechas**: 2026-11-08 → 2026-11-16 (semana en curso)
 - **Rol**: Backend / API (FastAPI, contrato de la API, despliegue en la
   máquina del operador, documentación de instalación y verificación)
 - **Ramas**: `docs/instalacion-windows-11` (PR #87),
@@ -139,6 +139,40 @@ La revisión de los tres PRs mergeados encontró dos problemas:
   userscript instalado anterior falla cerrado: sin `tramite_id` no
   reporta el handle.
 
+### 2026-11-16 — Revisión de B2 y cierre de la integración (PR #95)
+
+La revisión del PR #95 detectó tres límites que el contrato v1.13.0 todavía
+no cubría:
+
+1. **El papeleo confiaba en la ficha del cliente**. La API comprobaba el
+   `tramite_id` y el `handle`, pero renderizaba los valores enviados en la
+   solicitud. Ahora toma una instantánea atómica de la ficha publicada y del
+   depósito vigente. Compara también la ficha, el handle y el timestamp de
+   la solicitud. Una diferencia devuelve `409`. El buzón copia los datos
+   anidados para que una mutación de la solicitud no altere el estado
+   canónico.
+2. **El userscript podía reportar sin título esperado y releía el envío en
+   cada reintento**. Ahora falla cerrado si falta el título. Congela el
+   payload del reporte, conserva el mismo `tramite_id` y limita los fallos
+   de red a tres intentos.
+3. **La SPA no consumía la identidad del trámite**. Ahora conserva
+   `tramite_id` y `vence_en`, ignora depósitos de otro trámite, rechaza
+   trámites vencidos o sin timestamp válido, limpia el estado anterior al
+   preparar una ficha nueva y usa igualdad normalizada para cotejar el
+   título. Las solicitudes de constancia y registro incluyen el
+   `tramite_id`.
+
+También se sincronizaron el README, el contrato de API, el flujo, el kit
+del operador, el handover del frontend y la especificación OpenAPI.
+
+**Verificación**: 845 tests pasan, 3 se omiten y 6 quedan en `xfail`
+estrictos. `ruff check`, `ruff format --check`, `mypy` y la comprobación de
+OpenAPI pasan. Los 46 tests del userscript, los 84 tests del frontend, el
+lint y el build de producción pasan. `nix run .#test-ficha-deposito` termina
+con «FLUJO COMPLETO OK»; el paso de constancia oficial se omite porque el
+worktree no incluye `recursos/TESIS DIGITAL MODELO B-2026.docx`.
+`nix flake check` termina con «all checks passed».
+
 ### 2026-11-12 — B1: medición local y bloqueo declarado
 
 La latencia de 17.99 s de la auditoría no se reproduce en este equipo: la
@@ -166,19 +200,22 @@ validaciones consecutivas sin limpiar el limitador.
 | Kit del operador actualizado | `docs/PILOTO_OPERADOR.md` |
 | Contrato v1.13.0 del buzón | `docs/CONTRATO_API.md`, `docs/FLUJO_API.md`, `docs/openapi_spec.json` |
 | Identidad de trámite del buzón | `validator/buzon.py`, `validator/api_models.py`, `validator/api.py` |
+| Instantánea canónica del papeleo | `validator/buzon.py`, `validator/api.py`, `tests/test_api_buzon.py`, `tests/test_constancia.py` |
 | Userscript con trámite y título observado | `tools/dspace-fill/src/wrapper.js`, `tools/dspace-fill/src/compuertas.js` |
-| Pruebas del buzón y del wrapper | `tests/test_api_buzon.py`, `tests/test_constancia.py`, `tools/dspace-fill/test/wrapper.test.js` |
+| Integración de la SPA con la identidad del trámite | `frontend/src/ficha.js`, `frontend/src/components/FichaDeposito.jsx` |
+| Pruebas del buzón, del wrapper y del frontend | `tests/test_api_buzon.py`, `tests/test_constancia.py`, `tools/dspace-fill/test/wrapper.test.js`, `frontend/src/ficha.test.js`, `frontend/src/components/FichaDeposito.test.jsx` |
 | Registro de ejecución de la auditoría | `docs/HANDOVER_CORRECTITUD_2026-11-12.md` §2.1 |
 | Bitácora | este archivo |
 
 - Commits de la semana: `1f94571` (guía de instalación), `a548e41`
   (redacción), `7f4f683` (acceso directo), `38868b9` (B7) y `d9b7e1d`
-  (B2), más los commits de documentación.
-- Suite actual: **837 tests**. Con `recursos/` y `frontend/dist`: **837
-  pasan, 4 se omiten y 6 quedan como `xfail(strict=True)`** (los criterios
-  de aceptación de AUD-24 a AUD-27 del motor, que el PR #75 de Int3
-  retira). En un clon limpio se omiten 4, porque `recursos/` y el build
-  del frontend no están versionados. Cobertura: **93.60 %**.
+  (B2), más los commits de documentación. La revisión final de B2 quedó
+  en `ee73a5e` (límite canónico del papeleo), `78d0b00` (reporte fail-closed
+  del userscript) y `46efcc5` (identidad del trámite en la SPA).
+- Suite actual: **854 tests**. En la verificación local, **845 pasan, 3 se
+  omiten y 6 quedan como `xfail(strict=True)`** (los criterios de aceptación
+  de AUD-24 a AUD-27 del motor). Los tests omitidos dependen de recursos
+  locales que no están versionados.
 - Verificación del flujo de Windows: el `.bat` y el `.ps1` se revisaron y
   se fijó el fin de línea CRLF, pero el flujo no se ejecutó en un Windows
   real desde este entorno. Queda pendiente probarlo en la máquina del
