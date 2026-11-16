@@ -87,7 +87,7 @@ producen contradicción; repetir el mismo tipo no cambia la decisión.
 **Aceptación:** cuantitativo + cualitativo marcados no dan verde; invertir el
 orden conserva el resultado; comprobar casillas en párrafos, tablas y controles.
 
-- **Estado 2026-11-14:** corregido en `23a1314`. `_tipo_declarado` devuelve
+- **Estado 2026-11-14:** corregido en `5fb2344`. `_tipo_declarado` devuelve
   todas las declaraciones; dos tipos distintos publican `TIPO_CONTRADICTORIO`
   y el centinela `tipo_documento_contradictorio`, y repetir el mismo tipo no
   cambia la decisión. Evidencia: `924 passed, 4 skipped`; ruff, ruff format,
