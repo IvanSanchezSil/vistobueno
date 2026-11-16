@@ -161,6 +161,54 @@ def test_estilo_de_parrafo_incorrecto_falla():
     assert "left" in alineacion.found, alineacion.found
 
 
+# ---------------------------------------------------------------------------
+# Alcance de la alineación: solo prosa (revisión PR #100)
+# ---------------------------------------------------------------------------
+
+
+def test_alineacion_cuerpo_ignora_listas_captions_y_leyendas():
+    """El manual no justifica listas, títulos de tabla ni leyendas.
+
+    Esos párrafos no declaran `w:jc`; si el contexto los incluyera, la
+    propiedad `(ausente)` los contaría como incumplimiento y pondría en
+    rojo la tesis aprobada (revisión PR #100).
+    """
+    cfg = configuracion_base()
+    cfg["styles"] = _estilos(
+        {
+            "ListaUN": {"type": "paragraph", "name": "List Paragraph"},
+            "DescripcionUN": {"type": "paragraph", "name": "caption"},
+        }
+    )
+    cfg["cuerpo_parrafos_extra"] = [
+        {"texto": "Ítem de lista por estilo.", "estilo": "ListaUN"},
+        {
+            "texto": "Ítem de lista por numeración.",
+            "ppr": '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>',
+        },
+        {"texto": "Tabla 1. Resultados del estudio.", "estilo": "DescripcionUN"},
+        {"texto": "---: Fuente elaborada por el autor."},
+    ]
+
+    regla = _validar(cfg, "alineacion_cuerpo")
+    assert regla is not None
+    assert regla.passed, regla.found
+
+
+def test_alineacion_cuerpo_sigue_exigiendo_justificacion_a_la_prosa():
+    """Un párrafo de prosa sin `w:jc` debe seguir fallando.
+
+    No se relaja `all_eq`: lo que cambia es el alcance, no la exigencia.
+    """
+    cfg = configuracion_base()
+    cfg["cuerpo_parrafos_extra"] = [{"texto": "Prosa sin alineación declarada."}]
+
+    regla = _validar(cfg, "alineacion_cuerpo")
+    assert regla is not None
+    assert not regla.passed
+    assert "(ausente)" in regla.found, regla.found
+
+
 def test_estilo_de_caracter_aporta_el_formato_del_run():
     """`w:rStyle` se resuelve antes que el estilo de párrafo."""
     cfg = configuracion_base()

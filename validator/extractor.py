@@ -258,6 +258,42 @@ def _cuerpo_paras(doc) -> set:
     return result
 
 
+def _cuerpo_prosa(doc, styles=None) -> set:
+    """Párrafos de prosa del cuerpo (subconjunto de `_cuerpo_paras`).
+
+    La alineación justificada del manual se exige al texto continuo, no a
+    los elementos que tienen tipografía propia. Sobre `_cuerpo_paras` se
+    excluyen además:
+
+    - ítems de lista: `w:numPr` directo o estilo cuyo `w:name` es
+      `List Paragraph` (el identificador cambia entre Word en español e
+      inglés, el nombre visible no);
+    - títulos de tabla y figura: estilo cuyo `w:name` contiene `caption`;
+    - líneas de leyenda de fórmula (`---: ...`).
+
+    Se filtra por **nombre de estilo** y no por identificador para que
+    funcione con `Descripcin`/`Caption` o `Prrafodelista`/`ListParagraph`
+    (revisión PR #100).
+    """
+    resolutor = ResolvedorFormato(styles)
+    result = set()
+    for p in _cuerpo_paras(doc):
+        pPr = p.find(W + "pPr")
+        st = pPr.find(W + "pStyle") if pPr is not None else None
+        style_id = st.get(W + "val") if st is not None else None
+        nombres = [n.lower() for n in resolutor.nombres_estilo(style_id)]
+        if pPr is not None and pPr.find(W + "numPr") is not None:
+            continue
+        if any("list paragraph" in n for n in nombres):
+            continue
+        if any("caption" in n for n in nombres):
+            continue
+        if re.match(r"^[-–—]{2,}\s*:", _texto_normalizado(p)):
+            continue
+        result.add(p)
+    return result
+
+
 def _secciones_cuerpo(doc) -> set:
     """Conjunto de `w:sectPr` que rigen el cuerpo real del documento.
 
@@ -333,6 +369,7 @@ class _Estilo:
     based_on: str | None
     rpr: etree._Element | None
     ppr: etree._Element | None
+    nombre: str | None = None
 
 
 def _qname(nombre: str) -> str:
@@ -410,11 +447,13 @@ class ResolvedorFormato:
             if not sid:
                 continue
             based = st.find(W + "basedOn")
+            nombre = st.find(W + "name")
             self._estilos[sid] = _Estilo(
                 tipo=st.get(W + "type", ""),
                 based_on=based.get(W + "val") if based is not None else None,
                 rpr=st.find(W + "rPr"),
                 ppr=st.find(W + "pPr"),
+                nombre=nombre.get(W + "val") if nombre is not None else None,
             )
             if _apagado(st.get(W + "default")) or st.get(W + "default") not in (
                 "1",
@@ -445,6 +484,20 @@ class ResolvedorFormato:
             cadena.append(estilo)
             actual = estilo.based_on
         return cadena
+
+    def nombres_estilo(self, style_id: str | None = None) -> list[str]:
+        """Nombres visibles (`w:name`) de un estilo y su cadena `basedOn`.
+
+        Sin `style_id` se parte del estilo de párrafo predeterminado. Un
+        ciclo no debe tumbar la extracción: se devuelven los nombres
+        acumulados hasta el ciclo y el analizador de formato reportará el
+        incumplimiento por su cuenta.
+        """
+        try:
+            cadena = self._cadena(style_id or self._defecto_parrafo)
+        except CicloEstilosError:
+            return []
+        return [estilo.nombre for estilo in cadena if estilo.nombre]
 
     @staticmethod
     def _leer(pr, tag: str, atributo: str | None) -> str | None:
@@ -593,6 +646,10 @@ class ExtractedDocx:
     footers: list
     footnotes: etree._Element | None
     _cuerpo: set
+    # Subconjunto de `_cuerpo` con solo prosa: sin listas, captions de tabla
+    # ni líneas de leyenda. La alineación justificada se exige solo aquí
+    # (revisión PR #100).
+    _cuerpo_prosa: set = field(default_factory=set, repr=False)
     # Párrafos de la carátula (primera sección; issue handover #3): las
     # reglas de carátula validan SOLO estos, no keywords repetidas en el cuerpo.
     _caratula: set = field(default_factory=set, repr=False)
@@ -640,6 +697,10 @@ class ExtractedDocx:
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
+
+    def is_cuerpo_prosa(self, node) -> bool:
+        """¿El nodo vive en un párrafo de prosa del cuerpo?"""
+        return _para_ancestor(node) in self._cuerpo_prosa
 
     def is_caratula(self, node) -> bool:
         """¿El nodo vive en un párrafo de la carátula (primera sección)?"""
@@ -716,6 +777,8 @@ class ExtractedDocx:
         zados/pies consulta TODAS las partes del tipo (`header*.xml`,
         `footer*.xml`) y combina los resultados. Con `contexto == "cuerpo"`
         se filtra por los párrafos del cuerpo real del documento; con
+        `contexto == "cuerpo_prosa"`, por el subconjunto de prosa de ese
+        cuerpo (sin listas, captions ni leyendas); con
         `contexto == "seccion_cuerpo"`, por las secciones que rigen ese
         cuerpo (márgenes, papel), lo que deja fuera las secciones landscape
         de anexos; con `contexto == "caratula"`, por los párrafos de la
@@ -732,6 +795,8 @@ class ExtractedDocx:
             nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
         if contexto == "cuerpo":
             nodos = [n for n in nodos if self.is_cuerpo(n)]
+        if contexto == "cuerpo_prosa":
+            nodos = [n for n in nodos if self.is_cuerpo_prosa(n)]
         if contexto == "seccion_cuerpo":
             nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
         if contexto == "caratula":
@@ -817,6 +882,7 @@ def extract(docx_path: str) -> ExtractedDocx:
         footers=footers,
         footnotes=footnotes,
         _cuerpo=_cuerpo_paras(document),
+        _cuerpo_prosa=_cuerpo_prosa(document, styles),
         _caratula=_caratula_paras(document),
         _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),

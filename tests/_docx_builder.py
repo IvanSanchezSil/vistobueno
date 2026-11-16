@@ -244,6 +244,21 @@ def _cuerpo_para(texto: str, cfg: dict) -> str:
     return f"<w:p>{ppr_xml}{_cuerpo_runs(texto, rpr, cfg)}</w:p>"
 
 
+def _cuerpo_parrafo_extra(spec: dict) -> str:
+    """Párrafo adicional del cuerpo con `pPr`/`rPr` propios (M1).
+
+    Sirve para los casos de alcance de `alineacion_cuerpo`: listas
+    (`w:numPr`), captions y leyendas, que no declaran `w:jc` y no deben
+    evaluarse como prosa.
+    """
+    ppr = ""
+    if spec.get("estilo"):
+        ppr += f'<w:pStyle w:val="{spec["estilo"]}"/>'
+    ppr += spec.get("ppr", "")
+    ppr_xml = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
+    return f"<w:p>{ppr_xml}{_run(spec['texto'], spec.get('rpr', ''))}</w:p>"
+
+
 def _track_change_para(cfg: dict) -> str:
     """Párrafo del cuerpo con cambios con seguimiento pendientes (w:ins/w:del).
 
@@ -541,6 +556,9 @@ def _document_xml(cfg: dict) -> str:
                 _cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg)
             )
             paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
+            paras.extend(
+                _cuerpo_parrafo_extra(spec) for spec in cfg.get("cuerpo_parrafos_extra", [])
+            )
             if cfg.get("cambios_seguimiento"):
                 paras.append(_track_change_para(cfg))
         if h == "INDICE DE CONTENIDOS":
@@ -691,6 +709,8 @@ def _styles_xml(cfg: dict) -> str | None:
         if spec.get("default"):
             attrs += ' w:default="1"'
         inner = ""
+        if spec.get("name"):
+            inner += f'<w:name w:val="{spec["name"]}"/>'
         if spec.get("basedOn"):
             inner += f'<w:basedOn w:val="{spec["basedOn"]}"/>'
         if spec.get("rpr") is not None:

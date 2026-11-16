@@ -348,7 +348,7 @@ reglas:
   cita: '"Alineación: Justificada"'
   formato_efectivo:
     parte: document
-    contexto: cuerpo
+    contexto: cuerpo_prosa
     sujeto: parrafo
     parrafo_xpath: //w:body//w:p
     propiedad: w:jc/@w:val

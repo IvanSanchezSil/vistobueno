@@ -101,7 +101,7 @@ Verifica atributos de nodos o su presencia vía XPath.
 ```yaml
 atributo_xml:
   parte: document | footer | header     # defecto: document
-  contexto: todos | cuerpo | seccion_cuerpo | caratula  # defecto: todos
+  contexto: todos | cuerpo | cuerpo_prosa | seccion_cuerpo | caratula  # defecto: todos
   xpath: //w:sectPr[1]/w:pgSz
   atributo: "@w:w"                      # solo para comparaciones de valor
   comparacion: eq | all_eq | contains | exists | not_exists
@@ -118,6 +118,16 @@ atributo_xml:
   Se usa p. ej. en `sangria_parrafo` (esperado 720 twips, tolerancia 12) para
   aceptar los 708/709 twips (~1.25 cm) de las plantillas oficiales. Si el
   valor o el esperado no son numéricos, se compara por igualdad exacta.
+- `contexto: cuerpo` restringe la consulta al cuerpo real (entre el heading
+  "Introducción" y el de "Referencias"/"Bibliografía"/"Anexos") y excluye
+  títulos, párrafos vacíos y líneas de caption `Nota.`/`Fuente.`.
+- `contexto: cuerpo_prosa` es un subconjunto de `cuerpo` que además excluye
+  ítems de lista (`w:numPr` directo o estilo cuyo `w:name` sea
+  `List Paragraph`), títulos de tabla y figura (estilo cuyo `w:name` contenga
+  `caption`) y líneas de leyenda (`---: ...`). El filtro es por nombre de
+  estilo, no por identificador, para que funcione igual en Word en español e
+  inglés. Se usa en `alineacion_cuerpo`: el manual justifica la prosa, no las
+  listas ni los títulos de tabla.
 - `contexto: caratula` restringe la consulta a los párrafos de la carátula:
   los `w:p` de nivel superior anteriores al primer `w:pPr/w:sectPr` del cuerpo
   (el salto que cierra la portada). Si el documento no declara ese salto, se
@@ -533,7 +543,7 @@ del cuerpo y de la carátula.
 ```yaml
 formato_efectivo:
   parte: document
-  contexto: cuerpo | caratula | todos | seccion_cuerpo   # defecto: todos
+  contexto: cuerpo | cuerpo_prosa | caratula | todos | seccion_cuerpo   # defecto: todos
   sujeto: run | parrafo                                  # defecto: run
   parrafo_xpath: //w:body//w:p
   propiedad: w:rFonts/@w:ascii    # o un toggle: w:b
@@ -584,6 +594,13 @@ El alcance de los títulos es explícito: `contexto: cuerpo` excluye los
 párrafos con estilo de título (los títulos tienen su propio formato en el
 manual). Si una regla necesita evaluar títulos, debe seleccionarlos con su
 propio `parrafo_xpath`; el analizador no los exime por sí mismo.
+
+`contexto: cuerpo_prosa` es el subconjunto de prosa de `cuerpo`: además de
+los títulos, excluye listas (`w:numPr` o estilo `List Paragraph`), captions
+de tabla y figura (estilo `Caption`) y leyendas (`---: ...`). Se usa en
+`alineacion_cuerpo`, porque el manual solo justifica el texto continuo;
+`fuente_principal`, `tamano_cuerpo` e `interlineado` siguen con
+`contexto: cuerpo` para revisar también listas y títulos.
 
 ---
 
