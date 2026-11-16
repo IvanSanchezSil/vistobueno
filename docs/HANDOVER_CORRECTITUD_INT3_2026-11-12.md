@@ -109,7 +109,7 @@ orden conserva el resultado; comprobar casillas en párrafos, tablas y controles
 - Mantener `palabras_clave_minimo` en error. Si se agregan reglas, actualizar
   mutaciones, conteos, ejemplos y contrato. No debilitar las guardias existentes.
 
-- **Estado 2026-11-15:** corregido en `d85c6e0`. `resumen_longitud` exige
+- **Estado 2026-11-15:** corregido en `feeab66`. `resumen_longitud` exige
   159–220 palabras y excluye del conteo la línea de palabras clave;
   `palabras_clave_minimo` exige 3–5 claves y cuenta Resumen y Abstract por
   separado, admitiendo `Palabras clave` y `Keywords`; `abstract_contenido`

@@ -564,8 +564,8 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-03 | Int3 | M2 implementado, pendiente de verificación (PR #101, `5299a8f`): todas las secciones y las que no declaran `w:pgSz` | M2: A4 en secciones |
 | VA-04 | Int3 | M3 implementado, pendiente de verificación (PR #102, `eea80ea`): orden, valor y certeza; las ramas n/a marcan la regla como no aplicable | M3: paginación |
 | VA-05 | Int3 | M4 corregido (`23a1314`): todas las casillas marcadas | M4: declaraciones múltiples |
-| VA-06 | Int3 | M5 corregido (`d85c6e0`): 159–220 palabras; línea de palabras clave excluida | M5: límites del Resumen |
-| VA-07 | Int3 | M5 corregido (`d85c6e0`): Abstract sin cuerpo falla (warning); 3–5 claves por idioma | M5: Abstract y palabras clave |
+| VA-06 | Int3 | M5 corregido (`feeab66`): 159–220 palabras; línea de palabras clave excluida | M5: límites del Resumen |
+| VA-07 | Int3 | M5 corregido (`feeab66`): Abstract sin cuerpo falla (warning); 3–5 claves por idioma | M5: Abstract y palabras clave |
 | VA-08 | Int1 | pendiente | B4: filas sobrantes |
 | VA-09 | Int1 + Int2 | pendiente | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |

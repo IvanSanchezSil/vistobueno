@@ -178,7 +178,7 @@ el mismo tipo no cambia la decisión. La evidencia queda ordenada por tipo.
 **Verificación:** `924 passed, 4 skipped`; ruff, ruff format, mypy y linter
 limpios; CI verde y PR `MERGEABLE`/`CLEAN`.
 
-**Entrega:** commits `23a1314` (código, tests y DSL) y `75f2705` (handovers),
+**Entrega:** commits `5fb2344` (código, tests y DSL) y `65c39f5` (handovers),
 rama `semana12-m4-tipo-declarado`, PR #103 apilado sobre #75.
 
 ### 2026-11-15 — M5 / VA-06, VA-07: Resumen, Abstract y palabras clave
@@ -208,7 +208,7 @@ severidad `warning` de `abstract_contenido`; confirmar si ambos idiomas son
 obligatorios y si `Keywords` es la etiqueta inglesa documentada. El manual
 local no está en el repo.
 
-**Entrega:** commit `d85c6e0`, rama `semana12-m5-resumen-abstract`, PR apilado
+**Entrega:** commit `feeab66`, rama `semana12-m5-resumen-abstract`, PR apilado
 sobre #103.
 
 ---
