@@ -22,12 +22,17 @@ import {
   planDeDescargas,
   publicarFicha,
   sondearDeposito,
+  timestampEsValido,
   tituloCoincide,
   tituloDe,
   valorDe,
 } from './ficha.js'
 
 const fichaCon = (extraidos, manuales = []) => ({ extraidos, manuales })
+
+const TRAMITE_ID = 'tramite-1'
+const VENCE_EN = new Date(Date.now() + 60_000).toISOString()
+const TRAMITE = { tramiteId: TRAMITE_ID, venceEn: VENCE_EN }
 
 const FICHA_EJEMPLO = fichaCon(
   [
@@ -116,25 +121,71 @@ describe('manuales por autor (alineación por posición)', () => {
 
 describe('sondeo del buzón (404 silencioso)', () => {
   it('404 → esperando, sin error', () => {
-    const resultado = interpretarSondeo(404, { detail: 'Sin depósito reportado' })
+    const resultado = interpretarSondeo(
+      404,
+      { detail: 'Sin depósito reportado' },
+      TRAMITE
+    )
     expect(resultado.estado).toBe('esperando')
     expect(resultado.mensaje).toBeUndefined()
   })
 
-  it('200 → recibido con handle, título y timestamp', () => {
-    const resultado = interpretarSondeo(200, {
-      handle: 'https://hdl.handle.net/1234/5678',
-      titulo: 'La motivación en la universidad',
-      timestamp: '2026-10-28T10:15:00',
-    })
+  it('200 → recibido con handle, título, timestamp y trámite', () => {
+    const resultado = interpretarSondeo(
+      200,
+      {
+        tramite_id: TRAMITE_ID,
+        handle: 'https://hdl.handle.net/1234/5678',
+        titulo_observado: 'La motivación en la universidad',
+        timestamp: '2026-10-28T10:15:00',
+      },
+      TRAMITE
+    )
     expect(resultado.estado).toBe('recibido')
+    expect(resultado.tramiteId).toBe(TRAMITE_ID)
     expect(resultado.handle).toBe('https://hdl.handle.net/1234/5678')
     expect(resultado.titulo).toBe('La motivación en la universidad')
     expect(resultado.timestamp).toBe('2026-10-28T10:15:00')
   })
 
+  it('un depósito de otro trámite se ignora', () => {
+    const resultado = interpretarSondeo(
+      200,
+      {
+        tramite_id: 'tramite-anterior',
+        handle: 'https://hdl.handle.net/1234/5678',
+        timestamp: '2026-10-28T10:15:00',
+      },
+      TRAMITE
+    )
+    expect(resultado.estado).toBe('ajeno')
+    expect(resultado.handle).toBeUndefined()
+  })
+
+  it('un trámite expirado no habilita papeleo', () => {
+    const vencido = {
+      tramiteId: TRAMITE_ID,
+      venceEn: new Date(Date.now() - 1000).toISOString(),
+    }
+    const resultado = interpretarSondeo(404, {}, vencido)
+    expect(resultado.estado).toBe('expirado')
+  })
+
+  it('un depósito sin timestamp válido no habilita papeleo', () => {
+    const resultado = interpretarSondeo(
+      200,
+      {
+        tramite_id: TRAMITE_ID,
+        handle: 'https://hdl.handle.net/1234/5678',
+        timestamp: 'no-es-una-fecha',
+      },
+      TRAMITE
+    )
+    expect(resultado.estado).toBe('invalido')
+  })
+
   it('otro status → error con el detalle del servidor', () => {
-    const resultado = interpretarSondeo(500, { detail: 'Error interno' })
+    const resultado = interpretarSondeo(500, { detail: 'Error interno' }, TRAMITE)
     expect(resultado.estado).toBe('error')
     expect(resultado.mensaje).toContain('Error interno')
   })
@@ -145,9 +196,9 @@ describe('cotejo de títulos (nunca usar un handle a ciegas)', () => {
     expect(normalizar('  ÁREA    Geómetra ')).toBe('area geometra')
   })
 
-  it('coincide por inclusión (ediciones menores del ítem)', () => {
-    expect(tituloCoincide('La motivación en la universidad', 'La motivación en la universidad UNT')).toBe(true)
+  it('exige igualdad después de normalizar', () => {
     expect(tituloCoincide('La motivación en la universidad', 'la MOTIVACIÓN en la universidad')).toBe(true)
+    expect(tituloCoincide('La motivación en la universidad', 'La motivación en la universidad UNT')).toBe(false)
   })
 
   it('no coincide con otro título', () => {
@@ -173,18 +224,45 @@ describe('papeleo: una constancia y una fila por autor', () => {
     expect(planDeDescargas(ficha).total).toBe(1)
   })
 
-  it('el cuerpo de la constancia lleva el índice del autor', () => {
-    const cuerpo = construirCuerpoConstancia(FICHA_EJEMPLO, 'https://hdl.handle.net/1/2', '2026-10-28T10:15:00', 1)
+  it('el cuerpo de la constancia lleva el índice del autor y el trámite', () => {
+    const cuerpo = construirCuerpoConstancia(
+      FICHA_EJEMPLO,
+      'https://hdl.handle.net/1/2',
+      '2026-10-28T10:15:00',
+      1,
+      TRAMITE_ID
+    )
     expect(cuerpo.indice_autor).toBe(1)
+    expect(cuerpo.tramite_id).toBe(TRAMITE_ID)
     expect(cuerpo.handle).toBe('https://hdl.handle.net/1/2')
     expect(cuerpo.timestamp).toBe('2026-10-28T10:15:00')
     expect(cuerpo.ficha).toBe(FICHA_EJEMPLO)
   })
 
-  it('el cuerpo de la fila del registro no lleva índice de autor', () => {
-    const cuerpo = construirCuerpoFilaRegistro(FICHA_EJEMPLO, 'https://hdl.handle.net/1/2', '2026-10-28T10:15:00')
+  it('el cuerpo de la fila del registro lleva el trámite y no índice de autor', () => {
+    const cuerpo = construirCuerpoFilaRegistro(
+      FICHA_EJEMPLO,
+      'https://hdl.handle.net/1/2',
+      '2026-10-28T10:15:00',
+      TRAMITE_ID
+    )
     expect(cuerpo.indice_autor).toBeUndefined()
-    expect(Object.keys(cuerpo).sort()).toEqual(['ficha', 'handle', 'timestamp'])
+    expect(cuerpo.tramite_id).toBe(TRAMITE_ID)
+    expect(Object.keys(cuerpo).sort()).toEqual([
+      'ficha',
+      'handle',
+      'timestamp',
+      'tramite_id',
+    ])
+  })
+})
+
+describe('timestampEsValido', () => {
+  it('acepta una fecha ISO y rechaza un texto inválido', () => {
+    expect(timestampEsValido('2026-10-28T15:04:00')).toBe(true)
+    expect(timestampEsValido('no-es-una-fecha')).toBe(false)
+    expect(timestampEsValido('October 28, 2026')).toBe(false)
+    expect(timestampEsValido('')).toBe(false)
   })
 })
 
@@ -220,6 +298,38 @@ describe('generarFilaRegistro (formato json)', () => {
   })
 })
 
+describe('publicarFicha (identidad del trámite)', () => {
+  it('devuelve el tramite_id y el vencimiento del servidor', async () => {
+    const fetchOriginal = globalThis.fetch
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({ tramite_id: TRAMITE_ID, vence_en: VENCE_EN }),
+    })
+    try {
+      const publicado = await publicarFicha('', FICHA_EJEMPLO)
+      expect(publicado.tramite_id).toBe(TRAMITE_ID)
+      expect(publicado.vence_en).toBe(VENCE_EN)
+    } finally {
+      globalThis.fetch = fetchOriginal
+    }
+  })
+
+  it('falla si el servidor no devuelve la identidad', async () => {
+    const fetchOriginal = globalThis.fetch
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 201,
+      json: async () => ({}),
+    })
+    try {
+      await expect(publicarFicha('', FICHA_EJEMPLO)).rejects.toThrow(/identidad/i)
+    } finally {
+      globalThis.fetch = fetchOriginal
+    }
+  })
+})
+
 // Token compartido del buzón (PR #66): el header solo viaja si hay token.
 describe('cabecerasBuzon', () => {
   it('sin token no añade ninguna cabecera de autenticación', () => {
@@ -243,11 +353,15 @@ describe('cabecerasBuzon', () => {
     const llamadas = []
     globalThis.fetch = async (url, opciones) => {
       llamadas.push({ url, opciones })
-      return { ok: true, status: 204, json: async () => ({}) }
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ tramite_id: TRAMITE_ID, vence_en: VENCE_EN }),
+      }
     }
     try {
       await publicarFicha('', { extraidos: {}, manuales: [] }, 'token-de-prueba')
-      await sondearDeposito('', 'token-de-prueba')
+      await sondearDeposito('', 'token-de-prueba', TRAMITE)
       expect(llamadas[0].opciones.headers['X-VistoBueno-Token']).toBe('token-de-prueba')
       expect(llamadas[1].opciones.headers['X-VistoBueno-Token']).toBe('token-de-prueba')
     } finally {
@@ -260,11 +374,15 @@ describe('cabecerasBuzon', () => {
     const llamadas = []
     globalThis.fetch = async (url, opciones) => {
       llamadas.push({ url, opciones })
-      return { ok: true, status: 204, json: async () => ({}) }
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({ tramite_id: TRAMITE_ID, vence_en: VENCE_EN }),
+      }
     }
     try {
       await publicarFicha('', { extraidos: {}, manuales: [] })
-      await sondearDeposito('')
+      await sondearDeposito('', '', TRAMITE)
       expect(llamadas[0].opciones.headers['X-VistoBueno-Token']).toBeUndefined()
       expect(llamadas[1].opciones.headers['X-VistoBueno-Token']).toBeUndefined()
     } finally {

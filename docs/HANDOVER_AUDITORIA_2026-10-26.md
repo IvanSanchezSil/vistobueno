@@ -599,6 +599,31 @@ No se cerraron defectos con esta documentación. Los detalles están en M12 de I
 
 ---
 
+### Userscript y formulario observado — 2026-11-16
+
+Evidencia y aceptación en [HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md](HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md).
+Todos pertenecen a Int1. Esta inspección no cierra defectos ni revierte B2/B7.
+
+| ID | Responsable | Estado | Trabajo |
+|---|---|---|---|
+| US-01 | Int1 | pendiente | Evento del dropdown |
+| US-02 | Int1 | pendiente | Verificación efectiva de controles |
+| US-03 | Int1 | pendiente | Filas sobrantes y modificación parcial |
+| US-04 | Int1 | pendiente | Pares autor/DNI |
+| US-05 | Int1 | pendiente | Reparar relleno parcial |
+| US-06 | Int1 | pendiente | Concurrencia y cancelación |
+| US-07 | Int1 | pendiente | Workspace y pestaña |
+| US-08 | Int1 | pendiente | Envío frente a archivo / MyDSpace |
+| US-09 | Int1 | pendiente | Handle canónico del ítem |
+| US-10 | Int1 | pendiente | Reporte tardío de metas y estado |
+| US-11 | Int1 | pendiente | Recuperación de conexión |
+| US-12 | Int1 | pendiente | Invariantes API |
+| US-13 | Int1 | pendiente | Fidelidad del mock y suite |
+| US-14 | Int1 | pendiente | Versión del instalable |
+| US-15 | Int1 | pendiente | Diagnóstico por campo |
+| US-16 | Int1 | pendiente | HTML no confiable en mock |
+| US-17 | Int1 | pendiente de política de correcciones | Conciliar DSpace y ficha canónica antes del papeleo |
+
 ## 12. Propuestas de Int1 para el área de Int3
 
 Estas propuestas se escribieron desde Int1 (API) y se **revirtieron antes
