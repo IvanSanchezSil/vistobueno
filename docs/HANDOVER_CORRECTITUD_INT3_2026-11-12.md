@@ -117,11 +117,13 @@ orden conserva el resultado; comprobar casillas en párrafos, tablas y controles
   `excluir`, `cantidad_maxima` y `count_entries` por párrafo. Evidencia:
   `935 passed, 4 skipped`; ruff, ruff format, mypy y linter limpios; 50 reglas
   (44 evaluadas en el documento base).
-- **Decisiones pendientes:** ratificar la tokenización `\w+` del Resumen y la
-  severidad `warning` de `abstract_contenido` (el manual local no está en el
-  repo); confirmar si ambos idiomas son obligatorios y si `Keywords` es la
-  etiqueta inglesa documentada. La equivalencia Resumen/Abstract y la autoría
-  de la traducción siguen siendo revisión humana.
+- **Decisiones ratificadas (2026-11-16):** la tokenización del Resumen es
+  `\w+`; `abstract_contenido` se queda en `warning`; **Resumen y Abstract son
+  obligatorios los dos** (3–5 palabras clave en cada uno) y se aceptan **las
+  dos** etiquetas, `Palabras clave` y `Keywords`. Son las que ya estaban
+  implementadas: la ratificación confirma el comportamiento, no lo cambia.
+  La equivalencia Resumen/Abstract y la autoría de la traducción siguen
+  siendo revisión humana.
 
 ### M6. Aplicar el nombre de anexo decidido — VA-14
 

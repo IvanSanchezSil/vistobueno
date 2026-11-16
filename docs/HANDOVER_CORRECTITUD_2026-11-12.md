@@ -75,8 +75,8 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-03 | P1 | Papel incorrecto en secciones posteriores | M2 / Int3 | M2 implementado, pendiente de verificación (PR #101, `5299a8f`): todas las secciones, orientación normalizada y secciones sin `w:pgSz` detectadas; tolerancia de papel pendiente |
 | VA-04 | P2 | Paginación incorrecta | M3 / Int3 | M3 implementado, pendiente de verificación (PR #102, `eea80ea`): orden, valor y certeza de los saltos; sin render, las páginas sin marcador son desconocidas y la regla es no aplicable |
 | VA-05 | P2 | Dos tipos declarados: gana el primero | M4 / Int3 | M4 corregido (`23a1314`): todas las casillas marcadas; dos tipos distintos dan `TIPO_CONTRADICTORIO`; repetir el mismo tipo no cambia la decisión |
-| VA-06 | P2 | Resumen sin máximo de palabras | M5 / Int3 | M5 corregido (`feeab66`): 159–220 palabras y línea de palabras clave excluida del conteo; tokenización `\w+` pendiente de ratificación |
-| VA-07 | P2 | Abstract vacío; palabras clave incompletas | M5 / Int3 | M5 corregido (`feeab66`): `abstract_contenido` detecta el Abstract sin cuerpo (warning pendiente de ratificación); 3–5 claves por idioma en Resumen y Abstract; etiquetas `Palabras clave` y `Keywords` |
+| VA-06 | P2 | Resumen sin máximo de palabras | M5 / Int3 | M5 corregido (`feeab66`): 159–220 palabras y línea de palabras clave excluida del conteo; tokenización `\w+` ratificada el 2026-11-16 |
+| VA-07 | P2 | Abstract vacío; palabras clave incompletas | M5 / Int3 | M5 corregido (`feeab66`): `abstract_contenido` detecta el Abstract sin cuerpo (warning ratificado el 2026-11-16); 3–5 claves por idioma en Resumen y Abstract (ambos obligatorios, ratificado); etiquetas `Palabras clave` y `Keywords` (ambas aceptadas, ratificado) |
 | VA-08 | P1 | Permanecen filas de autores/DNI anteriores | B4 / Int1 | Pendiente |
 | VA-09 | P1 | Ficha y depósito sin identidad de trámite | B2 + F2 / Int1, Int2 | Cerrado — PR #95 fusionado (`0469983`): B2 y F2 implementados; contrato v1.13.0 |
 | VA-10 | P1 | Resguardo identificado solo por filename | F1 / Int2 | Pendiente |

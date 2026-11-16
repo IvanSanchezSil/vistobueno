@@ -203,10 +203,11 @@ existía ninguna regla que detectara un Abstract sin cuerpo.
 documento base); ruff, ruff format, mypy y linter limpios; ejemplos
 regenerados.
 
-**Decisiones pendientes:** ratificar la tokenización `\w+` del Resumen y la
-severidad `warning` de `abstract_contenido`; confirmar si ambos idiomas son
-obligatorios y si `Keywords` es la etiqueta inglesa documentada. El manual
-local no está en el repo.
+**Decisiones ratificadas (2026-11-16):** la tokenización del Resumen es `\w+`;
+`abstract_contenido` se queda en `warning`; Resumen y Abstract son
+obligatorios los dos (3–5 palabras clave en cada uno) y se aceptan las dos
+etiquetas, `Palabras clave` y `Keywords`. La ratificación confirma el
+comportamiento ya implementado; el manual local no está en el repo.
 
 **Entrega:** commit `feeab66`, rama `semana12-m5-resumen-abstract`, PR apilado
 sobre #103.

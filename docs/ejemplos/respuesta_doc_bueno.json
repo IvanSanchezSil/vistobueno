@@ -521,7 +521,7 @@
       "encontrado": "cumple",
       "ubicacion": "Sección Abstract (párr. 203)",
       "fuente": "docs/MATRIZ_REQUISITOS_2026-11-12.csv (REQ-35, p203)",
-      "cita": "REQ-35: \"Abstract es traducción del Resumen por especialista\"; la acción de auditoría pide exigir contenido no vacío. Severidad propuesta: warning, pendiente de ratificación.",
+      "cita": "REQ-35: \"Abstract es traducción del Resumen por especialista\"; la acción de auditoría pide exigir contenido no vacío. Severidad ratificada: warning (2026-11-16).",
       "aplicable": true
     },
     {

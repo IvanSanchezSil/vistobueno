@@ -1165,6 +1165,8 @@ reglas:
   # EVALUADO (M5): el máximo 220 consta en REQ-31 (p201) de
   # docs/MATRIZ_REQUISITOS_2026-11-12.csv; el manual local no está en el
   # repo. La línea de palabras clave se excluye del conteo de prosa.
+  # Tokenización ratificada el 2026-11-16: se cuentan las palabras con
+  # `\w+` (Unicode), de modo que «educación» es una palabra y «no-ción» dos.
   patron_cantidad:
     seccion:
       inicio: resumen
@@ -1185,6 +1187,8 @@ reglas:
   # EVALUADO (M5): el máximo 5 consta en REQ-32 (p201) de la matriz; el
   # manual local no está en el repo. Cada idioma se cuenta por separado y
   # se admiten las etiquetas documentadas "Palabras clave" y "Keywords".
+  # Ratificado el 2026-11-16: Resumen y Abstract son obligatorios los dos,
+  # y se aceptan las dos etiquetas.
   patron_cantidad:
     secciones:
       - nombre: resumen
@@ -1204,10 +1208,11 @@ reglas:
   severidad: warning
   ubicacion: 'Sección Abstract (párr. 203)'
   fuente: 'docs/MATRIZ_REQUISITOS_2026-11-12.csv (REQ-35, p203)'
-  cita: 'REQ-35: "Abstract es traducción del Resumen por especialista"; la acción de auditoría pide exigir contenido no vacío. Severidad propuesta: warning, pendiente de ratificación.'
+  cita: 'REQ-35: "Abstract es traducción del Resumen por especialista"; la acción de auditoría pide exigir contenido no vacío. Severidad ratificada: warning (2026-11-16).'
   # EVALUADO (M5): un título ABSTRACT sin cuerpo no prueba que exista la
   # traducción. El conteo excluye la línea de palabras clave; la equivalencia
   # con el Resumen y la autoría de la traducción siguen siendo revisión humana.
+  # Severidad ratificada el 2026-11-16: warning, informa sin bloquear.
   patron_cantidad:
     seccion:
       inicio: abstract
