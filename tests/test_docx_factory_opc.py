@@ -123,6 +123,19 @@ def test_el_logo_es_un_png_valido_en_la_parte_correcta():
 
 
 @pytest.mark.parametrize("con_notas", [False, True])
+def test_cada_tipo_de_contenido_apunta_a_una_parte_existente(con_notas):
+    """La comprobación inversa: un `Override` sin parte también rompe el OPC."""
+    cfg = _config_con_notas() if con_notas else configuracion_base()
+
+    with zipfile.ZipFile(compilar_docx(cfg)) as z:
+        partes = set(z.namelist())
+        raiz = ET.fromstring(z.read("[Content_Types].xml"))
+
+    overrides = {n.get("PartName").lstrip("/") for n in raiz.findall(f"{{{CT_NS}}}Override")}
+    assert overrides <= partes, overrides - partes
+
+
+@pytest.mark.parametrize("con_notas", [False, True])
 def test_todas_las_partes_tienen_tipo_de_contenido(con_notas):
     cfg = _config_con_notas() if con_notas else configuracion_base()
 
