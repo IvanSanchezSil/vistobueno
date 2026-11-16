@@ -20,6 +20,7 @@ from _xml_constants import (
     PNS,
     RELS,
     RNS,
+    STYLES_CONTENT_TYPE,
     WNS,
     WPN,
 )
@@ -668,11 +669,21 @@ def _document_rels(con_notas: bool) -> str:
     return DOCUMENT_RELS.replace("</Relationships>", f"{FOOTNOTES_REL}</Relationships>")
 
 
-def _content_types(con_notas: bool) -> str:
-    """`[Content_Types].xml` con el Override de notas solo si la parte existe."""
-    if not con_notas:
+def _content_types(con_notas: bool, con_estilos: bool) -> str:
+    """`[Content_Types].xml` con un `Override` solo por cada parte existente.
+
+    Los `Override` de notas al pie y de estilos se agregan únicamente cuando
+    la parte se escribe: el OPC no admite un tipo de contenido que apunte a
+    una parte ausente (mismo criterio que el arreglo de M11 para las notas).
+    """
+    extra = ""
+    if con_notas:
+        extra += FOOTNOTES_CONTENT_TYPE
+    if con_estilos:
+        extra += STYLES_CONTENT_TYPE
+    if not extra:
         return CONTENT_TYPES
-    return CONTENT_TYPES.replace("</Types>", f"{FOOTNOTES_CONTENT_TYPE}</Types>")
+    return CONTENT_TYPES.replace("</Types>", f"{extra}</Types>")
 
 
 def _styles_xml(cfg: dict) -> str | None:
@@ -729,8 +740,9 @@ def compilar_docx(cfg: dict) -> str:
     with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
         path = f.name
     notas = cfg.get("notas_pie_ids", [])
+    estilos = _styles_xml(cfg)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", _content_types(bool(notas)))
+        z.writestr("[Content_Types].xml", _content_types(bool(notas), estilos is not None))
         z.writestr("_rels/.rels", RELS)
         z.writestr("word/document.xml", _document_xml(cfg))
         z.writestr("word/_rels/document.xml.rels", _document_rels(bool(notas)))
@@ -738,7 +750,6 @@ def compilar_docx(cfg: dict) -> str:
         z.writestr("word/_rels/header1.xml.rels", HEADER_RELS)
         z.writestr("word/footer1.xml", _footer_xml(cfg["footer_jc"]))
         z.writestr("word/media/logo.png", PNG_LOGO)
-        estilos = _styles_xml(cfg)
         if estilos is not None:
             z.writestr("word/styles.xml", estilos)
         if notas:

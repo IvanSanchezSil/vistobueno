@@ -21,7 +21,6 @@ CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <Default Extension="xml" ContentType="application/xml"/>
   <Default Extension="png" ContentType="image/png"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
   <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
 </Types>"""
@@ -30,6 +29,14 @@ CONTENT_TYPES = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 FOOTNOTES_CONTENT_TYPE = (
     '  <Override PartName="/word/footnotes.xml" '
     'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>\n'
+)
+
+# Override que solo se agrega cuando el ZIP incluye `word/styles.xml` (M1).
+# Declararlo siempre dejaría una parte colgante en el paquete base, que no
+# trae `styles`: el OPC exige que cada `Override` apunte a una parte real.
+STYLES_CONTENT_TYPE = (
+    '  <Override PartName="/word/styles.xml" '
+    'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>\n'
 )
 
 RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

@@ -317,6 +317,60 @@ def test_styles_xml_mal_formado_se_trata_como_ausente():
 
 
 # ---------------------------------------------------------------------------
+# Integridad OPC: un `Override` solo si existe su parte
+# ---------------------------------------------------------------------------
+
+
+def _overrides(path: str) -> set[str]:
+    """`PartName` declarados en `[Content_Types].xml`, sin la barra inicial."""
+    import xml.etree.ElementTree as ET
+
+    with zipfile.ZipFile(path) as z:
+        raiz = ET.fromstring(z.read("[Content_Types].xml"))
+    ns = "http://schemas.openxmlformats.org/package/2006/content-types"
+    return {n.get("PartName").lstrip("/") for n in raiz.findall(f"{{{ns}}}Override")}
+
+
+def test_el_override_de_estilos_solo_se_declara_con_la_parte():
+    """El paquete base no lleva `styles.xml`: tampoco puede declararlo.
+
+    Declarar el tipo de contenido de una parte ausente rompe el paquete OPC
+    (mismo criterio que el arreglo de M11 para las notas al pie).
+    """
+    base = compilar_docx(configuracion_base())
+    try:
+        with zipfile.ZipFile(base) as z:
+            assert "word/styles.xml" not in z.namelist()
+        assert "word/styles.xml" not in _overrides(base)
+    finally:
+        os.unlink(base)
+
+    cfg = configuracion_base()
+    cfg["styles"] = _estilos({"Normal": {"type": "paragraph"}})
+    con_estilos = compilar_docx(cfg)
+    try:
+        with zipfile.ZipFile(con_estilos) as z:
+            assert "word/styles.xml" in z.namelist()
+        assert "word/styles.xml" in _overrides(con_estilos)
+    finally:
+        os.unlink(con_estilos)
+
+
+def test_cada_override_apunta_a_una_parte_existente():
+    """Ningún `Override` puede quedar colgando en el paquete del factory."""
+    cfg = configuracion_base()
+    cfg["styles"] = _estilos({"Normal": {"type": "paragraph"}})
+    path = compilar_docx(cfg)
+    try:
+        with zipfile.ZipFile(path) as z:
+            partes = set(z.namelist())
+        colgantes = _overrides(path) - partes
+        assert not colgantes, colgantes
+    finally:
+        os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
 # Títulos: la exclusión es un alcance declarado, no una exención implícita
 # ---------------------------------------------------------------------------
 

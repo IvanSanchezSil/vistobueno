@@ -89,6 +89,82 @@ PYTHONPATH=/home/ivan/pylibs python3 -m mypy validator/ scripts/
 - Commit `85690c5` (rama `semana12-m11-factory-opc`, PR 12.1).
 - Comando de regeneración: `python scripts/ejemplo_bueno_malo.py`.
 
+### 2026-11-16 — M1 / VA-01, VA-02: formato efectivo y todo el texto (PR 12.3)
+
+**Arreglo**
+
+- `ResolvedorFormato` resuelve el formato efectivo con la precedencia de Word:
+  formato directo → estilo de carácter → cadena `basedOn` del estilo de
+  párrafo → `w:docDefaults`. Un ciclo de estilos se reporta como
+  incumplimiento sin tumbar la validación, y `word/styles.xml` ausente o mal
+  formado se trata como ausente.
+- `AnalizadorFormato` (`formato_efectivo`) selecciona primero los párrafos y
+  evalúa **todos** los runs con texto, incluidos los de hipervínculo. Una
+  propiedad ausente se reporta como `(ausente)` y cuenta como incumplimiento.
+- Se migran 16 reglas de fuente, tamaño, interlineado, alineación y negrita
+  del cuerpo y de la carátula.
+- El linter del DSL valida `parrafo_xpath` y `propiedad`.
+
+**Corrección del alcance (`cuerpo_prosa`)**
+
+`alineacion_cuerpo` con `contexto: cuerpo` ponía en rojo la tesis aprobada:
+declaraba 270 valores evaluados y 19 incumplimientos, todos `(ausente)`. Los
+19 no eran prosa: 5 ítems de lista, 13 títulos de tabla y figura y 1 línea de
+leyenda de fórmula. Ninguno de esos estilos define `w:jc`, así que Word los
+dibuja alineados a la izquierda.
+
+- Se añade el contexto `cuerpo_prosa` sobre `_cuerpo_paras`: excluye los
+  ítems de lista (`w:numPr` directo o estilo cuyo `w:name` sea `list
+  paragraph`), los títulos de tabla y figura (estilo cuyo `w:name` contenga
+  `caption`) y las líneas de nota o leyenda. La exclusión es por **nombre de
+  estilo**, para que también funcione un Word en inglés.
+- Solo `alineacion_cuerpo` cambia a ese contexto. `fuente_principal`,
+  `tamano_cuerpo` e `interlineado` siguen con `contexto: cuerpo`, porque el
+  texto de listas y títulos también debe revisarse en fuente, tamaño e
+  interlineado.
+- No se relaja `all_eq`: un párrafo de prosa sin `w:jc` sigue fallando.
+
+**Corrección de integridad OPC**
+
+La revisión de M11 señaló que `[Content_Types].xml` declaraba el `Override` de
+`word/styles.xml` siempre, aunque el factory solo escribe esa parte cuando la
+configuración trae `styles`. Un tipo de contenido que apunta a una parte
+ausente rompe el paquete OPC.
+
+- El `Override` de estilos se declara solo cuando la parte se escribe, igual
+  que el de notas al pie.
+- Regresión: `test_el_override_de_estilos_solo_se_declara_con_la_parte` y
+  `test_cada_override_apunta_a_una_parte_existente`.
+
+**Plantillas oficiales**
+
+El resultado pasa de 1 error + 6 warnings a **2 errores + 6 warnings**: el
+error nuevo es `caratula_titulo_negrita_mixta`, que se mantiene estricto por
+decisión. La evaluación de plantillas es **orientativa** y un test
+parametrizado fija ese resultado cuando `recursos/` está disponible.
+`palabras_clave_minimo` se mantiene en `error` (decisión del 2026-11-08).
+
+**Verificación**
+
+```bash
+PYTHONPATH=/home/ivan/pylibs:.:tests python3 -m pytest tests/ -q
+# 863 passed, 9 skipped, 6 xfailed
+```
+
+**Límites**
+
+- M1 queda como **implementado, pendiente de verificación**: el PR sigue
+  abierto y la comprobación con la tesis aprobada y las cinco plantillas
+  oficiales está en manos de la revisión.
+- La heredad de estilos se resuelve por `basedOn`; los temas, la numeración,
+  el formato condicional, los estilos de tabla y los cambios con seguimiento
+  no se soportan (documentados en `ResolvedorFormato`).
+
+**Entrega a Int1**
+
+- Commits `2635879`, `0cac33e` y `f7a4795` (rama `semana12-m1-formato-efectivo`,
+  PR 12.3).
+
 ---
 
 ## Evidencias
@@ -113,6 +189,12 @@ PYTHONPATH=/home/ivan/pylibs python3 -m mypy validator/ scripts/
   `document.xml` no es visible desde `header1.xml`, aunque el nombre coincida.
 - Declarar relaciones o tipos de contenido de partes ausentes también rompe
   el paquete; por eso las notas al pie se agregan solo cuando existen.
+- El mismo criterio aplica a los estilos: M1 añadió `word/styles.xml` al
+  factory y tuvo que declarar su `Override` de forma condicional, porque el
+  paquete base no lleva esa parte. Un `Override` colgante no lo detecta el
+  extractor propio (tolera el paquete roto), así que la única guarda es abrir
+  el DOCX con `python-docx` y comprobar que cada tipo de contenido tiene su
+  parte.
 
 ---
 
