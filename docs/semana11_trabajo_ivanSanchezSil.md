@@ -58,6 +58,8 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 | `tests/test_captura_ficha.py` | `b060566` | Casos límite: tilde sin asesor, etiqueta y autor juntos, asesor con párrafo vacío, año frente a referencias |
 | `reglas_ficha.yaml` | `2e27abc` | Prefijo de título «de investigación» opcional y autor que acepta `AUTOR(A):`, `AUTOR:`, `AUTORA:`, `AUTORES:` y `AUTORAS:` |
 | `tests/test_captura_ficha.py` | `2e27abc` | Estructura de las 5 plantillas oficiales: título, `AUTOR(A)`, `ASESOR(A)`, línea de investigación, ciudad y año |
+| `tools/dspace-fill/dev/mock-dspace/item.html` | `3d6c679` | El ítem del mock declara el título ya saneado, como lo escribe el userscript |
+| `tools/dspace-fill/dev/mock-dspace/submit.html` | `3d6c679` | La ficha de demostración publica ese mismo título |
 
 ## Verificación
 
@@ -76,6 +78,7 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 - `palabras_clave_minimo` se mantiene en `error` por decisión del 2026-11-08; las 5 plantillas oficiales siguen en rojo a propósito.
 - Las 5 plantillas oficiales usan etiquetas que no eran las del ejemplo del enunciado: «Título del trabajo:» y «AUTOR(A):». Un prefijo que solo cubre «Título del trabajo de investigación» deja la instrucción dentro del título y publica una etiqueta de autor como autor falso; por eso los prefijos se escriben como variantes explícitas y se prueban con la estructura real.
 - El PR #75 arrastraba el stack completo de la Semana 12 en su diff. Rebasear sobre `730f968` deja la rama con un solo commit propio y hace revisable el cambio; el orden de integración (#98 a #102 y luego #75) se mantiene en la documentación.
+- Sanear el título rompió el ensayo general del mock: el ítem seguía declarando el título **con** la etiqueta «Título del trabajo de investigación:» y `titulosCoinciden` exige igualdad normalizada, no inclusión. El mock debe publicar el `dc.title` que el userscript escribe de verdad, no el que tenía el enunciado.
 
 ## Plan de la semana siguiente
 
