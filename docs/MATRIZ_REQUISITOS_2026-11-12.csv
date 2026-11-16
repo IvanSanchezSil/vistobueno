@@ -49,7 +49,7 @@ REQ-47,"p800,p936",Proyectos: mínimo 30 referencias,NO_SOPORTADO_API,Ninguno ac
 REQ-48,"p1155,p1259",Informes: mínimo 30 referencias,NO_SOPORTADO_API,Ninguno activo específico,Mínimos activos solo TINV,Aplicar por tipo aprobado.
 REQ-49,"p1445,p1458",TSP: máximo 10 en sesión; mínimo 20 en informe,NO_SOPORTADO_API,Ninguno activo específico,"Son ámbitos distintos, no contradicción",Contar en cada bloque por separado.
 REQ-50,p271 y rúbricas,Referencias solo de autores citados; formato APA y francesa 1.27 cm,FALTANTE,Ninguno completo,Conteo no verifica correspondencia ni formato,Separar control de sangría de revisión APA y citas.
-REQ-51,"p273,p311-319",Anexos cuantitativos obligatorios,PARCIAL,anexos_minimos_cuantitativo,VA-14 y diferencias de nombres entre listas,Ratificar lista canónica; no exigir un nombre solo por prefijo.
+REQ-51,"p273,p311-319",Anexos cuantitativos obligatorios,PARCIAL,anexos_minimos_cuantitativo,"M6: ítem 5 «Base de datos»; título real reconocido y ausencia informada","Ratificar el resto de la lista canónica; la comparación por subcadena hace que «Base de datos cualitativa» también satisfaga el ítem."
 REQ-52,"p378,p413-420",Anexos cualitativos,CONFLICTO,anexos_minimos_cualitativo,Prosa pide similitud; esquema la omite,Decisión institucional explícita y prueba de cada ausencia.
 REQ-53,"p534,p552-559",Anexos de revisión,FALTANTE,Ninguno específico,Encabezado ANEXOS no prueba lista requerida,Agregar control tras confirmar nomenclatura.
 REQ-54,"p938,p992",Anexos de proyecto cualitativo,CONFLICTO,Pendiente,Categorización/consistencia difieren entre prosa y esquema,Ratificar esquema antes de activar.
