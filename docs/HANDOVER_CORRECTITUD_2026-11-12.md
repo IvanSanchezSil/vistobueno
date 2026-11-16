@@ -77,7 +77,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-12 | P2 | Markdown activo en el PDF | M9 / Int3 | Pendiente |
 | VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | PR #75 corregido (`b060566`, `6602c90`, `a7bdc54`) con el diff limitado a la ficha; pendiente de merge |
 | VA-14 | P2 | «Base de datos» acordado, pero no aplicado | M6 / Int3 | M6 corregido (`8fe6f8e`): el ítem 5 es «Base de datos»; el título real se reconoce y su ausencia se informa. La detección es textual: un anexo escaneado como imagen exige revisión manual |
-| VA-15 | P2 | Se anuncia tamaño de logo sin medirlo | M7 / Int3 | Pendiente |
+| VA-15 | P2 | Se anuncia tamaño de logo sin medirlo | M7 / Int3 | M7 corregido (`08bf067`): mide el `wp:extent` del dibujo de la primera sección (6,73 × 4,84 cm ± 0,1 cm); una imagen solo en el cuerpo no satisface la carátula. La identidad visual del logo sigue siendo revisión humana |
 | VA-16 | P2 | ORCID sin comprobación por persona/destino | M8 / Int3 | Pendiente |
 | VA-17 | P1 | Ejemplos DOCX dañados; guardia incompleta | B6 / Int1; M11 / Int3 | M11 corregido (PR 12.1, `85690c5`): factory OPC y regresión; B6 de Int1 regenera `docs/ejemplos/` |
 | VA-18 | P2 | Total presentado como reglas evaluadas | B7 + M10 / Int1, Int3 | Pendiente |

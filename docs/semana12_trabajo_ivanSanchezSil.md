@@ -230,6 +230,28 @@ ejemplos regenerados con el valor esperado nuevo.
 **Entrega:** commit `8fe6f8e`, rama `semana12-m6-anexo-base-datos`, PR apilado
 sobre #104.
 
+### 2026-11-15 — M7 / VA-15: medir el logo de la carátula
+
+**Reproducción previa al arreglo:** `caratula_logotipo_tamano` anunciaba
+«4,84 cm de alto x 6,73 cm de ancho» pero solo contaba blips: una imagen de
+cualquier tamaño en el cuerpo o en la carátula pasaba la regla.
+
+**Arreglo:** `AnalizadorImagen` mide el `wp:extent` del `wp:inline`/
+`wp:anchor` que contiene cada blip (ancho = `cx`, alto = `cy`; 360000 EMU
+por cm). La regla declara `contexto: caratula` (primera sección),
+`ancho_cm: 6.73`, `alto_cm: 4.84` y `tolerancia_cm: 0.1` (1 mm), con nota
+`EVALUADO`. Una imagen sin `wp:extent` falla (`tamanos=sin_dimensiones`):
+no se da por buena en silencio. El linter valida claves y dimensiones de
+`imagen`.
+
+**Verificación:** `948 passed, 4 skipped`; regresión `test_m7_*` (3 casos:
+tamaño correcto, tamaño incorrecto y logo solo en el cuerpo); linter con 5
+pruebas (8 casos) para la forma de `imagen`; ruff, ruff format, mypy y
+linter limpios; ejemplos regenerados.
+
+**Entrega:** commit `08bf067`, rama `semana12-m7-logo`, PR apilado
+sobre #105.
+
 ---
 
 ## Evidencias
@@ -244,9 +266,12 @@ sobre #104.
 | Regresión M4 | `tests/test_tipo_documento.py::TestDeclaracionesMultiples` (9 casos) |
 | Regresión M5 | `tests/test_f3_mecanizacion.py::TestM5ResumenAbstract` (10 casos) |
 | Regresión M6 | `tests/test_auditoria_motor.py::test_m6_*` (2 casos) |
+| Regresión M7 | `tests/test_auditoria_motor.py::test_m7_*` (3 casos) |
+| Linter de `imagen` | `tests/test_t2_linter.py` (5 pruebas, 8 casos) |
 | Suite M4 | 924 passed, 4 skipped |
 | Suite M5 | 935 passed, 4 skipped |
 | Suite M6 | 937 passed, 4 skipped |
+| Suite M7 | 948 passed, 4 skipped |
 | Estado de los hallazgos | §2 de `HANDOVER_CORRECTITUD_2026-11-12.md` |
 
 ---
