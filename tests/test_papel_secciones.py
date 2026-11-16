@@ -200,3 +200,34 @@ def test_papel_ausente_falla():
     assert regla is not None
     assert not regla.passed
     assert "sin valores que comparar" in regla.found, regla.found
+    assert "not_exists 1 nodos" in regla.found, regla.found
+
+
+def test_seccion_sin_pgsz_entre_secciones_a4_falla():
+    """El caso mixto: una sección sin `w:pgSz` no puede quedar sin revisar.
+
+    `w:pgSz` es opcional en OOXML; el XPath de valores `(//w:sectPr)/w:pgSz`
+    no selecciona esa sección, así que el documento entero pasaba con
+    "cumple" (revisión PR #101).
+    """
+    path = _docx([A4_VERTICAL, ""], final=A4_VERTICAL)
+    try:
+        regla = _papel(path)
+    finally:
+        os.unlink(path)
+    assert regla is not None
+    assert not regla.passed, "una sección sin w:pgSz debe detectarse"
+    assert "not_exists 1 nodos" in regla.found, regla.found
+    assert "#1" in regla.found, regla.found
+
+
+def test_todas_las_secciones_con_pgsz_pasa():
+    """Con `w:pgSz` en todas las secciones, la comprobación de presencia no
+    molesta: la regla sigue dependiendo solo del valor del papel."""
+    path = _docx([A4_VERTICAL, A4_VERTICAL], final=A4_VERTICAL)
+    try:
+        regla = _papel(path)
+    finally:
+        os.unlink(path)
+    assert regla is not None
+    assert regla.passed, regla.found

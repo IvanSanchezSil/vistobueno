@@ -190,6 +190,25 @@ def detalle_xml_atributo(
     return detalle
 
 
+def detalle_xml_presencia(
+    comparacion: str,
+    total: int,
+    incumplimientos: list[tuple[int, int | None]],
+) -> str:
+    """Detalle de `exists`/`not_exists` con la posición del nodo culpable.
+
+    En `not_exists` los nodos encontrados son justamente los que incumplen;
+    se nombran por su posición en el XPath (y su página cuando se conoce)
+    para que el reporte señale la sección, no solo el conteo.
+    """
+    if comparacion == "exists":
+        return f"exists {total} nodos"
+    if not incumplimientos:
+        return "not_exists 0 nodos"
+    items = [f"#{pos}{_pagina(pag)}" for pos, pag in incumplimientos]
+    return f"not_exists {total} nodos; incumplen: {_incidencias(items)}"
+
+
 def detalle_texto_regex(textos: list[str], incumplimientos: list[tuple[int, str]]) -> str:
     """Detalle de una comprobación por expresión regular (`patron_texto`)."""
     detalle = f"textos={len(textos)} textos; {len(incumplimientos)} incumplen"

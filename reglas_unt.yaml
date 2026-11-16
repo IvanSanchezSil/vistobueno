@@ -144,6 +144,9 @@ reglas:
   # Límite: se compara el valor OOXML exacto; una conversión que redondee el
   # papel (p. ej. 11910 x 16840) sigue fallando y requiere una decisión
   # aparte sobre tolerancia.
+  # `w:pgSz` es opcional en OOXML: una sección que no lo declara no puede
+  # compararse, así que se exige que TODAS las secciones lo declaren
+  # (revisión PR #101).
   atributo_xml:
   - parte: document
     contexto: todos
@@ -157,6 +160,11 @@ reglas:
     atributo: '@w:h'
     comparacion: all_eq
     esperado: '16838'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: '//w:sectPr[not(w:pgSz)]'
+    comparacion: not_exists
 - id: fuente_principal
   tipo: formato_efectivo
   descripcion: La fuente del cuerpo del texto debe ser Times New Roman

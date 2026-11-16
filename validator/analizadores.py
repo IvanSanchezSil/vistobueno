@@ -31,6 +31,7 @@ from .detalle import (
     detalle_texto_lista,
     detalle_texto_regex,
     detalle_xml_atributo,
+    detalle_xml_presencia,
     evaluar_atributo,
 )
 from .dsl_check import DSLValidationError
@@ -194,8 +195,17 @@ class AnalizadorXML(Analizador):
         # Presencia simple
         if comp in ("exists", "not_exists"):
             if comp == "exists":
-                return len(nodes) > 0, f"exists {len(nodes)} nodos"
-            return len(nodes) == 0, f"not_exists {len(nodes)} nodos"
+                return len(nodes) > 0, detalle_xml_presencia(comp, len(nodes), [])
+            # `not_exists` incumplido: los nodos encontrados son los
+            # culpables. Se señala el primero (para la ubicación de la regla)
+            # y el detalle los nombra por posición.
+            if nodes:
+                self.ultimo_nodo = nodes[0]
+            incumplidos = [(i, extracted.pagina_de(n)) for i, n in enumerate(nodes, 1)]
+            return (
+                not nodes,
+                detalle_xml_presencia(comp, len(nodes), incumplidos),
+            )
 
         # Sin nodos no hay atributo que comparar. `n_a_si_sin_nodos` permite
         # declarar que la regla no aplica (p. ej. una línea de carátula que
