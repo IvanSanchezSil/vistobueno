@@ -168,6 +168,93 @@ def test_m6_informa_la_ausencia_del_anexo():
     assert "items_obligatorios=9" in regla.found
 
 
+_RNS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_ANS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+_PNS = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+_WPN = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+
+
+def _docx_logo(
+    logo: tuple[float, float] | None,
+    cuerpo: tuple[float, float] | None = None,
+) -> str:
+    """Carátula delimitada por salto de sección, con dibujos opcionales.
+
+    La carátula termina en el `w:pPr/w:sectPr` (primera sección), así que
+    una imagen del cuerpo no pertenece a ella. Se usa en las regresiones
+    M7/VA-15 para probar la delimitación sin depender del fixture grande.
+    """
+
+    def dibujo(cm: tuple[float, float]) -> str:
+        cx, cy = (round(v * 360000) for v in cm)
+        return (
+            "<w:r><w:drawing><wp:inline>"
+            f'<wp:extent cx="{cx}" cy="{cy}"/>'
+            "<a:graphic><a:graphicData "
+            'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
+            "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"
+            "</w:drawing></w:r>"
+        )
+
+    paras = [_para_sz("UNIVERSIDAD NACIONAL DE TRUJILLO", "24")]
+    if logo:
+        paras.append(f"<w:p>{dibujo(logo)}</w:p>")
+    paras.append("<w:p><w:pPr><w:sectPr/></w:pPr></w:p>")
+    if cuerpo:
+        paras.append(f"<w:p>{dibujo(cuerpo)}</w:p>")
+    body = "".join(paras) + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr>'
+    doc = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{WNS}" xmlns:r="{_RNS}" xmlns:a="{_ANS}" '
+        f'xmlns:pic="{_PNS}" xmlns:wp="{_WPN}"><w:body>{body}</w:body></w:document>'
+    )
+    with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
+        path = f.name
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", CONTENT_TYPES)
+        z.writestr("_rels/.rels", RELS)
+        z.writestr("word/document.xml", doc)
+    return path
+
+
+def test_m7_logo_con_el_tamano_correcto_pasa():
+    """VA-15: el logo de la carátula mide 6,73 × 4,84 cm."""
+    path = _docx_logo((6.73, 4.84))
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_logotipo_tamano"]
+    assert regla.passed, regla.found
+    assert regla.severity.value == "warning"
+
+
+def test_m7_logo_con_tamano_incorrecto_genera_warning():
+    """VA-15: la regla no puede anunciar un tamaño que no comprueba."""
+    path = _docx_logo((5.0, 4.84))
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_logotipo_tamano"]
+    assert not regla.passed
+    assert "incumplen=1" in regla.found
+    assert "5.00x4.84" in regla.found
+
+
+def test_m7_logo_solo_en_el_cuerpo_no_satisface_la_caratula():
+    """VA-15: una imagen en el cuerpo no es el logo de la carátula."""
+    path = _docx_logo(None, (6.73, 4.84))
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["caratula_logotipo_tamano"]
+    assert not regla.passed
+    assert "imagenes=0" in regla.found
+
+
 def _para_sz(texto: str, sz: str) -> str:
     return (
         "<w:p><w:r><w:rPr>"

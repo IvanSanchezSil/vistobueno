@@ -322,16 +322,27 @@ reglas:
 - id: caratula_logotipo_tamano
   tipo: imagen
   descripcion: Tamaño del logotipo de la Universidad en carátula
-  valor_esperado: 4.84 cm alto x 6.73 cm ancho
+  # EVALUADO (M7/VA-15): el manual fija 4,84 cm de alto x 6,73 cm de ancho
+  # (párr. 176) pero no da tolerancia. Se usa 0,1 cm (1 mm): absorbe el
+  # redondeo cm↔EMU y el ajuste manual del dibujo sin admitir un logo de
+  # otro tamaño. Pendiente de ratificar si se quiere más estricta.
+  # El ancho es el `cx` y el alto el `cy` del `wp:extent`; `contexto:
+  # caratula` limita la búsqueda a la primera sección, así que una imagen
+  # solo en el cuerpo o en el encabezado no satisface la carátula.
+  valor_esperado: 4.84 cm alto x 6.73 cm ancho (± 0.1 cm)
   severidad: warning
   ubicacion: Carátula, especificaciones (párr. 176)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Logotipo de la Universidad: Centrado, tamaño: 4.84 cm de alto x 6.73 cm de ancho."'
   imagen:
     parte: document
+    contexto: caratula
     xpath: //w:drawing//a:blip
     formato: png
     cantidad_minima: 1
+    ancho_cm: 6.73
+    alto_cm: 4.84
+    tolerancia_cm: 0.1
 - id: interlineado
   tipo: formato_efectivo
   descripcion: El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)

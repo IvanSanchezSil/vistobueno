@@ -118,8 +118,11 @@ def _sect_final(conforme: bool) -> str:
 
 
 def _logo() -> str:
+    """Logo de la carátula con su extensión real (6,73 × 4,84 cm, M7/VA-15)."""
     return (
-        "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
+        "<w:r><w:drawing><wp:inline>"
+        '<wp:extent cx="2422800" cy="1742400"/>'
+        "<a:graphic><a:graphicData "
         'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
         "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"

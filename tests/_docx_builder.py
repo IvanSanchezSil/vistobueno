@@ -167,7 +167,7 @@ def _cover_para(spec: dict) -> str:
     (`sin_jc`), para probar que la alineación se hereda del estilo (M1).
     """
     if spec.get("logo"):
-        return f"<w:p>{_logo()}</w:p>"
+        return f"<w:p>{_logo(spec.get('ancho_cm', 6.73), spec.get('alto_cm', 4.84))}</w:p>"
     if spec.get("orcid"):
         return (
             f'<w:p><w:pPr><w:jc w:val="{spec.get("jc", "center")}"/></w:pPr>'
@@ -327,9 +327,17 @@ def _tdc_para(entrada: tuple) -> str:
     return f'<w:p><w:pPr><w:pStyle w:val="TDC{nivel}"/></w:pPr>{_run_tabs(texto)}</w:p>'
 
 
-def _logo() -> str:
+def _logo(ancho_cm: float = 6.73, alto_cm: float = 4.84) -> str:
+    """Logotipo con extensión real (`wp:extent`), en EMU (360000 por cm).
+
+    M7/VA-15 mide la imagen; el PNG de 1×1 es solo un marcador.
+    """
+    cx = round(ancho_cm * 360000)
+    cy = round(alto_cm * 360000)
     return (
-        "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
+        "<w:r><w:drawing><wp:inline>"
+        f'<wp:extent cx="{cx}" cy="{cy}"/>'
+        "<a:graphic><a:graphicData "
         'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
         "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"
@@ -382,7 +390,7 @@ def configuracion_base() -> dict:
     """Devuelve la configuración del DOCX que pasa 45/47 reglas."""
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
-        "logo": {"logo": True},
+        "logo": {"logo": True, "ancho_cm": 6.73, "alto_cm": 4.84},
         "facultad": {
             "texto": "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
             "negrita": True,

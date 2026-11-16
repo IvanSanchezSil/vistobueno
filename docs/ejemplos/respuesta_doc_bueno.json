@@ -205,7 +205,7 @@
       "paso": true,
       "severidad": "warning",
       "mensaje": "Tamaño del logotipo de la Universidad en carátula",
-      "esperado": "4.84 cm alto x 6.73 cm ancho",
+      "esperado": "4.84 cm alto x 6.73 cm ancho (± 0.1 cm)",
       "encontrado": "cumple",
       "ubicacion": "Carátula, especificaciones (párr. 176)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
@@ -696,7 +696,7 @@
   "como_preguntar_a_una_ia": [],
   "metadatos": {
     "archivo_nombre": "doc_bueno.docx",
-    "archivo_tamano_bytes": 5760,
+    "archivo_tamano_bytes": 5811,
     "reglas_evaluadas": 44,
     "reglas_totales": 50,
     "version_esquema": "2026-09-01",
