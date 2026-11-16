@@ -1278,6 +1278,8 @@ reglas:
   # fija como «Base de datos». La comparación es por subcadena, así que
   # también satisface el título largo. Un anexo escaneado como imagen no se
   # ve en el texto XML: la ausencia reportada exige revisión manual.
+  # Comparación por subcadena ratificada el 2026-11-16: se mantiene, sin
+  # exigir coincidencia de título completo.
   valor_esperado:
   - Matriz de consistencia
   - Instrumento(s) de recolección de datos

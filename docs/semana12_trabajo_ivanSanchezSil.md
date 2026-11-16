@@ -223,6 +223,10 @@ y se añade la nota `EVALUADO` con la decisión de 2026-11-08. La regla sigue en
 imagen requiere revisión manual) y que la comparación por subcadena hace que
 «Base de datos cualitativa» también satisfaga el ítem.
 
+**Decisión ratificada (2026-11-16):** la comparación por **subcadena** se
+mantiene; no se exige coincidencia de título completo. La ratificación confirma
+el comportamiento ya implementado.
+
 **Verificación:** `937 passed, 4 skipped`; regresión `test_m6_*` (título real
 reconocido y ausencia informada); ruff, ruff format, mypy y linter limpios;
 ejemplos regenerados con el valor esperado nuevo.

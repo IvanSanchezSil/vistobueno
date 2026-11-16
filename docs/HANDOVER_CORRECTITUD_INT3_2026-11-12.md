@@ -139,10 +139,11 @@ manual; texto XML no encontrado no demuestra ausencia del contenido escaneado.
   `937 passed, 4 skipped`; regresión `test_m6_*` (título real reconocido y
   ausencia informada); ruff, ruff format, mypy y linter limpios; ejemplos
   regenerados.
-- **Límite conocido:** al ser comparación por subcadena, un anexo
-  «Base de datos cualitativa» también satisface el ítem cuantitativo. Queda
-  anotado en REQ-51 para ratificar si se exige coincidencia de título
-  completo.
+- **Decisión ratificada (2026-11-16):** la comparación por **subcadena** se
+  mantiene: un anexo «Base de datos cualitativa» también satisface el ítem
+  cuantitativo. No se exige coincidencia de título completo. Sigue en pie el
+  otro límite, que no es una decisión: un anexo escaneado como imagen no se
+  ve en el texto XML, así que la ausencia reportada exige revisión manual.
 
 ### M7. Comprobar lo que anuncia la regla del logo — VA-15
 
