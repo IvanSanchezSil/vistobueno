@@ -162,7 +162,7 @@ PYTHONPATH=/home/ivan/pylibs:.:tests python3 -m pytest tests/ -q
 
 **Entrega a Int1**
 
-- Commits `2635879`, `0cac33e` y `f7a4795` (rama `semana12-m1-formato-efectivo`,
+- Commits `8c63dcc`, `c3577f6` y `57073fd` (rama `semana12-m1-formato-efectivo`,
   PR 12.3).
 
 ---
