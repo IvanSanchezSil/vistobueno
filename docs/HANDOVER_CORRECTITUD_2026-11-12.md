@@ -47,6 +47,13 @@ Ver [plan de captura y laboratorio local](PLAN_LAB_DSPACE_LOCAL_2026-11-12.md).
 No se realizan guardados experimentales en UNT. Los nombres mixtos están
 confirmados por el usuario según la tesis aprobada por el jefe.
 
+## Revisión específica del userscript — 2026-11-16
+
+Leer [HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md](HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md).
+Base c9e5499: 17 hallazgos US, matriz de 38 filas y 30 comprobaciones focalizadas.
+Son tareas de Int1. B2 y B7 permanecen entregados; el nuevo documento identifica
+las brechas que quedan después de esos PR. No se implementaron arreglos.
+
 ## Ampliación normativa
 
 La [auditoría del manual y plantillas](AUDITORIA_NORMATIVA_2026-11-12.md)
