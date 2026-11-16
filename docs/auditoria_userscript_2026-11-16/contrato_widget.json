@@ -1,0 +1,31 @@
+{
+  "bundle": "main.e03958c7154ee4b2.js",
+  "sha256": "bcc161b3de039440b4bb2bff15e3f0b8833c65fccbdff39544850f970bd5a800",
+  "offset_unit": "UTF-16, zero-based, end-exclusive",
+  "methods": [
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "moduleId": 54875,
+      "method": "dispatchUpdate",
+      "start": 612296,
+      "end": 612353,
+      "code": "dispatchUpdate(D) {\n  this.model.value = D, this.change.emit(D);\n}"
+    },
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "moduleId": 83766,
+      "method": "optionTemplate",
+      "start": 630259,
+      "end": 630851,
+      "code": "function V(q, z) {\n  if (1 & q) {\n    const ee = t.RV6();\n    t.j41(0, \"button\", 16), t.nI1(1, \"async\"), t.bIt(\"keydown.enter\", function () {\n      const Y = t.eBV(ee).$implicit,\n        H = t.XpG(),\n        Z = t.sdS(1);\n      return H.onSelect(Y), t.Njj(Z.close());\n    })(\"mousedown\", function () {\n      const Y = t.eBV(ee).$implicit,\n        H = t.XpG(),\n        Z = t.sdS(1);\n      return H.onSelect(Y), t.Njj(Z.close());\n    }), t.EFF(2), t.k0s();\n  }\n  if (2 & q) {\n    const ee = z.$implicit,\n      J = z.index,\n      Y = t.XpG();\n    t.AVh(\"active\", J === Y.selectedIndex), t.FS9(\"title\", Y.inputFormatter(ee)), t.BMQ(\"id\", Y.inputFormatter(ee) === t.bMT(1, 5, Y.currentValue) ? \"combobox_\" + Y.id + \"_selected\" : null), t.R7$(2), t.SpI(\" \", Y.inputFormatter(ee), \" \");\n  }\n}"
+    },
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "moduleId": 83766,
+      "method": "onSelect",
+      "start": 634608,
+      "end": 634695,
+      "code": "onSelect(ee) {\n  this.group.markAsDirty(), this.dispatchUpdate(ee), this.setCurrentValue(ee);\n}"
+    }
+  ]
+}
