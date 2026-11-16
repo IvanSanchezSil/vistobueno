@@ -65,7 +65,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 |---|---|---|---|---|
 | VA-01 | P1 | Solo se revisa el primer run | M1 / Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): todos los runs con texto, incluidos hipervínculos |
 | VA-02 | P1 | Formato heredado y propiedades omitidas | M1 / Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): formato efectivo con `styles.xml`, `basedOn` y `docDefaults`; límites declarados |
-| VA-03 | P1 | Papel incorrecto en secciones posteriores | M2 / Int3 | M2 corregido (PR #101, `5299a8f`): todas las secciones y orientación normalizada; tolerancia de papel pendiente |
+| VA-03 | P1 | Papel incorrecto en secciones posteriores | M2 / Int3 | M2 implementado, pendiente de verificación (PR #101, `5299a8f`): todas las secciones, orientación normalizada y secciones sin `w:pgSz` detectadas; tolerancia de papel pendiente |
 | VA-04 | P2 | Paginación incorrecta | M3 / Int3 | Pendiente |
 | VA-05 | P2 | Dos tipos declarados: gana el primero | M4 / Int3 | Pendiente |
 | VA-06 | P2 | Resumen sin máximo de palabras | M5 / Int3 | Pendiente |
