@@ -1,0 +1,18 @@
+{
+  "scope": "Plantilla y métodos extraídos con helpers simulados y DOM ficticio; no es una integración Angular completa",
+  "registeredEvents": [
+    "keydown.enter",
+    "mousedown"
+  ],
+  "currentExecutor": {
+    "reportedSuccess": true,
+    "modelChanged": false,
+    "changeEmissions": 0,
+    "dirtyCalls": 0
+  },
+  "controlMousedown": {
+    "modelChanged": true,
+    "changeEmissions": 1,
+    "dirtyCalls": 1
+  }
+}

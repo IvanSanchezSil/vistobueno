@@ -1,0 +1,11 @@
+{
+  "ficha_con_titulo_lista_y_hueco_dni": 201,
+  "titulo_ajeno": 204,
+  "uri_invalida": 204,
+  "fecha_invalida": 204,
+  "correccion_externa_no_reconciliada": {
+    "papeleo_con_nombre_original": 200,
+    "sustitucion_de_ficha_rechazada_correctamente": 409
+  },
+  "matricula_de_segunda_posicion_usada_para_un_autor": 200
+}
