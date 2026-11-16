@@ -249,6 +249,11 @@ tamaño correcto, tamaño incorrecto y logo solo en el cuerpo); linter con 5
 pruebas (8 casos) para la forma de `imagen`; ruff, ruff format, mypy y
 linter limpios; ejemplos regenerados.
 
+**Decisión ratificada (2026-11-16):** la tolerancia de medición es de
+**0,1 cm** (1 mm), la que ya se implementaba. El manual fija el tamaño del
+logo pero no da tolerancia. La ratificación confirma el comportamiento ya
+implementado.
+
 **Entrega:** commit `b92f7f3`, rama `semana12-m7-logo`, PR apilado
 sobre #105.
 

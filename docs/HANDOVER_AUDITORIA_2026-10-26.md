@@ -573,7 +573,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | corregido (PR #75, `b060566` + `6602c90` + `a7bdc54`); el diff queda limitado a la ficha y se mergeará tras #102 | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | M6 corregido (`8fe6f8e`): ítem 5 «Base de datos»; título real reconocido y ausencia informada | M6: «Base de datos» |
-| VA-15 | Int3 | M7 corregido (`b92f7f3`): mide el dibujo de la carátula (6,73 × 4,84 cm ± 0,1 cm); el cuerpo no cuenta | M7: alcance de la regla del logo |
+| VA-15 | Int3 | M7 corregido (`b92f7f3`): mide el dibujo de la carátula (6,73 × 4,84 cm ± 0,1 cm, tolerancia ratificada el 2026-11-16); el cuerpo no cuenta | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |
 | VA-17 | Int1 + Int3 | M11 corregido (PR 12.1, `85690c5`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | pendiente | B7 + M10: conteos |

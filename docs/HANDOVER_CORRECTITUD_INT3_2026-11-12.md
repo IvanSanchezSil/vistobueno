@@ -162,10 +162,12 @@ descripción y dejar la medición expresamente pendiente, no «cerrada».
   Evidencia: `948 passed, 4 skipped`; regresión `test_m7_*` (3 casos);
   el linter valida la forma de `imagen` (5 pruebas, 8 casos); ruff,
   ruff format, mypy y linter limpios; ejemplos regenerados.
+- **Decisión ratificada (2026-11-16):** la tolerancia de medición es de
+  **0,1 cm** (1 mm), la que ya se implementaba. El manual fija el tamaño del
+  logo pero no da tolerancia.
 - **Límite conocido:** no se identifica visualmente el logo. La regla mide
   el primer dibujo de la carátula; si hay varias imágenes, todas deben
-  medir lo esperado. La tolerancia de 0,1 cm es una decisión del equipo
-  (el manual no la fija) y queda pendiente de ratificación.
+  medir lo esperado.
 
 ### M8. ORCID por persona y destino — VA-16
 

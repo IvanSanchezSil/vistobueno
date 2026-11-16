@@ -325,7 +325,7 @@ reglas:
   # EVALUADO (M7/VA-15): el manual fija 4,84 cm de alto x 6,73 cm de ancho
   # (párr. 176) pero no da tolerancia. Se usa 0,1 cm (1 mm): absorbe el
   # redondeo cm↔EMU y el ajuste manual del dibujo sin admitir un logo de
-  # otro tamaño. Pendiente de ratificar si se quiere más estricta.
+  # otro tamaño. Tolerancia ratificada el 2026-11-16.
   # El ancho es el `cx` y el alto el `cy` del `wp:extent`; `contexto:
   # caratula` limita la búsqueda a la primera sección, así que una imagen
   # solo en el cuerpo o en el encabezado no satisface la carátula.
