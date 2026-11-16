@@ -1,0 +1,39 @@
+fila,metadatos,tipo_config,widget,obligatorio,repetible,responsabilidad,default_capturado,limite
+1,dc.type,dropdown,ds-dynamic-scrollable-dropdown,true,false,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+2,dc.type.version,dropdown,ds-dynamic-scrollable-dropdown,false,false,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+3,dc.format,dropdown,ds-dynamic-scrollable-dropdown,true,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+4,dc.language.iso,dropdown,ds-dynamic-scrollable-dropdown,true,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+5,dc.contributor.author,onebox,dynamic-ng-bootstrap-input,true,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+6,renati.author.dni;renati.author.cext;renati.author.pasaporte;renati.author.cedula,onebox,select QUALDROP + input,false,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+7,dc.contributor.advisor,onebox,dynamic-ng-bootstrap-input,false,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+8,renati.advisor.dni;renati.advisor.cext;renati.advisor.pasaporte;renati.advisor.cedula,onebox,select QUALDROP + input,false,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+9,renati.advisor.orcid,onebox,dynamic-ng-bootstrap-input,false,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+10,dc.contributor.editor,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+11,dc.title,onebox,dynamic-ng-bootstrap-input,true,false,userscript,false,Modelo y persistencia pendientes de integración Angular local
+12,dc.title.alternative,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+13,dc.publisher,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+14,dc.publisher.country,dropdown,ds-dynamic-scrollable-dropdown,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+15,dc.date.issued,date,ds-date-picker / ds-number-picker,true,false,userscript,false,Modelo y persistencia pendientes de integración Angular local
+16,dc.rights,dropdown,ds-dynamic-scrollable-dropdown,true,false,userscript,true,Modelo y persistencia pendientes de integración Angular local
+17,dc.rights.uri,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+18,dc.date.embargoEnd,date,ds-date-picker / ds-number-picker,false,false,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+19,dc.source,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+20,dc.description.abstract,textarea,dynamic-ng-bootstrap-textarea,true,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+21,dc.description.tableofcontents,textarea,dynamic-ng-bootstrap-textarea,false,false,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+22,dc.identifier.citation,textarea,dynamic-ng-bootstrap-textarea,false,false,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+23,dc.relation.uri,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+24,dc.subject,onebox,dynamic-ng-bootstrap-input,true,true,userscript,false,Modelo y persistencia pendientes de integración Angular local
+25,dc.subject.ocde,dropdown,ds-dynamic-scrollable-dropdown,true,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+26,dc.identifier.doi,onebox,dynamic-ng-bootstrap-input,false,false,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+27,dc.identifier.isbn,onebox,dynamic-ng-bootstrap-input,false,false,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+28,dc.relation.ispartof,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+29,renati.type,dropdown,ds-dynamic-scrollable-dropdown,false,false,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+30,thesis.degree.name,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+31,renati.level,dropdown,ds-dynamic-scrollable-dropdown,false,false,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+32,thesis.degree.discipline,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+33,renati.discipline,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+34,thesis.degree.grantor,onebox,dynamic-ng-bootstrap-input,false,false,operador / plantilla de colección,true,Fuera del plan automático; no afirmar que el userscript lo completa
+35,renati.juror,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+36,dc.description.sponsorship,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+37,dc.relation,onebox,dynamic-ng-bootstrap-input,false,true,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
+38,dc.relation.ispartof,onebox,dynamic-ng-bootstrap-input,false,false,operador / plantilla de colección,false,Fuera del plan automático; no afirmar que el userscript lo completa
