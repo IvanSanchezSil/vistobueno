@@ -65,7 +65,7 @@ from .api_models import (
     SeveridadAPI,
     ValidarResponse,
 )
-from .buzon import Buzon, SinFichaVigente, TramiteNoCoincide
+from .buzon import Buzon, SinFichaVigente, SnapshotTramite, TramiteNoCoincide
 from .constancia import (
     MIME_DOCX as MIME_DOCX_CONSTANCIA,
 )
@@ -1415,15 +1415,16 @@ def _firma_operador() -> str:
     return os.environ.get("VISTOBUENO_FIRMA", "").strip()
 
 
-def _verificar_tramite_depositado(solicitud: FilaRegistroRequest) -> None:
-    """Ata el papeleo al depósito vigente de la misma ficha.
+def _verificar_tramite_depositado(solicitud: FilaRegistroRequest) -> SnapshotTramite:
+    """Ata el papeleo al estado canónico de la misma ficha.
 
-    El papeleo no puede generarse con un `tramite_id` viejo ni con un
-    handle que no sea el reportado. Si no hay depósito vigente, la
-    respuesta es 409: la SPA debe volver a preparar y depositar.
+    La solicitud solo confirma la identidad del trámite. El papeleo usa
+    la ficha publicada y el depósito guardado por el servidor. Si falta el
+    estado o cualquier campo no coincide, la respuesta es 409: la SPA debe
+    volver a preparar y depositar.
     """
-    deposito = _BUZON.leer_deposito()
-    if deposito is None:
+    snapshot = _BUZON.leer_snapshot()
+    if snapshot is None:
         raise HTTPException(
             status_code=409,
             detail=(
@@ -1431,6 +1432,7 @@ def _verificar_tramite_depositado(solicitud: FilaRegistroRequest) -> None:
                 "reportó el handle. Vuelve a preparar la ficha."
             ),
         )
+    deposito = snapshot.deposito
     if deposito.get("tramite_id") != solicitud.tramite_id:
         raise HTTPException(
             status_code=409,
@@ -1447,23 +1449,44 @@ def _verificar_tramite_depositado(solicitud: FilaRegistroRequest) -> None:
                 "Usa el handle reportado por el userscript."
             ),
         )
+    if deposito.get("timestamp") != solicitud.timestamp:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "El timestamp de la solicitud no coincide con el depósito vigente. "
+                "Vuelve a preparar la ficha."
+            ),
+        )
+    if solicitud.ficha.model_dump() != snapshot.ficha:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "La ficha de la solicitud no coincide con la ficha publicada. "
+                "Vuelve a preparar la ficha."
+            ),
+        )
+    return snapshot
 
 
-def _constancias_de_solicitud(solicitud: FilaRegistroRequest) -> list[DatosConstancia]:
-    """Valida la solicitud y arma los datos: una constancia por autor.
+def _constancias_de_solicitud(snapshot: SnapshotTramite) -> list[DatosConstancia]:
+    """Arma los datos canónicos: una constancia por autor.
+
+    La ficha, el handle y el timestamp salen del snapshot del servidor.
+    El cliente no puede sustituirlos.
 
     Errores:
 
-    - 422: timestamp que no es ISO 8601, o falta un dato de la ficha
-      (título, autores, matrículas alineadas).
+    - 422: timestamp canónico que no es ISO 8601, o falta un dato de la
+      ficha (título, autores, matrículas alineadas).
     - 500: configuración del servidor (firma o plantilla).
     """
+    timestamp = snapshot.deposito["timestamp"]
     try:
-        momento = _parsear_timestamp(solicitud.timestamp)
+        momento = _parsear_timestamp(timestamp)
     except ValueError as e:
         raise HTTPException(
             status_code=422,
-            detail=f"Timestamp inválido: '{solicitud.timestamp}'. Use ISO 8601 (p. ej. 2026-10-19T18:10:00).",
+            detail=f"Timestamp inválido: '{timestamp}'. Use ISO 8601 (p. ej. 2026-10-19T18:10:00).",
         ) from e
 
     firma = _firma_operador()
@@ -1476,8 +1499,11 @@ def _constancias_de_solicitud(solicitud: FilaRegistroRequest) -> list[DatosConst
             ),
         )
 
+    ficha = FichaDeposito(**snapshot.ficha)
     try:
-        return constancias_por_autor(solicitud.ficha.model_dump(), solicitud.handle, momento, firma)
+        return constancias_por_autor(
+            ficha.model_dump(), snapshot.deposito["handle"], momento, firma
+        )
     except ErrorDatosConstancia as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
@@ -1545,8 +1571,8 @@ async def descargar_constancia(
         ),
     ),
 ) -> Response:
-    _verificar_tramite_depositado(solicitud)
-    datos = _constancias_de_solicitud(solicitud)
+    snapshot = _verificar_tramite_depositado(solicitud)
+    datos = _constancias_de_solicitud(snapshot)
     if solicitud.indice_autor >= len(datos):
         raise HTTPException(
             status_code=422,
@@ -1618,8 +1644,8 @@ async def generar_fila_registro(
         description="json: la lista TSV (retrocompatible). tsv/csv/xlsx: archivo descargable",
     ),
 ):
-    _verificar_tramite_depositado(solicitud)
-    datos = _constancias_de_solicitud(solicitud)
+    snapshot = _verificar_tramite_depositado(solicitud)
+    datos = _constancias_de_solicitud(snapshot)
     medidor = _MedidorCPU()
     try:
         filas = await run_in_threadpool(medidor.medir, _filas_de_registro, datos)

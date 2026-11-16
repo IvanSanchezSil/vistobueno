@@ -137,16 +137,37 @@ class TestBuzonUnitario:
         assert leida[0] == {"ficha": True}
         assert buzon.leer_deposito() is not None
 
+    def test_snapshot_agrupa_ficha_y_deposito_canonicos(self):
+        """La instantánea reúne el estado que usa el papeleo."""
+        buzon = Buzon()
+        tramite_id, vence_en = buzon.publicar_ficha({"titulo": "Tesis canónica"})
+        buzon.reportar_deposito(_cuerpo_deposito(tramite_id))
+
+        snapshot = buzon.leer_snapshot()
+        assert snapshot is not None
+        assert snapshot.ficha == {"titulo": "Tesis canónica"}
+        assert snapshot.tramite_id == tramite_id
+        assert snapshot.vence_en == vence_en
+        assert snapshot.deposito["handle"] == HANDLE
+        assert snapshot.deposito["timestamp"] == TIMESTAMP
+
+    def test_snapshot_sin_deposito_es_none(self):
+        """Una ficha sin depósito no habilita el papeleo."""
+        buzon = Buzon()
+        buzon.publicar_ficha({"titulo": "Tesis canónica"})
+        assert buzon.leer_snapshot() is None
+
     def test_lectura_devuelve_copia(self):
         """Mutar lo leído no corrompe el contenido almacenado."""
         buzon = Buzon()
-        buzon.publicar_ficha({"a": 1})
+        buzon.publicar_ficha({"a": 1, "lista": [1]})
         leido = buzon.leer_ficha()
         assert leido is not None
         leido[0]["a"] = 999
+        leido[0]["lista"][0] = 999
         otra = buzon.leer_ficha()
         assert otra is not None
-        assert otra[0] == {"a": 1}
+        assert otra[0] == {"a": 1, "lista": [1]}
 
     def test_limpiar_vacia_todo(self):
         """limpiar() vacía ficha, trámite y depósito."""

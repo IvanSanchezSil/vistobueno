@@ -26,10 +26,27 @@ contexto de la extensión y no está sujeto a CORS.
 
 import threading
 import time
+from copy import deepcopy
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 TTL_SEGUNDOS_POR_DEFECTO = 3600.0  # 1 hora
+
+
+@dataclass(frozen=True)
+class SnapshotTramite:
+    """Estado canónico de un trámite con su depósito vigente.
+
+    La API usa esta instantánea para atar el papeleo a la ficha publicada
+    y al depósito reportado. Los diccionarios son copias: el llamador no
+    puede mutar el estado del buzón.
+    """
+
+    ficha: dict
+    tramite_id: str
+    vence_en: datetime
+    deposito: dict
 
 
 class SinFichaVigente(Exception):
@@ -73,7 +90,7 @@ class Buzon:
         if time.monotonic() - self._ficha_publicada_en > self._ttl:
             self._limpiar_ranuras()
             return None
-        return dict(self._ficha), self._ficha_tramite_id, self._ficha_vence_en
+        return deepcopy(self._ficha), self._ficha_tramite_id, self._ficha_vence_en
 
     # --- Ranura de la ficha (SPA → userscript) ---
 
@@ -85,7 +102,7 @@ class Buzon:
         """
         with self._lock:
             ahora = time.monotonic()
-            self._ficha = dict(ficha)
+            self._ficha = deepcopy(ficha)
             self._ficha_publicada_en = ahora
             self._ficha_tramite_id = uuid4().hex
             self._ficha_vence_en = datetime.now(UTC) + timedelta(seconds=self._ttl)
@@ -122,25 +139,53 @@ class Buzon:
                 raise TramiteNoCoincide(
                     "El depósito pertenece a un trámite anterior; vuelve a preparar la ficha."
                 )
-            self._deposito = dict(datos)
+            self._deposito = deepcopy(datos)
             self._deposito_publicado_en = time.monotonic()
+
+    def _deposito_vigente(self, tramite_id: str) -> dict | None:
+        """Devuelve el depósito vigente del trámite; requiere lock."""
+        if self._deposito is None:
+            return None
+        if self._deposito.get("tramite_id") != tramite_id:
+            self._deposito = None
+            self._deposito_publicado_en = 0.0
+            return None
+        if time.monotonic() - self._deposito_publicado_en > self._ttl:
+            self._deposito = None
+            self._deposito_publicado_en = 0.0
+            return None
+        return deepcopy(self._deposito)
 
     def leer_deposito(self) -> dict | None:
         """Devuelve el depósito vigente; None si vacío, expirado o ajeno."""
         with self._lock:
-            if self._deposito is None:
-                return None
             vigente = self._ficha_vigente()
             if vigente is None:
                 return None
             _, tramite_id, _ = vigente
-            if self._deposito.get("tramite_id") != tramite_id:
-                self._deposito = None
+            return self._deposito_vigente(tramite_id)
+
+    def leer_snapshot(self) -> SnapshotTramite | None:
+        """Devuelve la ficha y el depósito canónicos en una sola lectura.
+
+        La lectura es atómica: el papeleo no puede mezclar una ficha con
+        el depósito de otro trámite. Devuelve None si falta cualquiera de
+        los dos estados o si alguno expiró.
+        """
+        with self._lock:
+            vigente = self._ficha_vigente()
+            if vigente is None:
                 return None
-            if time.monotonic() - self._deposito_publicado_en > self._ttl:
-                self._deposito = None
+            ficha, tramite_id, vence_en = vigente
+            deposito = self._deposito_vigente(tramite_id)
+            if deposito is None:
                 return None
-            return dict(self._deposito)
+            return SnapshotTramite(
+                ficha=deepcopy(ficha),
+                tramite_id=tramite_id,
+                vence_en=vence_en,
+                deposito=deposito,
+            )
 
     # --- Higiene ---
 
