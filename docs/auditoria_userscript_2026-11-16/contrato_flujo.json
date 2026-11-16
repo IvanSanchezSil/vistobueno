@@ -1,0 +1,70 @@
+{
+  "scope": "Extractos estáticos sin sesión; no prueban ejecución integrada",
+  "capturedConfig": {
+    "angular": "17.3.12",
+    "theme": "custom",
+    "autosave": {
+      "metadata": [],
+      "timer": 0
+    }
+  },
+  "offsetUnit": "UTF-16 zero-based end-exclusive",
+  "records": [
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "module": 61010,
+      "label": "redirectToMyDSpace",
+      "start": 1227922,
+      "end": 1228252,
+      "code": "redirectToMyDSpace() {\n  this.searchService.getEndpoint().pipe((0, O.s)(1), (0, M.M)(ce => this.requestService.removeByHrefSubstring(ce)), (0, S.H)(() => this.routeService.getPreviousUrl().pipe((0, O.s)(1), (0, M.M)(ce => {\n    (0, B.Im)(ce) || !ce.startsWith(\"/mydspace\") ? this.router.navigate([\"/mydspace\"]) : this.router.navigateByUrl(ce);\n  })))).subscribe();\n}"
+    },
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "module": 61010,
+      "label": "startAutoSave",
+      "start": 1228703,
+      "end": 1228929,
+      "code": "startAutoSave(ce) {\n  if (this.stopAutoSave(), 0 === D.c.submission.autosave.timer) return;\n  const de = D.c.submission.autosave.timer;\n  this.timer$ = (0, e.O)(de, de), this.autoSaveSub = this.timer$.subscribe(() => this.store.dispatch(new V.sj(ce)));\n}"
+    },
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "module": 45813,
+      "label": "depositSubmissionSuccess$",
+      "start": 1361352,
+      "end": 1361744,
+      "code": "this.depositSubmissionSuccess$ = (0, ft.EH)(() => this.actions$.pipe((0, ft.gp)(es.lE.DEPOSIT_SUBMISSION_SUCCESS), (0, Qi.M)(() => this.notificationsService.success(null, this.translate.get(\"submission.sections.general.deposit_success_notice\"))), (0, Qi.M)(pn => this.workspaceItemDataService.invalidateById(pn.payload.submissionId)), (0, Qi.M)(() => this.submissionService.redirectToMyDSpace())), {\n  dispatch: !1\n})"
+    },
+    {
+      "file": "main.e03958c7154ee4b2.js",
+      "module": 45813,
+      "label": "setCitationTitleTag",
+      "start": 1860313,
+      "end": 1860412,
+      "code": "setCitationTitleTag() {\n  const r = this.getMetaTagValue(\"dc.title\");\n  this.addMetaTag(\"citation_title\", r);\n}"
+    },
+    {
+      "file": "1717.89068fc19195806b.js",
+      "module": 31608,
+      "label": "metadata.dispatchOperationsFromChangeEvent",
+      "start": 20168,
+      "end": 21567,
+      "code": "dispatchOperationsFromChangeEvent(e, i, s, r) {\n  if (i.context && i.context instanceof U.fHx) return void this.handleArrayGroupPatch(e, i, i.context.context, s);\n  const p = this.getFieldPathFromEvent(i),\n    h = this.getFieldPathSegmentedFromChangeEvent(i),\n    P = this.getFieldValueFromChangeEvent(i);\n  if (this.formBuilder.isQualdropGroup(i.model.parent) || this.formBuilder.isQualdropGroup(i.model)) this.dispatchOperationsFromMap(this.getQualdropValueMap(i), e, i, s);else if (this.formBuilder.isRelationGroup(i.model)) this.dispatchOperationsFromMap(this.getValueMap(P), e, i, s);else if (this.formBuilder.hasArrayGroupValue(i.model)) this.operationsBuilder.add(e.getPath(h), P, !0);else if (s.isPathEqual(this.formBuilder.getPath(i.model)) || r && (0, l.hj)(s.value)) {\n    if ((0, l.a4)(i.$event) && (0, l.a4)(i.$event.previousIndex)) {\n      if (i.$event.previousIndex < 0) this.operationsBuilder.add(e.getPath(h), P, !0);else {\n        const N = e.getPath(p),\n          tt = e.getPath(h + \"/\" + i.$event.previousIndex);\n        (0, l.hj)(tt.path) && (0, l.hj)(N.path) && tt.path !== N.path && this.operationsBuilder.move(N, tt.path);\n      }\n    } else P.hasValue() ? this.operationsBuilder.replace(e.getPath(p), P) : 0 === this.getArrayIndexFromEvent(i) ? this.operationsBuilder.remove(e.getPath(h)) : this.operationsBuilder.remove(e.getPath(p));\n    s.delete();\n  } else P.hasValue() && ((0, l.b0)(this.getArrayIndexFromEvent(i)) || 0 === this.getArrayIndexFromEvent(i) ? this.operationsBuilder.add(e.getPath(h), P, !0) : this.operationsBuilder.add(e.getPath(p), P));\n}"
+    },
+    {
+      "file": "1717.89068fc19195806b.js",
+      "module": 31608,
+      "label": "metadata.onChange",
+      "start": 53243,
+      "end": 53751,
+      "code": "onChange(e) {\n  this.formOperationsService.dispatchOperationsFromEvent(this.pathCombiner, e, this.previousValue, this.hasStoredValue(this.formBuilderService.getId(e.model), this.formOperationsService.getArrayIndexFromEvent(e)));\n  const i = this.formOperationsService.getFieldPathSegmentedFromChangeEvent(e),\n    s = this.formOperationsService.getFieldValueFromChangeEvent(e);\n  (-1 !== qt.c.submission.autosave.metadata.indexOf(i) && (0, l.hj)(s) || this.hasRelatedCustomError(i)) && this.submissionService.dispatchSave(this.submissionId);\n}"
+    },
+    {
+      "file": "1717.89068fc19195806b.js",
+      "module": 31608,
+      "label": "metadata.onFocus",
+      "start": 54010,
+      "end": 54416,
+      "code": "onFocus(e) {\n  const i = this.formOperationsService.getFieldValueFromChangeEvent(e),\n    s = this.formBuilderService.getPath(e.model);\n  this.formBuilderService.hasMappedGroupValue(e.model) ? (this.previousValue.path = s, this.previousValue.value = this.formOperationsService.getQualdropValueMap(e)) : (0, l.hj)(i) && (\"object\" == typeof i && (0, l.hj)(i.value) || \"string\" == typeof i) && (this.previousValue.path = s, this.previousValue.value = i);\n}"
+    }
+  ]
+}

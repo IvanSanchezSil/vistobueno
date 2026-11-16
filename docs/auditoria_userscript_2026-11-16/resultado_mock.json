@@ -1,0 +1,20 @@
+[
+  {
+    "page": "submit",
+    "injectedMarkup": true,
+    "handlerExecuted": true,
+    "network": "fetch simulado; recursos externos no habilitados",
+    "mockedRequests": [
+      "/api-proxy/ficha-pendiente"
+    ]
+  },
+  {
+    "page": "item",
+    "injectedMarkup": true,
+    "handlerExecuted": true,
+    "network": "fetch simulado; recursos externos no habilitados",
+    "mockedRequests": [
+      "/api-proxy/deposito"
+    ]
+  }
+]
