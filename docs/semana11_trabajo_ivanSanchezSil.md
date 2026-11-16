@@ -36,6 +36,9 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 | 2026-11-12 | Merge de `upstream/master` `9fdfc57` (PR #73) sin retroceder la auditoría | Commit `1569a61` |
 | 2026-11-12 | Correcciones de la revisión del PR #75: tildes, autores, asesor, año y valores inservibles | Commit `b060566` |
 | 2026-11-12 | Linter de `extraccion`: regex de `quitar_prefijo`/`quitar_sufijo` y `seleccion` | Commit `6602c90` |
+| 2026-11-14 | Etiquetas de las plantillas oficiales: «Título del trabajo:» y «AUTOR(A):» | Commit `2e27abc` |
+| 2026-11-16 | Rebase sobre `730f968` para que el diff del PR #75 muestre solo el trabajo de la ficha | Commit `2e27abc` |
+| 2026-11-16 | Merge de `upstream/master` (`c9e5499`: PRs #93, #95 y #96) y actualización de conteos | Commit `57ac3b6` |
 
 ## Evidencias producidas
 
@@ -53,6 +56,8 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 | `validator/extractor.py` | `b060566` | Sin `sectPr`, `caratula_ficha` corta en el primer encabezado |
 | `validator/dsl_check.py` | `6602c90` | Valida regex de `quitar_prefijo`/`quitar_sufijo` y `seleccion` |
 | `tests/test_captura_ficha.py` | `b060566` | Casos límite: tilde sin asesor, etiqueta y autor juntos, asesor con párrafo vacío, año frente a referencias |
+| `reglas_ficha.yaml` | `2e27abc` | Prefijo de título «de investigación» opcional y autor que acepta `AUTOR(A):`, `AUTOR:`, `AUTORA:`, `AUTORES:` y `AUTORAS:` |
+| `tests/test_captura_ficha.py` | `2e27abc` | Estructura de las 5 plantillas oficiales: título, `AUTOR(A)`, `ASESOR(A)`, línea de investigación, ciudad y año |
 
 ## Verificación
 
@@ -69,9 +74,12 @@ Cerrar las tareas pendientes del módulo de captura de ficha según el handover 
 - El nombre de archivo de la constancia se sanea (sin comas ni acentos); el **contenido** conserva el nombre real del autor. Los tests ahora distinguen ambos.
 - El asesor se resuelve con `primero_no_vacio`: sirve tanto si la etiqueta está en un párrafo aparte como si comparte párrafo con el nombre.
 - `palabras_clave_minimo` se mantiene en `error` por decisión del 2026-11-08; las 5 plantillas oficiales siguen en rojo a propósito.
+- Las 5 plantillas oficiales usan etiquetas que no eran las del ejemplo del enunciado: «Título del trabajo:» y «AUTOR(A):». Un prefijo que solo cubre «Título del trabajo de investigación» deja la instrucción dentro del título y publica una etiqueta de autor como autor falso; por eso los prefijos se escriben como variantes explícitas y se prueban con la estructura real.
+- El PR #75 arrastraba el stack completo de la Semana 12 en su diff. Rebasear sobre `730f968` deja la rama con un solo commit propio y hace revisable el cambio; el orden de integración (#98 a #102 y luego #75) se mantiene en la documentación.
 
 ## Plan de la semana siguiente
 
 - Cerrar los hallazgos restantes de Int3: AUD-01, AUD-02, AUD-04, AUD-05, AUD-06 y AUD-20.
 - Revisar el bloque de aviso de `AGENTS.md` cuando estén cerrados todos los hallazgos de la tabla §11.
 - Mantener la verificación contra la tesis real y las 5 plantillas en cada cambio del motor.
+- Revisar de nuevo el PR #75 con retblast: los comentarios del 2026-11-12 y el seguimiento del 2026-11-13 están atendidos, pero el PR sigue en `CHANGES_REQUESTED` hasta la nueva revisión.
