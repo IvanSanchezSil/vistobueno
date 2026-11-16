@@ -7,13 +7,16 @@
 	     esta meta como compuerta de "página de ítem". -->
 	<!-- El título del ítem debe coincidir con el de la ficha: el
 	     userscript compara igualdad normalizada y reporta el valor REAL
-	     leído aquí como `titulo_observado`. -->
-	<meta name="citation_title" content="Título del trabajo de investigación: Estrategias lúdicas para el desarrollo de la motricidad fina.">
+	     leído aquí como `titulo_observado`.
+	     Es el `dc.title` que el userscript escribe en el formulario, o sea
+	     el título ya sin la etiqueta «Título del trabajo de investigación:»
+	     (la captura del motor lo entrega limpio desde el PR #75). -->
+	<meta name="citation_title" content="Estrategias lúdicas para el desarrollo de la motricidad fina.">
 </head>
 <body>
 	<h1>Ítem archivado (MOCK)</h1>
 	<p>Simulación de la página del ítem tras aprobarse el envío.</p>
-	<p id="titulo-item">Título del trabajo de investigación: Estrategias lúdicas para el desarrollo de la motricidad fina.</p>
+	<p id="titulo-item">Estrategias lúdicas para el desarrollo de la motricidad fina.</p>
 	<p>
 		URI:
 		<a href="https://hdl.handle.net/20.500.14414/99999">
