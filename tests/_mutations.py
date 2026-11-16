@@ -147,9 +147,10 @@ REGLAS_ACOPLADAS = {
     "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
     "caratula_ciudad_pais_negrita": {"caratula_universidad_negrita_mayusculas"},
     # indice_subdivisiones renombra "INDICE DE CONTENIDOS" -> "ÍNDICE GENERAL".
-    # Con el xpath tolerante ("indice") el primer match cae en "INDICE DE
-    # TABLAS": las páginas pasan de distintas a repetidas, así que
-    # indice_paginas_separadas detecta el desvío. Acople unidireccional.
+    # Con el XPath por texto completo (PR #102) el título de contenidos deja
+    # de localizarse, así que indice_paginas_separadas pasa a NO APLICABLE
+    # (antes fallaba con paginas_repetidas por el XPath tolerante).
+    # Acople unidireccional: la presencia la reporta indice_subdivisiones.
     # (Las reglas de TOC pasan a n/a con ese renombre, pero el `found` exitoso
     # es "cumple" en ambos casos -> sin acople observable.)
     "indice_subdivisiones": {"indice_paginas_separadas"},

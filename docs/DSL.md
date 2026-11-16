@@ -387,19 +387,29 @@ o **desconocida** (sin marcadores).
 paginacion:
   comparacion: paginas_distintas
   xpaths:
-    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE CONTENIDOS')]]"
-    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE TABLAS')]]"
-    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE FIGURAS')]]  "
+    - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de contenidos']"
+    - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de tablas']"
+    - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de figuras']"
 ```
 
 - `paginas_distintas`: los títulos deben quedar en páginas separadas
-  (`paginas_repetidas` si hay dos en la misma; `no_encontrado` si algún
-  XPath no coincide).
+  (`paginas_repetidas` si hay dos en la misma; `indices_no_verificables`
+  si algún XPath no coincide).
+- El XPath de la regla *indice_paginas_separadas* **pliega tildes** (para
+  que "ÍNDICE" se encuentre) y compara el **texto completo** del párrafo
+  (para que la línea `PAGEREF` de la tabla de contenido no se confunda con
+  el título de la sección). Con un XPath tolerante (`contains`) la regla
+  daba un falso positivo `paginas_repetidas` sobre la tesis aprobada. Se
+  toma la primera coincidencia de cada XPath en orden de documento.
+- Si algún XPath no coincide, la regla es **NO APLICABLE**
+  (`aplicable=False`, `found="no aplica a este documento"`), no "cumple":
+  la presencia de las secciones la cubren otras reglas.
 - Si la página de algún objetivo es **desconocida** (el DOCX no trae
   marcadores ni caché de render), la regla pasa como n/a con
   `paginas_no_verificables`: no se inventa una página para fallar por
   `paginas_repetidas`. Si la página solo está **estimada** (caché de render
-  de Word), el detalle declara `(estimadas)`.
+  de Word), el detalle declara `(estimadas)`. Este caso también es **NO
+  APLICABLE**.
 - A efectos del *enriquecimiento de `ubicacion`*, el analizador expone el
   último nodo analizado (`ultimo_nodo`); cuando una regla FALLA con página
   conocida, el compilador anexa `; página N` (o `; página N (estimada)` si

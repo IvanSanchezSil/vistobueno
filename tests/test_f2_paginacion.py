@@ -12,8 +12,8 @@ Cubre:
 - `AnalizadorPaginacion` (`paginacion` / `paginas_distintas`): pasa solo si
   los objetivos caen en páginas físicas distintas; falla con
   `paginas_repetidas`. Si alguna sección objetivo no es identificable, o si
-  la página es desconocida, pasa como n/a (la regla solo juzga paginación,
-  no presencia ni inventa páginas).
+  la página es desconocida, la regla es NO APLICABLE (`aplicable=False`):
+  la regla solo juzga paginación, no presencia ni inventa páginas.
 - Regla `indice_paginas_separadas` end-to-end contra `reglas_unt.yaml`
   (documento base separado / mutación agrupada / índice renombrado).
 - Linter y compilador DSL aceptan la sección `paginacion`.
@@ -58,14 +58,22 @@ _MAYUS = "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ"
 _MINUS = "abcdefghijklmnopqrstuvwxyzáéíóúñü"
 
 
-def _xpath_que_contiene(termino: str) -> str:
+def _xpath_titulo(titulo: str) -> str:
+    """XPath del título de una sección de índice.
+
+    Pliega tildes y compara el TEXTO COMPLETO del párrafo, como en
+    `reglas_unt.yaml` (revisión PR #102): así la línea PAGEREF de la tabla
+    de contenido no se confunde con el título de la sección.
+    """
     return (
-        "//w:body//w:p[contains(translate(normalize-space(.), "
-        f'"{_MAYUS}", "{_MINUS}"), "{termino}")]'
+        "//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "
+        f'"{_MAYUS}", "{_MINUS}"), "áéíóúüñ", "aeiouun")) = "{titulo}"]'
     )
 
 
-_XPATHS_INDICES = [_xpath_que_contiene(t) for t in ("contenidos", "tablas", "figuras")]
+_XPATHS_INDICES = [
+    _xpath_titulo(t) for t in ("indice de contenidos", "indice de tablas", "indice de figuras")
+]
 
 
 def _para(texto: str) -> str:
@@ -401,6 +409,9 @@ def test_sin_marcadores_no_se_inventa_paginas_repetidas():
     )
     assert r.passed
     assert "paginas_repetidas" not in r.found
+    # La regla NO se evaluó: se publica como no aplicable (revisión PR #102).
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
 
 
 def test_paginas_estimadas_se_declaran_en_el_detalle():
@@ -455,6 +466,8 @@ def test_no_encontrado_es_no_aplica():
         _XPATHS_INDICES,
     )
     assert r.passed
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
 
 
 def test_sin_indices_no_aplica_pasa():
@@ -472,6 +485,48 @@ def test_sin_indices_no_aplica_pasa():
         _XPATHS_INDICES,
     )
     assert r.passed
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
+
+
+def test_no_aplica_no_se_hereda_al_siguiente_documento():
+    """La misma instancia puede evaluar varios documentos: el flag se resetea.
+
+    `self.no_aplica` se inicializa en el constructor, pero la instancia se
+    reutiliza; sin reset, un documento n/a haría que el siguiente se
+    publicara como no aplicable sin haber sido evaluado (revisión PR #102).
+    """
+    compilada = CompilerDSL().compilar({"reglas": [_regla_paginacion(_XPATHS_INDICES)]})[0]
+
+    path_a = _make_docx(
+        [
+            _para("INDICE DE CONTENIDOS"),
+            _para("INDICE DE TABLAS"),
+            _para("INDICE DE FIGURAS"),
+        ]
+    )
+    try:
+        resultado_a = compilada.ejecutar(extract(path_a))
+    finally:
+        Path(path_a).unlink(missing_ok=True)
+    assert not resultado_a.aplicable
+
+    path_b = _make_docx(
+        [
+            _p_break(),
+            _para("INDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("INDICE DE TABLAS"),
+            _p_break(),
+            _para("INDICE DE FIGURAS"),
+        ]
+    )
+    try:
+        resultado_b = compilada.ejecutar(extract(path_b))
+    finally:
+        Path(path_b).unlink(missing_ok=True)
+    assert resultado_b.aplicable, resultado_b.found
+    assert resultado_b.passed, resultado_b.found
 
 
 # ---------------------------------------------------------------------------
@@ -501,8 +556,81 @@ def test_indice_paginas_separadas_mutacion_falla():
     assert "paginas_repetidas" in r.found
 
 
-def test_indice_paginas_separadas_contenidos_renombrado_falla():
+def test_indice_paginas_separadas_contenidos_renombrado_es_no_aplica():
+    """Si un índice no es identificable, la regla no juzga la paginación.
+
+    La presencia de las secciones la cubre `indice_subdivisiones`; esta
+    regla solo mide la separación en páginas, así que sin los tres títulos
+    es NO APLICABLE y no un fallo (revisión PR #102).
+    """
     r = _resultado_indice(aplicar_mutacion("indice_subdivisiones", configuracion_base()))
+    assert r.passed
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
+
+
+# ---------------------------------------------------------------------------
+# Títulos reales: con tilde y con las líneas PAGEREF del índice (PR #102)
+# ---------------------------------------------------------------------------
+
+
+def test_titulos_con_tilde_en_paginas_distintas_pasan():
+    """Los títulos reales llevan tilde: "ÍNDICE DE CONTENIDOS/TABLAS/FIGURAS"."""
+    r = _validar_una(
+        [
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("ÍNDICE DE TABLAS"),
+            _p_break(),
+            _para("ÍNDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
+    assert r.passed, r.found
+    assert r.aplicable
+
+
+def test_lineas_pageref_del_indice_no_se_confunden_con_el_titulo():
+    """La tabla de contenido menciona los índices: esas líneas no son títulos.
+
+    Con un XPath tolerante (`contains`) la primera coincidencia caía en la
+    línea PAGEREF de la tabla de contenido y la regla daba un falso
+    positivo `paginas_repetidas` sobre la tesis aprobada (10, 11, 11).
+    """
+    r = _validar_una(
+        [
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS PAGEREF _Toc242263989 \\h vii"),
+            _para("ÍNDICE DE TABLAS PAGEREF _Toc242263990 \\h viii"),
+            _para("ÍNDICE DE FIGURAS PAGEREF _Toc242263991 \\h ix"),
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("ÍNDICE DE TABLAS"),
+            _p_break(),
+            _para("ÍNDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
+    assert r.passed, r.found
+    assert r.aplicable
+    assert "paginas_repetidas" not in r.found
+
+
+def test_dos_indices_en_la_misma_pagina_siguen_fallando():
+    """El ajuste de alcance no relaja la exigencia: dos índices en la misma
+    página siguen siendo un desvío."""
+    r = _validar_una(
+        [
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS"),
+            _para("ÍNDICE DE TABLAS"),
+            _p_break(),
+            _para("ÍNDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
     assert not r.passed
     assert "paginas_repetidas" in r.found
 

@@ -1362,12 +1362,20 @@ reglas:
   ubicacion: "Sección Índice (párr. 193, 1066, 2600, 3495)"
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)." — Manual, párrafo 193.'
+  # M3 (VA-04): el texto real es "ÍNDICE DE CONTENIDOS/TABLAS/FIGURAS". El
+  # XPath pliega tildes (translate) y compara el TEXTO COMPLETO del párrafo,
+  # para que la línea PAGEREF de la tabla de contenido no se confunda con el
+  # título de la sección (revisión PR #102). Con `contains` y solo tildes
+  # plegadas la regla daba un falso positivo `paginas_repetidas` sobre la
+  # tesis aprobada (10, 11, 11); con el texto completo exacto pasa (10, 12,
+  # 14). Límite: se toma la primera coincidencia de cada XPath en orden de
+  # documento.
   paginacion:
     comparacion: paginas_distintas
     xpaths:
-      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "indice")]'
-      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
-      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
+      - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"]'
+      - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de tablas"]'
+      - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de figuras"]'
 
 # ─── F2 ítem 2: ENCABEZADOS Y PIES DE PÁGINA (2026-09-21) ──────
 # EVALUADO: el manual no define el membrete del encabezado (solo la posición

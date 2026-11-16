@@ -620,6 +620,11 @@ class AnalizadorPaginacion(Analizador):
     produce un falso positivo: solo juzga la paginación de las secciones
     que existen. La sección de "presencia" la cubren otras reglas.
 
+    En ambos casos la regla se marca **NO APLICABLE** (`no_aplica=True`,
+    `aplicable=False`, `found="no aplica a este documento"`), no "cumple":
+    el compilador decide la aplicabilidad con esa bandera (revisión PR
+    #102).
+
     M3/VA-04: si la página de algún objetivo es desconocida (el XML no trae
     marcadores ni caché de render), la regla pasa como n/a en vez de
     inventar una página y fallar por `paginas_repetidas`. Si la página solo
@@ -635,6 +640,10 @@ class AnalizadorPaginacion(Analizador):
             )
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        # El reset es obligatorio: la instancia se compila una vez y la API
+        # la reutiliza para cada documento, así que un `no_aplica=True` de un
+        # documento anterior se heredaría al siguiente (revisión PR #102).
+        self.no_aplica = False
         xpaths = self.config.get("xpaths")
         if not isinstance(xpaths, list) or len(xpaths) < 2:
             return False, "paginacion requiere xpaths (>=2)"
@@ -663,12 +672,14 @@ class AnalizadorPaginacion(Analizador):
         # presencia de secciones, así que pasa como n/a y no genera un falso
         # positivo (ver revisión técnica PR #28).
         if sin_coincidencia:
+            self.no_aplica = True
             return True, "indices_no_verificables (n/a)"
 
         # Sin marcadores no se puede afirmar ni la separación ni la
         # repetición: inventar "página 1" para todos producía un
         # `paginas_repetidas` falso (M3/VA-04).
         if no_verificables:
+            self.no_aplica = True
             return True, (
                 "paginas_no_verificables (n/a): el documento no trae "
                 "marcadores de salto ni caché de render"
