@@ -562,7 +562,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-01 | Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): todos los runs con texto | M1: todos los runs |
 | VA-02 | Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): formato efectivo con límites declarados | M1: formato efectivo |
 | VA-03 | Int3 | M2 implementado, pendiente de verificación (PR #101, `5299a8f`): todas las secciones y las que no declaran `w:pgSz` | M2: A4 en secciones |
-| VA-04 | Int3 | M3 corregido (PR #102, `eea80ea`): orden, valor y certeza | M3: paginación |
+| VA-04 | Int3 | M3 implementado, pendiente de verificación (PR #102, `eea80ea`): orden, valor y certeza; las ramas n/a marcan la regla como no aplicable | M3: paginación |
 | VA-05 | Int3 | pendiente | M4: declaraciones múltiples |
 | VA-06 | Int3 | pendiente | M5: límites del Resumen |
 | VA-07 | Int3 | pendiente | M5: Abstract y palabras clave |
