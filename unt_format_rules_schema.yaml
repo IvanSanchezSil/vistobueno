@@ -823,12 +823,12 @@ rules:
     ubicacion: 'Sección Índice (párr. 192-196)'
     cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)."'
     mecanismo_verificable:
-      nota: 'Secciones "Indice de contenidos", "Indice de tablas" e "Indice de figuras" presentes como Headings, en ese orden tras Agradecimiento. EVALUADO: 0 nodos en las 5 plantillas (solo hay un "Indice" generico sin estilos de encabezado; los tres indices del manual no estan implementados) - regla prescriptiva vs plantillas.'
+      nota: 'Secciones "Indice de contenidos", "Indice de tablas" e "Indice de figuras" presentes como Headings, en ese orden tras Agradecimiento. EVALUADO: el título genérico "Índice" satisface el primer ítem (revisión PR #102); tablas y figuras siguen en 0 nodos en las 5 plantillas (los tres índices del manual no están implementados) - regla prescriptiva vs plantillas.'
       checks:
       - tipo: xml_presencia
         parte: document
         contexto: todos
-        xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'contenidos')]
+        xpath: (//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"] | //w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice"][not(//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"])])[1]
         comparacion: exists
       - tipo: xml_presencia
         parte: document
