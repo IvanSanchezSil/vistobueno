@@ -150,6 +150,13 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
   de relaciones internas existen; mutaciones y reglas mantienen su intención.
 - Entregar el PR/commit y el comando de regeneración a Int1. B6 continúa
   después de esta entrega. No encargar a retblast el arreglo del builder.
+- **Dependencia declarada (2026-11-16):** `docs/ejemplos/doc_bueno.docx` y
+  `docs/ejemplos/doc_malo.docx` siguen siendo los paquetes rotos de antes
+  (`KeyError: "There is no item named 'media/logo.png' in the archive"`).
+  No bloquea M11 —el factory es lo que se arregla aquí— pero su regeneración
+  y el refuerzo de la guardia de ejemplos son **B6 de Int1**, con el comando
+  `python scripts/ejemplo_bueno_malo.py`. Hasta que B6 los regenere, la
+  evaluación contra los ejemplos versionados no es reproducible.
 
 ### M12. Cerrar brechas normativas — NM-01 a NM-07
 
