@@ -110,7 +110,10 @@ atributo_xml:
   ignore_case: false                    # opcional (contains)
 ```
 
-- `exists` / `not_exists` operan solo sobre la cantidad de nodos.
+- `exists` / `not_exists` operan solo sobre la cantidad de nodos. Cuando
+  `not_exists` incumple, el detalle nombra los nodos culpable por su
+  posición (`not_exists 1 nodos; incumplen: #1`) y la ubicación de la regla
+  apunta al primero.
 - `eq` compara el primer valor del atributo; `all_eq` todos; `contains`
   subcadena (con `ignore_case`).
 - `tolerancia` (entero, opcional) permite `eq`/`all_eq` numéricos con un
@@ -128,6 +131,22 @@ atributo_xml:
   estilo, no por identificador, para que funcione igual en Word en español e
   inglés. Se usa en `alineacion_cuerpo`: el manual justifica la prosa, no las
   listas ni los títulos de tabla.
+- En `w:pgSz` (tamaño de papel), `@w:w` compara el **lado corto** y `@w:h`
+  el **lado largo**, sin importar la orientación: un A4 horizontal
+  (`16838 x 11906`) cumple igual que uno vertical, con o sin
+  `w:orient="landscape"`. `papel_tamano` valida **todas** las secciones
+  (carátula y anexos incluidos) con `all_eq`; la sección culpable se
+  identifica por su posición `#N` en el detalle. Límite: se compara el
+  valor OOXML exacto, así que una conversión que redondee el papel
+  (p. ej. `11910 x 16840`) sigue fallando hasta que se decida una
+  tolerancia.
+- `w:pgSz` es **opcional** en OOXML: una sección que no lo declara no
+  puede compararse. Por eso `papel_tamano` añade una comprobación
+  `presencia_xml` con `xpath: '//w:sectPr[not(w:pgSz)]'` y
+  `comparacion: not_exists`, y así ninguna sección queda sin revisar. El
+  detalle de `not_exists` incumplido nombra los nodos por posición
+  (`not_exists 1 nodos; incumplen: #1`) y la ubicación de la regla apunta
+  al primero.
 - `contexto: caratula` restringe la consulta a los párrafos de la carátula:
   los `w:p` de nivel superior anteriores al primer `w:pPr/w:sectPr` del cuerpo
   (el salto que cierra la portada). Si el documento no declara ese salto, se

@@ -10,6 +10,7 @@ from .detalle import (
     detalle_texto_lista,
     detalle_texto_regex,
     detalle_xml_atributo,
+    detalle_xml_presencia,
     evaluar_atributo,
 )
 from .extractor import NS, ExtractedDocx, W, es_heading, text_of
@@ -46,9 +47,15 @@ def run_check(check: dict, extracted: ExtractedDocx, rule: dict) -> tuple[bool, 
 
     if tipo == "xml_presencia":
         if comp == "exists":
-            return len(nodes) > 0, f"exists {len(nodes)} nodos"
+            return len(nodes) > 0, detalle_xml_presencia(comp, len(nodes), [])
         if comp == "not_exists":
-            return len(nodes) == 0, f"not_exists {len(nodes)} nodos"
+            # Mismo detalle que el motor DSL (revisión PR #101): los nodos
+            # encontrados son los incumplientes y se nombran por posición.
+            incumplidos = [(i, extracted.pagina_de(n)) for i, n in enumerate(nodes, 1)]
+            return (
+                not nodes,
+                detalle_xml_presencia(comp, len(nodes), incumplidos),
+            )
         return False, f"comparacion '{comp}' no soportada para xml_presencia"
 
     if tipo == "xml_atributo":

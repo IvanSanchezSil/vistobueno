@@ -359,6 +359,11 @@ def _verificar_paridad(docx_path: str) -> dict:
         "margen_inferior",
         "margen_derecho",
         "margen_izquierdo",
+        # M2 (VA-03): el DSL valida TODAS las secciones (`(//w:sectPr)/w:pgSz`
+        # con `all_eq`); el legacy solo la primera (`//w:sectPr[1]` con `eq`).
+        # El veredicto coincide en estos fixtures (todas las secciones tienen
+        # el mismo papel), pero el `found` del DSL cuenta más valores.
+        "papel_tamano",
     }
     # M1 (formato efectivo): estas reglas migraron de `atributo_xml` (solo
     # formato directo) a `formato_efectivo`. El veredicto se conserva en los
