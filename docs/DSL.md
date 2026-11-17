@@ -192,16 +192,32 @@ lista_texto:
 ### 4. `imagen` → `AnalizadorImagen`
 
 Cuenta imágenes (blips) en los nodos que matchean el XPath y verifica
-cantidades mínima y/o máxima.
+cantidades mínima y/o máxima. Opcionalmente mide el dibujo que contiene
+cada blip (M7/VA-15):
 
 ```yaml
 imagen:
   parte: document
+  contexto: caratula    # opcional: todos | cuerpo | caratula | ...
   xpath: //w:drawing//a:blip
   formato: png
   cantidad_minima: 1
   cantidad_maxima: 4     # opcional
+  ancho_cm: 6.73         # opcional, junto con alto_cm
+  alto_cm: 4.84
+  tolerancia_cm: 0.1     # opcional; por defecto 0.1
 ```
+
+- Sin `ancho_cm`/`alto_cm` solo se comprueba la presencia y la cantidad.
+- Con ambos, se lee el `wp:extent` del `wp:inline`/`wp:anchor` que contiene
+  el blip: **ancho = `cx`**, **alto = `cy`** (360000 EMU por cm). Una
+  imagen sin `wp:extent` no se puede medir y la regla falla
+  (`tamanos=sin_dimensiones`); no se da por buena en silencio.
+- `contexto: caratula` limita la búsqueda a la primera sección, así que una
+  imagen solo en el cuerpo o en el encabezado no satisface la carátula.
+- La tolerancia absorbe el redondeo cm↔EMU y el ajuste manual. El manual
+  no fija una; la regla del logo usa 0,1 cm (1 mm) y queda anotada como
+  decisión a ratificar.
 
 ### 5. `automata_secuencia` → DFA (secuencia ordenada de títulos)
 

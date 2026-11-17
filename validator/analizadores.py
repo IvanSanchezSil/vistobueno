@@ -475,15 +475,74 @@ class AnalizadorConteoNodos(Analizador):
 
 
 class AnalizadorImagen(AnalizadorConteoNodos):
-    """Verifica la presencia (y cantidad) de imágenes embebidas.
+    """Verifica la presencia, la cantidad y el tamaño de imágenes embebidas.
 
-    Misma semántica que el legacy `imagen_presencia` (checks.run_check):
-    detalle `imagenes=N minimo=M`. Es un caso particular de
-    `AnalizadorConteoNodos` con etiqueta "imagenes".
+    Sin `ancho_cm`/`alto_cm` conserva la semántica del legacy
+    `imagen_presencia` (checks.run_check): detalle `imagenes=N minimo=M`.
+    Con ambos campos mide el `wp:extent` del dibujo que contiene cada blip
+    (M7/VA-15): el ancho es `cx` y el alto `cy`, en EMU (360000 por cm).
+    `contexto: caratula` limita la búsqueda a la primera sección, así que
+    una imagen del cuerpo o del encabezado no satisface la carátula.
     """
+
+    EMU_POR_CM = 360000
 
     def _etiqueta(self) -> str:
         return "imagenes"
+
+    def _dimensiones(self, nodo) -> tuple[float, float] | None:
+        contenedores = nodo.xpath("ancestor::wp:inline[1] | ancestor::wp:anchor[1]", namespaces=NS)
+        if not contenedores:
+            return None
+        extent = contenedores[0].find(f"{{{NS['wp']}}}extent")
+        if extent is None:
+            return None
+        try:
+            cx = int(extent.get("cx", ""))
+            cy = int(extent.get("cy", ""))
+        except TypeError, ValueError:
+            return None
+        return cx / self.EMU_POR_CM, cy / self.EMU_POR_CM
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        ancho = self.config.get("ancho_cm")
+        alto = self.config.get("alto_cm")
+        if ancho is None and alto is None:
+            return super().analizar(extracted)
+        if ancho is None or alto is None:
+            raise ConfigurationError("imagen: 'ancho_cm' y 'alto_cm' deben declararse juntos")
+
+        ancho_esperado = float(ancho)
+        alto_esperado = float(alto)
+        tolerancia = float(self.config.get("tolerancia_cm", 0.1))
+        minimo = self.config.get("cantidad_minima", 1)
+        nodos = self._nodos(
+            extracted,
+            self.config.get("parte", "document"),
+            self.config.get("contexto", "todos"),
+        )
+        if len(nodos) < minimo:
+            return False, f"imagenes={len(nodos)} minimo={minimo}"
+        maximo = self.config.get("cantidad_maxima")
+        if maximo is not None and len(nodos) > maximo:
+            return False, f"imagenes={len(nodos)} maximo={maximo}"
+
+        medidas = [self._dimensiones(n) for n in nodos]
+        esperado = f"{ancho_esperado:.2f}x{alto_esperado:.2f}±{tolerancia:.2f}cm"
+        if any(m is None for m in medidas):
+            return False, f"imagenes={len(nodos)} tamanos=sin_dimensiones esperado={esperado}"
+
+        validas = [m for m in medidas if m is not None]
+        tamanos = ", ".join(f"{w:.2f}x{h:.2f}" for w, h in validas)
+        malas = [
+            (w, h)
+            for w, h in validas
+            if abs(w - ancho_esperado) > tolerancia or abs(h - alto_esperado) > tolerancia
+        ]
+        detalle = f"imagenes={len(nodos)} tamanos={tamanos}cm esperado={esperado}"
+        if malas:
+            return False, f"{detalle} incumplen={len(malas)}"
+        return True, detalle
 
 
 class AnalizadorCantidadPatron(Analizador):

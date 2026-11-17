@@ -572,8 +572,8 @@ VA-07 | Int3 | pendiente | M5: Abstract y palabras clave |
 | VA-11 | Int3 + Int1 | M1a corregido (PR 12.2, `f601f29`); B5 pendiente | M1a + B5: documento inválido |
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | corregido (PR #75, `b060566` + `6602c90` + `a7bdc54`); el diff queda limitado a la ficha y se mergeará tras #102 | M0: PR #75, AUD-24 a AUD-27 |
-| VA-14 | Int3 | M6 corregido (`c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
-| VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
+VA-14 | Int3 | M6 corregido (`c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
+VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |
 | VA-17 | Int1 + Int3 | M11 corregido (PR 12.1, `85690c5`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | pendiente | B7 + M10: conteos |

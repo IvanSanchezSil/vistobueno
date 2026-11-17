@@ -243,6 +243,56 @@ def _lint_patron_cantidad(config: dict, hallazgos: list[str], rule_id: str) -> N
                 _validar_seccion_cantidad(sec, hallazgos, rule_id, f"secciones[{i}]")
 
 
+# Claves que entiende la sección `imagen`. `ancho_cm`/`alto_cm` activan la
+# medición del `wp:extent` (M7/VA-15); sin ellas solo se cuenta la presencia.
+_CLAVES_IMAGEN = frozenset(
+    {
+        "parte",
+        "contexto",
+        "xpath",
+        "formato",
+        "cantidad_minima",
+        "cantidad_maxima",
+        "ancho_cm",
+        "alto_cm",
+        "tolerancia_cm",
+    }
+)
+
+
+def _lint_imagen(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `imagen`: claves conocidas y la medición opcional del dibujo.
+
+    Declarar solo uno de `ancho_cm`/`alto_cm` deja la comparación a medias,
+    y una tolerancia no positiva admitiría cualquier tamaño (o ninguno).
+    """
+    desconocidas = sorted(set(config) - _CLAVES_IMAGEN)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] imagen: claves desconocidas {desconocidas} "
+            f"(válidas: {sorted(_CLAVES_IMAGEN)})"
+        )
+
+    ancho = config.get("ancho_cm")
+    alto = config.get("alto_cm")
+    if (ancho is None) != (alto is None):
+        hallazgos.append(
+            f"[{rule_id}] imagen: 'ancho_cm' y 'alto_cm' deben declararse juntos "
+            "(o ninguno, para comprobar solo la presencia)"
+        )
+    for clave, valor in (("ancho_cm", ancho), ("alto_cm", alto)):
+        if valor is None:
+            continue
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor <= 0:
+            hallazgos.append(f"[{rule_id}] imagen: '{clave}' debe ser un número positivo")
+
+    tolerancia = config.get("tolerancia_cm")
+    if tolerancia is not None and (
+        isinstance(tolerancia, bool) or not isinstance(tolerancia, (int, float)) or tolerancia <= 0
+    ):
+        hallazgos.append(f"[{rule_id}] imagen: 'tolerancia_cm' debe ser un número positivo")
+
+
 def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) -> None:
     """Valida `lista_obligatoria`: ítems y la sub-configuración `seccion`.
 
@@ -886,6 +936,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_xml(c, hallazgos, rule_id, seccion)
                 elif seccion == "formato_efectivo":
                     _lint_formato(c, hallazgos, rule_id)
+                elif seccion == "imagen":
+                    _lint_imagen(c, hallazgos, rule_id)
                 elif seccion == "automata_secuencia":
                     _lint_automata_secuencia(c, hallazgos, rule_id)
                 elif seccion == "automata_pila":
