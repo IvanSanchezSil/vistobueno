@@ -569,6 +569,53 @@ def test_indice_paginas_separadas_contenidos_renombrado_es_no_aplica():
     assert r.found == "no aplica a este documento"
 
 
+def test_titulo_generico_indice_verifica_paginacion():
+    """La tesis aprobada titula la sección solo «Índice».
+
+    Con el primer XPath limitado a «indice de contenidos», la sección no se
+    localizaba y la regla quedaba NO APLICABLE aunque las tres páginas fueran
+    distintas (10, 12, 14). El título genérico debe verificarse sin volver al
+    `contains`, que confundía las líneas PAGEREF del índice.
+    """
+    cfg = configuracion_base()
+    # Estructura de la tesis aprobada: un solo título «Índice» (sin el título
+    # paraguas «ÍNDICE» que usa el factory).
+    cfg["headings"] = [
+        "Índice" if h == "INDICE DE CONTENIDOS" else h for h in cfg["headings"] if h != "ÍNDICE"
+    ]
+    r = _resultado_indice(cfg)
+    assert r.aplicable, r.found
+    assert r.passed, r.found
+
+
+# ---------------------------------------------------------------------------
+# Presencia del índice: la prosa no satisface la subdivisión (PR #102)
+# ---------------------------------------------------------------------------
+
+
+def test_subdivisiones_no_confunde_prosa_con_el_indice():
+    """«Los contenidos del estudio…» no es un índice de contenidos.
+
+    El primer ítem comparaba `contains(..., 'contenidos')`, que también
+    coincide con prosa del cuerpo; la regla pasaba sin comprobar que existiera
+    el índice. Ahora exige el texto completo del título.
+    """
+    reglas = load_rules(str(YAML_PATH))
+    regla = next(r for r in reglas["reglas"] if r["id"] == "indice_subdivisiones")
+    path = _make_docx(
+        [
+            _para("Los contenidos del estudio se organizan en tres capítulos."),
+            _para("ÍNDICE DE TABLAS"),
+            _para("ÍNDICE DE FIGURAS"),
+        ]
+    )
+    try:
+        r = validate_docx(path, {"reglas": [regla]})[0]
+    finally:
+        Path(path).unlink(missing_ok=True)
+    assert not r.passed, r.found
+
+
 # ---------------------------------------------------------------------------
 # Títulos reales: con tilde y con las líneas PAGEREF del índice (PR #102)
 # ---------------------------------------------------------------------------
