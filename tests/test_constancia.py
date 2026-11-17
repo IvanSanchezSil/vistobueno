@@ -179,21 +179,35 @@ def _entorno_constancia(monkeypatch):
     yield
 
 
+def _titulo_canonico(ficha: dict) -> str:
+    """Devuelve el título canónico de la ficha (vacío si no lo tiene)."""
+    for extraido in ficha.get("extraidos", []):
+        if extraido.get("campo") == "dc.title":
+            valor = extraido.get("valor")
+            return valor.strip() if isinstance(valor, str) else ""
+    return ""
+
+
 def _publicar_tramite(ficha: dict, timestamp: str = TIMESTAMP) -> str:
-    """Publica la ficha canónica y su depósito vigente.
+    """Publica la ficha canónica y su depósito confirmado por el operador.
 
     El papeleo se genera con estos valores del servidor. La solicitud solo
-    confirma que el cliente sigue trabajando con el mismo estado.
+    confirma que el cliente sigue trabajando con el mismo estado. La
+    confirmación exige atestación explícita y la revisión vigente (contrato
+    v1.14.0).
     """
     global TRAMITE_ID
     validator.api._BUZON.limpiar()
-    TRAMITE_ID, _ = validator.api._BUZON.publicar_ficha(ficha)
+    publicacion = validator.api._BUZON.publicar_ficha(ficha)
+    TRAMITE_ID = publicacion.tramite_id
     validator.api._BUZON.reportar_deposito(
         {
             "tramite_id": TRAMITE_ID,
             "handle": HANDLE,
-            "titulo_observado": "Tesis de prueba",
+            "titulo_observado": _titulo_canonico(ficha) or "Tesis de prueba",
             "timestamp": timestamp,
+            "revision_esperada": publicacion.revision,
+            "atestacion": "operador",
         }
     )
     return TRAMITE_ID
@@ -201,7 +215,7 @@ def _publicar_tramite(ficha: dict, timestamp: str = TIMESTAMP) -> str:
 
 @pytest.fixture(autouse=True)
 def _deposito_vigente():
-    """Ata el papeleo a un depósito vigente, como exige el contrato v1.13.0."""
+    """Ata el papeleo a un depósito confirmado, como exige el contrato v1.14.0."""
     _publicar_tramite(_ficha())
     yield
     validator.api._BUZON.limpiar()
@@ -361,6 +375,36 @@ class TestConstanciasPorAutor:
         with pytest.raises(ErrorDatosConstancia, match="matrícula"):
             constancias_por_autor(
                 _ficha(autores=["A", "B"], matriculas=["solo-una"]),
+                HANDLE,
+                datetime(2026, 1, 20, 18, 10, 0),
+                FIRMA,
+            )
+
+    def test_matriculas_sobrantes_es_error(self):
+        """Una matrícula de más no se asigna a nadie (US-04)."""
+        with pytest.raises(ErrorDatosConstancia, match="matrícula"):
+            constancias_por_autor(
+                _ficha(autores=["A"], matriculas=["m1", "m2"]),
+                HANDLE,
+                datetime(2026, 1, 20, 18, 10, 0),
+                FIRMA,
+            )
+
+    def test_hueco_en_matriculas_no_mueve_la_identidad(self):
+        """Un hueco no cede la matrícula de otro autor al primero (US-04)."""
+        with pytest.raises(ErrorDatosConstancia, match="matrícula del autor 1"):
+            constancias_por_autor(
+                _ficha(autores=["A"], matriculas=["", "m2"]),
+                HANDLE,
+                datetime(2026, 1, 20, 18, 10, 0),
+                FIRMA,
+            )
+
+    def test_hueco_en_autores_es_error(self):
+        """Un autor sin nombre no se compacta (US-04)."""
+        with pytest.raises(ErrorDatosConstancia, match="autor 2"):
+            constancias_por_autor(
+                _ficha(autores=["A", ""], matriculas=["m1", "m2"]),
                 HANDLE,
                 datetime(2026, 1, 20, 18, 10, 0),
                 FIRMA,

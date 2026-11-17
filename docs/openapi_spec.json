@@ -3,7 +3,7 @@
   "info": {
     "title": "VistoBueno API",
     "description": "API de validación automática de formato de tesis — UNT FECyC",
-    "version": "1.13.0"
+    "version": "1.14.0"
   },
   "paths": {
     "/validar": {
@@ -72,8 +72,8 @@
     },
     "/ficha-pendiente": {
       "get": {
-        "summary": "Leer la ficha pendiente del buzón",
-        "description": "El userscript lee aquí la ficha a rellenar y su `tramite_id`. 404 cuando no hay ficha o la publicada expiró (TTL de 1 hora). Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "summary": "Leer la ficha elegible para autorelleno",
+        "description": "El userscript lee aquí la ficha a rellenar, su `tramite_id` y la `revision` vigente. El 404 significa que no es elegible para autorelleno: la ranura está vacía o venció la ventana de 1 hora. Una ficha retenida fuera de esa ventana se consulta por `GET /tramite`. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
         "operationId": "leer_ficha_pendiente_ficha_pendiente_get",
         "responses": {
           "200": {
@@ -90,13 +90,13 @@
             "description": "Petición desde otro equipo o sin token válido"
           },
           "404": {
-            "description": "Sin ficha pendiente: vacía o expirada"
+            "description": "Sin ficha elegible para autorelleno"
           }
         }
       },
       "post": {
         "summary": "Publicar la ficha completada en el buzón",
-        "description": "La SPA publica la ficha (extraídos + manuales) para que el userscript de depósito la lea desde el navegador del operador. Cada publicación crea un `tramite_id` nuevo y descarta el depósito anterior, aunque el título sea el mismo. El buzón tiene UNA ranura con TTL de 1 hora: publicar de nuevo reemplaza la ficha anterior ('última gana'). Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "description": "La SPA publica la ficha (extraídos + manuales) para que el userscript de depósito la lea desde el navegador del operador. Cada publicación crea un `tramite_id` y una `revision` nuevos, y descarta el depósito anterior, aunque el título sea el mismo. El buzón tiene UNA ranura ('última gana'). La ficha es elegible para autorelleno durante `autofill_hasta` (1 hora por defecto); el trámite completo se retiene hasta `retenido_hasta` (24 horas por defecto) para confirmaciones tardías y papeleo. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
         "operationId": "publicar_ficha_pendiente_ficha_pendiente_post",
         "requestBody": {
           "content": {
@@ -135,10 +135,35 @@
         }
       }
     },
+    "/tramite": {
+      "get": {
+        "summary": "Leer el trámite retenido (ficha canónica, revisión y depósito)",
+        "description": "Devuelve la ficha canónica vigente, su `revision`, la `inconsistencia` pendiente y el `deposito` confirmado, si existe. Sigue disponible después de vencer el autorelleno (hasta la retención del trámite, 24 horas por defecto). La SPA lo usa para refrescar antes del papeleo y el userscript para construir el panel de confirmación con la revisión vigente. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "operationId": "leer_tramite_tramite_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TramiteLeido"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Petición desde otro equipo o sin token válido"
+          },
+          "404": {
+            "description": "Sin trámite retenido"
+          }
+        }
+      }
+    },
     "/deposito": {
       "get": {
-        "summary": "Leer el depósito reportado",
-        "description": "La SPA sondea aquí mientras espera el handle del ítem. 404 cuando no hay reporte o expiró (TTL de 1 hora). El `tramite_id` ata el reporte a la ficha vigente; `titulo_observado` es el título real del ítem. El campo `titulo` se conserva como alias deprecado de `titulo_observado`. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "summary": "Leer la confirmación del depósito",
+        "description": "La SPA sondea aquí mientras espera la confirmación del operador. 404 cuando no hay confirmación o venció la retención del trámite. `confirmacion_vigente=false` significa que una conciliación posterior cambió la ficha: hace falta reconfirmar. `titulo` se conserva como alias deprecado de `titulo_observado`. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
         "operationId": "leer_deposito_reportado_deposito_get",
         "responses": {
           "200": {
@@ -155,13 +180,13 @@
             "description": "Petición desde otro equipo o sin token válido"
           },
           "404": {
-            "description": "Sin depósito reportado: vacío o expirado"
+            "description": "Sin confirmación de depósito o trámite vencido"
           }
         }
       },
       "post": {
-        "summary": "Reportar un depósito realizado",
-        "description": "El userscript reporta el depósito desde la página del ítem archivado: `tramite_id`, handle, título observado y el timestamp del clic en Depositar. La SPA lo recoge sondeando GET /deposito y arma la constancia y la fila del registro. 404 si no hay ficha vigente; 409 si el trámite no coincide. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "summary": "Confirmar el depósito archivado (escritura explícita)",
+        "description": "El userscript envía la confirmación explícita del operador desde la página del ítem: `tramite_id`, handle, título observado, autores observados (opcional), el `timestamp` del clic en Depositar, la `revision_esperada` revisada y `atestacion=\"operador\"`. Un payload automático de la versión anterior no incluye la atestación ni la revisión y recibe 422: no crea evidencia ni habilita papeleo. El servidor genera `confirmado_en` (solo auditoría); `timestamp` sigue alimentando la HORA del registro y de la constancia. 404 si no hay trámite retenido; 409 si el trámite, la revisión, el título o los autores no coinciden. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
         "operationId": "reportar_deposito_deposito_post",
         "requestBody": {
           "content": {
@@ -181,20 +206,88 @@
             "description": "Petición desde otro equipo o sin token válido"
           },
           "404": {
-            "description": "Sin ficha vigente para aceptar el reporte"
+            "description": "Sin trámite retenido para aceptar la confirmación"
           },
           "409": {
-            "description": "El trámite del reporte no es el vigente"
+            "description": "Trámite, revisión, título o autores no coinciden"
           },
           "422": {
-            "description": "Validation Error",
+            "description": "Falta la atestación explícita o la revisión esperada"
+          }
+        }
+      }
+    },
+    "/ficha-pendiente/inconsistencia": {
+      "post": {
+        "summary": "Marcar una inconsistencia entre el ítem y la ficha",
+        "description": "El userscript lo llama cuando la página del ítem contradice la ficha canónica (título o autores distintos). La marca bloquea el papeleo hasta una conciliación. Exige el `tramite_id`, el handle, la `revision_esperada` y al menos un motivo. Una revisión obsoleta devuelve 409 y no cambia nada. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "operationId": "marcar_inconsistencia_ficha_pendiente_inconsistencia_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InconsistenciaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "description": "Petición desde otro equipo o sin token válido"
+          },
+          "404": {
+            "description": "Sin trámite retenido"
+          },
+          "409": {
+            "description": "Trámite, revisión o handle no coinciden"
+          },
+          "422": {
+            "description": "Sin motivos válidos"
+          }
+        }
+      }
+    },
+    "/ficha-pendiente/reconciliar": {
+      "post": {
+        "summary": "Conciliar una corrección con el ítem depositado",
+        "description": "Reemplaza la ficha canónica con una corrección revisada por el operador. Exige `revision_esperada`; una revisión obsoleta devuelve 409 y no escribe nada. Funciona SIN depósito (no crea evidencia de depósito ni habilita papeleo) y CON depósito confirmado (exige el mismo handle, conserva la evidencia y invalida la confirmación: el papeleo exige reconfirmar la revisión nueva). El handle nunca aprueba datos por sí solo. Solo se sirve desde la máquina donde corre la app (loopback); si hay token configurado, exige el header 'X-VistoBueno-Token'.",
+        "operationId": "reconciliar_ficha_ficha_pendiente_reconciliar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconciliarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ReconciliacionResponse"
                 }
               }
             }
+          },
+          "403": {
+            "description": "Petición desde otro equipo o sin token válido"
+          },
+          "404": {
+            "description": "Sin trámite retenido"
+          },
+          "409": {
+            "description": "Revisión obsoleta o handle distinto del depositado"
+          },
+          "422": {
+            "description": "Handle o ficha mal formados, o motivo vacío"
           }
         }
       }
@@ -597,27 +690,75 @@
         "properties": {
           "tramite_id": {
             "type": "string",
-            "minLength": 1,
             "title": "Tramite Id",
-            "description": "Trámite de la ficha en vuelo"
+            "description": "Trámite al que pertenece la confirmación"
           },
           "handle": {
             "type": "string",
-            "minLength": 1,
             "title": "Handle",
-            "description": "URI del ítem (https://hdl.handle.net/…)"
+            "description": "URI del ítem confirmado"
           },
           "titulo_observado": {
             "type": "string",
-            "minLength": 1,
             "title": "Titulo Observado",
-            "description": "Título leído en la página del ítem archivado"
+            "description": "Título leído en la página del ítem"
+          },
+          "titulo_verificado": {
+            "type": "boolean",
+            "title": "Titulo Verificado",
+            "description": "True si el título canónico existe y coincide con el observado. False significa que no se pudo comparar, no que difieran.",
+            "default": false
+          },
+          "autores_observados": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autores Observados",
+            "description": "Autores leídos del ítem, o null si no estaban disponibles"
+          },
+          "autores_verificados": {
+            "type": "boolean",
+            "title": "Autores Verificados",
+            "description": "True solo si la página exponía autores y coincidían con la ficha. False no significa que no coincidan: significa que no se verificaron.",
+            "default": false
           },
           "timestamp": {
             "type": "string",
-            "minLength": 1,
             "title": "Timestamp",
-            "description": "Momento del clic en Depositar (ISO 8601), hora de Perú"
+            "description": "Momento del clic en Depositar (fuente de la HORA del papeleo)"
+          },
+          "revision_confirmada": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision Confirmada",
+            "description": "Revisión exacta que el operador confirmó"
+          },
+          "confirmado_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Confirmado En",
+            "description": "Momento en que se aceptó la confirmación (UTC)"
+          },
+          "confirmado_por": {
+            "type": "string",
+            "const": "operador",
+            "title": "Confirmado Por",
+            "description": "Autor de la atestación",
+            "default": "operador"
+          },
+          "confirmacion_vigente": {
+            "type": "boolean",
+            "title": "Confirmacion Vigente",
+            "description": "False si una conciliación posterior cambió la revisión",
+            "default": true
           },
           "titulo": {
             "anyOf": [
@@ -629,7 +770,7 @@
               }
             ],
             "title": "Titulo",
-            "description": "DEPRECADO: alias de titulo_observado; se retirará en la próxima versión"
+            "description": "DEPRECADO: alias de titulo_observado; se retirará en una próxima versión"
           }
         },
         "type": "object",
@@ -637,10 +778,12 @@
           "tramite_id",
           "handle",
           "titulo_observado",
-          "timestamp"
+          "timestamp",
+          "revision_confirmada",
+          "confirmado_en"
         ],
         "title": "DepositoRecibido",
-        "description": "Respuesta de GET /deposito (v1.13.0).\n\nConserva el alias `titulo` por una versión, marcado como deprecado.\nEs el mismo valor que `titulo_observado`; la SPA debe usar el campo\nnuevo. El alias nunca se acepta como entrada."
+        "description": "Respuesta de GET /deposito y del bloque `deposito` de GET /tramite.\n\nDescribe una **confirmación del operador**, no un estado verificado\npor el servidor de DSpace. `confirmado_en` es solo auditoría: la HORA\ndel papeleo sale de `timestamp` (clic en Depositar)."
       },
       "DepositoReportado": {
         "properties": {
@@ -652,9 +795,9 @@
           },
           "handle": {
             "type": "string",
-            "minLength": 1,
+            "pattern": "^https://hdl\\.handle\\.net/20\\.500\\.14414/\\d+/?$",
             "title": "Handle",
-            "description": "URI del ítem (https://hdl.handle.net/…)"
+            "description": "URI del ítem archivado (https://hdl.handle.net/20.500.14414/…)"
           },
           "titulo_observado": {
             "type": "string",
@@ -662,22 +805,65 @@
             "title": "Titulo Observado",
             "description": "Título leído en la página del ítem archivado"
           },
+          "autores_observados": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autores Observados",
+            "description": "Autores leídos de la página del ítem, o null si la página no los expone. Si vienen y no coinciden con la ficha, la confirmación falla."
+          },
           "timestamp": {
             "type": "string",
             "minLength": 1,
             "title": "Timestamp",
             "description": "Momento del clic en Depositar (ISO 8601), hora de Perú"
+          },
+          "revision_esperada": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision Esperada",
+            "description": "Revisión de la ficha que el operador revisó en el panel"
+          },
+          "atestacion": {
+            "type": "string",
+            "const": "operador",
+            "title": "Atestacion",
+            "description": "Atestación explícita del operador. Sin este campo no hay confirmación: los reportes automáticos de versiones anteriores reciben 422."
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "tramite_id",
           "handle",
           "titulo_observado",
-          "timestamp"
+          "timestamp",
+          "revision_esperada",
+          "atestacion"
         ],
         "title": "DepositoReportado",
-        "description": "Cuerpo de POST /deposito (v1.13.0).\n\nEl userscript reporta lo que leyó en la página del ítem. `tramite_id`\nata el reporte a la ficha vigente y `titulo_observado` conserva el\ntítulo real del ítem, no el título esperado de la ficha."
+        "description": "Cuerpo de POST /deposito (v1.14.0): confirmación explícita.\n\nEste endpoint ya no acepta un \"reporte automático\". `atestacion` y\n`revision_esperada` son obligatorios: un payload de la versión anterior\nno confirma nada (422). El servidor genera `confirmado_en`; `timestamp`\nse conserva como el momento del clic en Depositar, que alimenta la HORA\ndel registro y de la constancia.\n\n`autores_observados` es evidencia OPCIONAL: null significa que la\npágina no exponía autores. En ese caso el servidor registra\n`autores_verificados=false`, nunca \"coinciden\".",
+        "examples": [
+          {
+            "atestacion": "operador",
+            "autores_observados": [
+              "Cerna Vidal Kassiel"
+            ],
+            "handle": "https://hdl.handle.net/20.500.14414/27871",
+            "revision_esperada": 0,
+            "timestamp": "2026-11-16T09:30:00-05:00",
+            "titulo_observado": "Taller de dramatización de títeres",
+            "tramite_id": "a1b2c3"
+          }
+        ]
       },
       "EstadoDepositoAPI": {
         "type": "string",
@@ -742,21 +928,48 @@
             "title": "Tramite Id",
             "description": "Identificador efímero de esta ficha"
           },
-          "vence_en": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "description": "Revisión de la ficha canónica"
+          },
+          "autofill_hasta": {
             "type": "string",
             "format": "date-time",
+            "title": "Autofill Hasta",
+            "description": "Fin de la ventana de autorelleno (UTC)"
+          },
+          "retenido_hasta": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retenido Hasta",
+            "description": "Fin de la retención del trámite (UTC)"
+          },
+          "vence_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Vence En",
-            "description": "Instante en que expira la ficha (UTC)"
+            "description": "DEPRECADO: alias de autofill_hasta; se retirará en una próxima versión"
           }
         },
         "type": "object",
         "required": [
           "ficha",
           "tramite_id",
-          "vence_en"
+          "revision",
+          "autofill_hasta",
+          "retenido_hasta"
         ],
         "title": "FichaPendienteLeida",
-        "description": "Respuesta de GET /ficha-pendiente (v1.13.0).\n\nEl userscript lee la ficha y su trámite juntos. El `tramite_id` debe\nviajar de vuelta en POST /deposito: evita reportar un ítem de una\nficha anterior."
+        "description": "Respuesta de GET /ficha-pendiente (v1.14.0).\n\nEl userscript lee la ficha y su trámite juntos. El `tramite_id` y la\n`revision` deben viajar de vuelta en POST /deposito: evitan confirmar\nun ítem o una revisión que ya cambiaron."
       },
       "FichaPendientePublicada": {
         "properties": {
@@ -765,20 +978,47 @@
             "title": "Tramite Id",
             "description": "Identificador efímero de la ficha publicada"
           },
-          "vence_en": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "description": "Revisión de la ficha canónica"
+          },
+          "autofill_hasta": {
             "type": "string",
             "format": "date-time",
+            "title": "Autofill Hasta",
+            "description": "Fin de la ventana de autorelleno (UTC)"
+          },
+          "retenido_hasta": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retenido Hasta",
+            "description": "Fin de la retención del trámite completo (UTC)"
+          },
+          "vence_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Vence En",
-            "description": "Instante en que expira la ficha (UTC)"
+            "description": "DEPRECADO: alias de autofill_hasta; se retirará en una próxima versión"
           }
         },
         "type": "object",
         "required": [
           "tramite_id",
-          "vence_en"
+          "revision",
+          "autofill_hasta",
+          "retenido_hasta"
         ],
         "title": "FichaPendientePublicada",
-        "description": "Respuesta de POST /ficha-pendiente (v1.13.0).\n\nEl trámite identifica esta ficha concreta. La SPA lo conserva y lo\nenvía en cada solicitud de papeleo. Publicar una ficha nueva crea un\ntrámite nuevo, aunque el título sea el mismo."
+        "description": "Respuesta de POST /ficha-pendiente (v1.14.0).\n\nEl trámite identifica esta ficha concreta. La SPA lo conserva y lo\nenvía en cada solicitud de papeleo y de conciliación. Publicar una\nficha nueva crea un trámite nuevo, aunque el título sea el mismo.\n\n`vence_en` se conserva como alias deprecado de `autofill_hasta` para\nlos clientes v1.13.0. La retención del trámite (`retenido_hasta`) es\nindependiente y más larga: vencer el autorelleno no borra la ficha."
       },
       "FilaRegistroRequest": {
         "properties": {
@@ -843,6 +1083,79 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "InconsistenciaAPI": {
+        "properties": {
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Motivos",
+            "description": "Motivos legibles reportados"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "description": "Revisión sobre la que se reportó"
+          },
+          "reportada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reportada En",
+            "description": "Momento del reporte (UTC)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivos",
+          "revision",
+          "reportada_en"
+        ],
+        "title": "InconsistenciaAPI",
+        "description": "Inconsistencia detectada entre el ítem y la ficha canónica."
+      },
+      "InconsistenciaRequest": {
+        "properties": {
+          "tramite_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tramite Id",
+            "description": "Trámite con la divergencia"
+          },
+          "handle": {
+            "type": "string",
+            "pattern": "^https://hdl\\.handle\\.net/20\\.500\\.14414/\\d+/?$",
+            "title": "Handle",
+            "description": "Handle del ítem donde se observó la divergencia"
+          },
+          "motivos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Motivos",
+            "description": "Motivos legibles; al menos uno"
+          },
+          "revision_esperada": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision Esperada",
+            "description": "Revisión sobre la que se observó la divergencia"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tramite_id",
+          "handle",
+          "motivos",
+          "revision_esperada"
+        ],
+        "title": "InconsistenciaRequest",
+        "description": "Cuerpo de POST /ficha-pendiente/inconsistencia (v1.14.0)."
       },
       "MetadatosValidacion": {
         "properties": {
@@ -965,6 +1278,95 @@
         ],
         "title": "PromptIA",
         "description": "Bloque 'cómo preguntar a una IA' para una regla fallida.\n\nContiene un prompt listo para copiar y pegar en un LLM externo,\ncon el contexto de la regla incumplida."
+      },
+      "ReconciliacionResponse": {
+        "properties": {
+          "tramite_id": {
+            "type": "string",
+            "title": "Tramite Id",
+            "description": "Trámite corregido"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "description": "Revisión nueva"
+          },
+          "handle": {
+            "type": "string",
+            "title": "Handle",
+            "description": "Handle revisado"
+          },
+          "confirmacion_vigente": {
+            "type": "boolean",
+            "title": "Confirmacion Vigente",
+            "description": "False si la corrección invalidó una confirmación previa"
+          },
+          "deposito": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DepositoRecibido"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Evidencia conservada, si ya existía un depósito"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tramite_id",
+          "revision",
+          "handle",
+          "confirmacion_vigente"
+        ],
+        "title": "ReconciliacionResponse",
+        "description": "Respuesta de POST /ficha-pendiente/reconciliar (v1.14.0)."
+      },
+      "ReconciliarRequest": {
+        "properties": {
+          "tramite_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Tramite Id",
+            "description": "Trámite a corregir"
+          },
+          "handle": {
+            "type": "string",
+            "pattern": "^https://hdl\\.handle\\.net/20\\.500\\.14414/\\d+/?$",
+            "title": "Handle",
+            "description": "Handle del ítem que el operador está mirando"
+          },
+          "ficha": {
+            "$ref": "#/components/schemas/FichaDeposito",
+            "description": "Ficha corregida"
+          },
+          "motivo": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Motivo",
+            "description": "Motivo de la corrección, revisado por el operador"
+          },
+          "revision_esperada": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision Esperada",
+            "description": "Revisión sobre la que se preparó la corrección"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tramite_id",
+          "handle",
+          "ficha",
+          "motivo",
+          "revision_esperada"
+        ],
+        "title": "ReconciliarRequest",
+        "description": "Cuerpo de POST /ficha-pendiente/reconciliar (v1.14.0).\n\nReemplaza la ficha canónica con una corrección revisada por el\noperador. Funciona antes de la confirmación (no fabrica evidencia de\ndepósito) y después (conserva el depósito, pero invalida la\nconfirmación hasta reconfirmar la revisión nueva)."
       },
       "ResultadoReglaAPI": {
         "properties": {
@@ -1113,6 +1515,88 @@
         ],
         "title": "SeveridadAPI",
         "description": "Severidad de una regla de validación."
+      },
+      "TramiteLeido": {
+        "properties": {
+          "ficha": {
+            "$ref": "#/components/schemas/FichaDeposito",
+            "description": "Ficha canónica vigente"
+          },
+          "tramite_id": {
+            "type": "string",
+            "title": "Tramite Id",
+            "description": "Identificador del trámite"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "description": "Revisión vigente de la ficha"
+          },
+          "inconsistencia": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InconsistenciaAPI"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inconsistencia pendiente de conciliación"
+          },
+          "deposito": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DepositoRecibido"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confirmación de depósito, si existe"
+          },
+          "publicada_en": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Publicada En",
+            "description": "Publicación original (UTC)"
+          },
+          "autofill_hasta": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Autofill Hasta",
+            "description": "Fin de la ventana de autorelleno (UTC)"
+          },
+          "retenido_hasta": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retenido Hasta",
+            "description": "Fin de la retención del trámite (UTC)"
+          },
+          "autofill_habil": {
+            "type": "boolean",
+            "title": "Autofill Habil",
+            "description": "True si la ficha todavía se puede servir para rellenar"
+          },
+          "confirmacion_vigente": {
+            "type": "boolean",
+            "title": "Confirmacion Vigente",
+            "description": "True si hay depósito confirmado y su revisión es la vigente. Una conciliación posterior exige reconfirmar."
+          }
+        },
+        "type": "object",
+        "required": [
+          "ficha",
+          "tramite_id",
+          "revision",
+          "publicada_en",
+          "autofill_hasta",
+          "retenido_hasta",
+          "autofill_habil",
+          "confirmacion_vigente"
+        ],
+        "title": "TramiteLeido",
+        "description": "Respuesta de GET /tramite (v1.14.0).\n\nEs la vista canónica del trámite retenido. La SPA la usa después de\nvencer el autorelleno y antes de cada solicitud de papeleo. El\nuserscript la usa para construir el panel de confirmación con la\nrevisión vigente, no con un valor guardado."
       },
       "ValidarResponse": {
         "properties": {
