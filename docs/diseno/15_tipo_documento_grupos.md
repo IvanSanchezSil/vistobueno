@@ -432,6 +432,25 @@ fija esa independencia, y `test_una_etiqueta_suelta_no_gana_por_orden` falla si
 alguien añade una etiqueta anidada sin querer, que es la forma de rearmar el
 fallo.
 
+## Declaraciones múltiples: todas las casillas cuentan (M4/VA-05)
+
+La lectura anterior se quedaba con la **primera** casilla marcada. Si el
+Anexo 10 tenía dos tipos marcados, el motor elegía uno en silencio: bastaba
+que la estructura coincidiera con el primero para que el documento saliera en
+verde con la declaración del otro tipo ignorada.
+
+Ahora `_tipo_declarado` recoge **todas** las casillas marcadas. Dentro de cada
+contexto (párrafo o fila de tabla) sigue ganando la etiqueta más larga, para
+que el par informe/proyecto no se lea como dos declaraciones. Entre contextos,
+dos tipos distintos producen `contradictorio`; repetir el mismo tipo —o marcar
+dos etiquetas que lo representan— no cambia la decisión. La evidencia se
+ordena por tipo, así que invertir el orden de las casillas no altera el
+resultado.
+
+Los tests `TestDeclaracionesMultiples` cubren cuantitativo + cualitativo,
+orden invertido, mismo tipo repetido y casillas en párrafos, tablas y
+content-controls.
+
 ## Conteo del reporte: lo evaluado y lo omitido
 
 `build_report` publica `total_evaluadas` y `reglas_no_aplicables` en el resumen y

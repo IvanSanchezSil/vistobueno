@@ -534,7 +534,10 @@ Detecta en **dos niveles**, y el primero que llegue a su umbral gana:
    incluida una tabla (`w:tbl`) o un bloque `w:sdt`. Si el Anexo 10 es una
    tabla, la etiqueta se busca en la **misma fila** que la casilla (suelen ir
    en celdas distintas). La comparación es por subcadena, así que las
-   etiquetas cortas ceden ante las más específicas.
+   etiquetas cortas ceden ante las más específicas. Se recogen **todas** las
+   casillas marcadas, no solo la primera: si dos declaran tipos distintos, el
+   resultado es `contradictorio`; marcar dos veces el mismo tipo (o dos de sus
+   etiquetas) no cambia la decisión.
 2. **`firmas`** — conjuntos de secciones que solo tiene un tipo. `minimo: 2`
    significa "al menos 2 de las 3 evidencias". Las firmas se cotejan **solo
    contra párrafos con estilo de título** (los mismos que consume el DFA de

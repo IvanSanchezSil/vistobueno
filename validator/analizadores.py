@@ -1176,7 +1176,9 @@ class DeteccionTipo(Analizador):
 
     Si hay nivel 1 y nivel 2 y no coinciden, se publica
     `TIPO_CONTRADICTORIO`: es preferible decir que hay una contradicción
-    visible a elegir en silencio.
+    visible a elegir en silencio. Lo mismo ocurre si el propio Anexo 10 trae
+    marcadas casillas de dos tipos distintos (M4/VA-05): repetir el mismo tipo
+    no cambia la decisión.
 
     El valor publicado (`Analizador.valor`) es el identificador canónico del
     tipo, que es lo que consume `aplicar_si` en las reglas de estructura. El
@@ -1189,7 +1191,7 @@ class DeteccionTipo(Analizador):
         super().__init__(config)
         # Nivel que decidió la detección (declarado / inferido / sin_determinar).
         self.nivel: str = NIVEL_NO_DETERMINADO
-        # Evidencia concreta: la etiqueta del Anexo 10 leída, o las firmas
+        # Evidencia concreta: las etiquetas del Anexo 10 leídas, o las firmas
         # que alcanzaron el umbral.
         self.evidencia: list[str] = []
 
@@ -1210,7 +1212,30 @@ class DeteccionTipo(Analizador):
         # bloque de contenido (`w:sdt`), así que se recorren todos los
         # descendientes y no solo los hijos directos del body.
         todos = list(body.iter(W + "p"))
-        declaracion, etiqueta = self._tipo_declarado(todos)
+        declaraciones = self._tipo_declarado(todos)
+
+        # M4/VA-05: se recogen TODAS las casillas marcadas, no solo la
+        # primera. Dos tipos distintos son una contradicción del propio
+        # Anexo 10 y no se puede elegir uno en silencio; repetir el mismo
+        # tipo (o marcar dos de sus etiquetas) no cambia la decisión.
+        etiquetas_por_tipo: dict[str, str] = {}
+        for tipo, etiqueta in declaraciones:
+            actual = etiquetas_por_tipo.get(tipo)
+            if actual is None or self._etiqueta_preferida(etiqueta, actual):
+                etiquetas_por_tipo[tipo] = etiqueta
+        tipos_declarados = sorted(etiquetas_por_tipo)
+
+        if len(tipos_declarados) > 1:
+            self.nivel = NIVEL_NO_DETERMINADO
+            self.evidencia = [etiquetas_por_tipo[tipo] for tipo in tipos_declarados]
+            self.valor = TIPO_CONTRADICTORIO
+            detalle = "contradictorio: " + ", ".join(
+                f"declarado={tipo} ('{etiquetas_por_tipo[tipo]}')" for tipo in tipos_declarados
+            )
+            return False, detalle
+
+        declaracion = tipos_declarados[0] if tipos_declarados else None
+        etiqueta = etiquetas_por_tipo[declaracion] if declaracion is not None else ""
 
         # Nivel 2 (inferencia): las firmas se cotejan SOLO contra párrafos
         # con estilo de título (decisión 2 del diseño, revisión del PR). La
@@ -1247,8 +1272,8 @@ class DeteccionTipo(Analizador):
         )
 
     # -- nivel 1: declaración del Anexo 10 --------------------------------
-    def _tipo_declarado(self, parrafos) -> tuple[str | None, str]:
-        """Tipo cuya casilla aparece marcada junto a su etiqueta.
+    def _tipo_declarado(self, parrafos) -> list[tuple[str, str]]:
+        """Todas las casillas marcadas junto a su etiqueta, no solo la primera.
 
         La casilla y la etiqueta deben estar relacionadas: en el MISMO párrafo
         o, si el Anexo 10 es una tabla, en la MISMA fila — Word suele poner la
@@ -1263,10 +1288,16 @@ class DeteccionTipo(Analizador):
         estuviera escrita cada clave en el YAML, que es una fuente de fallo
         silencioso. Con la más larga gana, el texto del Anexo 10 basta para
         decidir y reordenar el YAML no cambia nada.
+
+        Devuelve una lista ordenada de pares `(tipo, etiqueta)`. El orden y la
+        deduplicación son deliberados: la misma casilla se puede leer desde el
+        párrafo de la casilla y desde el de su etiqueta, y la decisión no debe
+        depender del orden en que el documento liste las casillas (M4/VA-05).
         """
         etiquetas = self.config.get("declaracion", {}).get("etiquetas", {})
         if not etiquetas:
-            return None, ""
+            return []
+        declaraciones: set[tuple[str, str]] = set()
         for p in parrafos:
             marcada, hay_casilla = _casilla_de(p)
             if not hay_casilla or not marcada:
@@ -1289,8 +1320,20 @@ class DeteccionTipo(Analizador):
                 # que un empate no dependa del orden del diccionario.
                 candidatos.sort(key=lambda c: (-c[0], c[1]))
                 _, tipo, etiqueta = candidatos[0]
-                return tipo, etiqueta
-        return None, ""
+                declaraciones.add((tipo, etiqueta))
+        return sorted(declaraciones)
+
+    @staticmethod
+    def _etiqueta_preferida(nueva: str, actual: str) -> bool:
+        """¿La etiqueta nueva representa mejor al tipo que la actual?
+
+        Manda la más larga (es la más específica) y, a igual longitud, la
+        menor en orden alfabético. Así dos etiquetas del mismo tipo no hacen
+        que la evidencia dependa del orden de las casillas.
+        """
+        if len(nueva) != len(actual):
+            return len(nueva) > len(actual)
+        return nueva < actual
 
     # -- nivel 2: firmas estructurales ------------------------------------
     def _tipo_inferido(self, textos) -> tuple[str | None, list[str]]:
