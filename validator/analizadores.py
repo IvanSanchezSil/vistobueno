@@ -493,58 +493,123 @@ class AnalizadorCantidadPatron(Analizador):
       count_words   — palabras (`\w+`) del texto contado
       count_matches — matches de `patron`
       count_entries — entradas separadas por ',' o ';' del texto tras
-                      el primer ':' (p. ej. "Palabras clave: a, b, c").
-    El texto contado proviene de una `seccion` (tokenizer + `filtro`
-    opcional por párrafo) o de nodos XPath.
+                      el primer ':' de CADA párrafo (p. ej. "Palabras
+                      clave: a, b, c").
+    El texto contado proviene de una `seccion`, de una lista `secciones`
+    (cada una se cuenta por separado) o de nodos XPath. `excluir` descarta
+    párrafos completos antes de contar (p. ej. la línea de palabras clave
+    para que no infle la prosa del Resumen); `filtro` se queda solo con los
+    párrafos que matchean (p. ej. la propia línea de palabras clave).
     """
+
+    def _compilar(self, valor: str | None) -> re.Pattern | None:
+        if not valor:
+            return None
+        flags = re.IGNORECASE if self.config.get("ignore_case", True) else 0
+        return re.compile(valor, flags)
+
+    def _piezas_seccion(self, extracted: ExtractedDocx, sec: dict) -> list[str]:
+        corte = seccion(
+            tokenizar(extracted),
+            sec["inicio"],
+            sec.get("fin"),
+            hasta_final=bool(sec.get("hasta_final")),
+        )
+        piezas = [t.texto for t in corte if t.tipo == PARRAFO and t.texto.strip()]
+        excluir = self._compilar(self.config.get("excluir"))
+        if excluir:
+            piezas = [p for p in piezas if not excluir.search(p)]
+        filtro = self._compilar(sec.get("filtro") or self.config.get("filtro"))
+        if filtro:
+            piezas = [p for p in piezas if filtro.search(p)]
+        return piezas
 
     def _piezas(self, extracted: ExtractedDocx) -> list[str]:
         sec = self.config.get("seccion")
         xpath_cfg = self.config.get("xpath")
         if sec:
-            corte = seccion(tokenizar(extracted), sec["inicio"], sec.get("fin"))
-            piezas = [t.texto for t in corte if t.tipo == PARRAFO and t.texto.strip()]
-        elif xpath_cfg:
+            return self._piezas_seccion(extracted, sec)
+        if xpath_cfg:
             nodos = self._nodos(
                 extracted,
                 self.config.get("parte", "document"),
                 self.config.get("contexto", "todos"),
             )
             piezas = [text_of(n).strip() for n in nodos if text_of(n).strip()]
-        else:
+            excluir = self._compilar(self.config.get("excluir"))
+            if excluir:
+                piezas = [p for p in piezas if not excluir.search(p)]
+            filtro = self._compilar(self.config.get("filtro"))
+            if filtro:
+                piezas = [p for p in piezas if filtro.search(p)]
+            return piezas
+        return []
+
+    def _secciones(self) -> list[dict]:
+        secciones = self.config.get("secciones")
+        if secciones is None:
             return []
-        filtro = self.config.get("filtro")
-        if filtro:
-            rx = re.compile(filtro, re.IGNORECASE if self.config.get("ignore_case", True) else 0)
-            piezas = [p for p in piezas if rx.search(p)]
-        return piezas
+        if not isinstance(secciones, list) or not secciones:
+            raise ConfigurationError("patron_cantidad: 'secciones' debe ser una lista no vacía")
+        for sec in secciones:
+            if not isinstance(sec, dict) or not sec.get("inicio"):
+                raise ConfigurationError(
+                    "patron_cantidad: cada elemento de 'secciones' debe ser un mapa con 'inicio'"
+                )
+        return secciones
+
+    @staticmethod
+    def _entradas(texto: str) -> int:
+        """Entradas de UN párrafo tras su primer ':' (coma o punto y coma)."""
+        cuerpo = texto.split(":", 1)[1] if ":" in texto else texto
+        return len([x for x in re.split(r"[,;]", cuerpo) if x.strip()])
+
+    def _contar(self, piezas: list[str], operacion: str) -> int:
+        texto = " ".join(piezas)
+        if operacion == "count_words":
+            return len(re.findall(r"\w+", texto))
+        if operacion == "count_matches":
+            patron = self.config.get("patron", "")
+            flags = re.IGNORECASE if self.config.get("ignore_case", False) else 0
+            return len(re.findall(patron, texto, flags))
+        return sum(self._entradas(p) for p in piezas)
+
+    @staticmethod
+    def _rango(minimo: int, maximo: int | None) -> str:
+        rango = f"minimo={minimo}"
+        if maximo is not None:
+            rango += f" maximo={maximo}"
+        return rango
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         operacion = self.config.get("operacion", "count_words")
+        if operacion not in ("count_words", "count_matches", "count_entries"):
+            return False, f"operación '{operacion}' no soportada"
         minimo = self.config.get("cantidad_minima", 1)
         maximo = self.config.get("cantidad_maxima")
-        texto = " ".join(self._piezas(extracted))
+        rango = self._rango(minimo, maximo)
 
+        secciones = self.config.get("secciones")
+        if secciones is not None:
+            partes = []
+            fallo = False
+            for sec in self._secciones():
+                n = self._contar(self._piezas_seccion(extracted, sec), operacion)
+                nombre = sec.get("nombre") or sec["inicio"]
+                partes.append(f"{nombre}={n}")
+                if n < minimo or (maximo is not None and n > maximo):
+                    fallo = True
+            detalle = " ".join(partes)
+            return not fallo, f"{detalle} {rango}"
+
+        n = self._contar(self._piezas(extracted), operacion)
         if operacion == "count_words":
-            n = len(re.findall(r"\w+", texto))
             detalle = f"palabras={n}"
         elif operacion == "count_matches":
-            patron = self.config.get("patron", "")
-            flags = re.IGNORECASE if self.config.get("ignore_case", False) else 0
-            n = len(re.findall(patron, texto, flags))
             detalle = f"matches={n}"
-        elif operacion == "count_entries":
-            cuerpo = texto.split(":", 1)[1] if ":" in texto else texto
-            n = len([x for x in re.split(r"[,;]", cuerpo) if x.strip()])
-            detalle = f"entradas={n}"
         else:
-            return False, f"operación '{operacion}' no soportada"
-
-        if n < minimo:
-            return False, f"{detalle} minimo={minimo}"
-        if maximo is not None and n > maximo:
-            return False, f"{detalle} maximo={maximo}"
-        return True, f"{detalle} minimo={minimo}"
+            detalle = f"entradas={n}"
+        return minimo <= n and (maximo is None or n <= maximo), f"{detalle} {rango}"
 
 
 class AnalizadorListaObligatoria(Analizador):

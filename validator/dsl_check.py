@@ -59,7 +59,12 @@ _SECCIONES = (
 )
 
 # Campos interpretados como expresiones regulares por los analizadores.
-_CAMPOS_REGEX = ("patron", "filtro", "regex_indice")
+_CAMPOS_REGEX = (
+    "patron",
+    "filtro",
+    "excluir",
+    "regex_indice",
+)
 
 # Claves de nivel de REGLA (no de sección) que el motor reconoce. Cualquier
 # otra clave es o una sección mal escrita o un error de configuración.
@@ -138,6 +143,104 @@ def _lint_xml(config: dict, hallazgos: list[str], rule_id: str, seccion: str) ->
 # Se declaran aquí para que un typo (`hasta_fin`, `final`) falle en carga en
 # vez de ignorarse en silencio.
 _CLAVES_SECCION = frozenset({"inicio", "fin", "hasta_final"})
+
+# Claves de cada `seccion`/`secciones[]` de `patron_cantidad`.
+_CLAVES_SECCION_CANTIDAD = frozenset({"inicio", "fin", "hasta_final", "filtro", "nombre"})
+_OPERACIONES_CANTIDAD = frozenset({"count_words", "count_matches", "count_entries"})
+
+
+def _validar_seccion_cantidad(
+    seccion: object, hallazgos: list[str], rule_id: str, etiqueta: str
+) -> None:
+    if not isinstance(seccion, dict):
+        hallazgos.append(f"[{rule_id}] patron_cantidad: '{etiqueta}' debe ser un mapa")
+        return
+    desconocidas = sorted(set(seccion) - _CLAVES_SECCION_CANTIDAD)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}' tiene claves desconocidas "
+            f"{desconocidas} (válidas: {sorted(_CLAVES_SECCION_CANTIDAD)})"
+        )
+    inicio = seccion.get("inicio")
+    if not isinstance(inicio, str) or not inicio.strip():
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}.inicio' debe ser un texto no vacío"
+        )
+    fin = seccion.get("fin")
+    if fin is not None and (not isinstance(fin, str) or not fin.strip()):
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}.fin' debe ser un texto no vacío"
+        )
+    if "hasta_final" in seccion and not isinstance(seccion.get("hasta_final"), bool):
+        hallazgos.append(f"[{rule_id}] patron_cantidad: '{etiqueta}.hasta_final' debe ser booleano")
+    nombre = seccion.get("nombre")
+    if nombre is not None and (not isinstance(nombre, str) or not nombre.strip()):
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}.nombre' debe ser un texto no vacío"
+        )
+    filtro = seccion.get("filtro")
+    if filtro is not None:
+        if not isinstance(filtro, str) or not filtro.strip():
+            hallazgos.append(
+                f"[{rule_id}] patron_cantidad: '{etiqueta}.filtro' debe ser un texto no vacío"
+            )
+        else:
+            error = _regex_invalida(filtro)
+            if error:
+                hallazgos.append(
+                    f"[{rule_id}] patron_cantidad: '{etiqueta}.filtro' regex inválida: {error}"
+                )
+
+
+def _lint_patron_cantidad(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `patron_cantidad` y sus sub-configuraciones de sección.
+
+    Un `secciones` mal escrito se ignoraría en silencio y la regla pasaría
+    siempre; por eso la forma se comprueba al cargar, igual que el resto del
+    DSL.
+    """
+    operacion = config.get("operacion", "count_words")
+    if operacion not in _OPERACIONES_CANTIDAD:
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: 'operacion' inválida '{operacion}' "
+            f"(admitidas: {sorted(_OPERACIONES_CANTIDAD)})"
+        )
+
+    minimo = config.get("cantidad_minima", 1)
+    maximo = config.get("cantidad_maxima")
+    if not isinstance(minimo, int) or isinstance(minimo, bool) or minimo < 0:
+        hallazgos.append(f"[{rule_id}] patron_cantidad: 'cantidad_minima' debe ser un entero >= 0")
+    if maximo is not None and (
+        not isinstance(maximo, int) or isinstance(maximo, bool) or maximo < 0
+    ):
+        hallazgos.append(f"[{rule_id}] patron_cantidad: 'cantidad_maxima' debe ser un entero >= 0")
+    elif (
+        isinstance(minimo, int)
+        and not isinstance(minimo, bool)
+        and isinstance(maximo, int)
+        and maximo < minimo
+    ):
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: 'cantidad_maxima' ({maximo}) es menor que "
+            f"'cantidad_minima' ({minimo})"
+        )
+
+    if "seccion" in config and "secciones" in config:
+        hallazgos.append(f"[{rule_id}] patron_cantidad: 'seccion' y 'secciones' son excluyentes")
+
+    seccion = config.get("seccion")
+    if seccion is not None:
+        _validar_seccion_cantidad(seccion, hallazgos, rule_id, "seccion")
+
+    secciones = config.get("secciones")
+    if secciones is not None:
+        if not isinstance(secciones, list) or not secciones:
+            hallazgos.append(
+                f"[{rule_id}] patron_cantidad: 'secciones' debe ser una lista no vacía"
+            )
+        else:
+            for i, sec in enumerate(secciones):
+                _validar_seccion_cantidad(sec, hallazgos, rule_id, f"secciones[{i}]")
 
 
 def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) -> None:
@@ -791,6 +894,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_deteccion_tipo(c, hallazgos, rule_id, rule)
                 elif seccion == "lista_obligatoria":
                     _lint_lista_obligatoria(c, hallazgos, rule_id)
+                elif seccion == "patron_cantidad":
+                    _lint_patron_cantidad(c, hallazgos, rule_id)
                 elif seccion == "paginacion":
                     _lint_paginacion(c, hallazgos, rule_id)
                 _lint_xpath(c, hallazgos, rule_id, seccion)

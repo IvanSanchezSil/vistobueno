@@ -433,6 +433,8 @@ def configuracion_base() -> dict:
         "footer_jc": "right",
         "resumen_palabras": 175,
         "palabras_clave_n": 3,
+        "abstract_palabras": 175,
+        "palabras_clave_abstract_n": 3,
         "referencias_n": 30,
         "anexos_items": list(ANEXOS_BASE),
         "anexos_como_titulos": False,
@@ -574,6 +576,12 @@ def _document_xml(cfg: dict) -> str:
             )
             claves = ", ".join(f"clave{i}" for i in range(cfg["palabras_clave_n"]))
             paras.append(_body_para(f"Palabras clave: {claves}"))
+        if h == "ABSTRACT":
+            paras.append(
+                _body_para(" ".join(f"abstract{i}" for i in range(cfg["abstract_palabras"])))
+            )
+            claves = ", ".join(f"keyword{i}" for i in range(cfg["palabras_clave_abstract_n"]))
+            paras.append(_body_para(f"Keywords: {claves}"))
         if h == "REFERENCIAS":
             paras.extend(
                 _body_para(f"Autor, A. ({1990 + i}). Fuente bibliográfica {i}.")

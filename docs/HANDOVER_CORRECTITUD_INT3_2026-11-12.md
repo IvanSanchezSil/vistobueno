@@ -109,6 +109,22 @@ orden conserva el resultado; comprobar casillas en párrafos, tablas y controles
 - Mantener `palabras_clave_minimo` en error. Si se agregan reglas, actualizar
   mutaciones, conteos, ejemplos y contrato. No debilitar las guardias existentes.
 
+- **Estado 2026-11-15:** corregido en `feeab66`. `resumen_longitud` exige
+  159–220 palabras y excluye del conteo la línea de palabras clave;
+  `palabras_clave_minimo` exige 3–5 claves y cuenta Resumen y Abstract por
+  separado, admitiendo `Palabras clave` y `Keywords`; `abstract_contenido`
+  detecta un Abstract sin cuerpo. `patron_cantidad` admite `secciones`,
+  `excluir`, `cantidad_maxima` y `count_entries` por párrafo. Evidencia:
+  `935 passed, 4 skipped`; ruff, ruff format, mypy y linter limpios; 50 reglas
+  (44 evaluadas en el documento base).
+- **Decisiones ratificadas (2026-11-16):** la tokenización del Resumen es
+  `\w+`; `abstract_contenido` se queda en `warning`; **Resumen y Abstract son
+  obligatorios los dos** (3–5 palabras clave en cada uno) y se aceptan **las
+  dos** etiquetas, `Palabras clave` y `Keywords`. Son las que ya estaban
+  implementadas: la ratificación confirma el comportamiento, no lo cambia.
+  La equivalencia Resumen/Abstract y la autoría de la traducción siguen
+  siendo revisión humana.
+
 ### M6. Aplicar el nombre de anexo decidido — VA-14
 
 **Archivos:** `reglas_unt.yaml`, pruebas de anexos.
@@ -147,7 +163,7 @@ a archivos sensibles ni hacer peticiones reales para demostrarlo.
 
 **Archivos:** `validator/cli.py`, `exportador.py`, pruebas de CLI/exportación.
 Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
-**Aceptación:** 49 totales, 41 evaluadas no se presentan como 49 evaluadas.
+**Aceptación:** 50 totales, 42 evaluadas no se presentan como 50 evaluadas.
 
 ### M11. Reparar el paquete OPC del factory — VA-17
 

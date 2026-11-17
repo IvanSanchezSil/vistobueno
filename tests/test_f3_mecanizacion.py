@@ -7,7 +7,7 @@ Cubre los analizadores nuevos del DSL:
 - `hipervinculo_texto`: ORCID en carátula.
 - `proyecto_caratula_texto` (patron_texto + atributo_xml, 13pt).
 - Helper `seccion()` del tokenizer (acotar secciones por títulos).
-- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (42 reglas).
+- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (50 reglas).
 
 Uso:
     pytest tests/test_f3_mecanizacion.py -v
@@ -258,6 +258,148 @@ class TestPalabrasClave:
             assert validate_docx(path, self.RULES)[0].passed is False
         finally:
             Path(path).unlink(missing_ok=True)
+
+
+class TestM5ResumenAbstract:
+    """Regresión de M5/VA-06 y VA-07 con la configuración de producción.
+
+    Cubre los límites exactos del Resumen (159–220), las 3–5 palabras clave
+    por idioma, el Abstract sin cuerpo y la exclusión de la línea de palabras
+    clave del conteo de prosa.
+    """
+
+    RULES = {
+        "namespaces": {"w": WNS},
+        "reglas": [
+            {
+                "id": "resumen_longitud",
+                "tipo": "estructura",
+                "severidad": "warning",
+                "descripcion": "Resumen de 159 a 220 palabras sin palabras clave",
+                "patron_cantidad": {
+                    "seccion": {"inicio": "resumen"},
+                    "operacion": "count_words",
+                    "excluir": r"^(palabras clave|keywords)\b",
+                    "ignore_case": True,
+                    "cantidad_minima": 159,
+                    "cantidad_maxima": 220,
+                },
+            },
+            {
+                "id": "palabras_clave_minimo",
+                "tipo": "estructura",
+                "severidad": "error",
+                "descripcion": "Entre 3 y 5 palabras clave en cada idioma",
+                "patron_cantidad": {
+                    "secciones": [
+                        {"nombre": "resumen", "inicio": "resumen"},
+                        {"nombre": "abstract", "inicio": "abstract"},
+                    ],
+                    "operacion": "count_entries",
+                    "filtro": r"^(palabras clave|keywords)\b",
+                    "ignore_case": True,
+                    "cantidad_minima": 3,
+                    "cantidad_maxima": 5,
+                },
+            },
+            {
+                "id": "abstract_contenido",
+                "tipo": "estructura",
+                "severidad": "warning",
+                "descripcion": "El Abstract debe tener contenido además del título",
+                "patron_cantidad": {
+                    "seccion": {"inicio": "abstract"},
+                    "operacion": "count_words",
+                    "excluir": r"^(palabras clave|keywords)\b",
+                    "ignore_case": True,
+                    "cantidad_minima": 1,
+                },
+            },
+        ],
+    }
+
+    def _validar(
+        self,
+        resumen_n: int = 175,
+        claves_resumen: int = 3,
+        abstract_n: int = 175,
+        claves_abstract: int = 3,
+        etiqueta_resumen: str = "Palabras clave",
+        etiqueta_abstract: str = "Keywords",
+    ) -> dict:
+        claves_r = ", ".join(f"clave{i}" for i in range(claves_resumen))
+        claves_a = ", ".join(f"keyword{i}" for i in range(claves_abstract))
+        paras = [
+            _para("RESUMEN", "Ttulo1"),
+            _para(_nw(resumen_n)),
+            _para(f"{etiqueta_resumen}: {claves_r}"),
+            _para("ABSTRACT", "Ttulo1"),
+        ]
+        if abstract_n > 0:
+            paras.append(_para(_nw(abstract_n)))
+        if claves_abstract > 0:
+            paras.append(_para(f"{etiqueta_abstract}: {claves_a}"))
+        paras.append(_para("INTRODUCCIÓN", "Ttulo1"))
+        path = _make_docx(paras)
+        try:
+            return {r.rule_id: r for r in validate_docx(path, self.RULES)}
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+    def test_resumen_158_falla_y_159_cumple(self):
+        assert self._validar(resumen_n=158)["resumen_longitud"].passed is False
+        assert self._validar(resumen_n=159)["resumen_longitud"].passed is True
+
+    def test_resumen_220_cumple_y_221_falla(self):
+        assert self._validar(resumen_n=220)["resumen_longitud"].passed is True
+        assert self._validar(resumen_n=221)["resumen_longitud"].passed is False
+
+    def test_palabras_clave_2_falla_y_3_cumple(self):
+        assert self._validar(claves_resumen=2)["palabras_clave_minimo"].passed is False
+        assert self._validar(claves_resumen=3)["palabras_clave_minimo"].passed is True
+
+    def test_palabras_clave_5_cumple_y_6_falla(self):
+        assert self._validar(claves_resumen=5)["palabras_clave_minimo"].passed is True
+        assert self._validar(claves_resumen=6)["palabras_clave_minimo"].passed is False
+
+    def test_abstract_vacio_falla(self):
+        res = self._validar(abstract_n=0, claves_abstract=0)
+        assert res["abstract_contenido"].passed is False
+        assert res["palabras_clave_minimo"].passed is False
+
+    def test_abstract_con_palabras_clave_pero_sin_cuerpo_falla(self):
+        """El título ABSTRACT y su línea de claves no prueban que haya texto."""
+        res = self._validar(abstract_n=0, claves_abstract=3)
+        assert res["abstract_contenido"].passed is False
+        assert res["palabras_clave_minimo"].passed is True
+
+    def test_solo_un_idioma_correcto_falla(self):
+        """Resumen correcto no compensa un Abstract con 2 claves."""
+        res = self._validar(claves_resumen=3, claves_abstract=2)
+        assert res["palabras_clave_minimo"].passed is False
+        assert "resumen=3" in res["palabras_clave_minimo"].found
+        assert "abstract=2" in res["palabras_clave_minimo"].found
+
+    def test_palabras_clave_no_inflan_el_conteo_de_prosa(self):
+        """220 palabras de prosa + 5 claves siguen siendo 220 de prosa."""
+        assert self._validar(resumen_n=220, claves_resumen=5)["resumen_longitud"].passed is True
+        # 158 de prosa + 5 claves no llegan al mínimo: las claves no cuentan.
+        assert self._validar(resumen_n=158, claves_resumen=5)["resumen_longitud"].passed is False
+
+    def test_mil_palabras_y_diez_claves_generan_observacion(self):
+        res = self._validar(resumen_n=1000, claves_resumen=10)
+        assert res["resumen_longitud"].passed is False
+        assert "palabras=1000" in res["resumen_longitud"].found
+        assert "maximo=220" in res["resumen_longitud"].found
+        assert res["palabras_clave_minimo"].passed is False
+        assert "resumen=10" in res["palabras_clave_minimo"].found
+        assert "maximo=5" in res["palabras_clave_minimo"].found
+
+    def test_admite_las_etiquetas_de_cada_idioma(self):
+        res = self._validar(etiqueta_resumen="Palabras Clave", etiqueta_abstract="Keywords")
+        assert res["resumen_longitud"].passed is True
+        assert res["palabras_clave_minimo"].passed is True
+        assert res["abstract_contenido"].passed is True
 
 
 class TestReferenciasMinimas:
@@ -521,18 +663,18 @@ class TestImagenRefactor:
 
 
 class TestReglasUntCompletas:
-    """Smoke: las 49 reglas de reglas_unt.yaml validan sin excepción."""
+    """Smoke: las 50 reglas de reglas_unt.yaml validan sin excepción."""
 
-    def test_49_reglas_validan(self):
+    def test_50_reglas_validan(self):
         rules = load_rules("reglas_unt.yaml")
-        assert len(rules["reglas"]) == 49
+        assert len(rules["reglas"]) == 50
         path = _make_docx([_para("RESUMEN", "Ttulo1"), _para("cuerpo breve")])
         try:
             resultados = validate_docx(path, rules)
-            # 49 del YAML + 1 centinela: este docx mínimo no se puede
+            # 50 del YAML + 1 centinela: este docx mínimo no se puede
             # clasificar (ni Anexo 10 ni firmas), y el paso 6 agrega el error
-            # `tipo_documento_no_determinado` como 50º resultado.
-            assert len(resultados) == 50
+            # `tipo_documento_no_determinado` como 51º resultado.
+            assert len(resultados) == 51
             assert all(isinstance(r, RuleResult) for r in resultados)
         finally:
             Path(path).unlink(missing_ok=True)

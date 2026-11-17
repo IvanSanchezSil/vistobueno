@@ -20,8 +20,8 @@ datos de estudiantes reales.
 
 | Documento | Semáforo | Reglas evaluadas | Errores | Warnings |
 |-----------|----------|------------------|---------|----------|
-| `doc_bueno.docx` | **verde** | 43 de 49 | 0 | 0 |
-| `doc_malo.docx` | **rojo** | 43 de 49 | 4 | 1 |
+| `doc_bueno.docx` | **verde** | 44 de 50 | 0 | 0 |
+| `doc_malo.docx` | **rojo** | 44 de 50 | 4 | 1 |
 
 Las 6 reglas restantes no aplican al tipo de documento (plan cuantitativo).
 La respuesta del documento bueno incluye la ficha de depósito, porque la API

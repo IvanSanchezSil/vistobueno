@@ -1168,33 +1168,70 @@ reglas:
 
 - id: resumen_longitud
   tipo: estructura
-  descripcion: El Resumen debe tener una extensión mínima de 159 palabras
-  valor_esperado: '>= 159 palabras'
+  descripcion: El Resumen debe tener entre 159 y 220 palabras, sin contar la línea de palabras clave
+  valor_esperado: '159–220 palabras'
   severidad: warning
   ubicacion: 'Sección Resumen (párr. 201)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Su extensión mínima 159 y su extensión máxima..."'
+  # EVALUADO (M5): el máximo 220 consta en REQ-31 (p201) de
+  # docs/MATRIZ_REQUISITOS_2026-11-12.csv; el manual local no está en el
+  # repo. La línea de palabras clave se excluye del conteo de prosa.
+  # Tokenización ratificada el 2026-11-16: se cuentan las palabras con
+  # `\w+` (Unicode), de modo que «educación» es una palabra y «no-ción» dos.
   patron_cantidad:
     seccion:
       inicio: resumen
     operacion: count_words
+    excluir: '^(palabras clave|keywords)\b'
+    ignore_case: true
     cantidad_minima: 159
+    cantidad_maxima: 220
 
 - id: palabras_clave_minimo
   tipo: estructura
-  descripcion: Resumen y Abstract deben incluir mínimo 3 palabras clave
-  valor_esperado: '>= 3 palabras clave'
+  descripcion: Resumen y Abstract deben incluir entre 3 y 5 palabras clave
+  valor_esperado: '3–5 palabras clave en Resumen y Abstract'
   severidad: error
   ubicacion: 'Plantilla Resumen (párr. 86 de la plantilla Educación Inicial)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Palabras clave: (mínimo 03 palabras clave)"'
+  # EVALUADO (M5): el máximo 5 consta en REQ-32 (p201) de la matriz; el
+  # manual local no está en el repo. Cada idioma se cuenta por separado y
+  # se admiten las etiquetas documentadas "Palabras clave" y "Keywords".
+  # Ratificado el 2026-11-16: Resumen y Abstract son obligatorios los dos,
+  # y se aceptan las dos etiquetas.
   patron_cantidad:
-    seccion:
-      inicio: resumen
+    secciones:
+      - nombre: resumen
+        inicio: resumen
+      - nombre: abstract
+        inicio: abstract
     operacion: count_entries
-    filtro: '^palabras clave'
+    filtro: '^(palabras clave|keywords)\b'
     ignore_case: true
     cantidad_minima: 3
+    cantidad_maxima: 5
+
+- id: abstract_contenido
+  tipo: estructura
+  descripcion: El Abstract debe tener contenido además de su título
+  valor_esperado: '>= 1 palabra de contenido'
+  severidad: warning
+  ubicacion: 'Sección Abstract (párr. 203)'
+  fuente: 'docs/MATRIZ_REQUISITOS_2026-11-12.csv (REQ-35, p203)'
+  cita: 'REQ-35: "Abstract es traducción del Resumen por especialista"; la acción de auditoría pide exigir contenido no vacío. Severidad ratificada: warning (2026-11-16).'
+  # EVALUADO (M5): un título ABSTRACT sin cuerpo no prueba que exista la
+  # traducción. El conteo excluye la línea de palabras clave; la equivalencia
+  # con el Resumen y la autoría de la traducción siguen siendo revisión humana.
+  # Severidad ratificada el 2026-11-16: warning, informa sin bloquear.
+  patron_cantidad:
+    seccion:
+      inicio: abstract
+    operacion: count_words
+    excluir: '^(palabras clave|keywords)\b'
+    ignore_case: true
+    cantidad_minima: 1
 
 # ─── REFERENCIAS MÍNIMAS SEGÚN TIPO DE INVESTIGACIÓN ────────
 # EVALUADO: el MVP no detecta tipo de investigación. Se aplican las

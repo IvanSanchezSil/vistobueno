@@ -19,7 +19,7 @@ import yaml
 from _docx_builder import _ANADIDAS_REVISION, _HEADINGS_CUANT, _headings_insertadas
 
 # ---------------------------------------------------------------------------
-# Nombres de las reglas de reglas_unt.yaml (49).
+# Nombres de las reglas de reglas_unt.yaml (50).
 # ---------------------------------------------------------------------------
 
 REGLAS = [
@@ -58,6 +58,7 @@ REGLAS = [
     "indice_subdivisiones",
     "resumen_longitud",
     "palabras_clave_minimo",
+    "abstract_contenido",
     "referencias_minimo_cuantitativo",
     "referencias_minimo_cualitativo",
     "referencias_minimo_revision",
@@ -168,7 +169,7 @@ REGLAS_ACOPLADAS = {
     # aplicables y siguen siéndolo. El paso 6 convierte el caso contradictorio en
     # un error centinela propio en vez de validar contra las tres.
     # NOTA: el centinela `tipo_documento_contradictorio` aparece en el
-    # documento mutado pero no se cuenta aquí porque no es una de las 49
+    # documento mutado pero no se cuenta aquí porque no es una de las 50
     # reglas (lo deriva la detección).
     "deteccion_tipo_documento": {
         "estructura_tinv_cuantitativo",
@@ -371,6 +372,7 @@ _MUTACIONES = {
     "indice_subdivisiones": _mut_indice_subdivisiones,
     "resumen_longitud": lambda c: c.update(resumen_palabras=60),
     "palabras_clave_minimo": lambda c: c.update(palabras_clave_n=2),
+    "abstract_contenido": lambda c: c.update(abstract_palabras=0),
     "referencias_minimo_cuantitativo": lambda c: c.update(referencias_n=19),
     "referencias_minimo_cualitativo": _mut_referencias_cualitativo,
     "referencias_minimo_revision": _mut_referencias_revision,
@@ -419,7 +421,7 @@ RUTA_REGLAS_YAML = Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
 
 
 def _validar_sincronizacion() -> None:
-    """Falla el import si `_MUTACIONES` no cubre exactamente las 49 reglas.
+    """Falla el import si `_MUTACIONES` no cubre exactamente las 50 reglas.
 
     Evita la desincronización silenciosa factory↔YAML: el error ocurre en la
     recolecta de tests (cuando se importa el factory), no cuando un test
@@ -442,7 +444,7 @@ _validar_sincronizacion()
 
 
 # Conveniencia: exposición del resultado esperado del documento base.
-# Desde el paso 4 el documento base pasa las 49 reglas: no hay desvíos, solo
+# Desde el paso 4 el documento base pasa las 50 reglas: no hay desvíos, solo
 # 2 esquemas que no le aplican.
 DESVIOS_BASE = 0
 TOTAL_REGLAS = len(REGLAS)
