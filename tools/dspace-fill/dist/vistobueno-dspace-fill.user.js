@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         VistoBueno — rellenador del formulario de depósito UNT
 // @namespace    vistobueno
-// @version      1.1.0
-// @description  Pre-llena el formulario oficial de depósito de DSpace (repositorio UNT) con la ficha de VistoBueno, captura el momento del depósito y reporta el handle del ítem. Ver docs/PLAN_FICHA_DEPOSITO.md.
+// @version      1.2.0
+// @description  Pre-llena el formulario oficial de depósito de DSpace (repositorio UNT) con la ficha de VistoBueno, registra el momento del clic en Depositar y pide al operador que confirme el ítem archivado. Protocolo 2: el archivo solo se registra con atestación explícita. Ver docs/CONTRATO_API.md.
 // @match        https://repositorio.unitru.edu.pe/*
 // @run-at       document-idle
 // @grant        GM_xmlhttpRequest
@@ -40,6 +40,16 @@ const VBCompuertas = (() => {
 		depositar: '#deposit',
 	};
 
+	// Página de ítem de DSpace 8: /items/<uuid>. MyDSpace, el workspace y
+	// el resto de rutas NO son páginas de ítem: allí no se muestra el
+	// panel de confirmación (protocolo 2, decisión de flujo).
+	const RUTA_ITEM = /^\/items\/[^/]+\/?$/;
+
+	// Handle institucional del Repositorio UNT. Solo se acepta un enlace
+	// con esta forma EXACTA: un enlace a otro repositorio o una URL con
+	// parámetros no identifican el ítem preparado.
+	const HANDLE_ITEM = /^https?:\/\/hdl\.handle\.net\/20\.500\.14414\/\d+\/?$/;
+
 	function esFormularioTesis(doc) {
 		// Compuerta por forma (fail-closed): si la página no tiene los
 		// campos de la tesis, el plan no tocaría nada — mejor no intentar.
@@ -48,21 +58,55 @@ const VBCompuertas = (() => {
 		return requeridos.every((sel) => doc.querySelector(sel) !== null);
 	}
 
-	function esPaginaItem(doc) {
-		// El componente del ítem de DSpace 8.1 publica `citation_title`
-		// (meta tag para citas) al mostrar el ítem. Una búsqueda o una
-		// colección no la tienen: sin esta compuerta, el userscript podía
-		// reportar el primer handle de una lista de resultados.
+	function esPaginaItem(doc, ruta) {
+		// Compuerta por RUTA y por contenido: la URL debe ser la de un
+		// ítem (`/items/<uuid>`) y la página debe publicar el título del
+		// ítem como meta de cita. Con MyDSpace o el workspace, la ruta no
+		// coincide y no hay panel de confirmación.
 		if (!doc) return false;
+		const camino = typeof ruta === "string" ? ruta : "";
+		if (!RUTA_ITEM.test(camino)) return false;
 		return doc.querySelector('meta[name="citation_title"]') !== null;
 	}
 
+	function normalizarHandle(href) {
+		// Devuelve el handle institucional en forma canónica (https, sin
+		// barra final) o null si el enlace no tiene esa forma.
+		if (typeof href !== "string") return null;
+		const limpio = href.trim();
+		if (!HANDLE_ITEM.test(limpio)) return null;
+		return limpio.replace(/^http:\/\//, "https://").replace(/\/+$/, "");
+	}
+
+	function _pareceHandleDelItem(nodo) {
+		// Cuando la página muestra varios handles, solo vale el que la
+		// página identifica como el handle del ítem (la fila de metadatos
+		// dice "Handle" o "Identificador"). Sin ese dato, no se elige.
+		if (!nodo) return false;
+		const marca = nodo.getAttribute ? nodo.getAttribute("data-test") || "" : "";
+		if (marca.toLowerCase().indexOf("handle") !== -1) return true;
+		const fila = nodo.closest ? nodo.closest("tr") : null;
+		const texto = fila ? (fila.textContent || "").toLowerCase() : "";
+		return texto.indexOf("handle") !== -1 || texto.indexOf("identificador") !== -1;
+	}
+
 	function extraerHandle(doc) {
-		// En la página del ítem archivado el handle vive en un enlace
-		// https://hdl.handle.net/20.500.14414/NNNN.
+		// NO se toma el primer enlace hdl de la página: una referencia a
+		// otro ítem puede aparecer antes. Solo se aceptan enlaces con la
+		// forma institucional exacta y, si hay varios, el que la página
+		// etiqueta como handle del ítem.
 		if (!doc) return null;
-		const enlace = doc.querySelector('a[href*="hdl.handle.net"]');
-		return enlace ? enlace.getAttribute("href") : null;
+		const candidatos = [];
+		const enlaces = doc.querySelectorAll('a[href*="hdl.handle.net"]');
+		Array.from(enlaces).forEach(function (enlace) {
+			const normalizado = normalizarHandle(enlace.getAttribute("href") || "");
+			if (normalizado) candidatos.push({ nodo: enlace, handle: normalizado });
+		});
+		if (!candidatos.length) return null;
+		const distintos = new Set(candidatos.map((c) => c.handle));
+		if (distintos.size === 1) return candidatos[0].handle;
+		const etiquetado = candidatos.find((c) => _pareceHandleDelItem(c.nodo));
+		return etiquetado ? etiquetado.handle : null;
 	}
 
 	function tituloDeItem(doc) {
@@ -72,6 +116,17 @@ const VBCompuertas = (() => {
 		if (!doc) return "";
 		const meta = doc.querySelector('meta[name="citation_title"]');
 		return meta ? (meta.getAttribute("content") || "").trim() : "";
+	}
+
+	function autoresDeItem(doc) {
+		// Los autores del ítem, si la página los publica como metas de
+		// cita (`citation_author`). Si no hay metas, NO hay evidencia:
+		// se devuelve null y nunca una lista vacía que parezca "coincide".
+		if (!doc) return null;
+		const autores = Array.from(doc.querySelectorAll('meta[name="citation_author"]'))
+			.map((meta) => (meta.getAttribute("content") || "").trim())
+			.filter((autor) => autor.length > 0);
+		return autores.length ? autores : null;
 	}
 
 	function normalizar(texto) {
@@ -88,7 +143,7 @@ const VBCompuertas = (() => {
 
 	function titulosCoinciden(tituloFicha, tituloItem) {
 		// Igualdad NORMALIZADA, no inclusión: un título que solo contiene
-		// al otro puede ser otra tesis. El flujo v1.13.0 compara el
+		// al otro puede ser otra tesis. El flujo v1.14.0 compara el
 		// título esperado de la ficha con el título real del ítem.
 		const a = normalizar(tituloFicha);
 		const b = normalizar(tituloItem);
@@ -96,14 +151,29 @@ const VBCompuertas = (() => {
 		return a === b;
 	}
 
+	function autoresCoinciden(autoresFicha, autoresItem) {
+		// Mismo criterio que el servidor: conjuntos normalizados. El
+		// orden no identifica a una persona y las tildes no cambian el
+		// nombre. Si falta alguna de las dos listas, no hay coincidencia.
+		if (!Array.isArray(autoresFicha) || !Array.isArray(autoresItem)) return false;
+		const a = autoresFicha.map(normalizar).filter(Boolean).sort();
+		const b = autoresItem.map(normalizar).filter(Boolean).sort();
+		if (!a.length || !b.length || a.length !== b.length) return false;
+		return a.every((valor, i) => valor === b[i]);
+	}
+
 	return {
 		SELECTORES,
+		RUTA_ITEM,
 		esFormularioTesis,
 		esPaginaItem,
 		extraerHandle,
+		normalizarHandle,
 		tituloDeItem,
+		autoresDeItem,
 		normalizar,
 		titulosCoinciden,
+		autoresCoinciden,
 	};
 })();
 
@@ -140,44 +210,101 @@ const VBMapeador = (() => {
 		return typeof valor === "string" && valor.trim() ? [valor] : [];
 	}
 
+	function listaPosicional(valor) {
+		// Conserva las posiciones: un hueco NO se compacta. El DNI del
+		// autor 2 no puede terminar en la fila del autor 1 (US-04).
+		if (valor === null || valor === undefined) return [];
+		if (Array.isArray(valor)) {
+			return valor.map((v) => (typeof v === "string" ? v.trim() : ""));
+		}
+		return typeof valor === "string" && valor.trim() ? [valor.trim()] : [];
+	}
+
 	function construirPlan(ficha, selectores) {
 		// Cada operación es independiente: si falta el dato, la operación
 		// se omite y queda en el resumen (el toast lo muestra; el
 		// operador completa a mano — fallo visible, nunca silencioso).
+		//
+		// `campo` identifica el dato en el resumen: "texto" no dice qué
+		// campo falló (US-15).
 		const operaciones = [];
 		const omitidos = [];
+		const problemas = [];
 
 		const titulo = valorExtraido(ficha, "dc.title");
 		if (typeof titulo === "string" && titulo.trim()) {
-			operaciones.push({ tipo: "texto", selector: selectores.titulo, valor: titulo.trim() });
+			operaciones.push({
+				tipo: "texto",
+				campo: "título",
+				selector: selectores.titulo,
+				valor: titulo.trim(),
+			});
 		} else {
 			omitidos.push("título");
 		}
 
-		const autores = comoLista(valorExtraido(ficha, "dc.contributor.author"));
-		if (autores.length) {
-			operaciones.push({ tipo: "filas", selector: selectores.autores, valores: autores });
-		} else {
+		// Autores: la lista conserva las posiciones. Un autor sin nombre
+		// es un dato inválido: no se rellena la lista porque el DNI
+		// quedaría pegado a la persona equivocada.
+		const autores = listaPosicional(valorExtraido(ficha, "dc.contributor.author"));
+		const autoresSinNombre = [];
+		autores.forEach(function (autor, indice) {
+			if (!autor) autoresSinNombre.push(indice + 1);
+		});
+		if (!autores.length) {
 			omitidos.push("autores");
+		} else if (autoresSinNombre.length) {
+			problemas.push({
+				campo: "autores",
+				detalle:
+					"el autor " +
+					autoresSinNombre.join(", ") +
+					" no tiene nombre; no se rellenó la lista para no desalinear el DNI",
+			});
+		} else {
+			operaciones.push({
+				tipo: "filas",
+				campo: "autores",
+				selector: selectores.autores,
+				valores: autores,
+			});
 		}
 
+		// Asesor y resumen son campos repetibles en el formulario
+		// oficial: se tratan como filas para que una fila sobrante se
+		// elimine con el control del widget.
 		const asesor = valorExtraido(ficha, "dc.contributor.advisor");
 		if (typeof asesor === "string" && asesor.trim()) {
-			operaciones.push({ tipo: "texto", selector: selectores.asesor, valor: asesor.trim() });
+			operaciones.push({
+				tipo: "filas",
+				campo: "asesor",
+				selector: selectores.asesor,
+				valores: [asesor.trim()],
+			});
 		} else {
 			omitidos.push("asesor");
 		}
 
 		const resumen = valorExtraido(ficha, "dc.description.abstract");
 		if (typeof resumen === "string" && resumen.trim()) {
-			operaciones.push({ tipo: "texto", selector: selectores.resumen, valor: resumen.trim() });
+			operaciones.push({
+				tipo: "filas",
+				campo: "resumen",
+				selector: selectores.resumen,
+				valores: [resumen.trim()],
+			});
 		} else {
 			omitidos.push("resumen");
 		}
 
 		const palabras = comoLista(valorExtraido(ficha, "dc.subject"));
 		if (palabras.length) {
-			operaciones.push({ tipo: "filas", selector: selectores.palabrasClave, valores: palabras });
+			operaciones.push({
+				tipo: "filas",
+				campo: "palabras clave",
+				selector: selectores.palabrasClave,
+				valores: palabras,
+			});
 		} else {
 			omitidos.push("palabras clave");
 		}
@@ -186,30 +313,66 @@ const VBMapeador = (() => {
 		// lectura (picker); el operador los elige como siempre.
 		const anho = valorExtraido(ficha, "dc.date.issued");
 		if (typeof anho === "string" && /^\d{4}$/.test(anho.trim())) {
-			operaciones.push({ tipo: "texto", selector: selectores.anho, valor: anho.trim() });
+			operaciones.push({
+				tipo: "texto",
+				campo: "año de emisión",
+				selector: selectores.anho,
+				valor: anho.trim(),
+			});
 		} else if (anho) {
-			operaciones.push({ tipo: "anhoDesdeTexto", selector: selectores.anho, valor: anho });
+			operaciones.push({
+				tipo: "anhoDesdeTexto",
+				campo: "año de emisión",
+				selector: selectores.anho,
+				valor: anho,
+			});
 		} else {
 			omitidos.push("año de emisión");
 		}
 
 		// QUALDROP de DNI del autor: filas alineadas por posición con los
 		// autores; la opción se identifica por el sufijo renati.author.dni.
-		const dnisAutor = comoLista(valorManual(ficha, "renati.author.dni"));
+		const dnisAutor = listaPosicional(valorManual(ficha, "renati.author.dni"));
 		if (dnisAutor.length) {
-			operaciones.push({
-				tipo: "qualdrop",
-				selectorMeta: selectores.dniAutorMeta,
-				opcionSufijo: "renati.author.dni",
-				selectorValor: selectores.dniAutorValor,
-				valores: dnisAutor,
-			});
+			if (!autores.length) {
+				omitidos.push("DNI del autor");
+			} else if (dnisAutor.length !== autores.length) {
+				problemas.push({
+					campo: "DNI del autor",
+					detalle:
+						"la ficha trae " +
+						dnisAutor.length +
+						" DNI para " +
+						autores.length +
+						" autores: se necesita uno por autor y no se adivina el emparejamiento",
+				});
+			} else {
+				const sinDni = [];
+				dnisAutor.forEach(function (dni, indice) {
+					if (!dni) sinDni.push(indice + 1);
+				});
+				if (sinDni.length) {
+					problemas.push({
+						campo: "DNI del autor",
+						detalle: "falta el DNI del autor " + sinDni.join(", "),
+					});
+				}
+				operaciones.push({
+					tipo: "qualdrop",
+					campo: "DNI del autor",
+					selectorMeta: selectores.dniAutorMeta,
+					opcionSufijo: "renati.author.dni",
+					selectorValor: selectores.dniAutorValor,
+					valores: dnisAutor,
+				});
+			}
 		}
 
 		const dniAsesor = comoLista(valorManual(ficha, "renati.advisor.dni"))[0];
 		if (dniAsesor) {
 			operaciones.push({
 				tipo: "qualdrop",
+				campo: "DNI del asesor",
 				selectorMeta: selectores.dniAsesorMeta,
 				opcionSufijo: "renati.advisor.dni",
 				selectorValor: selectores.dniAsesorValor,
@@ -219,7 +382,12 @@ const VBMapeador = (() => {
 
 		const orcid = comoLista(valorManual(ficha, "renati.advisor.orcid"))[0];
 		if (orcid) {
-			operaciones.push({ tipo: "texto", selector: selectores.orcidAsesor, valor: orcid });
+			operaciones.push({
+				tipo: "texto",
+				campo: "ORCID del asesor",
+				selector: selectores.orcidAsesor,
+				valor: orcid,
+			});
 		}
 
 		// Fix del bug dc.rights: SIEMPRE se intenta (el default del
@@ -228,15 +396,23 @@ const VBMapeador = (() => {
 		// selecciona a mano como hace hoy — fallo visible en el resumen.
 		operaciones.push({
 			tipo: "combobox",
+			campo: "derechos de acceso",
 			selectorInput: selectores.derechosInput,
 			selectorListbox: selectores.derechosListbox,
 			texto: ACCESO_ABIERTO,
 		});
 
-		return { operaciones, omitidos: omitidos };
+		return { operaciones, omitidos: omitidos, problemas: problemas };
 	}
 
-	return { construirPlan, valorExtraido, valorManual, comoLista, ACCESO_ABIERTO };
+	return {
+		construirPlan,
+		valorExtraido,
+		valorManual,
+		comoLista,
+		listaPosicional,
+		ACCESO_ABIERTO,
+	};
 })();
 
 if (typeof module !== "undefined" && module.exports) {
@@ -251,6 +427,11 @@ if (typeof module !== "undefined" && module.exports) {
 // Mecánica Angular: los reactive forms escuchan eventos, no asignaciones
 // directas — se usa el setter nativo del prototipo del elemento y se
 // despachan input/change (el patrón estándar de los autocompletadores).
+//
+// Las filas repetibles se concilian con los controles del propio widget:
+// se agregan con el botón "+" y se QUITAN con el botón de quitar de la
+// fila, nunca borrando nodos del DOM (la fila borrada a mano deja el
+// modelo de Angular con un valor que ya no existe).
 
 const VBEjecutor = (() => {
 	// Cada fila repetible del formulario oficial (DSpace 8.1) vive en un
@@ -261,6 +442,16 @@ const VBEjecutor = (() => {
 	// quedaban a mano sin avisar.
 	const SELECTOR_ARRAY = '[id$="_array"]';
 	const SELECTOR_AGREGAR = "button.ds-form-add-more";
+
+	// Fila repetible del array: el bundle capturado la marca como
+	// `role="group"` con el atributo `cdkdrag` (el contenedor del botón
+	// "+" también es `role="group"`, pero no es ancestro del input).
+	const SELECTOR_GRUPO = '[role="group"][cdkdrag]';
+
+	// El botón de quitar fila no tiene clase propia: se distingue por su
+	// etiqueta accesible (`form.remove` / `form.discard` traducidos) y por
+	// no ser el botón "+" ni el botón de búsqueda de una relación.
+	const ETIQUETA_ELIMINAR = /remove|eliminar|quitar|discard|descartar/;
 
 	// Al pulsar "+", Angular re-renderiza el formulario de forma
 	// asíncrona: la fila no existe en el mismo tick del clic. Se espera
@@ -286,6 +477,10 @@ const VBEjecutor = (() => {
 		return true;
 	}
 
+	function _valorDe(el) {
+		return el && typeof el.value === "string" ? el.value : "";
+	}
+
 	function _elegirOpcion(doc, select, sufijo) {
 		// Los QUALDROP del formulario real usan valores "N: campo" (p. ej.
 		// "0: renati.author.dni"): basta con el sufijo exacto. El
@@ -302,36 +497,51 @@ const VBEjecutor = (() => {
 
 	function _aplicarTexto(doc, op) {
 		const el = doc.querySelector(op.selector);
-		if (!el) return false;
-		return _ponerTexto(doc, el, op.valor);
+		if (!el) return { ok: false, detalle: "no se encontró el campo" };
+		if (el.disabled || el.readOnly) {
+			return { ok: false, detalle: "el control no admite edición" };
+		}
+		_ponerTexto(doc, el, op.valor);
+		// Se relee el valor: un control que revierte lo escrito (listener
+		// de Angular, render posterior) NO cuenta como relleno.
+		if (_valorDe(el) !== op.valor) {
+			return { ok: false, detalle: "el control no conservó el valor escrito" };
+		}
+		return { ok: true, detalle: "" };
 	}
 
 	function _aplicarAnhoDesdeTexto(doc, op) {
 		// El valor puede venir como "2026", "2026-10-19" o similar: el
 		// campo del formulario espera solo el año (maxlength=4).
 		const anho = String(op.valor).match(/\d{4}/);
-		if (!anho) return false;
+		if (!anho) return { ok: false, detalle: "no se encontró un año" };
 		return _aplicarTexto(doc, { selector: op.selector, valor: anho[0] });
 	}
 
-	async function _aplicarFilas(doc, op, dormir) {
-		const existentes = Array.from(doc.querySelectorAll(op.selector));
-		if (!existentes.length) return false;
-		const necesarios = op.valores.length;
-		for (let i = existentes.length; i < necesarios; i++) {
-			await _agregarFila(doc, op.selector, dormir);
+	function _grupoDeFila(fila) {
+		if (!fila || !fila.closest) return null;
+		return fila.closest(SELECTOR_GRUPO) || fila.closest('[role="group"]');
+	}
+
+	function _botonEliminar(grupo) {
+		// El control de quitar fila de DSpace 8.1 es un `<button>` con la
+		// etiqueta traducida de `form.remove` (o `form.discard`). No se
+		// borra el nodo: se pulsa el control para que Angular actualice el
+		// FormArray.
+		if (!grupo) return null;
+		const botones = Array.from(grupo.querySelectorAll("button"));
+		for (const boton of botones) {
+			if (boton.classList && boton.classList.contains("ds-form-add-more")) continue;
+			const marca = (boton.getAttribute("data-test") || "").toLowerCase();
+			if (marca.indexOf("lookup") !== -1) continue;
+			const etiqueta = (
+				(boton.getAttribute("aria-label") || "") +
+				" " +
+				(boton.getAttribute("title") || "")
+			).toLowerCase();
+			if (ETIQUETA_ELIMINAR.test(etiqueta)) return boton;
 		}
-		const filas = Array.from(doc.querySelectorAll(op.selector));
-		let aplicadas = 0;
-		filas.slice(0, necesarios).forEach((el, i) => {
-			if (op.valores[i] !== undefined && _ponerTexto(doc, el, op.valores[i])) {
-				aplicadas++;
-			}
-		});
-		// Éxito solo si TODAS las filas necesarias recibieron valor: si el
-		// botón "+" no apareció y sobró gente por llenar, el resumen debe
-		// mostrar "a mano" (fallo visible, nunca una fila silenciosa).
-		return aplicadas === necesarios && filas.length >= necesarios;
+		return null;
 	}
 
 	async function _agregarFila(doc, selectorCercano, dormir) {
@@ -355,25 +565,148 @@ const VBEjecutor = (() => {
 		return doc.querySelectorAll(selectorCercano).length > antes;
 	}
 
+	async function _eliminarFila(doc, selectorCercano, dormir) {
+		// Quita la ÚLTIMA fila sobrante con el control de la propia fila.
+		// Si el control no existe (fila única, campo de solo lectura o
+		// versión de UI distinta), no se borra el nodo: la operación
+		// falla y el operador la resuelve a mano.
+		const filas = Array.from(doc.querySelectorAll(selectorCercano));
+		if (filas.length <= 1) return false;
+		const fila = filas[filas.length - 1];
+		const boton = _botonEliminar(_grupoDeFila(fila));
+		if (!boton) return false;
+		const antes = doc.querySelectorAll(selectorCercano).length;
+		boton.click();
+		for (let i = 0; i < INTENTOS_AGREGAR; i++) {
+			if (doc.querySelectorAll(selectorCercano).length < antes) return true;
+			await dormir(ESPERA_AGREGAR_MS);
+		}
+		return doc.querySelectorAll(selectorCercano).length < antes;
+	}
+
+	async function _aplicarFilas(doc, op, dormir) {
+		const existentes = Array.from(doc.querySelectorAll(op.selector));
+		if (!existentes.length) return { ok: false, detalle: "no se encontró el campo" };
+		const valores = op.valores || [];
+		const necesarios = valores.length;
+		// Si el botón "+" no agrega la fila, NO se aborta: las filas que
+		// sí existen se llenan y las que faltan se reportan. Perder el
+		// dato ya escrito sería peor que dejar un pendiente visible.
+		for (let i = existentes.length; i < necesarios; i++) {
+			const agregada = await _agregarFila(doc, op.selector, dormir);
+			if (!agregada) break;
+		}
+		// Filas sobrantes: se quitan con el control del widget.
+		while (doc.querySelectorAll(op.selector).length > necesarios) {
+			const eliminada = await _eliminarFila(doc, op.selector, dormir);
+			if (!eliminada) {
+				return {
+					ok: false,
+					detalle: "no se pudo quitar una fila sobrante con el control del formulario",
+				};
+			}
+		}
+		const filas = Array.from(doc.querySelectorAll(op.selector));
+		let aplicadas = 0;
+		const sinDato = [];
+		const sinFila = [];
+		for (let i = 0; i < necesarios; i++) {
+			const valor = valores[i];
+			if (valor === null || valor === undefined || valor === "") {
+				// Hueco real del dato: no se inventa un valor ni se
+				// desplaza el de otra persona.
+				sinDato.push(i + 1);
+				continue;
+			}
+			if (!filas[i]) {
+				// La fila no existe en el formulario (no se pudo
+				// agregar): el dato queda pendiente, sin invadir otra
+				// fila.
+				sinFila.push(i + 1);
+				continue;
+			}
+			_ponerTexto(doc, filas[i], valor);
+			if (_valorDe(filas[i]) === valor) aplicadas++;
+		}
+		if (aplicadas !== necesarios - sinDato.length - sinFila.length) {
+			return { ok: false, detalle: "una fila no conservó el valor escrito" };
+		}
+		if (sinFila.length) {
+			return {
+				ok: false,
+				detalle: "no se pudo agregar la fila " + sinFila.join(", "),
+			};
+		}
+		return {
+			ok: true,
+			detalle: sinDato.length ? "filas sin dato: " + sinDato.join(", ") : "",
+		};
+	}
+
 	async function _aplicarQualdrop(doc, op, dormir) {
 		const metas = Array.from(doc.querySelectorAll(op.selectorMeta));
-		const valores = Array.from(doc.querySelectorAll(op.selectorValor));
-		if (!metas.length || !valores.length) return false;
-		const necesarios = op.valores.length;
+		const valores = op.valores || [];
+		const necesarios = valores.length;
+		if (!metas.length) return { ok: false, detalle: "no se encontró el campo" };
 		for (let i = metas.length; i < necesarios; i++) {
-			await _agregarFila(doc, op.selectorMeta, dormir);
+			const agregada = await _agregarFila(doc, op.selectorMeta, dormir);
+			if (!agregada) break;
+		}
+		while (doc.querySelectorAll(op.selectorMeta).length > necesarios) {
+			const eliminada = await _eliminarFila(doc, op.selectorMeta, dormir);
+			if (!eliminada) {
+				return {
+					ok: false,
+					detalle: "no se pudo quitar una fila sobrante con el control del formulario",
+				};
+			}
 		}
 		const metasFinal = Array.from(doc.querySelectorAll(op.selectorMeta));
 		const valoresFinal = Array.from(doc.querySelectorAll(op.selectorValor));
 		let aplicadas = 0;
-		for (let i = 0; i < Math.min(necesarios, metasFinal.length, valoresFinal.length); i++) {
-			const metaOk = _elegirOpcion(doc, metasFinal[i], op.opcionSufijo);
-			const valorOk = _ponerTexto(doc, valoresFinal[i], op.valores[i]);
-			if (metaOk && valorOk) aplicadas++;
+		const sinDato = [];
+		const sinTipo = [];
+		const sinFila = [];
+		for (let i = 0; i < necesarios; i++) {
+			const valor = valores[i];
+			if (valor === null || valor === undefined || valor === "") {
+				sinDato.push(i + 1);
+				continue;
+			}
+			if (!metasFinal[i] || !valoresFinal[i]) {
+				// No hay fila para este dato: no se escribe en otra.
+				sinFila.push(i + 1);
+				continue;
+			}
+			// El tipo se elige ANTES de escribir el número: si la opción
+			// no existe, el valor anterior (por ejemplo, un pasaporte)
+			// queda intacto y la operación se reporta como fallida.
+			if (!_elegirOpcion(doc, metasFinal[i], op.opcionSufijo)) {
+				sinTipo.push(i + 1);
+				continue;
+			}
+			_ponerTexto(doc, valoresFinal[i], valor);
+			if (_valorDe(valoresFinal[i]) === valor) aplicadas++;
 		}
-		// Igual que las filas: si faltaron filas del QUALDROP, el resumen
-		// lo reporta como pendiente en vez de callarse la diferencia.
-		return aplicadas === necesarios && metasFinal.length >= necesarios;
+		if (sinTipo.length) {
+			return {
+				ok: false,
+				detalle: "el tipo de documento no existe para la fila " + sinTipo.join(", "),
+			};
+		}
+		if (sinFila.length) {
+			return {
+				ok: false,
+				detalle: "no se pudo agregar la fila " + sinFila.join(", "),
+			};
+		}
+		if (aplicadas !== necesarios - sinDato.length) {
+			return { ok: false, detalle: "una fila no conservó el valor escrito" };
+		}
+		return {
+			ok: true,
+			detalle: sinDato.length ? "filas sin dato: " + sinDato.join(", ") : "",
+		};
 	}
 
 	async function _aplicarCombobox(doc, op, dormir) {
@@ -383,7 +716,8 @@ const VBEjecutor = (() => {
 		// renderiza async); si nunca aparece → false (el resumen avisa
 		// y el operador selecciona a mano, como hace hoy).
 		const input = doc.querySelector(op.selectorInput);
-		if (!input) return false;
+		if (!input) return { ok: false, detalle: "no se encontró el campo" };
+		const previo = _valorDe(input);
 		_ponerTexto(doc, input, op.texto);
 		const intentos = 8;
 		for (let i = 0; i < intentos; i++) {
@@ -398,14 +732,15 @@ const VBEjecutor = (() => {
 				if (texto === op.texto) {
 					el.click();
 					_evento(doc, input, "change");
-					return true;
+					return { ok: true, detalle: "" };
 				}
 			}
 		}
-		// Sin opciones renderizadas: devolver el input al estado visible
-		// original para no dejar texto suelto engañoso.
-		_ponerTexto(doc, input, "");
-		return false;
+		// Sin opciones renderizadas: se devuelve el control al valor
+		// anterior. Borrarlo dejaría el formulario sin el dato que el
+		// operador había escrito (US-03).
+		_ponerTexto(doc, input, previo);
+		return { ok: false, detalle: "no se encontró la opción " + op.texto };
 	}
 
 	async function aplicarPlan(doc, plan, opciones) {
@@ -413,24 +748,163 @@ const VBEjecutor = (() => {
 		const dormir = config.dormir || ((ms) => new Promise((r) => setTimeout(r, ms)));
 		const exitosos = [];
 		const fallidos = [];
+		const detalle = [];
 		for (const op of plan.operaciones) {
-			let ok = false;
-			if (op.tipo === "texto") ok = _aplicarTexto(doc, op);
-			else if (op.tipo === "anhoDesdeTexto") ok = _aplicarAnhoDesdeTexto(doc, op);
-			else if (op.tipo === "filas") ok = await _aplicarFilas(doc, op, dormir);
-			else if (op.tipo === "qualdrop") ok = await _aplicarQualdrop(doc, op, dormir);
-			else if (op.tipo === "combobox") ok = await _aplicarCombobox(doc, op, dormir);
-			if (ok) exitosos.push(op.tipo);
-			else fallidos.push(op.tipo);
+			const etiqueta = op.campo || op.tipo;
+			let resultado = { ok: false, detalle: "operación desconocida" };
+			if (op.tipo === "texto") resultado = _aplicarTexto(doc, op);
+			else if (op.tipo === "anhoDesdeTexto") resultado = _aplicarAnhoDesdeTexto(doc, op);
+			else if (op.tipo === "filas") resultado = await _aplicarFilas(doc, op, dormir);
+			else if (op.tipo === "qualdrop") resultado = await _aplicarQualdrop(doc, op, dormir);
+			else if (op.tipo === "combobox") resultado = await _aplicarCombobox(doc, op, dormir);
+			if (resultado.ok) exitosos.push(etiqueta);
+			else fallidos.push(etiqueta);
+			detalle.push({
+				campo: etiqueta,
+				tipo: op.tipo,
+				estado: resultado.ok ? "completo" : "pendiente",
+				detalle: resultado.detalle || "",
+			});
 		}
-		return { exitosos, fallidos, omitidos: plan.omitidos };
+		return {
+			exitosos,
+			fallidos,
+			omitidos: plan.omitidos || [],
+			problemas: plan.problemas || [],
+			detalle,
+		};
 	}
 
-	return { aplicarPlan, SELECTOR_ARRAY, SELECTOR_AGREGAR };
+	return { aplicarPlan, SELECTOR_ARRAY, SELECTOR_AGREGAR, SELECTOR_GRUPO };
 })();
 
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = VBEjecutor;
+}
+
+
+// Panel de confirmación del depósito: la ÚNICA vía para registrar el
+// archivo en VistoBueno. El panel no escribe nada por su cuenta: el
+// operador lee la evidencia y pulsa el botón; el wrapper hace la
+// escritura con la atestación explícita.
+//
+// Todo el texto se inserta con textContent: el título o el handle del
+// ítem son datos externos y no pueden interpretarse como HTML.
+
+const VBPanel = (() => {
+	const ID_PANEL = "vb-panel";
+
+	function _texto(doc, etiqueta, contenido, estilos) {
+		const el = doc.createElement(etiqueta);
+		el.textContent = contenido;
+		if (estilos) el.style.cssText = estilos;
+		return el;
+	}
+
+	function quitar(doc) {
+		const existente = doc.getElementById(ID_PANEL);
+		if (existente && existente.parentNode) existente.parentNode.removeChild(existente);
+	}
+
+	function montar(doc, datos) {
+		quitar(doc);
+		const panel = doc.createElement("div");
+		panel.id = ID_PANEL;
+		panel.style.cssText =
+			"position:fixed;top:16px;right:16px;z-index:99999;background:#fff;color:#1a1a2e;" +
+			"border:1px solid #b8c4d6;border-radius:8px;padding:14px 16px;font:13px sans-serif;" +
+			"max-width:440px;box-shadow:0 2px 10px rgba(0,0,0,.25);text-align:left";
+
+		panel.appendChild(
+			_texto(doc, "strong", "Confirmar el depósito archivado", "display:block;margin-bottom:8px")
+		);
+		panel.appendChild(_texto(doc, "p", "Ítem: " + (datos.tituloItem || "(sin título)")));
+		panel.appendChild(_texto(doc, "p", "Handle: " + (datos.handle || "(sin handle)")));
+		panel.appendChild(
+			_texto(
+				doc,
+				"p",
+				"Autores: " +
+					(datos.autoresItem && datos.autoresItem.length
+						? datos.autoresItem.join("; ")
+						: "no verificados (la página no los publica)")
+			)
+		);
+		panel.appendChild(
+			_texto(
+				doc,
+				"p",
+				"Hora del clic en Depositar: " + (datos.timestamp || "no registrada")
+			)
+		);
+		panel.appendChild(
+			_texto(
+				doc,
+				"p",
+				"Trámite: " + (datos.tramiteId || "(sin trámite)") + " (revisión " + datos.revision + ")"
+			)
+		);
+
+		(datos.avisos || []).forEach(function (aviso) {
+			panel.appendChild(
+				_texto(doc, "p", aviso, "margin:6px 0 0 0;color:#8a1f11;font-weight:600")
+			);
+		});
+
+		const acciones = doc.createElement("div");
+		acciones.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:12px";
+
+		const botonConfirmar = doc.createElement("button");
+		botonConfirmar.id = "vb-confirmar";
+		botonConfirmar.type = "button";
+		botonConfirmar.textContent = "Confirmar depósito archivado";
+		botonConfirmar.disabled = !datos.puedeConfirmar;
+		botonConfirmar.style.cssText =
+			"background:#28a745;color:#fff;border:none;padding:8px 12px;border-radius:6px;" +
+			"font:13px sans-serif;cursor:pointer";
+		if (!datos.puedeConfirmar) botonConfirmar.style.opacity = "0.55";
+		botonConfirmar.addEventListener("click", function () {
+			if (datos.alConfirmar) datos.alConfirmar();
+		});
+		acciones.appendChild(botonConfirmar);
+
+		if (datos.alMarcarInconsistencia) {
+			const botonInconsistencia = doc.createElement("button");
+			botonInconsistencia.id = "vb-inconsistencia";
+			botonInconsistencia.type = "button";
+			botonInconsistencia.textContent = "Reportar inconsistencia";
+			botonInconsistencia.style.cssText =
+				"background:#fff;color:#8a1f11;border:1px solid #d9a6a0;padding:8px 12px;" +
+				"border-radius:6px;font:13px sans-serif;cursor:pointer";
+			botonInconsistencia.addEventListener("click", function () {
+				if (datos.alMarcarInconsistencia) datos.alMarcarInconsistencia();
+			});
+			acciones.appendChild(botonInconsistencia);
+		}
+
+		const botonCerrar = doc.createElement("button");
+		botonCerrar.id = "vb-cerrar";
+		botonCerrar.type = "button";
+		botonCerrar.textContent = "Cerrar";
+		botonCerrar.style.cssText =
+			"background:#fff;color:#1a1a2e;border:1px solid #b8c4d6;padding:8px 12px;" +
+			"border-radius:6px;font:13px sans-serif;cursor:pointer";
+		botonCerrar.addEventListener("click", function () {
+			quitar(doc);
+			if (datos.alCerrar) datos.alCerrar();
+		});
+		acciones.appendChild(botonCerrar);
+
+		panel.appendChild(acciones);
+		doc.body.appendChild(panel);
+		return panel;
+	}
+
+	return { montar, quitar, ID_PANEL };
+})();
+
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = VBPanel;
 }
 
 
@@ -489,7 +963,19 @@ if (typeof module !== "undefined" && module.exports) {
 
 // Wrapper del rellenador: pegamento delgado entre el entorno (Tampermonkey
 // o el shim de desarrollo) y los módulos puros. Sin lógica de dominio:
-// la viven compuertas.js, mapeador.js y ejecutor.js.
+// la viven compuertas.js, mapeador.js, ejecutor.js y panel.js.
+//
+// Protocolo 2 (2026-11-16): el depósito NO se reporta solo. Rellenar,
+// enviar y archivar son tres estados distintos:
+//
+//   1. Rellenar: la ficha del buzón se copia al formulario.
+//   2. Enviar: el clic en "Depositar" queda registrado como hora (HORA
+//      del papeleo). No prueba que el ítem exista.
+//   3. Archivar: el operador CONFIRMA en la página del ítem. Solo esa
+//      atestación explícita habilita el papeleo en VistoBueno.
+//
+// La confirmación usa la revisión vigente que publica la API (GET
+// /tramite): un panel viejo no confirma una ficha corregida.
 
 (function () {
 	"use strict";
@@ -502,6 +988,7 @@ if (typeof module !== "undefined" && module.exports) {
 	// mock: same-origin, la API real sigue sin CORS.
 	const BASE = esShim ? "/api-proxy" : "http://localhost:8000";
 	const CLAVE_ENVIO = "vb_envio";
+	const PROTOCOLO = 2;
 
 	function pedir(ruta, metodo, cuerpo, alResponder, alFallar) {
 		const opciones = {
@@ -523,144 +1010,99 @@ if (typeof module !== "undefined" && module.exports) {
 		GM_xmlhttpRequest(opciones);
 	}
 
+	function _analizar(respuesta) {
+		try {
+			return JSON.parse(respuesta.responseText);
+		} catch (e) {
+			return null;
+		}
+	}
+
 	function obtenerFicha(alRecibir) {
-		pedir("/ficha-pendiente", "GET", undefined, function (respuesta) {
-			if (respuesta.status !== 200) {
-				alRecibir(null, "sin_ficha"); // vacía o expirada
-				return;
+		pedir(
+			"/ficha-pendiente",
+			"GET",
+			undefined,
+			function (respuesta) {
+				if (respuesta.status !== 200) {
+					alRecibir(null, "sin_ficha"); // vacía o fuera de la ventana
+					return;
+				}
+				const sobre = _analizar(respuesta);
+				if (!sobre || !sobre.ficha || !sobre.tramite_id) {
+					// La API anterior a v1.13.0 devolvía la ficha pelada. Sin
+					// `tramite_id` no se puede atar el depósito: fail-closed.
+					alRecibir(null, "contrato_desactualizado");
+					return;
+				}
+				alRecibir(sobre);
+			},
+			function () {
+				alRecibir(null, "sin_conexion");
 			}
-			let sobre = null;
-			try {
-				sobre = JSON.parse(respuesta.responseText);
-			} catch (e) {
-				sobre = null;
+		);
+	}
+
+	function obtenerTramite(alRecibir) {
+		// El trámite retenido sigue disponible aunque la ventana de
+		// autorelleno haya vencido: el panel se arma con la revisión
+		// vigente, no con un dato guardado en el navegador.
+		pedir(
+			"/tramite",
+			"GET",
+			undefined,
+			function (respuesta) {
+				if (respuesta.status === 404) {
+					alRecibir(null, "sin_tramite");
+					return;
+				}
+				if (respuesta.status !== 200) {
+					alRecibir(null, "error_" + respuesta.status);
+					return;
+				}
+				const tramite = _analizar(respuesta);
+				if (!tramite || !tramite.tramite_id) {
+					alRecibir(null, "contrato_desactualizado");
+					return;
+				}
+				alRecibir(tramite);
+			},
+			function () {
+				alRecibir(null, "sin_conexion");
 			}
-			if (!sobre || !sobre.ficha || !sobre.tramite_id) {
-				// La API anterior a v1.13.0 devolvía la ficha pelada. Sin
-				// `tramite_id` no se puede atar el depósito: fail-closed.
-				alRecibir(null, "contrato_desactualizado");
-				return;
-			}
-			alRecibir(sobre);
-		});
+		);
 	}
 
 	function _tituloEsperadoDeFicha(sobre) {
 		return (VBMapeador.valorExtraido(sobre.ficha, "dc.title") || "").trim();
 	}
 
-	function _limpiarEnvioSiPertenece(tramiteId) {
+	function _leerEnvio() {
+		// El estado del protocolo 1 no se migra: el contrato de
+		// confirmación cambió y un atestado viejo no identifica la
+		// revisión que el operador revisó. Se descarta (US-14).
 		const actual = GM_getValue(CLAVE_ENVIO, null);
-		if (actual && actual.tramite_id === tramiteId) {
+		if (!actual || typeof actual !== "object") return null;
+		if (actual.protocolo !== PROTOCOLO) {
 			GM_setValue(CLAVE_ENVIO, null);
+			return null;
 		}
+		return actual;
 	}
 
-	function _reintentarReporte(payload, intento, motivo) {
-		if (intento < 2) {
-			// Fallo temporal: hasta tres intentos con espera breve. El
-			// payload y su trámite no se releen: el reintento pertenece al
-			// mismo depósito aunque el almacenamiento cambie mientras tanto.
-			setTimeout(function () {
-				_reportarDeposito(payload, intento + 1);
-			}, 1000 * (intento + 1));
-			return;
-		}
-		mostrarToast(motivo);
-		// Libera el handle para un reintento posterior, con enfriamiento:
-		// el propio toast muta el DOM y dispararía el observador otra vez
-		// (bucle de reintentos). El envío sigue guardado para una recarga.
-		visto.handle = null;
-		visto.reintentoNoAntes = Date.now() + 30000;
-	}
-
-	function _reportarDeposito(payload, intento) {
-		pedir(
-			"/deposito",
-			"POST",
-			payload,
-			function (respuesta) {
-				if (respuesta.status === 204 || respuesta.status === 200) {
-					_limpiarEnvioSiPertenece(payload.tramite_id);
-					visto.reintentoNoAntes = 0;
-					mostrarToast("Handle enviado a VistoBueno ✓ (" + payload.handle + ")");
-					return;
-				}
-				if (respuesta.status === 404 || respuesta.status === 409) {
-					// El trámite ya no está vigente: reintentar no ayudaría.
-					_limpiarEnvioSiPertenece(payload.tramite_id);
-					mostrarToast(
-						"La ficha de este depósito ya no está vigente (HTTP " +
-							respuesta.status +
-							"); vuelve a prepararla."
-					);
-					return;
-				}
-				_reintentarReporte(
-					payload,
-					intento,
-					"No se pudo reportar el handle a VistoBueno (HTTP " +
-						respuesta.status +
-						"). Se reintentará al cambiar la página."
-				);
-			},
-			function () {
-				_reintentarReporte(
-					payload,
-					intento,
-					"No se pudo contactar con VistoBueno para reportar el handle. Se reintentará al cambiar la página."
-				);
-			}
+	function _guardarEnvio(cambios) {
+		const previo = _leerEnvio() || {};
+		GM_setValue(
+			CLAVE_ENVIO,
+			Object.assign({}, previo, cambios, { protocolo: PROTOCOLO })
 		);
 	}
 
-	function reportarDeposito(handle) {
-		const envio = GM_getValue(CLAVE_ENVIO, null);
-		if (!envio) return;
-		const tramiteId = String(envio.tramite_id || "").trim();
-		if (!tramiteId) {
-			mostrarToast(
-				"El envío en curso no tiene trámite: vuelve a preparar la ficha en VistoBueno."
-			);
-			return;
+	function _limpiarEnvioSiPertenece(tramiteId) {
+		const actual = _leerEnvio();
+		if (actual && actual.tramite_id === tramiteId) {
+			GM_setValue(CLAVE_ENVIO, null);
 		}
-		const tituloEsperado =
-			typeof envio.titulo === "string" ? envio.titulo.trim() : "";
-		if (!tituloEsperado) {
-			mostrarToast(
-				"El envío en curso no tiene el título esperado: vuelve a preparar la ficha en VistoBueno."
-			);
-			return;
-		}
-		// El ítem abierto debe ser la tesis preparada: un ítem ajeno
-		// (otra pestaña, una búsqueda) no debe pisar la ranura del buzón.
-		const tituloItem = VBCompuertas.tituloDeItem(doc);
-		if (!tituloItem) {
-			mostrarToast("La página del ítem no declara su título; no se reportó a VistoBueno.");
-			return;
-		}
-		if (!VBCompuertas.titulosCoinciden(tituloEsperado, tituloItem)) {
-			mostrarToast(
-				"El ítem abierto no coincide con la tesis preparada; no se reportó a VistoBueno."
-			);
-			return;
-		}
-		// Sin el clic en "Depositar" no hay hora del depósito: no se
-		// inventa una al abrir la página del ítem.
-		const timestamp = String(envio.timestamp || "").trim();
-		if (!timestamp) {
-			mostrarToast(
-				"No se registró el clic en Depositar; el handle no se reportó a VistoBueno."
-			);
-			return;
-		}
-		const payload = Object.freeze({
-			tramite_id: tramiteId,
-			handle: handle,
-			titulo_observado: tituloItem,
-			timestamp: timestamp,
-		});
-		_reportarDeposito(payload, 0);
 	}
 
 	// --- UI mínima: toast y botón flotante ---
@@ -726,9 +1168,10 @@ if (typeof module !== "undefined" && module.exports) {
 	function llenar(sobre) {
 		const ficha = sobre.ficha;
 		const tramiteId = sobre.tramite_id;
+		const revision = typeof sobre.revision === "number" ? sobre.revision : 0;
 		const tituloFicha = (VBMapeador.valorExtraido(ficha, "dc.title") || "").trim();
 		const tituloActual = _tituloDelFormulario();
-		const envio = GM_getValue(CLAVE_ENVIO, null);
+		const envio = _leerEnvio();
 		// Si el userscript YA llenó ESTE trámite y el formulario sigue
 		// mostrando su título, NO se vuelve a llenar: el operador ya
 		// corrigió lo que quiso y un segundo relleno pisaría sus
@@ -754,14 +1197,19 @@ if (typeof module !== "undefined" && module.exports) {
 			if (resumen.exitosos.length) partes.push("Lleno: " + resumen.exitosos.join(", ") + ".");
 			if (resumen.fallidos.length) partes.push("A mano: " + resumen.fallidos.join(", ") + ".");
 			if (resumen.omitidos.length) partes.push("Sin dato: " + resumen.omitidos.join(", ") + ".");
+			(resumen.problemas || []).forEach(function (problema) {
+				partes.push("Problema: " + problema.campo + ": " + problema.detalle + ".");
+			});
 			mostrarToast(partes.join(" "), 12000);
 			// El timestamp del clic en "Depositar" se conserva solo si es
 			// el MISMO trámite: un trámite nuevo empieza sin hora (PR #71).
-			const previo = GM_getValue(CLAVE_ENVIO, null);
-			GM_setValue(CLAVE_ENVIO, {
+			const previo = _leerEnvio();
+			_guardarEnvio({
 				tramite_id: tramiteId,
+				revision: revision,
 				titulo: VBMapeador.valorExtraido(ficha, "dc.title") || null,
-				timestamp: previo && previo.tramite_id === tramiteId ? previo.timestamp || null : null,
+				timestamp:
+					previo && previo.tramite_id === tramiteId ? previo.timestamp || null : null,
 			});
 		});
 	}
@@ -777,6 +1225,7 @@ if (typeof module !== "undefined" && module.exports) {
 				mostrarToast(
 					"La API de VistoBueno no devuelve tramite_id: actualiza la app y el userscript."
 				);
+				return;
 			}
 			// Sin ficha: el botón aparece igual (texto genérico) para
 			// que el operador pueda pulsarlo tras publicar la ficha
@@ -787,11 +1236,231 @@ if (typeof module !== "undefined" && module.exports) {
 		});
 	}
 
+	// --- Panel de confirmación del archivo (protocolo 2) ---
+
+	function _candidatoItem() {
+		const ruta = window.location && window.location.pathname ? window.location.pathname : "";
+		if (!VBCompuertas.esPaginaItem(doc, ruta)) return null;
+		const handle = VBCompuertas.extraerHandle(doc);
+		const titulo = VBCompuertas.tituloDeItem(doc);
+		if (!handle || !titulo) return null;
+		return { handle: handle, titulo: titulo, autores: VBCompuertas.autoresDeItem(doc) };
+	}
+
+	function _avisosDePanel(candidato, tramite, envio) {
+		// Devuelve {avisos, motivos, puedeConfirmar}: los avisos son
+		// texto para el operador; los motivos alimentan el reporte de
+		// inconsistencia.
+		const avisos = [];
+		const motivos = [];
+		const ficha = tramite.ficha || {};
+		const tituloCanonico = (VBMapeador.valorExtraido(ficha, "dc.title") || "").trim();
+		const autoresCanonicos = VBMapeador.comoLista(
+			VBMapeador.valorExtraido(ficha, "dc.contributor.author")
+		);
+
+		if (!tituloCanonico) {
+			avisos.push(
+				"La ficha no trae título: no se puede comprobar la identidad del ítem. Corrige la ficha en VistoBueno."
+			);
+			motivos.push("La ficha canónica no tiene título");
+		} else if (!VBCompuertas.titulosCoinciden(tituloCanonico, candidato.titulo)) {
+			avisos.push(
+				"El título del ítem no coincide con la ficha: concilia la ficha en VistoBueno antes de confirmar."
+			);
+			motivos.push("El título del ítem no coincide con la ficha");
+		}
+		if (
+			candidato.autores &&
+			candidato.autores.length &&
+			autoresCanonicos.length &&
+			!VBCompuertas.autoresCoinciden(autoresCanonicos, candidato.autores)
+		) {
+			avisos.push(
+				"Los autores del ítem no coinciden con la ficha: concilia la ficha en VistoBueno antes de confirmar."
+			);
+			motivos.push("Los autores del ítem no coinciden con la ficha");
+		}
+		if (!envio || envio.tramite_id !== tramite.tramite_id) {
+			avisos.push(
+				"No se registró el clic en Depositar de esta ficha: la hora del papeleo no se puede fijar."
+			);
+		} else if (envio.revision !== tramite.revision) {
+			avisos.push(
+				"La ficha cambió en VistoBueno (revisión " +
+					tramite.revision +
+					"): vuelve a preparar el depósito."
+			);
+		}
+		const puedeConfirmar =
+			!avisos.length &&
+			!!envio &&
+			envio.tramite_id === tramite.tramite_id &&
+			envio.revision === tramite.revision &&
+			!!envio.timestamp;
+		return { avisos: avisos, motivos: motivos, puedeConfirmar: puedeConfirmar };
+	}
+
+	function _pintarPanel(candidato, tramite, envio) {
+		const revision = envio && envio.tramite_id === tramite.tramite_id ? envio.revision : null;
+		const evaluacion = _avisosDePanel(candidato, tramite, envio);
+		VBPanel.montar(doc, {
+			tituloItem: candidato.titulo,
+			handle: candidato.handle,
+			autoresItem: candidato.autores,
+			timestamp: envio ? envio.timestamp : null,
+			tramiteId: tramite.tramite_id,
+			revision: revision === null ? tramite.revision : revision,
+			avisos: evaluacion.avisos,
+			puedeConfirmar: evaluacion.puedeConfirmar,
+			alConfirmar: function () {
+				_confirmar(candidato, tramite, envio);
+			},
+			alMarcarInconsistencia: evaluacion.motivos.length
+				? function () {
+						_reportarInconsistencia(candidato, tramite, evaluacion.motivos);
+					}
+				: null,
+		});
+	}
+
+	function _confirmar(candidato, tramite, envio) {
+		const cuerpo = {
+			tramite_id: tramite.tramite_id,
+			handle: candidato.handle,
+			titulo_observado: candidato.titulo,
+			timestamp: envio.timestamp,
+			revision_esperada: envio.revision,
+			atestacion: "operador",
+		};
+		// Los autores son evidencia opcional: si la página no los
+		// publica, no se envían y el servidor registra que NO se
+		// verificaron (nunca "coinciden").
+		if (candidato.autores && candidato.autores.length) {
+			cuerpo.autores_observados = candidato.autores;
+		}
+		pedir(
+			"/deposito",
+			"POST",
+			cuerpo,
+			function (respuesta) {
+				if (respuesta.status === 204 || respuesta.status === 200) {
+					_limpiarEnvioSiPertenece(tramite.tramite_id);
+					VBPanel.quitar(doc);
+					mostrarToast(
+						"Depósito confirmado por el operador ✓ (" + candidato.handle + ")"
+					);
+					return;
+				}
+				if (respuesta.status === 409) {
+					// La revisión, el título o los autores no coinciden:
+					// no se reintenta. Se relee el trámite y se muestra
+					// el estado nuevo.
+					mostrarToast(
+						"VistoBueno rechazó la confirmación (409): la ficha cambió o no coincide con el ítem."
+					);
+					_actualizarPanel(candidato);
+					return;
+				}
+				if (respuesta.status === 422) {
+					mostrarToast(
+						"El contrato de VistoBueno cambió (422): actualiza la app y el userscript."
+					);
+					return;
+				}
+				if (respuesta.status === 404) {
+					mostrarToast(
+						"No hay un trámite vigente en VistoBueno (404): vuelve a preparar la ficha."
+					);
+					VBPanel.quitar(doc);
+					return;
+				}
+				mostrarToast(
+					"No se pudo confirmar el depósito (HTTP " + respuesta.status + ")."
+				);
+			},
+			function () {
+				mostrarToast("No se pudo contactar con VistoBueno para confirmar el depósito.");
+			}
+		);
+	}
+
+	function _reportarInconsistencia(candidato, tramite, motivos) {
+		pedir(
+			"/ficha-pendiente/inconsistencia",
+			"POST",
+			{
+				tramite_id: tramite.tramite_id,
+				handle: candidato.handle,
+				motivos: motivos,
+				revision_esperada: tramite.revision,
+			},
+			function (respuesta) {
+				if (respuesta.status === 204 || respuesta.status === 200) {
+					VBPanel.quitar(doc);
+					mostrarToast(
+						"Inconsistencia reportada: concilia la ficha en VistoBueno antes del papeleo."
+					);
+					return;
+				}
+				if (respuesta.status === 409) {
+					mostrarToast(
+						"La revisión del trámite cambió (409): vuelve a leer el trámite y revisa la diferencia."
+					);
+					_actualizarPanel(candidato);
+					return;
+				}
+				if (respuesta.status === 422) {
+					mostrarToast(
+						"El contrato de VistoBueno cambió (422): actualiza la app y el userscript."
+					);
+					return;
+				}
+				mostrarToast(
+					"No se pudo reportar la inconsistencia (HTTP " + respuesta.status + ")."
+				);
+			},
+			function () {
+				mostrarToast("No se pudo contactar con VistoBueno para reportar la inconsistencia.");
+			}
+		);
+	}
+
+	function _actualizarPanel(candidato) {
+		obtenerTramite(function (tramite, motivo) {
+			if (!tramite) {
+				VBPanel.quitar(doc);
+				mostrarToast(
+					motivo === "sin_tramite"
+						? "No hay un trámite vigente en VistoBueno: prepara la ficha otra vez."
+						: "VistoBueno no responde: no se puede confirmar el depósito."
+				);
+				return;
+			}
+			_pintarPanel(candidato, tramite, _leerEnvio());
+		});
+	}
+
+	function _abrirPanel(candidato) {
+		obtenerTramite(function (tramite, motivo) {
+			if (!tramite) {
+				VBPanel.quitar(doc);
+				mostrarToast(
+					motivo === "sin_tramite"
+						? "No hay un trámite vigente en VistoBueno: prepara la ficha otra vez."
+						: "VistoBueno no responde: no se puede confirmar el depósito."
+				);
+				return;
+			}
+			_pintarPanel(candidato, tramite, _leerEnvio());
+		});
+	}
+
 	// El SPA de DSpace navega sin recargar: un observador detecta tanto la
 	// aparición del formulario como la página del ítem con el handle. El
 	// estado se recalcula en cada pasada para que una SEGUNDA tesis (u otro
 	// ítem abierto después) no quede bloqueada por la anterior.
-	const visto = { formulario: false, handle: null, reintentoNoAntes: 0 };
+	const visto = { formulario: false, panel: null };
 
 	function revisar() {
 		const hayFormulario = VBCompuertas.esFormularioTesis(doc);
@@ -800,21 +1469,27 @@ if (typeof module !== "undefined" && module.exports) {
 		}
 		visto.formulario = hayFormulario;
 
-		const handle = VBCompuertas.esPaginaItem(doc) ? VBCompuertas.extraerHandle(doc) : null;
-		if (!handle) {
-			visto.handle = null;
+		const candidato = _candidatoItem();
+		if (!candidato) {
+			// MyDSpace, el workspace o cualquier otra ruta: no hay panel.
+			if (visto.panel) {
+				VBPanel.quitar(doc);
+				visto.panel = null;
+			}
 			return;
 		}
-		if (handle !== visto.handle) {
-			// Tras agotar los reintentos, el handle queda en enfriamiento:
-			// sin este bloqueo, cada mutación del DOM (incluido el toast)
-			// volvería a intentarlo y el reporte nunca pararía.
-			if (visto.reintentoNoAntes && Date.now() < visto.reintentoNoAntes) {
-				return;
-			}
-			visto.handle = handle;
-			reportarDeposito(handle);
-		}
+		// La firma incluye los autores: la página puede publicarlos más
+		// tarde (metas de cita) y el panel debe reevaluarse cuando la
+		// evidencia cambia.
+		const firma =
+			candidato.handle +
+			"|" +
+			candidato.titulo +
+			"|" +
+			(candidato.autores || []).join("; ");
+		if (visto.panel === firma) return; // el panel de este ítem ya está
+		visto.panel = firma;
+		_abrirPanel(candidato);
 	}
 
 	let temporizador = null;
@@ -826,13 +1501,19 @@ if (typeof module !== "undefined" && module.exports) {
 	// Se observa el documento entero: `citation_title` vive en <head> y el
 	// cuerpo del ítem se renderiza por separado; con solo <body> la
 	// compuerta podía ver el handle antes que el meta y no reintentar.
+	// También se observan los cambios del atributo `content`: una meta
+	// creada vacía y completada después no dispara una mutación de
+	// estructura (US-10).
 	new MutationObserver(revisarConCalma).observe(doc.documentElement, {
 		childList: true,
 		subtree: true,
+		attributes: true,
+		attributeFilter: ["content"],
 	});
 
-	// Momento del depósito: el clic en "Depositar" queda registrado como
-	// timestamp del envío (alimenta HORA del registro y de la constancia).
+	// Momento del envío: el clic en "Depositar" queda registrado como
+	// timestamp (alimenta HORA del registro y de la constancia). NO prueba
+	// que el ítem esté archivado: eso lo confirma el operador.
 	doc.addEventListener(
 		"click",
 		function (evento) {
@@ -841,8 +1522,8 @@ if (typeof module !== "undefined" && module.exports) {
 				? evento.target.closest(VBCompuertas.SELECTORES.depositar)
 				: null;
 			if (boton) {
-				const envio = GM_getValue(CLAVE_ENVIO, null);
-				if (envio) {
+				const envio = _leerEnvio();
+				if (envio && envio.tramite_id) {
 					envio.timestamp = VBReloj.ahoraLima();
 					GM_setValue(CLAVE_ENVIO, envio);
 				}
