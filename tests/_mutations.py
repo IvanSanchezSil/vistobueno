@@ -146,10 +146,12 @@ REGLAS_ACOPLADAS = {
     },
     "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
     "caratula_ciudad_pais_negrita": {"caratula_universidad_negrita_mayusculas"},
-    # indice_subdivisiones renombra "INDICE DE CONTENIDOS" -> "ÍNDICE GENERAL".
-    # Con el XPath por texto completo (PR #102) el título de contenidos deja
-    # de localizarse, así que indice_paginas_separadas pasa a NO APLICABLE
-    # (antes fallaba con paginas_repetidas por el XPath tolerante).
+    # indice_subdivisiones renombra la subdivisión "INDICE DE CONTENIDOS" ->
+    # "ÍNDICE GENERAL" y el título paraguas "ÍNDICE" -> "CONTENIDO GENERAL".
+    # Con el XPath por texto completo (PR #102) ya no queda ningún título de
+    # contenidos identificable —ni el específico ni el genérico "Índice"—, así
+    # que indice_paginas_separadas pasa a NO APLICABLE (antes fallaba con
+    # paginas_repetidas por el XPath tolerante).
     # Acople unidireccional: la presencia la reporta indice_subdivisiones.
     # (Las reglas de TOC pasan a n/a con ese renombre, pero el `found` exitoso
     # es "cumple" en ambos casos -> sin acople observable.)
@@ -220,6 +222,18 @@ def _mut_margen(attr: str):
 
 def _renombrar_heading(cfg: dict, actual: str, nuevo: str) -> None:
     cfg["headings"] = [nuevo if h == actual else h for h in cfg["headings"]]
+
+
+def _mut_indice_subdivisiones(cfg: dict) -> None:
+    """Deja el documento sin ningún título de índice de contenidos.
+
+    Renombra la subdivisión ("INDICE DE CONTENIDOS") y el título paraguas
+    ("ÍNDICE"): la regla acepta el título genérico como contenidos cuando no
+    hay subdivisión (tesis real), así que renombrar solo la subdivisión ya no
+    produce el desvío (revisión PR #102).
+    """
+    _renombrar_heading(cfg, "INDICE DE CONTENIDOS", "ÍNDICE GENERAL")
+    _renombrar_heading(cfg, "ÍNDICE", "CONTENIDO GENERAL")
 
 
 def _renumerar_tdc(cfg: dict, actual: str, nuevo: str) -> None:
@@ -354,9 +368,7 @@ _MUTACIONES = {
     "estructura_tinv_revision_literatura": lambda c: c.update(
         headings=_headings_insertadas(_HEADINGS_CUANT, _ANADIDAS_REVISION)
     ),
-    "indice_subdivisiones": lambda c: _renombrar_heading(
-        c, "INDICE DE CONTENIDOS", "ÍNDICE GENERAL"
-    ),
+    "indice_subdivisiones": _mut_indice_subdivisiones,
     "resumen_longitud": lambda c: c.update(resumen_palabras=60),
     "palabras_clave_minimo": lambda c: c.update(palabras_clave_n=2),
     "referencias_minimo_cuantitativo": lambda c: c.update(referencias_n=19),
