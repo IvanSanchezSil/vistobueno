@@ -31,6 +31,11 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   rojo a propósito. Los criterios de aceptación de AUD-24 a AUD-27 ya están
 >   en `tests/test_captura_ficha.py` (tests con `xfail(strict=True)`: cuando
 >   el motor los cumpla, el CI se pone rojo hasta que Int1 quite la marca).
+> - **Int3 — correctitud del motor (Semana 12)**: **cerrado** el 2026-11-17.
+>   La pila PR #98 a #106 se fusionó en `master` (`ca9a4100`) y cierra
+>   VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11). Las cifras
+>   medidas y el detalle están en `docs/HANDOVER_AUDITORIA_2026-10-26.md`
+>   §2.1 y §11, y en `docs/HANDOVER_CORRECTITUD_INT3_2026-11-12.md`.
 > - **Int1 — API**: **cerrado**. AUD-09, AUD-10, AUD-12, AUD-13, AUD-21,
 >   AUD-22 y el contrato de la ficha (PR #65, #66, #67 y #69); además, en la
 >   rama `fix/api-hardening-b0-b1`: AUD-28 (Host y DNS rebinding), AUD-29
@@ -683,7 +688,9 @@ Al revisar un PR, verificar que:
    AUD-04 y AUD-20 cerrados** con el PR #73; **AUD-03 y AUD-15** con el
    PR #78; **AUD-05, AUD-06 y AUD-07** cerrados en el PR #73.
    Quedan AUD-24 a AUD-27 (capturas de la ficha). Las decisiones de dominio
-   están en §8 del handover. Criterios de aceptación:
+   están en §8 del handover. La pila de correctitud de la Semana 12
+   (PR #98 a #106, `ca9a4100`) cierra además VA-01 a VA-07, VA-11, VA-14,
+   VA-15 y VA-17. Criterios de aceptación:
    [`docs/HANDOVER_AUDITORIA_2026-10-26.md`](docs/HANDOVER_AUDITORIA_2026-10-26.md).
 3. **Int2**: pantalla de ficha de depósito (handover S8, AUD-16): **resuelto**
    (PR #68). Queda pendiente solo el ajuste a los cambios de contrato de

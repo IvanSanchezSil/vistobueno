@@ -70,23 +70,23 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 
 | ID | Prioridad | Problema | Tarea / dueño | Estado |
 |---|---|---|---|---|
-VA-01 | P1 | Solo se revisa el primer run | M1 / Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): todos los runs con texto, incluidos hipervínculos |
-VA-02 | P1 | Formato heredado y propiedades omitidas | M1 / Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): formato efectivo con `styles.xml`, `basedOn` y `docDefaults`; límites declarados |
-VA-03 | P1 | Papel incorrecto en secciones posteriores | M2 / Int3 | M2 implementado, pendiente de verificación (PR #101, `5299a8f`): todas las secciones, orientación normalizada y secciones sin `w:pgSz` detectadas; tolerancia de papel pendiente |
-VA-04 | P2 | Paginación incorrecta | M3 / Int3 | M3 implementado, pendiente de verificación (PR #102, `eea80ea`): orden, valor y certeza de los saltos; sin render, las páginas sin marcador son desconocidas y la regla es no aplicable |
-VA-05 | P2 | Dos tipos declarados: gana el primero | M4 / Int3 | M4 corregido (`5fb2344`): todas las casillas marcadas; dos tipos distintos dan `TIPO_CONTRADICTORIO`; repetir el mismo tipo no cambia la decisión |
-VA-06 | P2 | Resumen sin máximo de palabras | M5 / Int3 | Pendiente |
-VA-07 | P2 | Abstract vacío; palabras clave incompletas | M5 / Int3 | Pendiente |
+| VA-01 | P1 | Solo se revisa el primer run | M1 / Int3 | Cerrado — PR #100 fusionado (`f6428d1`; implementación `8c63dcc`): todos los runs con texto, incluidos hipervínculos |
+| VA-02 | P1 | Formato heredado y propiedades omitidas | M1 / Int3 | Cerrado — PR #100 fusionado (`f6428d1`; implementación `8c63dcc`, `c3577f6`): formato efectivo con `styles.xml`, `basedOn` y `docDefaults`; límites declarados |
+| VA-03 | P1 | Papel incorrecto en secciones posteriores | M2 / Int3 | Cerrado — PR #101 fusionado (`2286886`; implementación `8983464`, `ca80948`): todas las secciones, orientación normalizada y secciones sin `w:pgSz` detectadas |
+| VA-04 | P2 | Paginación incorrecta | M3 / Int3 | Cerrado — PR #102 fusionado (`0a6d78b`; implementación `3477d84`, `83c3508`): orden, valor y certeza de los saltos; sin render, las páginas sin marcador son desconocidas y la regla es no aplicable |
+| VA-05 | P2 | Dos tipos declarados: gana el primero | M4 / Int3 | Cerrado — PR #103 fusionado (`32a3c13`; implementación `5fb2344`): todas las casillas marcadas; dos tipos distintos dan `TIPO_CONTRADICTORIO`; repetir el mismo tipo no cambia la decisión |
+| VA-06 | P2 | Resumen sin máximo de palabras | M5 / Int3 | Cerrado — PR #104 fusionado (`4a1ae60`; implementación `feeab66`) |
+| VA-07 | P2 | Abstract vacío; palabras clave incompletas | M5 / Int3 | Cerrado — PR #104 fusionado (`4a1ae60`; implementación `feeab66`) |
 | VA-08 | P1 | Permanecen filas de autores/DNI anteriores | B4 / Int1 | Pendiente |
 | VA-09 | P1 | Ficha y depósito sin identidad de trámite | B2 + F2 / Int1, Int2 | Cerrado — PR #95 fusionado (`0469983`): B2 y F2 implementados; contrato v1.13.0 |
 | VA-10 | P1 | Resguardo identificado solo por filename | F1 / Int2 | Pendiente |
-| VA-11 | P2 | DOCX malformado devuelve 500 | M1a + B5 / Int3, Int1 | M1a corregido (PR 12.2, `f601f29`): el extractor valida XML, raíz y cuerpo con `InvalidDocumentError`; B5 de Int1 pendiente |
+| VA-11 | P2 | DOCX malformado devuelve 500 | M1a + B5 / Int3, Int1 | M1a cerrado — PR #99 fusionado (`7d90502`; implementación `f601f29`): el extractor valida XML, raíz y cuerpo con `InvalidDocumentError`; B5 de Int1 pendiente |
 | VA-12 | P2 | Markdown activo en el PDF | M9 / Int3 | Pendiente |
-| VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | PR #75 corregido (`b060566`, `6602c90`, `a7bdc54`) con el diff limitado a la ficha; pendiente de merge |
-VA-14 | P2 | «Base de datos» acordado, pero no aplicado | M6 / Int3 | M6 corregido (`c2eb680`): el ítem 5 es «Base de datos»; el título real se reconoce y su ausencia se informa. Comparación por subcadena ratificada el 2026-11-16. La detección es textual: un anexo escaneado como imagen exige revisión manual |
-VA-15 | P2 | Se anuncia tamaño de logo sin medirlo | M7 / Int3 | Pendiente |
+| VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | Pendiente: PR #75 sigue abierto y con conflictos; el diff queda limitado a la ficha |
+| VA-14 | P2 | «Base de datos» acordado, pero no aplicado | M6 / Int3 | Cerrado — PR #105 fusionado (`a666778`; implementación `c2eb680`): el ítem 5 es «Base de datos»; el título real se reconoce y su ausencia se informa. Comparación por subcadena ratificada el 2026-11-16. La detección es textual: un anexo escaneado como imagen exige revisión manual |
+| VA-15 | P2 | Se anuncia tamaño de logo sin medirlo | M7 / Int3 | Cerrado — PR #106 fusionado (`de0ca8bb`; implementación `b92f7f3`, `ad78342`); la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) |
 | VA-16 | P2 | ORCID sin comprobación por persona/destino | M8 / Int3 | Pendiente |
-| VA-17 | P1 | Ejemplos DOCX dañados; guardia incompleta | B6 / Int1; M11 / Int3 | M11 corregido (PR 12.1, `85690c5`): factory OPC y regresión; B6 de Int1 regenera `docs/ejemplos/` |
+| VA-17 | P1 | Ejemplos DOCX dañados; guardia incompleta | B6 / Int1; M11 / Int3 | M11 cerrado — PR #98 fusionado (`dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC y regresión; B6 de Int1 regenera `docs/ejemplos/` |
 | VA-18 | P2 | Total presentado como reglas evaluadas | B7 + M10 / Int1, Int3 | B7 cerrado — PR #93 fusionado (`a6c8d4e`). Falta M10 (Int3) para CLI y exportador |
 | VA-19 | P1 | Un archivo real bloquea la siguiente validación | B1 + F4 / Int1, Int2 | Pendiente |
 | VA-20 | P1 | Éxito de relleno sin comprobar aceptación de Angular | B3 / Int1 | Pendiente |

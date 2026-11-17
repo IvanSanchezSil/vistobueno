@@ -523,7 +523,7 @@ class TestSinCambioDeComportamiento:
         errores = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
         warnings = [r for r in res if not r.passed and r.severity.value == "warning"]
         assert errores == {"palabras_clave_minimo", "caratula_titulo_negrita_mixta"}
-        assert len(warnings) == 6, [r.rule_id for r in warnings]
+        assert len(warnings) == 8, [r.rule_id for r in warnings]
         assert build_report(res)["semaforo"] == "rojo"
 
 
