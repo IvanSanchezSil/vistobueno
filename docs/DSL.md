@@ -387,7 +387,17 @@ o **desconocida** (sin marcadores).
 paginacion:
   comparacion: paginas_distintas
   xpaths:
-    - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de contenidos']"
+    # «Índice de contenidos»; si no existe, el título genérico «Índice».
+    - >-
+      (//w:p[normalize-space(translate(translate(normalize-space(.),
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'áéíóúüñ', 'aeiouun')) = 'indice de contenidos']
+      | //w:p[normalize-space(translate(translate(normalize-space(.),
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'áéíóúüñ', 'aeiouun')) = 'indice']
+      [not(//w:p[normalize-space(translate(translate(normalize-space(.),
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'áéíóúüñ', 'aeiouun')) = 'indice de contenidos'])])[1]
     - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de tablas']"
     - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de figuras']"
 ```
@@ -399,8 +409,12 @@ paginacion:
   que "ÍNDICE" se encuentre) y compara el **texto completo** del párrafo
   (para que la línea `PAGEREF` de la tabla de contenido no se confunda con
   el título de la sección). Con un XPath tolerante (`contains`) la regla
-  daba un falso positivo `paginas_repetidas` sobre la tesis aprobada. Se
-  toma la primera coincidencia de cada XPath en orden de documento.
+  daba un falso positivo `paginas_repetidas` sobre la tesis aprobada. El
+  primer XPath acepta «Índice de contenidos» y, si no existe, el título
+  genérico «Índice» (la tesis aprobada titula así esa sección); cuando
+  existe el título específico, el genérico se descarta para que un título
+  paraguas no le gane a la subdivisión. Se toma la primera coincidencia de
+  cada XPath en orden de documento.
 - Si algún XPath no coincide, la regla es **NO APLICABLE**
   (`aplicable=False`, `found="no aplica a este documento"`), no "cumple":
   la presencia de las secciones la cubren otras reglas.
