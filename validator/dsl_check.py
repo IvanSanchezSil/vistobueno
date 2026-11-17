@@ -39,6 +39,7 @@ from .models import Severity
 _SECCIONES = (
     "atributo_xml",
     "presencia_xml",
+    "formato_efectivo",
     "patron_texto",
     "lista_texto",
     "imagen",
@@ -58,7 +59,12 @@ _SECCIONES = (
 )
 
 # Campos interpretados como expresiones regulares por los analizadores.
-_CAMPOS_REGEX = ("patron", "filtro", "regex_indice")
+_CAMPOS_REGEX = (
+    "patron",
+    "filtro",
+    "excluir",
+    "regex_indice",
+)
 
 # Claves de nivel de REGLA (no de sección) que el motor reconoce. Cualquier
 # otra clave es o una sección mal escrita o un error de configuración.
@@ -137,6 +143,154 @@ def _lint_xml(config: dict, hallazgos: list[str], rule_id: str, seccion: str) ->
 # Se declaran aquí para que un typo (`hasta_fin`, `final`) falle en carga en
 # vez de ignorarse en silencio.
 _CLAVES_SECCION = frozenset({"inicio", "fin", "hasta_final"})
+
+# Claves de cada `seccion`/`secciones[]` de `patron_cantidad`.
+_CLAVES_SECCION_CANTIDAD = frozenset({"inicio", "fin", "hasta_final", "filtro", "nombre"})
+_OPERACIONES_CANTIDAD = frozenset({"count_words", "count_matches", "count_entries"})
+
+
+def _validar_seccion_cantidad(
+    seccion: object, hallazgos: list[str], rule_id: str, etiqueta: str
+) -> None:
+    if not isinstance(seccion, dict):
+        hallazgos.append(f"[{rule_id}] patron_cantidad: '{etiqueta}' debe ser un mapa")
+        return
+    desconocidas = sorted(set(seccion) - _CLAVES_SECCION_CANTIDAD)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}' tiene claves desconocidas "
+            f"{desconocidas} (válidas: {sorted(_CLAVES_SECCION_CANTIDAD)})"
+        )
+    inicio = seccion.get("inicio")
+    if not isinstance(inicio, str) or not inicio.strip():
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}.inicio' debe ser un texto no vacío"
+        )
+    fin = seccion.get("fin")
+    if fin is not None and (not isinstance(fin, str) or not fin.strip()):
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}.fin' debe ser un texto no vacío"
+        )
+    if "hasta_final" in seccion and not isinstance(seccion.get("hasta_final"), bool):
+        hallazgos.append(f"[{rule_id}] patron_cantidad: '{etiqueta}.hasta_final' debe ser booleano")
+    nombre = seccion.get("nombre")
+    if nombre is not None and (not isinstance(nombre, str) or not nombre.strip()):
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: '{etiqueta}.nombre' debe ser un texto no vacío"
+        )
+    filtro = seccion.get("filtro")
+    if filtro is not None:
+        if not isinstance(filtro, str) or not filtro.strip():
+            hallazgos.append(
+                f"[{rule_id}] patron_cantidad: '{etiqueta}.filtro' debe ser un texto no vacío"
+            )
+        else:
+            error = _regex_invalida(filtro)
+            if error:
+                hallazgos.append(
+                    f"[{rule_id}] patron_cantidad: '{etiqueta}.filtro' regex inválida: {error}"
+                )
+
+
+def _lint_patron_cantidad(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `patron_cantidad` y sus sub-configuraciones de sección.
+
+    Un `secciones` mal escrito se ignoraría en silencio y la regla pasaría
+    siempre; por eso la forma se comprueba al cargar, igual que el resto del
+    DSL.
+    """
+    operacion = config.get("operacion", "count_words")
+    if operacion not in _OPERACIONES_CANTIDAD:
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: 'operacion' inválida '{operacion}' "
+            f"(admitidas: {sorted(_OPERACIONES_CANTIDAD)})"
+        )
+
+    minimo = config.get("cantidad_minima", 1)
+    maximo = config.get("cantidad_maxima")
+    if not isinstance(minimo, int) or isinstance(minimo, bool) or minimo < 0:
+        hallazgos.append(f"[{rule_id}] patron_cantidad: 'cantidad_minima' debe ser un entero >= 0")
+    if maximo is not None and (
+        not isinstance(maximo, int) or isinstance(maximo, bool) or maximo < 0
+    ):
+        hallazgos.append(f"[{rule_id}] patron_cantidad: 'cantidad_maxima' debe ser un entero >= 0")
+    elif (
+        isinstance(minimo, int)
+        and not isinstance(minimo, bool)
+        and isinstance(maximo, int)
+        and maximo < minimo
+    ):
+        hallazgos.append(
+            f"[{rule_id}] patron_cantidad: 'cantidad_maxima' ({maximo}) es menor que "
+            f"'cantidad_minima' ({minimo})"
+        )
+
+    if "seccion" in config and "secciones" in config:
+        hallazgos.append(f"[{rule_id}] patron_cantidad: 'seccion' y 'secciones' son excluyentes")
+
+    seccion = config.get("seccion")
+    if seccion is not None:
+        _validar_seccion_cantidad(seccion, hallazgos, rule_id, "seccion")
+
+    secciones = config.get("secciones")
+    if secciones is not None:
+        if not isinstance(secciones, list) or not secciones:
+            hallazgos.append(
+                f"[{rule_id}] patron_cantidad: 'secciones' debe ser una lista no vacía"
+            )
+        else:
+            for i, sec in enumerate(secciones):
+                _validar_seccion_cantidad(sec, hallazgos, rule_id, f"secciones[{i}]")
+
+
+# Claves que entiende la sección `imagen`. `ancho_cm`/`alto_cm` activan la
+# medición del `wp:extent` (M7/VA-15); sin ellas solo se cuenta la presencia.
+_CLAVES_IMAGEN = frozenset(
+    {
+        "parte",
+        "contexto",
+        "xpath",
+        "formato",
+        "cantidad_minima",
+        "cantidad_maxima",
+        "ancho_cm",
+        "alto_cm",
+        "tolerancia_cm",
+    }
+)
+
+
+def _lint_imagen(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `imagen`: claves conocidas y la medición opcional del dibujo.
+
+    Declarar solo uno de `ancho_cm`/`alto_cm` deja la comparación a medias,
+    y una tolerancia no positiva admitiría cualquier tamaño (o ninguno).
+    """
+    desconocidas = sorted(set(config) - _CLAVES_IMAGEN)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] imagen: claves desconocidas {desconocidas} "
+            f"(válidas: {sorted(_CLAVES_IMAGEN)})"
+        )
+
+    ancho = config.get("ancho_cm")
+    alto = config.get("alto_cm")
+    if (ancho is None) != (alto is None):
+        hallazgos.append(
+            f"[{rule_id}] imagen: 'ancho_cm' y 'alto_cm' deben declararse juntos "
+            "(o ninguno, para comprobar solo la presencia)"
+        )
+    for clave, valor in (("ancho_cm", ancho), ("alto_cm", alto)):
+        if valor is None:
+            continue
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)) or valor <= 0:
+            hallazgos.append(f"[{rule_id}] imagen: '{clave}' debe ser un número positivo")
+
+    tolerancia = config.get("tolerancia_cm")
+    if tolerancia is not None and (
+        isinstance(tolerancia, bool) or not isinstance(tolerancia, (int, float)) or tolerancia <= 0
+    ):
+        hallazgos.append(f"[{rule_id}] imagen: 'tolerancia_cm' debe ser un número positivo")
 
 
 def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) -> None:
@@ -595,6 +749,72 @@ def _error_de_xpath(xpath: str) -> str | None:
     return None
 
 
+_PROPIEDAD_FORMATO = re.compile(
+    r"^[A-Za-z_][\w.-]*:[A-Za-z_][\w.-]*(?:/@[A-Za-z_][\w.-]*:[A-Za-z_][\w.-]*)?$"
+)
+
+
+def _lint_formato(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida la sección `formato_efectivo` (M1).
+
+    Un `parrafo_xpath` vacío seleccionaría todo el documento, y una
+    `propiedad` con formato inválido no la puede resolver el extractor: ambos
+    son errores de configuración que deben fallar al cargar, no contra la
+    tesis del estudiante.
+    """
+    parrafo_xpath = config.get("parrafo_xpath")
+    if not isinstance(parrafo_xpath, str) or not parrafo_xpath.strip():
+        hallazgos.append(
+            f"[{rule_id}] formato_efectivo: 'parrafo_xpath' debe ser un XPath no vacío"
+        )
+    else:
+        error = _error_de_xpath(parrafo_xpath)
+        if error:
+            hallazgos.append(
+                f"[{rule_id}] formato_efectivo: XPath inválido '{parrafo_xpath}': {error}"
+            )
+
+    propiedad = config.get("propiedad")
+    if not isinstance(propiedad, str) or not propiedad.strip():
+        hallazgos.append(
+            f"[{rule_id}] formato_efectivo: 'propiedad' debe ser un texto no vacío "
+            "(p. ej. 'w:rFonts/@w:ascii' o 'w:b')"
+        )
+    elif not _PROPIEDAD_FORMATO.match(propiedad):
+        hallazgos.append(
+            f"[{rule_id}] formato_efectivo: 'propiedad' inválida {propiedad!r} "
+            "(formato esperado: 'w:elemento' o 'w:elemento/@w:atributo')"
+        )
+    else:
+        prefijos = {parte.split(":", 1)[0] for parte in propiedad.split("/@")}
+        desconocidos = sorted(p for p in prefijos if p not in NS)
+        if desconocidos:
+            hallazgos.append(
+                f"[{rule_id}] formato_efectivo: prefijo(s) de namespace desconocido(s) "
+                f"en 'propiedad': {desconocidos}"
+            )
+
+    sujeto = config.get("sujeto", "run")
+    if sujeto not in ("run", "parrafo"):
+        hallazgos.append(
+            f"[{rule_id}] formato_efectivo: 'sujeto' debe ser 'run' o 'parrafo' "
+            f"(se recibió {sujeto!r})"
+        )
+
+    comp = config.get("comparacion", "all_eq")
+    if comp not in ("eq", "all_eq", "contains"):
+        hallazgos.append(
+            f"[{rule_id}] formato_efectivo: comparación '{comp}' no soportada "
+            "(válidas: eq, all_eq, contains)"
+        )
+    if comp in ("eq", "all_eq", "contains") and config.get("esperado") is None:
+        hallazgos.append(f"[{rule_id}] formato_efectivo: 'comparacion: {comp}' requiere 'esperado'")
+
+    for clave in ("n_a_si_sin_nodos", "n_a_si_ausente"):
+        if clave in config and not isinstance(config.get(clave), bool):
+            hallazgos.append(f"[{rule_id}] formato_efectivo: '{clave}' debe ser booleano")
+
+
 def _lint_xpath(config: dict, hallazgos: list[str], rule_id: str, seccion: str) -> None:
     """Valida que los XPath de la sección sean evaluables.
 
@@ -612,6 +832,9 @@ def _lint_xpath(config: dict, hallazgos: list[str], rule_id: str, seccion: str) 
     xpaths = config.get("xpaths")
     if isinstance(xpaths, list):
         valores.extend(x for x in xpaths if isinstance(x, str))
+    parrafo_xpath = config.get("parrafo_xpath")
+    if isinstance(parrafo_xpath, str):
+        valores.append(parrafo_xpath)
     for valor in valores:
         error = _error_de_xpath(valor)
         if error:
@@ -711,6 +934,10 @@ def linter(rules_data: dict) -> list[str]:
                 _escanear_regex(c, hallazgos, rule_id, seccion)
                 if seccion in ("atributo_xml", "presencia_xml"):
                     _lint_xml(c, hallazgos, rule_id, seccion)
+                elif seccion == "formato_efectivo":
+                    _lint_formato(c, hallazgos, rule_id)
+                elif seccion == "imagen":
+                    _lint_imagen(c, hallazgos, rule_id)
                 elif seccion == "automata_secuencia":
                     _lint_automata_secuencia(c, hallazgos, rule_id)
                 elif seccion == "automata_pila":
@@ -719,6 +946,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_deteccion_tipo(c, hallazgos, rule_id, rule)
                 elif seccion == "lista_obligatoria":
                     _lint_lista_obligatoria(c, hallazgos, rule_id)
+                elif seccion == "patron_cantidad":
+                    _lint_patron_cantidad(c, hallazgos, rule_id)
                 elif seccion == "paginacion":
                     _lint_paginacion(c, hallazgos, rule_id)
                 _lint_xpath(c, hallazgos, rule_id, seccion)

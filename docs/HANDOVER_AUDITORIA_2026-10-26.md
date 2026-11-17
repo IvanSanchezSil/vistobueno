@@ -35,11 +35,19 @@ la ficha (`reglas_ficha.yaml`):
 |-----------|----------|-----------|
 | Tesis real (copia local con PII) | **verde** | 43 de 49 reglas evaluadas, 6 no aplicables, 0 errores, **5 warnings** |
 | Tesis real, versión anterior (copia local con PII) | **rojo** | 1 error (`estructura_tinv_cuantitativo`: faltan 5 headings) + los mismos 5 warnings |
-| `EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
+| `EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+
+El resultado de las plantillas es **orientativo**: son documentos de
+instrucción con texto de relleno (el título va en rojo y mezcla negrita),
+así que `caratula_titulo_negrita_mixta` las marca a propósito. La regla se
+mantiene estricta porque, para un estudiante que deja el placeholder, es
+la guía correcta (decisión de la revisión del PR #100). El test
+`tests/test_tipo_documento.py::TestSinCambioDeComportamiento::test_plantillas_oficiales_resultado_orientativo`
+fija este resultado cuando `recursos/` está disponible.
 
 Los 5 warnings de la tesis real (los mismos de la auditoría):
 
@@ -309,7 +317,7 @@ oficiales.
 | # | Tema | Decisión | Consecuencia |
 |---|------|----------|--------------|
 | 1 | Sangría (`sangria_parrafo`) | Se mantiene la regla literal. **No** se eximen estilos de cita en bloque. | Nota `EVALUADO` en el YAML. Las citas en bloque usan `w:left` sin `firstLine`, así que la comparación ya las ignora. Sin cambio de código. |
-| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | Cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`. El efecto se ve cuando AUD-02 lea la sección de anexos. Sigue siendo `warning`. |
+| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | **Implementado en M6 (`c2eb680`)**: cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`; el título real se reconoce y su ausencia se informa. Sigue siendo `warning`. |
 | 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. **Implementado en el PR #73**: XPath del bloque de autores (todos los runs con texto, desde «AUTORES:» hasta antes de «ASESOR(A):», con las líneas ORCID) y comparación `all_eq`. |
 | 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | **Implementado en el PR #73** (con AUD-01 ya estable): el match por subcadena se sustituye por igualdad del título normalizado; `_sigpalabra` solo se usa para títulos de <4 caracteres. |
 | 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | El manual exige 13 pt en la línea «para optar» (párr. 1056 y 1076), pero la tesis aprobada de la auditoría y las 5 plantillas oficiales usan 12 pt. Se sigue el manual: el XPath queda amplio (`para optar`, sin acotar a «Bachiller») y el desvío se reporta como **warning**, sin cambiar el semáforo. | Se cierra AUD-07 en el PR #73. `n_a_si_sin_nodos` solo cubre los documentos que no tienen esa línea. El desvío de la tesis/plantillas se documenta en la nota `EVALUADO` de AUD-04. |
@@ -551,23 +559,23 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 
 | ID | Responsable | Estado | Tarea del nuevo handover |
 |----|-------------|--------|-------------------------|
-| VA-01 | Int3 | pendiente | M1: todos los runs |
-| VA-02 | Int3 | pendiente | M1: formato efectivo |
-| VA-03 | Int3 | pendiente | M2: A4 en secciones |
-| VA-04 | Int3 | pendiente | M3: paginación |
-| VA-05 | Int3 | pendiente | M4: declaraciones múltiples |
-| VA-06 | Int3 | pendiente | M5: límites del Resumen |
-| VA-07 | Int3 | pendiente | M5: Abstract y palabras clave |
+VA-01 | Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): todos los runs con texto | M1: todos los runs |
+VA-02 | Int3 | M1 implementado, pendiente de verificación (PR #100, `2635879`): formato efectivo con límites declarados | M1: formato efectivo |
+VA-03 | Int3 | M2 implementado, pendiente de verificación (PR #101, `5299a8f`): todas las secciones y las que no declaran `w:pgSz` | M2: A4 en secciones |
+VA-04 | Int3 | M3 implementado, pendiente de verificación (PR #102, `eea80ea`): orden, valor y certeza; las ramas n/a marcan la regla como no aplicable | M3: paginación |
+VA-05 | Int3 | M4 corregido (`5fb2344`): todas las casillas marcadas | M4: declaraciones múltiples |
+VA-06 | Int3 | pendiente | M5: límites del Resumen |
+VA-07 | Int3 | pendiente | M5: Abstract y palabras clave |
 | VA-08 | Int1 | pendiente | B4: filas sobrantes |
 | VA-09 | Int1 + Int2 | pendiente | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
-| VA-11 | Int3 + Int1 | pendiente | M1a + B5: documento inválido |
+| VA-11 | Int3 + Int1 | M1a corregido (PR 12.2, `f601f29`); B5 pendiente | M1a + B5: documento inválido |
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
-| VA-13 | Int3 | pendiente de integración | M0: PR #75, AUD-24 a AUD-27 |
-| VA-14 | Int3 | pendiente | M6: «Base de datos» |
-| VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
+| VA-13 | Int3 | corregido (PR #75, `b060566` + `6602c90` + `a7bdc54`); el diff queda limitado a la ficha y se mergeará tras #102 | M0: PR #75, AUD-24 a AUD-27 |
+VA-14 | Int3 | M6 corregido (`c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
+VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |
-| VA-17 | Int1 + Int3 | pendiente | B6: ejemplos; M11: factory |
+| VA-17 | Int1 + Int3 | M11 corregido (PR 12.1, `85690c5`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | pendiente | B7 + M10: conteos |
 | VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
 | VA-20 | Int1 | pendiente | B3 y puerta Angular de Int1: antes del piloto |

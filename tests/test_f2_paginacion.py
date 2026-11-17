@@ -1,14 +1,19 @@
-"""Tests de la paginación física real (F2 ítem 1).
+"""Tests de la paginación física real (F2 ítem 1, corregida en M3/VA-04).
 
 Cubre:
-- `_paginacion_para`: mapa párrafo -> página a partir de
-  `w:lastRenderedPageBreak`, `w:br w:type="page"` y
-  `w:pPr/w:pageBreakBefore`.
-- `ExtractedDocx.pagina_de`: página de un párrafo (None si no es párrafo).
+- `_paginacion_para`: mapa párrafo -> página procesando en orden los saltos
+  explícitos (`w:br w:type="page"`, `w:pageBreakBefore`, `w:sectPr` no
+  continuo) y la caché de render (`w:lastRenderedPageBreak`). `pageBreakBefore`
+  afecta al propio párrafo, `w:val="0"` no crea salto y varios saltos en un
+  mismo párrafo cuentan todos.
+- `ExtractedDocx.pagina_de`, `certeza_pagina_de` y `pagina_confirmada_de`:
+  la página puede ser comprobada (salto estructural), estimada (caché de
+  render de Word) o desconocida (sin marcadores).
 - `AnalizadorPaginacion` (`paginacion` / `paginas_distintas`): pasa solo si
   los objetivos caen en páginas físicas distintas; falla con
-  `paginas_repetidas`. Si alguna sección objetivo no es identificable pasa
-  como n/a (la regla solo juzga paginación, no presencia).
+  `paginas_repetidas`. Si alguna sección objetivo no es identificable, o si
+  la página es desconocida, la regla es NO APLICABLE (`aplicable=False`):
+  la regla solo juzga paginación, no presencia ni inventa páginas.
 - Regla `indice_paginas_separadas` end-to-end contra `reglas_unt.yaml`
   (documento base separado / mutación agrupada / índice renombrado).
 - Linter y compilador DSL aceptan la sección `paginacion`.
@@ -53,14 +58,22 @@ _MAYUS = "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ"
 _MINUS = "abcdefghijklmnopqrstuvwxyzáéíóúñü"
 
 
-def _xpath_que_contiene(termino: str) -> str:
+def _xpath_titulo(titulo: str) -> str:
+    """XPath del título de una sección de índice.
+
+    Pliega tildes y compara el TEXTO COMPLETO del párrafo, como en
+    `reglas_unt.yaml` (revisión PR #102): así la línea PAGEREF de la tabla
+    de contenido no se confunde con el título de la sección.
+    """
     return (
-        "//w:body//w:p[contains(translate(normalize-space(.), "
-        f'"{_MAYUS}", "{_MINUS}"), "{termino}")]'
+        "//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "
+        f'"{_MAYUS}", "{_MINUS}"), "áéíóúüñ", "aeiouun")) = "{titulo}"]'
     )
 
 
-_XPATHS_INDICES = [_xpath_que_contiene(t) for t in ("contenidos", "tablas", "figuras")]
+_XPATHS_INDICES = [
+    _xpath_titulo(t) for t in ("indice de contenidos", "indice de tablas", "indice de figuras")
+]
 
 
 def _para(texto: str) -> str:
@@ -159,15 +172,143 @@ def test_pagina_de_no_para_es_none():
 
 
 def test_mapa_de_salto_con_page_break_before():
-    # w:pageBreakBefore (propiedad de w:pPr): el párrafo arranca en página
-    # nueva y mueve el conteo hacia adelante (nit de la revisión PR #28).
+    # w:pageBreakBefore (propiedad de w:pPr) afecta al PROPIO párrafo: el
+    # párrafo que lo declara arranca en página nueva (M3/VA-04). Antes se le
+    # asignaba la página anterior y el salto se cobraba recién en el
+    # siguiente.
     path = _make_docx([_para("A"), _p_break_before("SECCION"), _para("B")])
     try:
         ext = extract(path)
     finally:
         Path(path).unlink(missing_ok=True)
     paras = ext.document.xpath("//w:body//w:p", namespaces=NS)
-    assert [ext.pagina_de(p) for p in paras] == [1, 1, 2]
+    assert [ext.pagina_de(p) for p in paras] == [1, 2, 2]
+
+
+# ---------------------------------------------------------------------------
+# M3/VA-04: orden y valor de los saltos
+# ---------------------------------------------------------------------------
+
+
+def _paginas(paras: list) -> list[int | None]:
+    path = _make_docx(paras)
+    try:
+        ext = extract(path)
+    finally:
+        Path(path).unlink(missing_ok=True)
+    return [ext.pagina_de(p) for p in ext.document.xpath("//w:body//w:p", namespaces=NS)]
+
+
+def test_break_before_afecta_al_propio_parrafo():
+    # Aceptación M3: [1,2] con break-before en el segundo párrafo.
+    assert _paginas([_para("A"), _p_break_before("B")]) == [1, 2]
+
+
+def test_break_before_desactivado_no_crea_salto():
+    # Aceptación M3: w:val="0" desactiva el salto; ambos quedan en página 1.
+    paras = [
+        _para("A"),
+        '<w:p><w:pPr><w:pageBreakBefore w:val="0"/></w:pPr>'
+        '<w:r><w:t xml:space="preserve">B</w:t></w:r></w:p>',
+    ]
+    assert _paginas(paras) == [1, 1]
+
+
+def test_break_before_off_tampoco_crea_salto():
+    paras = [
+        _para("A"),
+        '<w:p><w:pPr><w:pageBreakBefore w:val="off"/></w:pPr>'
+        '<w:r><w:t xml:space="preserve">B</w:t></w:r></w:p>',
+    ]
+    assert _paginas(paras) == [1, 1]
+
+
+def test_dos_saltos_en_el_mismo_parrafo():
+    # Aceptación M3: [1,3] con dos saltos en el primero. Un párrafo puede
+    # contener varios w:br y todos avanzan la página.
+    paras = [
+        '<w:p><w:r><w:br w:type="page"/><w:br w:type="page"/></w:r></w:p>',
+        _para("B"),
+    ]
+    assert _paginas(paras) == [1, 3]
+
+
+def test_salto_de_seccion_next_page_avanza_la_pagina():
+    # w:sectPr en pPr cierra la sección; nextPage (el valor por defecto)
+    # hace que la sección siguiente empiece en otra página.
+    paras = [
+        _para("INDICE DE CONTENIDOS"),
+        '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/></w:sectPr></w:pPr>'
+        '<w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>',
+        _para("INDICE DE TABLAS"),
+    ]
+    assert _paginas(paras) == [1, 1, 2]
+
+
+def test_salto_de_seccion_continuo_no_avanza_la_pagina():
+    paras = [
+        _para("INDICE DE CONTENIDOS"),
+        '<w:p><w:pPr><w:sectPr><w:type w:val="continuous"/></w:sectPr></w:pPr>'
+        '<w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>',
+        _para("INDICE DE TABLAS"),
+    ]
+    assert _paginas(paras) == [1, 1, 1]
+
+
+def test_parrafo_que_cruza_pagina_conserva_la_pagina_de_inicio():
+    # Un párrafo con texto, un salto y más texto cruza la página: se le
+    # asigna la página donde empieza y el siguiente párrafo pasa a la nueva.
+    paras = [
+        '<w:p><w:r><w:t xml:space="preserve">Antes</w:t></w:r>'
+        "<w:r><w:lastRenderedPageBreak/></w:r>"
+        '<w:r><w:t xml:space="preserve">Después</w:t></w:r></w:p>',
+        _para("Siguiente"),
+    ]
+    assert _paginas(paras) == [1, 2]
+
+
+def test_sin_marcadores_la_pagina_es_desconocida():
+    # Sin marcadores no se puede afirmar la página: la certeza lo declara
+    # en vez de inventar "página 1" para todo.
+    path = _make_docx([_para("A"), _para("B"), _para("C")])
+    try:
+        ext = extract(path)
+        paras = ext.document.xpath("//w:body//w:p", namespaces=NS)
+        certezas = [ext.certeza_pagina_de(p) for p in paras]
+        confirmadas = [ext.pagina_confirmada_de(p) for p in paras]
+    finally:
+        Path(path).unlink(missing_ok=True)
+    # El primero empieza el documento (página 1 comprobada); el resto pudo
+    # haber fluido a otra página sin marcador.
+    assert certezas[0] == "comprobada"
+    assert certezas[1:] == ["desconocida", "desconocida"]
+    assert confirmadas == [True, False, False]
+
+
+def test_salto_explicito_es_comprobado_y_render_es_estimado():
+    path = _make_docx([_para("A"), _p_br_page(), _para("B"), _p_break(), _para("C")])
+    try:
+        ext = extract(path)
+        paras = ext.document.xpath("//w:body//w:p", namespaces=NS)
+        certezas = [ext.certeza_pagina_de(p) for p in paras]
+    finally:
+        Path(path).unlink(missing_ok=True)
+    # B empieza tras un w:br explícito (comprobada); C tras un
+    # lastRenderedPageBreak (estimada).
+    assert certezas[0] == "comprobada"
+    assert certezas[2] == "comprobada"
+    assert certezas[4] == "estimada"
+
+
+def test_certeza_de_nodo_que_no_es_parrafo_es_none():
+    path = _make_docx([_para("A")])
+    try:
+        ext = extract(path)
+        assert ext.certeza_pagina_de(None) is None
+        assert ext.certeza_pagina_de(ext.document) is None
+        assert ext.pagina_confirmada_de(None) is None
+    finally:
+        Path(path).unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +381,57 @@ def test_paginas_repetidas_falla():
     assert "paginas_repetidas" in r.found
 
 
+def test_sin_marcadores_no_se_inventa_paginas_repetidas():
+    """Sin saltos ni caché de render la regla pasa como n/a (M3/VA-04).
+
+    Antes todos los párrafos recibían la página 1 y la regla fallaba con
+    `paginas_repetidas` aunque el XML no probara nada.
+    """
+    an, extracted = _analizador_paginas(
+        [
+            _para("INDICE DE CONTENIDOS"),
+            _para("INDICE DE TABLAS"),
+            _para("INDICE DE FIGURAS"),
+        ]
+    )
+    ok, detalle = an.analizar(extracted)
+    assert ok
+    assert "paginas_no_verificables" in detalle
+    assert "n/a" in detalle
+
+    r = _validar_una(
+        [
+            _para("INDICE DE CONTENIDOS"),
+            _para("INDICE DE TABLAS"),
+            _para("INDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
+    assert r.passed
+    assert "paginas_repetidas" not in r.found
+    # La regla NO se evaluó: se publica como no aplicable (revisión PR #102).
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
+
+
+def test_paginas_estimadas_se_declaran_en_el_detalle():
+    """Con caché de render la comparación es posible, pero se declara."""
+    an, extracted = _analizador_paginas(
+        [
+            _p_break(),
+            _para("INDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("INDICE DE TABLAS"),
+            _p_break(),
+            _para("INDICE DE FIGURAS"),
+        ]
+    )
+    ok, detalle = an.analizar(extracted)
+    assert ok
+    assert "estimadas" in detalle
+    assert "paginas_distintas" in detalle
+
+
 def test_paginas_distintas_solo_con_page_break_before():
     # Límites de sección del índice marcados SOLO con w:pageBreakBefore (sin
     # saltos renderizados ni explícitos): no deben colapsar a
@@ -274,6 +466,8 @@ def test_no_encontrado_es_no_aplica():
         _XPATHS_INDICES,
     )
     assert r.passed
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
 
 
 def test_sin_indices_no_aplica_pasa():
@@ -291,6 +485,48 @@ def test_sin_indices_no_aplica_pasa():
         _XPATHS_INDICES,
     )
     assert r.passed
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
+
+
+def test_no_aplica_no_se_hereda_al_siguiente_documento():
+    """La misma instancia puede evaluar varios documentos: el flag se resetea.
+
+    `self.no_aplica` se inicializa en el constructor, pero la instancia se
+    reutiliza; sin reset, un documento n/a haría que el siguiente se
+    publicara como no aplicable sin haber sido evaluado (revisión PR #102).
+    """
+    compilada = CompilerDSL().compilar({"reglas": [_regla_paginacion(_XPATHS_INDICES)]})[0]
+
+    path_a = _make_docx(
+        [
+            _para("INDICE DE CONTENIDOS"),
+            _para("INDICE DE TABLAS"),
+            _para("INDICE DE FIGURAS"),
+        ]
+    )
+    try:
+        resultado_a = compilada.ejecutar(extract(path_a))
+    finally:
+        Path(path_a).unlink(missing_ok=True)
+    assert not resultado_a.aplicable
+
+    path_b = _make_docx(
+        [
+            _p_break(),
+            _para("INDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("INDICE DE TABLAS"),
+            _p_break(),
+            _para("INDICE DE FIGURAS"),
+        ]
+    )
+    try:
+        resultado_b = compilada.ejecutar(extract(path_b))
+    finally:
+        Path(path_b).unlink(missing_ok=True)
+    assert resultado_b.aplicable, resultado_b.found
+    assert resultado_b.passed, resultado_b.found
 
 
 # ---------------------------------------------------------------------------
@@ -320,8 +556,128 @@ def test_indice_paginas_separadas_mutacion_falla():
     assert "paginas_repetidas" in r.found
 
 
-def test_indice_paginas_separadas_contenidos_renombrado_falla():
+def test_indice_paginas_separadas_contenidos_renombrado_es_no_aplica():
+    """Si un índice no es identificable, la regla no juzga la paginación.
+
+    La presencia de las secciones la cubre `indice_subdivisiones`; esta
+    regla solo mide la separación en páginas, así que sin los tres títulos
+    es NO APLICABLE y no un fallo (revisión PR #102).
+    """
     r = _resultado_indice(aplicar_mutacion("indice_subdivisiones", configuracion_base()))
+    assert r.passed
+    assert not r.aplicable
+    assert r.found == "no aplica a este documento"
+
+
+def test_titulo_generico_indice_verifica_paginacion():
+    """La tesis aprobada titula la sección solo «Índice».
+
+    Con el primer XPath limitado a «indice de contenidos», la sección no se
+    localizaba y la regla quedaba NO APLICABLE aunque las tres páginas fueran
+    distintas (10, 12, 14). El título genérico debe verificarse sin volver al
+    `contains`, que confundía las líneas PAGEREF del índice.
+    """
+    cfg = configuracion_base()
+    # Estructura de la tesis aprobada: un solo título «Índice» (sin el título
+    # paraguas «ÍNDICE» que usa el factory).
+    cfg["headings"] = [
+        "Índice" if h == "INDICE DE CONTENIDOS" else h for h in cfg["headings"] if h != "ÍNDICE"
+    ]
+    r = _resultado_indice(cfg)
+    assert r.aplicable, r.found
+    assert r.passed, r.found
+
+
+# ---------------------------------------------------------------------------
+# Presencia del índice: la prosa no satisface la subdivisión (PR #102)
+# ---------------------------------------------------------------------------
+
+
+def test_subdivisiones_no_confunde_prosa_con_el_indice():
+    """«Los contenidos del estudio…» no es un índice de contenidos.
+
+    El primer ítem comparaba `contains(..., 'contenidos')`, que también
+    coincide con prosa del cuerpo; la regla pasaba sin comprobar que existiera
+    el índice. Ahora exige el texto completo del título.
+    """
+    reglas = load_rules(str(YAML_PATH))
+    regla = next(r for r in reglas["reglas"] if r["id"] == "indice_subdivisiones")
+    path = _make_docx(
+        [
+            _para("Los contenidos del estudio se organizan en tres capítulos."),
+            _para("ÍNDICE DE TABLAS"),
+            _para("ÍNDICE DE FIGURAS"),
+        ]
+    )
+    try:
+        r = validate_docx(path, {"reglas": [regla]})[0]
+    finally:
+        Path(path).unlink(missing_ok=True)
+    assert not r.passed, r.found
+
+
+# ---------------------------------------------------------------------------
+# Títulos reales: con tilde y con las líneas PAGEREF del índice (PR #102)
+# ---------------------------------------------------------------------------
+
+
+def test_titulos_con_tilde_en_paginas_distintas_pasan():
+    """Los títulos reales llevan tilde: "ÍNDICE DE CONTENIDOS/TABLAS/FIGURAS"."""
+    r = _validar_una(
+        [
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("ÍNDICE DE TABLAS"),
+            _p_break(),
+            _para("ÍNDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
+    assert r.passed, r.found
+    assert r.aplicable
+
+
+def test_lineas_pageref_del_indice_no_se_confunden_con_el_titulo():
+    """La tabla de contenido menciona los índices: esas líneas no son títulos.
+
+    Con un XPath tolerante (`contains`) la primera coincidencia caía en la
+    línea PAGEREF de la tabla de contenido y la regla daba un falso
+    positivo `paginas_repetidas` sobre la tesis aprobada (10, 11, 11).
+    """
+    r = _validar_una(
+        [
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS PAGEREF _Toc242263989 \\h vii"),
+            _para("ÍNDICE DE TABLAS PAGEREF _Toc242263990 \\h viii"),
+            _para("ÍNDICE DE FIGURAS PAGEREF _Toc242263991 \\h ix"),
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS"),
+            _p_break(),
+            _para("ÍNDICE DE TABLAS"),
+            _p_break(),
+            _para("ÍNDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
+    assert r.passed, r.found
+    assert r.aplicable
+    assert "paginas_repetidas" not in r.found
+
+
+def test_dos_indices_en_la_misma_pagina_siguen_fallando():
+    """El ajuste de alcance no relaja la exigencia: dos índices en la misma
+    página siguen siendo un desvío."""
+    r = _validar_una(
+        [
+            _p_break(),
+            _para("ÍNDICE DE CONTENIDOS"),
+            _para("ÍNDICE DE TABLAS"),
+            _p_break(),
+            _para("ÍNDICE DE FIGURAS"),
+        ],
+        _XPATHS_INDICES,
+    )
     assert not r.passed
     assert "paginas_repetidas" in r.found
 
@@ -359,12 +715,13 @@ def _resultado_dsl(cfg, rule_id):
 def test_regla_fallida_enriquece_location_con_pagina():
     # sangria_parrafo falla (firstLine=0); su primera línea del cuerpo cae en
     # la página 4 del DOCX sintético (3 saltos previos: contenido, tablas y
-    # figuras). El motor debe anexar "página 4" a `location` (ítem 1).
+    # figuras). La página viene de la caché de render de Word, así que el
+    # sufijo la declara estimada (M3/VA-04).
     cfg = aplicar_mutacion("sangria_parrafo", configuracion_base())
     r = _resultado_dsl(cfg, "sangria_parrafo")
     assert not r.passed
     assert r.location is not None
-    assert r.location == 'Sección "Formato general" (párr. 141); página 4'
+    assert r.location == 'Sección "Formato general" (párr. 141); página 4 (estimada)'
 
 
 def test_regla_cumplida_no_altera_location():
@@ -372,3 +729,33 @@ def test_regla_cumplida_no_altera_location():
     r = _resultado_dsl(configuracion_base(), "sangria_parrafo")
     assert r.passed
     assert r.location == 'Sección "Formato general" (párr. 141)'
+
+
+def test_pagina_desconocida_no_se_anexa_a_la_location():
+    """Sin marcadores no se inventa una página en la ubicación (M3/VA-04)."""
+    regla = {
+        "id": "ubicacion_sin_pagina",
+        "tipo": "atributo_xml",
+        "descripcion": "Atributo de prueba",
+        "valor_esperado": "otro",
+        "severidad": "error",
+        "ubicacion": "Cuerpo",
+        "fuente": "MANUAL.docx",
+        "cita": '"cita"',
+        "atributo_xml": {
+            "parte": "document",
+            "contexto": "todos",
+            # Segundo párrafo: no arranca página ni hay marcadores.
+            "xpath": "//w:body/w:p[2]/w:r/w:t",
+            "atributo": "@xml:space",
+            "comparacion": "eq",
+            "esperado": "default",
+        },
+    }
+    path = _make_docx([_para("A"), _para("B")])
+    try:
+        r = validate_docx(path, {"reglas": [regla]})[0]
+    finally:
+        Path(path).unlink(missing_ok=True)
+    assert not r.passed
+    assert r.location == "Cuerpo"
