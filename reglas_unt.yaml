@@ -371,6 +371,12 @@ reglas:
     propiedad: w:jc/@w:val
     comparacion: all_eq
     esperado: both
+    # Revisión PR #100: un documento cuyo cuerpo no tiene prosa (las cinco
+    # plantillas oficiales: solo listas, títulos y leyendas) no puede
+    # incumplir la alineación. Sin este flag, `all_eq` sobre 0 nodos daba
+    # "sin valores que comparar" y un error que el estudiante no podía
+    # corregir. Con prosa presente la regla sigue evaluando y exigiendo.
+    n_a_si_sin_nodos: true
 - id: alineacion_caratula_todos_elementos
   tipo: formato_efectivo
   descripcion: Todos los elementos de la carátula deben estar centrados
