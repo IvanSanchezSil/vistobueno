@@ -31,14 +31,30 @@ from .detalle import (
     detalle_texto_lista,
     detalle_texto_regex,
     detalle_xml_atributo,
+    detalle_xml_presencia,
     evaluar_atributo,
 )
 from .dsl_check import DSLValidationError
-from .extractor import NS, ExtractedDocx, W, text_of
+from .extractor import (
+    NS,
+    PAGINA_DESCONOCIDA,
+    PAGINA_ESTIMADA,
+    CicloEstilosError,
+    ExtractedDocx,
+    W,
+    text_of,
+)
 from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
 # Prefijos de namespace para resolver names en atributos (ej. "@w:val").
 PREFIX_NS = NS
+
+AUSENTE = "(ausente)"
+"""Centinela de una propiedad de formato que no aparece en ninguna capa.
+
+No se omite del muestreo: una propiedad ausente no cumple lo esperado (M1 /
+VA-02). Los toggles OOXML (`w:b`) no usan el centinela porque Word los
+considera apagados por defecto y el resolvedor devuelve `"0"`."""
 
 
 def _resolve_attr_key(atributo: str) -> str:
@@ -83,7 +99,7 @@ class Analizador(ABC):
         self.config = config or {}
         # Nodo objetivo (párrafo/subnodo) que determinó la última ejecución.
         # Permite que el motor enriquezca `location` con "página N" (ítem 1).
-        self.ultimo_nodo = None
+        self.ultimo_nodo: object | None = None
         # Valor legible por maquina de la ultima ejecucion, cuando el
         # analizador produce uno. `analizar()` devuelve texto pensado para
         # personas, asi que no sirve para decidir condiciones `aplicar_si`.
@@ -130,11 +146,43 @@ class AnalizadorXML(Analizador):
         "@w:left": "@w:bottom",
     }
 
+    # El papel A4 se compara por sus lados físico (21 x 29.7 cm), no por la
+    # orientación: en landscape Word guarda `w:w=16838` y `w:h=11906`. Se
+    # normaliza con el lado corto y el largo, sin depender de `w:orient`
+    # (los conversores desde PDF suelen omitirlo).
+    _ATRIBUTOS_PAPEL = ("@w:w", "@w:h")
+
     def _valor_margen(self, extracted, node, atributo, key):
         """Valor de `atributo` normalizado para la orientación de la sección."""
         if atributo in self._ROTACION_MARGEN and extracted.es_seccion_landscape(node):
             key = _resolve_attr_key(self._ROTACION_MARGEN[atributo])
         return node.get(key)
+
+    def _valor_atributo(self, extracted, node, atributo, key):
+        """Valor leído con la normalización que corresponda al nodo."""
+        if node.tag == W + "pgSz":
+            return self._valor_papel(node, atributo, key)
+        return self._valor_margen(extracted, node, atributo, key)
+
+    def _valor_papel(self, node, atributo, key):
+        """Lado corto/largo de `w:pgSz`, sin importar la orientación.
+
+        `@w:w` compara siempre el lado corto (11906 twips) y `@w:h` el lado
+        largo (16838). Así una sección A4 horizontal legítima pasa igual que
+        una vertical, y una sección con papel Letter sigue fallando en
+        cualquier orientación.
+        """
+        if atributo not in self._ATRIBUTOS_PAPEL or node.tag != W + "pgSz":
+            return node.get(key)
+        ancho = node.get(W + "w")
+        alto = node.get(W + "h")
+        if ancho is None or alto is None:
+            return node.get(key)
+        try:
+            corto, largo = sorted((int(ancho), int(alto)))
+        except ValueError:
+            return node.get(key)
+        return str(corto if atributo == "@w:w" else largo)
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         parte = self.config.get("parte", "document")
@@ -155,8 +203,17 @@ class AnalizadorXML(Analizador):
         # Presencia simple
         if comp in ("exists", "not_exists"):
             if comp == "exists":
-                return len(nodes) > 0, f"exists {len(nodes)} nodos"
-            return len(nodes) == 0, f"not_exists {len(nodes)} nodos"
+                return len(nodes) > 0, detalle_xml_presencia(comp, len(nodes), [])
+            # `not_exists` incumplido: los nodos encontrados son los
+            # culpables. Se señala el primero (para la ubicación de la regla)
+            # y el detalle los nombra por posición.
+            if nodes:
+                self.ultimo_nodo = nodes[0]
+            incumplidos = [(i, extracted.pagina_de(n)) for i, n in enumerate(nodes, 1)]
+            return (
+                not nodes,
+                detalle_xml_presencia(comp, len(nodes), incumplidos),
+            )
 
         # Sin nodos no hay atributo que comparar. `n_a_si_sin_nodos` permite
         # declarar que la regla no aplica (p. ej. una línea de carátula que
@@ -178,7 +235,8 @@ class AnalizadorXML(Analizador):
         # ser los conformes y esconden al culpable — handover issue #7 /
         # AUD-03).
         pares = [
-            (i, n, self._valor_margen(extracted, n, atributo, key)) for i, n in enumerate(nodes, 1)
+            (i, n, self._valor_atributo(extracted, n, atributo, key))
+            for i, n in enumerate(nodes, 1)
         ]
         vals = [v for _, _, v in pares if v is not None]
         self.valor = vals[0] if vals else None
@@ -199,6 +257,112 @@ class AnalizadorXML(Analizador):
             if culpables:
                 self.ultimo_nodo = culpables[0]
         detalle = detalle_xml_atributo(self.config, vals, incumplimientos, esperado, tolerancia)
+        return ok, detalle
+
+
+class AnalizadorFormato(Analizador):
+    """Resuelve el formato efectivo de los runs o párrafos sujetos a la regla.
+
+    La sección `formato_efectivo` selecciona primero los párrafos con
+    `parrafo_xpath` (respetando `parte`/`contexto`) y después resuelve, para
+    cada sujeto, el valor efectivo de `propiedad` con
+    `ExtractedDocx.formato_efectivo`: formato directo → estilo de carácter →
+    cadena `basedOn` del estilo de párrafo → `docDefaults` (M1 / VA-01,
+    VA-02).
+
+    - `sujeto: run` (por defecto) evalúa **todos los runs con texto** de cada
+      párrafo, incluidos los que viven dentro de un hipervínculo. Un run sin
+      texto no aporta un valor y no se usa para eximir al párrafo.
+    - `sujeto: parrafo` evalúa el párrafo (propiedades de `w:pPr`, como
+      `w:jc` o `w:spacing`).
+
+    Una propiedad que no aparece en ninguna capa se compara como
+    `AUSENTE`, de modo que cuenta como incumplimiento. La comparación
+    recomendada es `all_eq`: `eq` solo miraría el primer sujeto y repetiría
+    el defecto de VA-01.
+    """
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        parte = self.config.get("parte", "document")
+        contexto = self.config.get("contexto", "todos")
+        sujeto = self.config.get("sujeto", "run")
+        parrafo_xpath = self.config.get("parrafo_xpath")
+        propiedad = self.config.get("propiedad")
+        self.no_aplica = False
+
+        if not parrafo_xpath or not isinstance(parrafo_xpath, str):
+            raise ConfigurationError("formato_efectivo: falta 'parrafo_xpath'")
+        if not propiedad or not isinstance(propiedad, str):
+            raise ConfigurationError("formato_efectivo: falta 'propiedad'")
+        if sujeto not in ("run", "parrafo"):
+            raise ConfigurationError(
+                f"formato_efectivo: 'sujeto' debe ser 'run' o 'parrafo' (se recibió {sujeto!r})"
+            )
+
+        try:
+            parrafos = extracted.xpath(parte, parrafo_xpath, contexto)
+        except ValueError:
+            if self.config.get("n_a_si_ausente"):
+                self.no_aplica = True
+                return True, f"no aplica (parte '{parte}' ausente)"
+            raise
+
+        if not parrafos:
+            if self.config.get("n_a_si_sin_nodos"):
+                self.no_aplica = True
+                return True, "no aplica (sin nodos)"
+            return False, f"sin valores que comparar: {parrafo_xpath}"
+
+        sujetos = list(parrafos)
+        if sujeto == "run":
+            sujetos = []
+            for parrafo in parrafos:
+                for run in parrafo.xpath(".//w:r", namespaces=NS):
+                    if any((t.text or "").strip() for t in run.iter(W + "t")):
+                        sujetos.append(run)
+            if not sujetos:
+                # El párrafo existe pero no tiene texto: no hay formato que
+                # demostrar. No se da por bueno (sería eximir en silencio).
+                return False, "sin runs con texto que evaluar"
+
+        valores: list[tuple[int, object, int | None, object]] = []
+        for pos, nodo in enumerate(sujetos, 1):
+            try:
+                valor = extracted.formato_efectivo(nodo, propiedad)
+            except CicloEstilosError as e:
+                # Un ciclo impide conocer el formato efectivo: se reporta
+                # como incumplimiento en vez de tumbar la validación.
+                self.ultimo_nodo = nodo
+                return False, f"{propiedad}: {e}"
+            valores.append(
+                (pos, AUSENTE if valor is None else valor, extracted.pagina_de(nodo), nodo)
+            )
+
+        con_pagina = [(pos, valor, pagina) for pos, valor, pagina, _ in valores]
+        ok, incumplimientos = evaluar_atributo(self.config, con_pagina)
+        if incumplimientos:
+            posiciones = {pos for pos, _, _ in incumplimientos}
+            culpables = [n for pos, _, _, n in valores if pos in posiciones]
+            if culpables:
+                self.ultimo_nodo = culpables[0]
+
+        esperado = self.config.get("esperado")
+        tolerancia = self.config.get("tolerancia")
+        # Config sintética para el formateador compartido: `xpath` decide la
+        # unidad (w:sz → puntos, w:ind → cm) y `atributo` es la etiqueta.
+        detalle_config = {
+            "xpath": propiedad.split("/@", 1)[0],
+            "atributo": propiedad,
+            "esperado": esperado,
+            "tolerancia": tolerancia,
+        }
+        detalle = detalle_xml_atributo(
+            detalle_config,
+            [valor for _, valor, _, _ in valores],
+            incumplimientos,
+            esperado,
+            tolerancia,
+        )
         return ok, detalle
 
 
@@ -311,15 +475,74 @@ class AnalizadorConteoNodos(Analizador):
 
 
 class AnalizadorImagen(AnalizadorConteoNodos):
-    """Verifica la presencia (y cantidad) de imágenes embebidas.
+    """Verifica la presencia, la cantidad y el tamaño de imágenes embebidas.
 
-    Misma semántica que el legacy `imagen_presencia` (checks.run_check):
-    detalle `imagenes=N minimo=M`. Es un caso particular de
-    `AnalizadorConteoNodos` con etiqueta "imagenes".
+    Sin `ancho_cm`/`alto_cm` conserva la semántica del legacy
+    `imagen_presencia` (checks.run_check): detalle `imagenes=N minimo=M`.
+    Con ambos campos mide el `wp:extent` del dibujo que contiene cada blip
+    (M7/VA-15): el ancho es `cx` y el alto `cy`, en EMU (360000 por cm).
+    `contexto: caratula` limita la búsqueda a la primera sección, así que
+    una imagen del cuerpo o del encabezado no satisface la carátula.
     """
+
+    EMU_POR_CM = 360000
 
     def _etiqueta(self) -> str:
         return "imagenes"
+
+    def _dimensiones(self, nodo) -> tuple[float, float] | None:
+        contenedores = nodo.xpath("ancestor::wp:inline[1] | ancestor::wp:anchor[1]", namespaces=NS)
+        if not contenedores:
+            return None
+        extent = contenedores[0].find(f"{{{NS['wp']}}}extent")
+        if extent is None:
+            return None
+        try:
+            cx = int(extent.get("cx", ""))
+            cy = int(extent.get("cy", ""))
+        except TypeError, ValueError:
+            return None
+        return cx / self.EMU_POR_CM, cy / self.EMU_POR_CM
+
+    def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        ancho = self.config.get("ancho_cm")
+        alto = self.config.get("alto_cm")
+        if ancho is None and alto is None:
+            return super().analizar(extracted)
+        if ancho is None or alto is None:
+            raise ConfigurationError("imagen: 'ancho_cm' y 'alto_cm' deben declararse juntos")
+
+        ancho_esperado = float(ancho)
+        alto_esperado = float(alto)
+        tolerancia = float(self.config.get("tolerancia_cm", 0.1))
+        minimo = self.config.get("cantidad_minima", 1)
+        nodos = self._nodos(
+            extracted,
+            self.config.get("parte", "document"),
+            self.config.get("contexto", "todos"),
+        )
+        if len(nodos) < minimo:
+            return False, f"imagenes={len(nodos)} minimo={minimo}"
+        maximo = self.config.get("cantidad_maxima")
+        if maximo is not None and len(nodos) > maximo:
+            return False, f"imagenes={len(nodos)} maximo={maximo}"
+
+        medidas = [self._dimensiones(n) for n in nodos]
+        esperado = f"{ancho_esperado:.2f}x{alto_esperado:.2f}±{tolerancia:.2f}cm"
+        if any(m is None for m in medidas):
+            return False, f"imagenes={len(nodos)} tamanos=sin_dimensiones esperado={esperado}"
+
+        validas = [m for m in medidas if m is not None]
+        tamanos = ", ".join(f"{w:.2f}x{h:.2f}" for w, h in validas)
+        malas = [
+            (w, h)
+            for w, h in validas
+            if abs(w - ancho_esperado) > tolerancia or abs(h - alto_esperado) > tolerancia
+        ]
+        detalle = f"imagenes={len(nodos)} tamanos={tamanos}cm esperado={esperado}"
+        if malas:
+            return False, f"{detalle} incumplen={len(malas)}"
+        return True, detalle
 
 
 class AnalizadorCantidadPatron(Analizador):
@@ -329,58 +552,123 @@ class AnalizadorCantidadPatron(Analizador):
       count_words   — palabras (`\w+`) del texto contado
       count_matches — matches de `patron`
       count_entries — entradas separadas por ',' o ';' del texto tras
-                      el primer ':' (p. ej. "Palabras clave: a, b, c").
-    El texto contado proviene de una `seccion` (tokenizer + `filtro`
-    opcional por párrafo) o de nodos XPath.
+                      el primer ':' de CADA párrafo (p. ej. "Palabras
+                      clave: a, b, c").
+    El texto contado proviene de una `seccion`, de una lista `secciones`
+    (cada una se cuenta por separado) o de nodos XPath. `excluir` descarta
+    párrafos completos antes de contar (p. ej. la línea de palabras clave
+    para que no infle la prosa del Resumen); `filtro` se queda solo con los
+    párrafos que matchean (p. ej. la propia línea de palabras clave).
     """
+
+    def _compilar(self, valor: str | None) -> re.Pattern | None:
+        if not valor:
+            return None
+        flags = re.IGNORECASE if self.config.get("ignore_case", True) else 0
+        return re.compile(valor, flags)
+
+    def _piezas_seccion(self, extracted: ExtractedDocx, sec: dict) -> list[str]:
+        corte = seccion(
+            tokenizar(extracted),
+            sec["inicio"],
+            sec.get("fin"),
+            hasta_final=bool(sec.get("hasta_final")),
+        )
+        piezas = [t.texto for t in corte if t.tipo == PARRAFO and t.texto.strip()]
+        excluir = self._compilar(self.config.get("excluir"))
+        if excluir:
+            piezas = [p for p in piezas if not excluir.search(p)]
+        filtro = self._compilar(sec.get("filtro") or self.config.get("filtro"))
+        if filtro:
+            piezas = [p for p in piezas if filtro.search(p)]
+        return piezas
 
     def _piezas(self, extracted: ExtractedDocx) -> list[str]:
         sec = self.config.get("seccion")
         xpath_cfg = self.config.get("xpath")
         if sec:
-            corte = seccion(tokenizar(extracted), sec["inicio"], sec.get("fin"))
-            piezas = [t.texto for t in corte if t.tipo == PARRAFO and t.texto.strip()]
-        elif xpath_cfg:
+            return self._piezas_seccion(extracted, sec)
+        if xpath_cfg:
             nodos = self._nodos(
                 extracted,
                 self.config.get("parte", "document"),
                 self.config.get("contexto", "todos"),
             )
             piezas = [text_of(n).strip() for n in nodos if text_of(n).strip()]
-        else:
+            excluir = self._compilar(self.config.get("excluir"))
+            if excluir:
+                piezas = [p for p in piezas if not excluir.search(p)]
+            filtro = self._compilar(self.config.get("filtro"))
+            if filtro:
+                piezas = [p for p in piezas if filtro.search(p)]
+            return piezas
+        return []
+
+    def _secciones(self) -> list[dict]:
+        secciones = self.config.get("secciones")
+        if secciones is None:
             return []
-        filtro = self.config.get("filtro")
-        if filtro:
-            rx = re.compile(filtro, re.IGNORECASE if self.config.get("ignore_case", True) else 0)
-            piezas = [p for p in piezas if rx.search(p)]
-        return piezas
+        if not isinstance(secciones, list) or not secciones:
+            raise ConfigurationError("patron_cantidad: 'secciones' debe ser una lista no vacía")
+        for sec in secciones:
+            if not isinstance(sec, dict) or not sec.get("inicio"):
+                raise ConfigurationError(
+                    "patron_cantidad: cada elemento de 'secciones' debe ser un mapa con 'inicio'"
+                )
+        return secciones
+
+    @staticmethod
+    def _entradas(texto: str) -> int:
+        """Entradas de UN párrafo tras su primer ':' (coma o punto y coma)."""
+        cuerpo = texto.split(":", 1)[1] if ":" in texto else texto
+        return len([x for x in re.split(r"[,;]", cuerpo) if x.strip()])
+
+    def _contar(self, piezas: list[str], operacion: str) -> int:
+        texto = " ".join(piezas)
+        if operacion == "count_words":
+            return len(re.findall(r"\w+", texto))
+        if operacion == "count_matches":
+            patron = self.config.get("patron", "")
+            flags = re.IGNORECASE if self.config.get("ignore_case", False) else 0
+            return len(re.findall(patron, texto, flags))
+        return sum(self._entradas(p) for p in piezas)
+
+    @staticmethod
+    def _rango(minimo: int, maximo: int | None) -> str:
+        rango = f"minimo={minimo}"
+        if maximo is not None:
+            rango += f" maximo={maximo}"
+        return rango
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
         operacion = self.config.get("operacion", "count_words")
+        if operacion not in ("count_words", "count_matches", "count_entries"):
+            return False, f"operación '{operacion}' no soportada"
         minimo = self.config.get("cantidad_minima", 1)
         maximo = self.config.get("cantidad_maxima")
-        texto = " ".join(self._piezas(extracted))
+        rango = self._rango(minimo, maximo)
 
+        secciones = self.config.get("secciones")
+        if secciones is not None:
+            partes = []
+            fallo = False
+            for sec in self._secciones():
+                n = self._contar(self._piezas_seccion(extracted, sec), operacion)
+                nombre = sec.get("nombre") or sec["inicio"]
+                partes.append(f"{nombre}={n}")
+                if n < minimo or (maximo is not None and n > maximo):
+                    fallo = True
+            detalle = " ".join(partes)
+            return not fallo, f"{detalle} {rango}"
+
+        n = self._contar(self._piezas(extracted), operacion)
         if operacion == "count_words":
-            n = len(re.findall(r"\w+", texto))
             detalle = f"palabras={n}"
         elif operacion == "count_matches":
-            patron = self.config.get("patron", "")
-            flags = re.IGNORECASE if self.config.get("ignore_case", False) else 0
-            n = len(re.findall(patron, texto, flags))
             detalle = f"matches={n}"
-        elif operacion == "count_entries":
-            cuerpo = texto.split(":", 1)[1] if ":" in texto else texto
-            n = len([x for x in re.split(r"[,;]", cuerpo) if x.strip()])
-            detalle = f"entradas={n}"
         else:
-            return False, f"operación '{operacion}' no soportada"
-
-        if n < minimo:
-            return False, f"{detalle} minimo={minimo}"
-        if maximo is not None and n > maximo:
-            return False, f"{detalle} maximo={maximo}"
-        return True, f"{detalle} minimo={minimo}"
+            detalle = f"entradas={n}"
+        return minimo <= n and (maximo is None or n <= maximo), f"{detalle} {rango}"
 
 
 class AnalizadorListaObligatoria(Analizador):
@@ -435,11 +723,12 @@ class AnalizadorListaObligatoria(Analizador):
 class AnalizadorPaginacion(Analizador):
     """Verifica que los párrafos objetivo estén en páginas físicas distintas.
 
-    Sección DSL `paginacion` (F2 ítem 1). La paginación real se calcula en
-    el extractor contando los saltos que Word persiste en el XML
-    (`w:lastRenderedPageBreak` y `w:br w:type="page"`). Cada párrafo objetivo
-    (p. ej., un índice de contenidos/tablas/figuras) debe caer en una página
-    física distinta para que la regla pase.
+    Sección DSL `paginacion` (F2 ítem 1). La paginación se calcula en el
+    extractor procesando, en orden de documento, los saltos explícitos
+    (`w:br w:type="page"`, `w:pageBreakBefore`, `w:sectPr` no continuo) y la
+    caché de render de Word (`w:lastRenderedPageBreak`). Cada párrafo
+    objetivo (p. ej., un índice de contenidos/tablas/figuras) debe caer en
+    una página física distinta para que la regla pase.
 
     Uso:
         paginacion:
@@ -454,6 +743,16 @@ class AnalizadorPaginacion(Analizador):
     localiza, o falta el índice de tablas), la regla pasa como n/a y no
     produce un falso positivo: solo juzga la paginación de las secciones
     que existen. La sección de "presencia" la cubren otras reglas.
+
+    En ambos casos la regla se marca **NO APLICABLE** (`no_aplica=True`,
+    `aplicable=False`, `found="no aplica a este documento"`), no "cumple":
+    el compilador decide la aplicabilidad con esa bandera (revisión PR
+    #102).
+
+    M3/VA-04: si la página de algún objetivo es desconocida (el XML no trae
+    marcadores ni caché de render), la regla pasa como n/a en vez de
+    inventar una página y fallar por `paginas_repetidas`. Si la página solo
+    está estimada (caché de render de Word), el detalle lo declara.
     """
 
     def __init__(self, config: dict):
@@ -465,12 +764,17 @@ class AnalizadorPaginacion(Analizador):
             )
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
+        # El reset es obligatorio: la instancia se compila una vez y la API
+        # la reutiliza para cada documento, así que un `no_aplica=True` de un
+        # documento anterior se heredaría al siguiente (revisión PR #102).
+        self.no_aplica = False
         xpaths = self.config.get("xpaths")
         if not isinstance(xpaths, list) or len(xpaths) < 2:
             return False, "paginacion requiere xpaths (>=2)"
 
         ubicaciones = []
         sin_coincidencia = []
+        no_verificables = []
         for xpath in xpaths:
             nodos = extracted.xpath("document", xpath, "todos")
             if not nodos:
@@ -481,7 +785,10 @@ class AnalizadorPaginacion(Analizador):
             pagina = extracted.pagina_de(para)
             if pagina is None:
                 return False, f"pagina_no_disponible={xpath}"
-            ubicaciones.append((pagina, para))
+            certeza = extracted.certeza_pagina_de(para)
+            if certeza == PAGINA_DESCONOCIDA:
+                no_verificables.append(xpath)
+            ubicaciones.append((pagina, certeza, para))
 
         # No todas las secciones objetivo son identificables (p. ej. la
         # plantilla usa un "Índice" genérico dentro de sdtContent, o falta el
@@ -489,14 +796,30 @@ class AnalizadorPaginacion(Analizador):
         # presencia de secciones, así que pasa como n/a y no genera un falso
         # positivo (ver revisión técnica PR #28).
         if sin_coincidencia:
+            self.no_aplica = True
             return True, "indices_no_verificables (n/a)"
 
-        paginas = [p for p, _ in ubicaciones]
+        # Sin marcadores no se puede afirmar ni la separación ni la
+        # repetición: inventar "página 1" para todos producía un
+        # `paginas_repetidas` falso (M3/VA-04).
+        if no_verificables:
+            self.no_aplica = True
+            return True, (
+                "paginas_no_verificables (n/a): el documento no trae "
+                "marcadores de salto ni caché de render"
+            )
+
+        paginas = [p for p, _, _ in ubicaciones]
         ok = len(set(paginas)) == len(paginas)
-        detalle = "; ".join(f"{i + 1}: página {p}" for i, (p, _) in enumerate(ubicaciones))
+        estimadas = any(certeza == PAGINA_ESTIMADA for _, certeza, _ in ubicaciones)
+        etiqueta = " (estimadas)" if estimadas else ""
+        detalle = "; ".join(
+            f"{i + 1}: página {p}" + (" (estimada)" if c == PAGINA_ESTIMADA else "")
+            for i, (p, c, _) in enumerate(ubicaciones)
+        )
         if ok:
-            return True, f"paginas_distintas={paginas}"
-        return False, f"paginas_repetidas={paginas}; {detalle}"
+            return True, f"paginas_distintas={paginas}{etiqueta}"
+        return False, f"paginas_repetidas={paginas}{etiqueta}; {detalle}"
 
 
 class AnalizadorHipervinculo(Analizador):
@@ -977,7 +1300,9 @@ class DeteccionTipo(Analizador):
 
     Si hay nivel 1 y nivel 2 y no coinciden, se publica
     `TIPO_CONTRADICTORIO`: es preferible decir que hay una contradicción
-    visible a elegir en silencio.
+    visible a elegir en silencio. Lo mismo ocurre si el propio Anexo 10 trae
+    marcadas casillas de dos tipos distintos (M4/VA-05): repetir el mismo tipo
+    no cambia la decisión.
 
     El valor publicado (`Analizador.valor`) es el identificador canónico del
     tipo, que es lo que consume `aplicar_si` en las reglas de estructura. El
@@ -990,7 +1315,7 @@ class DeteccionTipo(Analizador):
         super().__init__(config)
         # Nivel que decidió la detección (declarado / inferido / sin_determinar).
         self.nivel: str = NIVEL_NO_DETERMINADO
-        # Evidencia concreta: la etiqueta del Anexo 10 leída, o las firmas
+        # Evidencia concreta: las etiquetas del Anexo 10 leídas, o las firmas
         # que alcanzaron el umbral.
         self.evidencia: list[str] = []
 
@@ -1011,7 +1336,30 @@ class DeteccionTipo(Analizador):
         # bloque de contenido (`w:sdt`), así que se recorren todos los
         # descendientes y no solo los hijos directos del body.
         todos = list(body.iter(W + "p"))
-        declaracion, etiqueta = self._tipo_declarado(todos)
+        declaraciones = self._tipo_declarado(todos)
+
+        # M4/VA-05: se recogen TODAS las casillas marcadas, no solo la
+        # primera. Dos tipos distintos son una contradicción del propio
+        # Anexo 10 y no se puede elegir uno en silencio; repetir el mismo
+        # tipo (o marcar dos de sus etiquetas) no cambia la decisión.
+        etiquetas_por_tipo: dict[str, str] = {}
+        for tipo, etiqueta in declaraciones:
+            actual = etiquetas_por_tipo.get(tipo)
+            if actual is None or self._etiqueta_preferida(etiqueta, actual):
+                etiquetas_por_tipo[tipo] = etiqueta
+        tipos_declarados = sorted(etiquetas_por_tipo)
+
+        if len(tipos_declarados) > 1:
+            self.nivel = NIVEL_NO_DETERMINADO
+            self.evidencia = [etiquetas_por_tipo[tipo] for tipo in tipos_declarados]
+            self.valor = TIPO_CONTRADICTORIO
+            detalle = "contradictorio: " + ", ".join(
+                f"declarado={tipo} ('{etiquetas_por_tipo[tipo]}')" for tipo in tipos_declarados
+            )
+            return False, detalle
+
+        declaracion = tipos_declarados[0] if tipos_declarados else None
+        etiqueta = etiquetas_por_tipo[declaracion] if declaracion is not None else ""
 
         # Nivel 2 (inferencia): las firmas se cotejan SOLO contra párrafos
         # con estilo de título (decisión 2 del diseño, revisión del PR). La
@@ -1048,8 +1396,8 @@ class DeteccionTipo(Analizador):
         )
 
     # -- nivel 1: declaración del Anexo 10 --------------------------------
-    def _tipo_declarado(self, parrafos) -> tuple[str | None, str]:
-        """Tipo cuya casilla aparece marcada junto a su etiqueta.
+    def _tipo_declarado(self, parrafos) -> list[tuple[str, str]]:
+        """Todas las casillas marcadas junto a su etiqueta, no solo la primera.
 
         La casilla y la etiqueta deben estar relacionadas: en el MISMO párrafo
         o, si el Anexo 10 es una tabla, en la MISMA fila — Word suele poner la
@@ -1064,10 +1412,16 @@ class DeteccionTipo(Analizador):
         estuviera escrita cada clave en el YAML, que es una fuente de fallo
         silencioso. Con la más larga gana, el texto del Anexo 10 basta para
         decidir y reordenar el YAML no cambia nada.
+
+        Devuelve una lista ordenada de pares `(tipo, etiqueta)`. El orden y la
+        deduplicación son deliberados: la misma casilla se puede leer desde el
+        párrafo de la casilla y desde el de su etiqueta, y la decisión no debe
+        depender del orden en que el documento liste las casillas (M4/VA-05).
         """
         etiquetas = self.config.get("declaracion", {}).get("etiquetas", {})
         if not etiquetas:
-            return None, ""
+            return []
+        declaraciones: set[tuple[str, str]] = set()
         for p in parrafos:
             marcada, hay_casilla = _casilla_de(p)
             if not hay_casilla or not marcada:
@@ -1090,8 +1444,20 @@ class DeteccionTipo(Analizador):
                 # que un empate no dependa del orden del diccionario.
                 candidatos.sort(key=lambda c: (-c[0], c[1]))
                 _, tipo, etiqueta = candidatos[0]
-                return tipo, etiqueta
-        return None, ""
+                declaraciones.add((tipo, etiqueta))
+        return sorted(declaraciones)
+
+    @staticmethod
+    def _etiqueta_preferida(nueva: str, actual: str) -> bool:
+        """¿La etiqueta nueva representa mejor al tipo que la actual?
+
+        Manda la más larga (es la más específica) y, a igual longitud, la
+        menor en orden alfabético. Así dos etiquetas del mismo tipo no hacen
+        que la evidencia dependa del orden de las casillas.
+        """
+        if len(nueva) != len(actual):
+            return len(nueva) > len(actual)
+        return nueva < actual
 
     # -- nivel 2: firmas estructurales ------------------------------------
     def _tipo_inferido(self, textos) -> tuple[str | None, list[str]]:

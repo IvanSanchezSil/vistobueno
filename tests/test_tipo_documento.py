@@ -384,7 +384,7 @@ class TestDosFases:
         assert resumen["total_evaluadas"] == 2
         assert resumen["reglas_no_aplicables"] == 1
 
-    def test_el_documento_bueno_cuenta_43_de_49(self):
+    def test_el_documento_bueno_cuenta_44_de_50(self):
         """Guarda sobre el YAML real: el documento bueno es un plan
         cuantitativo, así que no se evalúan las 6 reglas de otros tipos (los
         2 esquemas alternativos, los mínimos de referencias/anexos de
@@ -397,9 +397,9 @@ class TestDosFases:
         finally:
             Path(path).unlink(missing_ok=True)
         rep = build_report(res)
-        assert rep["resumen"]["total_evaluadas"] == 43
+        assert rep["resumen"]["total_evaluadas"] == 44
         assert rep["resumen"]["reglas_no_aplicables"] == 6
-        assert len(rep["resultados"]) == 43
+        assert len(rep["resultados"]) == 44
         assert rep["semaforo"] == "verde"
 
     def test_orden_del_yaml_se_conserva(self):
@@ -441,19 +441,23 @@ class TestSinCambioDeComportamiento:
     """Con el YAML real, la regla nueva informa y las 3 estructuras se
     condicionan a ella sin romper nada más.
 
-    Lo que este bloque fijaba en el paso 3 (49 reglas, todas aplicables) lo
+    Lo que este bloque fijaba en el paso 3 (50 reglas, todas aplicables) lo
     invalida el paso 4 a propósito: ahora 2 reglas son no aplicables en un
     documento cuantitativo. Lo que se conserva es la garantía de que el
     semáforo solo lo mueven las reglas que de verdad aplican.
     """
 
-    @staticmethod
-    def _ruta_plantilla():
-        return (
-            Path(__file__).resolve().parents[1]
-            / "recursos"
-            / "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx"
-        )
+    PLANTILLAS = [
+        "EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx",
+        "PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx",
+        "PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx",
+        "TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx",
+        "TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx",
+    ]
+
+    @classmethod
+    def _ruta_plantilla(cls, nombre: str | None = None):
+        return Path(__file__).resolve().parents[1] / "recursos" / (nombre or cls.PLANTILLAS[0])
 
     def test_solo_las_reglas_tipo_especificas_se_condicionan(self):
         reglas = load_rules(str(RUTA_REGLAS))["reglas"]
@@ -475,7 +479,7 @@ class TestSinCambioDeComportamiento:
             res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
         finally:
             Path(path).unlink(missing_ok=True)
-        assert len(res) == 49
+        assert len(res) == 50
         assert {r.rule_id for r in res if not r.aplicable} == TIPO_ESPECIFICAS - {
             "estructura_tinv_cuantitativo",
             "referencias_minimo_cuantitativo",
@@ -485,10 +489,11 @@ class TestSinCambioDeComportamiento:
     def test_plantilla_oficial_no_reporta_esquemas_imposibles(self):
         """Los errores imposibles de corregir desaparecieron: la plantilla es
         cuantitativa, así que los esquemas cualitativo y de revisión, sus
-        mínimos y la carátula del Proyecto no le aplican. Queda 1 error real
-        (palabras clave). Los autores cumplen: la regla exige que el nombre
-        no esté todo en mayúsculas (altas y bajas), patrón que sí usa el
-        placeholder de la plantilla (EVALUADO 2026-10-12).
+        mínimos y la carátula del Proyecto no le aplican. Quedan 2 errores
+        reales: palabras clave y el título de instrucción, que mezcla negrita
+        (decisión de la revisión del PR #100). Los autores cumplen: la regla
+        exige que el nombre no esté todo en mayúsculas (altas y bajas),
+        patrón que sí usa el placeholder de la plantilla (EVALUADO 2026-10-12).
 
         `recursos/` está en `.gitignore`, así que en el build de Nix la
         plantilla no existe y el test se omite.
@@ -497,10 +502,28 @@ class TestSinCambioDeComportamiento:
         if not base.exists():
             pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
-        assert len(res) == 49
+        assert len(res) == 50
         fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
         assert not fallidos & TIPO_ESPECIFICAS
-        assert len(fallidos) == 1
+        assert fallidos == {"palabras_clave_minimo", "caratula_titulo_negrita_mixta"}
+        assert build_report(res)["semaforo"] == "rojo"
+
+    @pytest.mark.parametrize("nombre", PLANTILLAS)
+    def test_plantillas_oficiales_resultado_orientativo(self, nombre):
+        """Fija el resultado de las 5 plantillas (revisión del PR #100).
+
+        Son documentos de instrucción con texto de relleno: el título va en
+        rojo y mezcla negrita, así que `caratula_titulo_negrita_mixta` las
+        marca a propósito. La evaluación es orientativa; no es un bug.
+        """
+        base = self._ruta_plantilla(nombre)
+        if not base.exists():
+            pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
+        res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
+        errores = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
+        warnings = [r for r in res if not r.passed and r.severity.value == "warning"]
+        assert errores == {"palabras_clave_minimo", "caratula_titulo_negrita_mixta"}
+        assert len(warnings) == 6, [r.rule_id for r in warnings]
         assert build_report(res)["semaforo"] == "rojo"
 
 
@@ -1330,7 +1353,7 @@ class TestReglaDeteccionEnElYaml:
         assert reglas["reglas"][0]["id"] == "deteccion_tipo_documento"
 
     def test_total_de_reglas(self):
-        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 49
+        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 50
 
     def test_severidad_warning(self):
         assert _regla_deteccion()["severidad"] == "warning"
@@ -1829,6 +1852,143 @@ class TestDeclaracionEnTablaYSdt:
         )
         assert valor == TIPO_SIN_DETERMINAR
         assert nivel == NIVEL_NO_DETERMINADO
+
+
+class TestDeclaracionesMultiples:
+    """M4 / VA-05: el Anexo 10 puede traer más de una casilla marcada.
+
+    La versión anterior se quedaba con la primera casilla y descartaba el
+    resto: dos tipos declarados distintos no producían contradicción y el
+    documento podía salir en verde con la estructura de solo uno de ellos.
+    """
+
+    DECLARACION = {"anexo": "Anexo 10", "etiquetas": ETIQUETAS}
+
+    def test_cuantitativo_y_cualitativo_no_dan_verde(self):
+        """El primer tipo coincide con la estructura inferida, así que el
+        fallo antiguo no se veía: se quedaba con la primera casilla y daba
+        por buena la declaración."""
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUALITATIVO"),
+            _t("PLAN DE INVESTIGACIÓN"),
+            _t("RECURSOS Y MATERIALES"),
+        ]
+        ok, nivel, valor, evidencia, detalle = _detectar(parrafos, self.DECLARACION)
+        assert valor == TIPO_CONTRADICTORIO
+        assert nivel == NIVEL_NO_DETERMINADO
+        assert ok is False
+        assert set(evidencia) == {
+            "PROYECTO DE INVESTIGACIÓN CUANTITATIVO",
+            "PROYECTO DE INVESTIGACIÓN CUALITATIVO",
+        }, "la contradicción debe reportar las dos declaraciones"
+        assert "declarado=proyecto_cuantitativo" in detalle
+        assert "declarado=proyecto_cualitativo" in detalle
+
+    def test_invertir_el_orden_conserva_la_contradiccion(self):
+        """Sin firmas que desempaten, la decisión no puede depender del orden
+        en que el Anexo 10 lista las casillas."""
+        etiquetas = [
+            "PROYECTO DE INVESTIGACIÓN CUANTITATIVO",
+            "PROYECTO DE INVESTIGACIÓN CUALITATIVO",
+        ]
+        resultados = []
+        for orden in (etiquetas, list(reversed(etiquetas))):
+            ok, nivel, valor, evidencia, detalle = _detectar(
+                [_con_casilla(e) for e in orden], self.DECLARACION
+            )
+            resultados.append((ok, nivel, valor, tuple(evidencia), detalle))
+        assert resultados[0] == resultados[1]
+        assert resultados[0][2] == TIPO_CONTRADICTORIO
+        assert resultados[0][0] is False
+
+    def test_repetir_el_mismo_tipo_no_cambia_la_decision(self):
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _t("PLAN DE INVESTIGACIÓN"),
+            _t("RECURSOS Y MATERIALES"),
+        ]
+        ok, nivel, valor, _evidencia, detalle = _detectar(parrafos, self.DECLARACION)
+        assert valor == "proyecto_cuantitativo"
+        assert nivel == NIVEL_DECLARADO
+        assert ok is True
+        assert "contradictorio" not in detalle
+
+    def test_dos_etiquetas_del_mismo_tipo_no_contradicen(self):
+        """Un tipo tiene dos vocabularios (título y formulario); marcar los
+        dos no lo convierte en dos tipos distintos."""
+        parrafos = [
+            _con_casilla("TRABAJO DE INVESTIGACIÓN CUANTITATIVO"),
+            _con_casilla("TESIS PARA OBTENER EL TÍTULO PROFESIONAL EN INVESTIGACIÓN CUANTITATIVA"),
+        ]
+        ok, nivel, valor, _evidencia, detalle = _detectar(parrafos, self.DECLARACION)
+        assert valor == "tinv_cuantitativo"
+        assert nivel == NIVEL_DECLARADO
+        assert ok is True
+        assert "contradictorio" not in detalle
+
+    @pytest.mark.parametrize(
+        ("primera", "segunda"),
+        [
+            (
+                _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+                _fila_con_casilla_y_etiqueta("PROYECTO DE INVESTIGACIÓN CUALITATIVO"),
+            ),
+            (
+                _fila_con_casilla_y_etiqueta("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+                _con_content_control("PROYECTO DE INVESTIGACIÓN CUALITATIVO"),
+            ),
+            (
+                _con_content_control("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+                _con_casilla("PROYECTO DE INVESTIGACIÓN CUALITATIVO"),
+            ),
+        ],
+        ids=["parrafo-tabla", "tabla-content-control", "content-control-parrafo"],
+    )
+    def test_la_contradiccion_se_detecta_en_cualquier_contenedor(self, primera, segunda):
+        """La casilla puede vivir en un párrafo, en una tabla o en un
+        content-control; la contradicción se detecta igual."""
+        _ok, nivel, valor, _evidencia, detalle = _detectar(
+            [primera, segunda], self.DECLARACION, xmlns=_W14_XMLNS
+        )
+        assert valor == TIPO_CONTRADICTORIO, detalle
+        assert nivel == NIVEL_NO_DETERMINADO
+        assert "declarado=proyecto_cuantitativo" in detalle
+        assert "declarado=proyecto_cualitativo" in detalle
+
+    def test_el_mismo_tipo_en_parrafo_y_tabla_no_contradice(self):
+        """La misma casilla puede leerse desde el párrafo de la etiqueta y
+        desde el de la casilla; contar dos veces el mismo tipo no es una
+        contradicción."""
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _fila_con_casilla_y_etiqueta("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+        ]
+        ok, nivel, valor, _evidencia, detalle = _detectar(parrafos, self.DECLARACION)
+        assert valor == "proyecto_cuantitativo", detalle
+        assert nivel == NIVEL_DECLARADO
+        assert ok is True
+
+    def test_el_motor_no_da_verde_con_dos_tipos_marcados(self):
+        """Integración con el YAML real: la contradicción entre
+        declaraciones activa el centinela y el semáforo rojo."""
+        parrafos = [
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUANTITATIVO"),
+            _con_casilla("PROYECTO DE INVESTIGACIÓN CUALITATIVO"),
+            _t("INTRODUCCION"),
+            _t("CONCLUSIONES"),
+        ]
+        path = _docx_de_parrafos(parrafos)
+        try:
+            res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
+        finally:
+            Path(path).unlink(missing_ok=True)
+        deteccion = next(r for r in res if r.rule_id == "deteccion_tipo_documento")
+        assert "declarado=proyecto_cuantitativo" in deteccion.found
+        assert "declarado=proyecto_cualitativo" in deteccion.found
+        assert any(r.rule_id == "tipo_documento_contradictorio" for r in res)
+        assert build_report(res)["semaforo"] == "rojo"
 
 
 class TestAvisoSinEstructura:

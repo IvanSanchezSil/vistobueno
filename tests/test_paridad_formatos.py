@@ -118,8 +118,11 @@ def _sect_final(conforme: bool) -> str:
 
 
 def _logo() -> str:
+    """Logo de la carátula con su extensión real (6,73 × 4,84 cm, M7/VA-15)."""
     return (
-        "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
+        "<w:r><w:drawing><wp:inline>"
+        '<wp:extent cx="2422800" cy="1742400"/>'
+        "<a:graphic><a:graphicData "
         'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
         "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"
@@ -359,6 +362,35 @@ def _verificar_paridad(docx_path: str) -> dict:
         "margen_inferior",
         "margen_derecho",
         "margen_izquierdo",
+        # M2 (VA-03): el DSL valida TODAS las secciones (`(//w:sectPr)/w:pgSz`
+        # con `all_eq`); el legacy solo la primera (`//w:sectPr[1]` con `eq`).
+        # El veredicto coincide en estos fixtures (todas las secciones tienen
+        # el mismo papel), pero el `found` del DSL cuenta más valores.
+        "papel_tamano",
+    }
+    # M1 (formato efectivo): estas reglas migraron de `atributo_xml` (solo
+    # formato directo) a `formato_efectivo`. El veredicto se conserva en los
+    # fixtures, pero el `found` ahora nombra la propiedad resuelta
+    # (`w:sz/@w:val`) en vez de solo el atributo (`@w:val`), y una propiedad
+    # ausente se reporta como `(ausente)` en lugar de omitirse. La paridad
+    # observable que se exige aquí es el resultado binario.
+    divergen_por_formato_efectivo = {
+        "fuente_principal",
+        "tamano_cuerpo",
+        "interlineado",
+        "alineacion_cuerpo",
+        "alineacion_caratula_todos_elementos",
+        "caratula_universidad_tamano",
+        "caratula_facultad_escuela_tamano",
+        "caratula_titulo_trabajo_tamano",
+        "caratula_optar_grado_tamano",
+        "caratula_autores_tamano",
+        "caratula_universidad_negrita_mayusculas",
+        "caratula_facultad_negrita_mayusculas",
+        "caratula_titulo_negrita_mixta",
+        "caratula_autores_mayusculas_sin_negrita",
+        "caratula_asesor_negrita",
+        "caratula_ciudad_pais_negrita",
     }
     # Desde el paso 4 el DSL hace algo que el motor legacy no puede: condicionar
     # una regla a la clave que publica otra (`aplicar_si`). Una estructura que
@@ -400,7 +432,7 @@ def _verificar_paridad(docx_path: str) -> dict:
                     f"{rid}: el DSL la marca no aplicable pero el legacy la evaluó "
                     f"y pasó (legacy={legacy_res.passed})"
                 )
-        elif rid in solo_passed:
+        elif rid in solo_passed or rid in divergen_por_formato_efectivo:
             if legacy_res.passed != dsl_res.passed:
                 diffs.append(
                     f"{rid}: legacy(passed={legacy_res.passed}) != dsl(passed={dsl_res.passed})"

@@ -1,5 +1,5 @@
 id,fuente_localizador,requisito,estado,regla_o_componente,evidencia,accion_int3_salvo_politica_deposito
-REQ-01,p125,Papel A4,PARCIAL,papel_tamano,VA-03: solo primer valor,Comprobar todas las secciones.
+REQ-01,p125,Papel A4,PARCIAL,papel_tamano,"M2: todas las secciones (incluidas las que no declaran w:pgSz) y orientación normalizada; límite: valor OOXML exacto","Probar portada/cuerpo/anexos y A4 horizontal; decidir tolerancia para conversiones que redondeen el papel."
 REQ-02,p127,Times New Roman en todo el texto aplicable,PARCIAL,fuente_principal,VA-01/02: runs y estilos,Resolver formato efectivo por run.
 REQ-03,p127,Cuerpo de 12 pt,PARCIAL,tamano_cuerpo,VA-01/02,Comprobar todos los runs y estilos sin exenciones arbitrarias.
 REQ-04,p129,Interlineado 1.5,PARCIAL,interlineado,VA-02,Resolver propiedad heredada y valores omitidos.
@@ -15,7 +15,7 @@ REQ-13,p140,Arábigos desde Introducción continúan preliminares,INCORRECTO,num
 REQ-14,"p139,p184",Carátula contada sin número visible,INCORRECTO,caratula_no_se_enumera,cover_titlepg_false verde,Interpretar booleano y comprobar pie de primera página.
 REQ-15,p174,Universidad 18 pt; centrada; negrita; mayúsculas,PARCIAL,caratula_universidad_*,Selectores y formato efectivo limitados,Comprobar bloque y cada propiedad efectiva.
 REQ-16,p175,Facultad y escuela presentes; 13 pt; centradas; negrita; mayúsculas,INCORRECTO,caratula_facultad_escuela_tamano,missing_school verde,Exigir ambos bloques y validar cada uno.
-REQ-17,p176,Logo UNT centrado de 4.84 x 6.73 cm,INCORRECTO,caratula_logotipo_tamano,VA-15: cuenta imágenes,"Comprobar dibujo en carátula, dimensiones y límites de identidad."
+REQ-17,p176,Logo UNT centrado de 4.84 x 6.73 cm,PARCIAL,caratula_logotipo_tamano,"M7: mide el dibujo de la primera sección (6,73 × 4,84 cm ± 0,1 cm); no identifica visualmente el logo",Ratificar la tolerancia de 0,1 cm y la identidad visual del logo.
 REQ-18,"p177,p1075",Título 14 pt; negrita; centrado; capitalización por tipo,CONFLICTO,caratula_titulo_*,Manual general mixto; informe mayúsculas; plantilla 13 pt,Ratificar regla por tipo y desvío de plantilla.
 REQ-19,"p178,p1076",Motivo 13 pt y formato por tipo,CONFLICTO,caratula_optar_grado_tamano,VA y desvío conocido 12/13 pt,Mantener warning acordado; documentar fuente y alcance.
 REQ-20,p179,Autores 12 pt; centrados; mayúsculas; sin negrita según regla,DECIDIDO,caratula_autores_*,Usuario confirma tesis buena aprobada con nombres mixtos el 2026-11-12; desvío YAML previo,"Mantener mixtas; comprobar por separado 12 pt, centrado y negrita según regla acordada."
@@ -27,13 +27,13 @@ REQ-25,RCU-220 pp2-3,Catálogo de áreas y líneas de investigación,PARCIAL,car
 REQ-26,p182,Ciudad y país 12 pt; negrita; centrados; mixtas,PARCIAL,caratula_ciudad_pais_negrita,Selectores no demuestran cada propiedad,Agregar casos por propiedad y bloque.
 REQ-27,p183 y plantillas,Año de carátula: año en curso frente a año de sustentación,CONFLICTO,captura dc.date.issued,Fuente y plantilla usan conceptos distintos; VA-13,Ratificar significado; separar validación y captura.
 REQ-28,p188-189,Jurado con nombres; grados; cargos; espacio de firma,REVISION_HUMANA,estructura_tinv_*,Un título no acredita personas ni firmas,Lista de revisión; no afirmar autenticidad.
-REQ-29,p193,"Índices de contenidos, tablas y figuras separados",PARCIAL,indice_subdivisiones / indice_paginas_separadas,VA-04 y detección por palabras,Verificar bloques reales y separación; limitar afirmación de página.
+REQ-29,p193,"Índices de contenidos, tablas y figuras separados",PARCIAL,indice_subdivisiones / indice_paginas_separadas,"VA-04 implementado, pendiente de verificación (M3): saltos en orden y con certeza; títulos localizados por texto completo con tildes plegadas, incluido el título genérico «Índice»; sin marcadores la regla es no aplicable","Verificar bloques reales (M12); la separación ya no afirma páginas sin marcador."
 REQ-30,p194-197,Índices ordenados; páginas y nombres corresponden al contenido,PARCIAL,indice_apunta_secciones / indice_numeracion_jerarquica,Controles textuales no equivalen a render final,Probar variantes reales y campo TOC actualizado.
-REQ-31,p201,Resumen de 159 a 220 palabras,INCORRECTO,resumen_longitud,VA-06: solo mínimo,"Probar 158,159,220,221; definir tokenización."
-REQ-32,p201,Entre 3 y 5 palabras clave,INCORRECTO,palabras_clave_minimo,VA-07: solo mínimo y Resumen,Comprobar ambos límites y ambos idiomas según alcance aprobado.
+REQ-31,p201,Resumen de 159 a 220 palabras,PARCIAL,resumen_longitud,"M5: 159–220; probado 158/159/220/221; línea de palabras clave excluida del conteo","Ratificar la tokenización `\w+` con el manual cuando esté disponible."
+REQ-32,p201,Entre 3 y 5 palabras clave,PARCIAL,palabras_clave_minimo,"M5: 3–5 en Resumen y Abstract por separado; probado 2/3/5/6; etiquetas `Palabras clave` y `Keywords`","Ratificar que ambos idiomas son obligatorios y las etiquetas admitidas."
 REQ-33,p201,Palabras clave del Tesauro UNESCO o ERIC,REVISION_HUMANA,Ninguno,No hay consulta ni catálogo validado,Revisión manual o catálogo versionado; no inventar coincidencias.
 REQ-34,p201,"Resumen contiene objetivo, método, resultados y conclusión",REVISION_HUMANA,Ninguno,Conteo de palabras no evalúa contenido,Revisión académica explícita.
-REQ-35,p203,Abstract es traducción del Resumen por especialista,REVISION_HUMANA,estructura_tinv_*,VA-07: encabezado admite vacío,Exigir contenido no vacío; equivalencia y autoría de traducción son manuales.
+REQ-35,p203,Abstract es traducción del Resumen por especialista,PARCIAL,abstract_contenido / estructura_tinv_*,"M5: un Abstract vacío falla; equivalencia y autoría siguen en revisión humana","Ratificar la severidad warning de `abstract_contenido`; revisar equivalencia y autoría."
 REQ-36,p275-319,Esquema TINV cuantitativo completo,PARCIAL,estructura_tinv_cuantitativo,Solo secuencia parcial de encabezados,Comparar cada nivel y sección con fuente.
 REQ-37,p390-420,Esquema TINV cualitativo completo,INCORRECTO,estructura_tinv_cualitativo,"Faltan situación, enunciado, justificación, antecedentes y bases",Completar gramática y probar omisiones una a una.
 REQ-38,p534-559,Esquema TINV revisión y anexos,PARCIAL,estructura_tinv_revision_literatura,No hay regla propia de anexos mínimos de revisión,Separar secciones y contenido de anexos.
@@ -49,7 +49,7 @@ REQ-47,"p800,p936",Proyectos: mínimo 30 referencias,NO_SOPORTADO_API,Ninguno ac
 REQ-48,"p1155,p1259",Informes: mínimo 30 referencias,NO_SOPORTADO_API,Ninguno activo específico,Mínimos activos solo TINV,Aplicar por tipo aprobado.
 REQ-49,"p1445,p1458",TSP: máximo 10 en sesión; mínimo 20 en informe,NO_SOPORTADO_API,Ninguno activo específico,"Son ámbitos distintos, no contradicción",Contar en cada bloque por separado.
 REQ-50,p271 y rúbricas,Referencias solo de autores citados; formato APA y francesa 1.27 cm,FALTANTE,Ninguno completo,Conteo no verifica correspondencia ni formato,Separar control de sangría de revisión APA y citas.
-REQ-51,"p273,p311-319",Anexos cuantitativos obligatorios,PARCIAL,anexos_minimos_cuantitativo,VA-14 y diferencias de nombres entre listas,Ratificar lista canónica; no exigir un nombre solo por prefijo.
+REQ-51,"p273,p311-319",Anexos cuantitativos obligatorios,PARCIAL,anexos_minimos_cuantitativo,"M6: ítem 5 «Base de datos»; título real reconocido y ausencia informada","Ratificar el resto de la lista canónica; la comparación por subcadena hace que «Base de datos cualitativa» también satisfaga el ítem."
 REQ-52,"p378,p413-420",Anexos cualitativos,CONFLICTO,anexos_minimos_cualitativo,Prosa pide similitud; esquema la omite,Decisión institucional explícita y prueba de cada ausencia.
 REQ-53,"p534,p552-559",Anexos de revisión,FALTANTE,Ninguno específico,Encabezado ANEXOS no prueba lista requerida,Agregar control tras confirmar nomenclatura.
 REQ-54,"p938,p992",Anexos de proyecto cualitativo,CONFLICTO,Pendiente,Categorización/consistencia difieren entre prosa y esquema,Ratificar esquema antes de activar.

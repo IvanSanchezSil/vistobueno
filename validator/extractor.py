@@ -7,6 +7,23 @@ necesarios (document.xml, footer1.xml, header1.xml) más el contexto
 headings, párrafos vacíos y captions de tabla. Ver
 unt_format_rules_schema.yaml para la convención completa de
 mecanismo_verificable.
+
+Partes OPC mínimas que admite el extractor:
+
+- ``word/document.xml`` — **obligatoria**. Su raíz debe ser
+  ``w:document`` en el namespace WordprocessingML y debe contener
+  ``w:body``. Si el XML está truncado, la raíz es ajena o falta el
+  cuerpo, se lanza ``InvalidDocumentError``.
+- ``word/header*.xml`` y ``word/footer*.xml`` — opcionales. Se leen
+  todas las partes que existan y cuyo XML sea válido.
+- ``word/footnotes.xml`` — opcional; si existe y no está vacía, se
+  parsea.
+
+El extractor localiza las partes **por nombre**, no por las relaciones
+de ``_rels/.rels`` ni por ``[Content_Types].xml``; esos archivos no se
+validan aquí (la integridad del paquete se cubre en los tests del
+factory). Un ZIP válido sin ``word/document.xml`` sigue lanzando
+``KeyError``, que la API traduce a 422.
 """
 
 import re
@@ -22,7 +39,73 @@ NS = {
     "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
     "pic": "http://schemas.openxmlformats.org/drawingml/2006/picture",
+    "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
 }
+
+# Grado de certeza de la página asignada a un párrafo (M3/VA-04). No toda
+# página se puede afirmar con la misma fuerza: un salto explícito del autor
+# es un hecho estructural, mientras que `w:lastRenderedPageBreak` es una
+# caché del render de Word y la ausencia de marcadores no prueba nada.
+PAGINA_COMPROBADA = "comprobada"
+PAGINA_ESTIMADA = "estimada"
+PAGINA_DESCONOCIDA = "desconocida"
+
+
+class InvalidDocumentError(ValueError):
+    """El DOCX es un ZIP válido pero no contiene un documento Word procesable.
+
+    Se lanza cuando ``word/document.xml`` tiene XML mal formado, cuando su
+    raíz no es ``w:document`` (namespace ausente o ajeno) o cuando falta
+    ``w:body``. También cuando una parte opcional presente (encabezado, pie
+    o notas al pie) tiene XML mal formado. La API la traduce a 422 (B5); no
+    debe usarse para defectos del servidor ni para paquetes que superan el
+    límite de descompresión (esos siguen siendo ``zipfile.BadZipFile``).
+    """
+
+
+def _parsear_parte(datos: bytes, nombre: str) -> etree._Element:
+    """Parsea una parte XML con un parser sin entidades externas.
+
+    ``resolve_entities=False`` evita que un DOCX hostil use entidades para
+    leer archivos locales (XXE); los DOCX legítimos no dependen de DTD ni
+    de entidades. Cualquier XML mal formado se convierte en
+    ``InvalidDocumentError`` para que la API responda 422 en vez de dejar
+    escapar una excepción de lxml.
+
+    Args:
+        datos: Bytes descomprimidos de la parte.
+        nombre: Nombre de la parte, para el mensaje de error.
+
+    Returns:
+        La raíz XML parseada.
+
+    Raises:
+        InvalidDocumentError: Si el XML está truncado o mal formado.
+    """
+    parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+    try:
+        return etree.fromstring(datos, parser=parser)
+    except etree.XMLSyntaxError as e:
+        raise InvalidDocumentError(f"XML inválido en '{nombre}': {e}") from e
+
+
+def _validar_documento(document: etree._Element) -> None:
+    """Exige la raíz WordprocessingML y el cuerpo del documento.
+
+    Args:
+        document: Raíz de ``word/document.xml``.
+
+    Raises:
+        InvalidDocumentError: Si la raíz no es ``w:document`` (incluye el
+            caso de namespace ausente o ajeno) o si falta ``w:body``.
+    """
+    if document.tag != W + "document":
+        raise InvalidDocumentError(
+            "la raíz de 'word/document.xml' no es WordprocessingML "
+            f"(se encontró {document.tag!r}); se esperaba 'w:document'"
+        )
+    if document.find(W + "body") is None:
+        raise InvalidDocumentError("'word/document.xml' no contiene 'w:body'")
 
 
 # Cota de tamaño DESCOMPRIMIDO por parte del paquete OPC (defensa zip bomb,
@@ -184,6 +267,42 @@ def _cuerpo_paras(doc) -> set:
     return result
 
 
+def _cuerpo_prosa(doc, styles=None) -> set:
+    """Párrafos de prosa del cuerpo (subconjunto de `_cuerpo_paras`).
+
+    La alineación justificada del manual se exige al texto continuo, no a
+    los elementos que tienen tipografía propia. Sobre `_cuerpo_paras` se
+    excluyen además:
+
+    - ítems de lista: `w:numPr` directo o estilo cuyo `w:name` es
+      `List Paragraph` (el identificador cambia entre Word en español e
+      inglés, el nombre visible no);
+    - títulos de tabla y figura: estilo cuyo `w:name` contiene `caption`;
+    - líneas de leyenda de fórmula (`---: ...`).
+
+    Se filtra por **nombre de estilo** y no por identificador para que
+    funcione con `Descripcin`/`Caption` o `Prrafodelista`/`ListParagraph`
+    (revisión PR #100).
+    """
+    resolutor = ResolvedorFormato(styles)
+    result = set()
+    for p in _cuerpo_paras(doc):
+        pPr = p.find(W + "pPr")
+        st = pPr.find(W + "pStyle") if pPr is not None else None
+        style_id = st.get(W + "val") if st is not None else None
+        nombres = [n.lower() for n in resolutor.nombres_estilo(style_id)]
+        if pPr is not None and pPr.find(W + "numPr") is not None:
+            continue
+        if any("list paragraph" in n for n in nombres):
+            continue
+        if any("caption" in n for n in nombres):
+            continue
+        if re.match(r"^[-–—]{2,}\s*:", _texto_normalizado(p)):
+            continue
+        result.add(p)
+    return result
+
+
 def _secciones_cuerpo(doc) -> set:
     """Conjunto de `w:sectPr` que rigen el cuerpo real del documento.
 
@@ -274,15 +393,330 @@ def _caratula_ficha_paras(doc) -> set:
     return set(paras[:limite])
 
 
-def _paginacion_para(document) -> dict[int, int]:
-    """Calcula el mapa de paginación real (párrafo -> página física).
+class CicloEstilosError(ValueError):
+    """Ciclo en la cadena `basedOn` de los estilos de Word.
 
-    Word persiste en el XML tres marcadores fiables de saltos de página:
-    ``w:lastRenderedPageBreak`` (insertado al guardar un documento renderizado),
-    ``w:br w:type="page"`` (salto explícito) y la propiedad de párrafo
-    ``w:pPr/w:pageBreakBefore`` (el párrafo arranca en página nueva).
-    Recorremos los párrafos en orden de documento y correlacionamos cada uno
-    con su número físico de página sin necesidad de renderizar el documento.
+    Un ciclo no debe tumbar la validación completa: el analizador que
+    resuelve el formato lo captura y reporta el ciclo como incumplimiento,
+    porque un documento con estilos cíclicos no permite conocer el formato
+    efectivo y, por tanto, no puede darse por bueno.
+    """
+
+
+@dataclass
+class _Estilo:
+    """Estilo de Word reducido a lo que necesita el resolvedor de formato."""
+
+    tipo: str
+    based_on: str | None
+    rpr: etree._Element | None
+    ppr: etree._Element | None
+    nombre: str | None = None
+
+
+def _qname(nombre: str) -> str:
+    """Convierte `w:rFonts` en `{namespace}rFonts`."""
+    if ":" in nombre:
+        prefijo, local = nombre.split(":", 1)
+        uri = NS.get(prefijo)
+        if uri is None:
+            raise ValueError(f"prefijo de namespace desconocido en propiedad: {prefijo}")
+        return "{" + uri + "}" + local
+    return W + nombre
+
+
+def _parsear_propiedad(propiedad: str) -> tuple[str, str | None]:
+    """Separa `w:rFonts/@w:ascii` en (tag, atributo).
+
+    Sin `/@`, la propiedad es un toggle OOXML (`w:b`): su sola presencia
+    activa el valor y `w:val="0"` lo desactiva.
+    """
+    if "/@" in propiedad:
+        elemento, atributo = propiedad.split("/@", 1)
+        return _qname(elemento), _qname(atributo)
+    return _qname(propiedad), None
+
+
+def _apagado(valor: str | None) -> bool:
+    """Valor OOXML de un toggle apagado (`0`, `false`, `off`)."""
+    return valor is not None and str(valor).strip().lower() in ("0", "false", "off")
+
+
+class ResolvedorFormato:
+    """Resuelve el formato efectivo de un run o párrafo según Word.
+
+    Precedencia (de mayor a menor):
+
+    1. formato directo (`w:rPr` del run / `w:pPr` del párrafo);
+    2. estilo de carácter del run (`w:rStyle`) y su cadena `basedOn`;
+    3. estilo de párrafo (`w:pStyle`, o el estilo de párrafo por defecto)
+       y su cadena `basedOn` (sus `w:rPr`/`w:pPr`);
+    4. `w:docDefaults` (`w:rPrDefault`/`w:pPrDefault`).
+
+    Límites declarados (M1/VA-02): no resuelve temas (`w:asciiTheme`),
+    numeración (`w:numPr`), formato condicional de tablas, estilos de tabla
+    ni cambios de formato con seguimiento (`w:rPrChange`/`w:pPrChange`).
+    Si la propiedad no aparece en ninguna capa devuelve `None` (el analizador
+    la reporta como `(ausente)`), salvo los toggles, que Word considera
+    apagados por defecto y devuelven `"0"`.
+
+    Un ciclo en `basedOn` lanza `CicloEstilosError`: no se puede inventar un
+    formato efectivo para un documento cuyos estilos se referencian en
+    círculo.
+    """
+
+    def __init__(self, styles: etree._Element | None):
+        self._estilos: dict[str, _Estilo] = {}
+        self._doc_rpr: etree._Element | None = None
+        self._doc_ppr: etree._Element | None = None
+        self._defecto_parrafo: str | None = None
+        self._defecto_caracter: str | None = None
+        if styles is not None:
+            self._cargar(styles)
+
+    def _cargar(self, styles: etree._Element) -> None:
+        dd = styles.find(W + "docDefaults")
+        if dd is not None:
+            rpr_default = dd.find(W + "rPrDefault")
+            if rpr_default is not None:
+                self._doc_rpr = rpr_default.find(W + "rPr")
+            ppr_default = dd.find(W + "pPrDefault")
+            if ppr_default is not None:
+                self._doc_ppr = ppr_default.find(W + "pPr")
+
+        for st in styles.findall(W + "style"):
+            sid = st.get(W + "styleId")
+            if not sid:
+                continue
+            based = st.find(W + "basedOn")
+            nombre = st.find(W + "name")
+            self._estilos[sid] = _Estilo(
+                tipo=st.get(W + "type", ""),
+                based_on=based.get(W + "val") if based is not None else None,
+                rpr=st.find(W + "rPr"),
+                ppr=st.find(W + "pPr"),
+                nombre=nombre.get(W + "val") if nombre is not None else None,
+            )
+            if _apagado(st.get(W + "default")) or st.get(W + "default") not in (
+                "1",
+                "true",
+                "on",
+            ):
+                continue
+            if st.get(W + "type") == "paragraph":
+                self._defecto_parrafo = sid
+            elif st.get(W + "type") == "character":
+                self._defecto_caracter = sid
+
+    def _cadena(self, style_id: str | None) -> list[_Estilo]:
+        """Estilos de una cadena `basedOn`, con detección de ciclos."""
+        cadena: list[_Estilo] = []
+        vistos: set[str] = set()
+        orden: list[str] = []
+        actual = style_id
+        while actual:
+            if actual in vistos:
+                orden.append(actual)
+                raise CicloEstilosError("ciclo de estilos: " + " -> ".join(orden))
+            vistos.add(actual)
+            orden.append(actual)
+            estilo = self._estilos.get(actual)
+            if estilo is None:
+                break
+            cadena.append(estilo)
+            actual = estilo.based_on
+        return cadena
+
+    def nombres_estilo(self, style_id: str | None = None) -> list[str]:
+        """Nombres visibles (`w:name`) de un estilo y su cadena `basedOn`.
+
+        Sin `style_id` se parte del estilo de párrafo predeterminado. Un
+        ciclo no debe tumbar la extracción: se devuelven los nombres
+        acumulados hasta el ciclo y el analizador de formato reportará el
+        incumplimiento por su cuenta.
+        """
+        try:
+            cadena = self._cadena(style_id or self._defecto_parrafo)
+        except CicloEstilosError:
+            return []
+        return [estilo.nombre for estilo in cadena if estilo.nombre]
+
+    @staticmethod
+    def _leer(pr, tag: str, atributo: str | None) -> str | None:
+        """Lee una propiedad de un `w:rPr`/`w:pPr` (o devuelve `None`)."""
+        if pr is None:
+            return None
+        el = pr.find(tag)
+        if el is None:
+            return None
+        if atributo is None:
+            return "0" if _apagado(el.get(W + "val")) else "1"
+        return el.get(atributo)
+
+    def _leer_en_cadena(
+        self, cadena: list[_Estilo], tag: str, atributo: str | None, *, run: bool
+    ) -> str | None:
+        for estilo in cadena:
+            pr = estilo.rpr if run else estilo.ppr
+            valor = self._leer(pr, tag, atributo)
+            if valor is not None:
+                return valor
+        return None
+
+    def _resolver_run(self, run, tag: str, atributo: str | None) -> str | None:
+        rpr = run.find(W + "rPr")
+        valor = self._leer(rpr, tag, atributo)
+        if valor is not None:
+            return valor
+
+        # Estilo de carácter explícito (o el estilo de carácter por defecto).
+        style_id = None
+        if rpr is not None:
+            rstyle = rpr.find(W + "rStyle")
+            if rstyle is not None:
+                style_id = rstyle.get(W + "val")
+        if style_id is None:
+            style_id = self._defecto_caracter
+        valor = self._leer_en_cadena(self._cadena(style_id), tag, atributo, run=True)
+        if valor is not None:
+            return valor
+
+        # Estilo de párrafo (o el estilo de párrafo por defecto).
+        parrafo = _para_ancestor(run)
+        style_id = None
+        if parrafo is not None:
+            ppr = parrafo.find(W + "pPr")
+            if ppr is not None:
+                pstyle = ppr.find(W + "pStyle")
+                if pstyle is not None:
+                    style_id = pstyle.get(W + "val")
+        if style_id is None:
+            style_id = self._defecto_parrafo
+        valor = self._leer_en_cadena(self._cadena(style_id), tag, atributo, run=True)
+        if valor is not None:
+            return valor
+
+        valor = self._leer(self._doc_rpr, tag, atributo)
+        if valor is not None:
+            return valor
+        return "0" if atributo is None else None
+
+    def _resolver_parrafo(self, parrafo, tag: str, atributo: str | None) -> str | None:
+        ppr = parrafo.find(W + "pPr")
+        valor = self._leer(ppr, tag, atributo)
+        if valor is not None:
+            return valor
+
+        style_id = None
+        if ppr is not None:
+            pstyle = ppr.find(W + "pStyle")
+            if pstyle is not None:
+                style_id = pstyle.get(W + "val")
+        if style_id is None:
+            style_id = self._defecto_parrafo
+        valor = self._leer_en_cadena(self._cadena(style_id), tag, atributo, run=False)
+        if valor is not None:
+            return valor
+
+        valor = self._leer(self._doc_ppr, tag, atributo)
+        if valor is not None:
+            return valor
+        return "0" if atributo is None else None
+
+    def formato_efectivo(self, nodo, propiedad: str) -> str | None:
+        """Valor efectivo de `propiedad` para un run o párrafo."""
+        tag, atributo = _parsear_propiedad(propiedad)
+        if nodo.tag == W + "r":
+            return self._resolver_run(nodo, tag, atributo)
+        if nodo.tag == W + "p":
+            return self._resolver_parrafo(nodo, tag, atributo)
+        run = nodo
+        while run is not None and run.tag != W + "r":
+            run = run.getparent()
+        if run is not None:
+            return self._resolver_run(run, tag, atributo)
+        parrafo = _para_ancestor(nodo)
+        if parrafo is not None:
+            return self._resolver_parrafo(parrafo, tag, atributo)
+        return None
+
+
+@dataclass(frozen=True)
+class PaginaFisica:
+    """Página asignada a un párrafo y el grado de certeza de esa asignación."""
+
+    numero: int
+    certeza: str
+
+
+def _booleano_apagado(el) -> bool:
+    """¿El booleano OOXML está desactivado de forma explícita?
+
+    `w:pageBreakBefore w:val="0"` (o `false`/`off`) NO crea un salto. Antes
+    se trataba cualquier presencia del nodo como un salto (M3/VA-04).
+    """
+    val = el.get(W + "val")
+    return val is not None and val.strip().lower() in {"0", "false", "off"}
+
+
+def _salta_pagina_por_seccion(sect) -> bool:
+    """¿Este `w:sectPr` obliga a que la sección siguiente empiece en otra página?
+
+    `w:type` vale `nextPage` por defecto. `continuous` y `nextColumn` no
+    cambian de página. `evenPage`/`oddPage` sí, aunque pueden dejar una
+    página en blanco: el mapa los cuenta como un salto (límite documentado).
+    """
+    tipo = sect.find(W + "type")
+    valor = (tipo.get(W + "val") if tipo is not None else None) or "nextPage"
+    return valor.strip().lower() not in {"continuous", "nextcolumn"}
+
+
+def _parrafo_tiene_contenido(p) -> bool:
+    """¿El párrafo puede consumir espacio de la página?
+
+    Un párrafo vacío (solo marcadores de salto o espacios) no aleja al
+    siguiente del inicio de página. Se excluye `w:br w:type="page"` porque
+    es el salto, no contenido; los demás `w:br` (línea nueva) sí ocupan
+    espacio.
+    """
+    for el in p.iter():
+        if el.tag == W + "t":
+            if (el.text or "").strip():
+                return True
+        elif el.tag in (W + "drawing", W + "pict", W + "object", W + "sym", W + "tab"):
+            return True
+        elif el.tag == W + "br" and el.get(W + "type") != "page":
+            return True
+    return False
+
+
+def _paginacion_para(document) -> dict:
+    """Calcula el mapa de paginación (párrafo -> `PaginaFisica`).
+
+    Word persiste en el XML cuatro señales de salto de página:
+
+    - ``w:br w:type="page"``: salto explícito del autor (estructural).
+    - ``w:pPr/w:pageBreakBefore``: el párrafo arranca en página nueva
+      (estructural); ``w:val="0"`` lo desactiva.
+    - ``w:pPr/w:sectPr`` con tipo distinto de ``continuous``/``nextColumn``:
+      la sección siguiente empieza en otra página (estructural).
+    - ``w:lastRenderedPageBreak``: caché del render de Word (estimada).
+
+    Se recorren los párrafos en orden de documento y se procesan los saltos
+    en el orden en que aparecen. Un párrafo con `pageBreakBefore` pertenece
+    a la página nueva; los saltos internos (`w:br`, `lastRenderedPageBreak`)
+    se cuentan todos y avanzan la página del contenido siguiente. Un párrafo
+    puede cruzar una página: se le asigna la página donde empieza.
+
+    Cada asignación lleva su grado de certeza:
+
+    - ``comprobada``: el párrafo empieza en un salto estructural (o es el
+      inicio del documento). El número absoluto supone que los saltos
+      anteriores también están marcados; el límite está documentado.
+    - ``estimada``: la página se deduce de la caché de render de Word
+      (`lastRenderedPageBreak`), que puede estar desactualizada.
+    - ``desconocida``: no hay marcador; el texto pudo fluir a otra página
+      sin que el XML lo registre.
 
     La página 1 es la carátula (aunque el manual indique que no se enumera
     visualmente, se cuenta para el correlativo del resto del documento).
@@ -292,16 +726,55 @@ def _paginacion_para(document) -> dict[int, int]:
     # referencia fuerte, lo que rompería las consultas posteriores.
     paginacion: dict = {}
     pagina = 1
+    # El primer párrafo empieza en la página 1: no hay ambigüedad.
+    inicio_comprobado = True
+    # Si el documento trae la caché de render, Word ya insertó los cortes
+    # naturales: ausencia de marcador significa "misma página" (estimada).
+    tiene_render = next(document.iter(W + "lastRenderedPageBreak"), None) is not None
 
     for p in document.xpath("//w:body//w:p", namespaces=NS):
-        tiene_salto = (
-            p.find(f".//{W}lastRenderedPageBreak", namespaces=NS) is not None
-            or p.find(f".//{W}br[@w:type='page']", namespaces=NS) is not None
-            or p.find(f"{W}pPr/{W}pageBreakBefore", namespaces=NS) is not None
-        )
-        paginacion[p] = pagina
-        if tiene_salto:
+        ppr = p.find(W + "pPr")
+        pbb = ppr.find(W + "pageBreakBefore") if ppr is not None else None
+        if pbb is not None and not _booleano_apagado(pbb):
+            # `pageBreakBefore` afecta al PROPIO párrafo (M3/VA-04).
             pagina += 1
+            inicio_comprobado = True
+
+        if inicio_comprobado:
+            certeza = PAGINA_COMPROBADA
+        elif tiene_render:
+            certeza = PAGINA_ESTIMADA
+        else:
+            certeza = PAGINA_DESCONOCIDA
+        paginacion[p] = PaginaFisica(pagina, certeza)
+
+        saltos = 0
+        saltos_estructurales = 0
+        for el in p.iter():
+            if el.tag == W + "lastRenderedPageBreak":
+                saltos += 1
+            elif el.tag == W + "br" and el.get(W + "type") == "page":
+                saltos += 1
+                saltos_estructurales += 1
+
+        sect = ppr.find(W + "sectPr") if ppr is not None else None
+        if sect is not None and _salta_pagina_por_seccion(sect):
+            saltos += 1
+            saltos_estructurales += 1
+
+        if saltos:
+            # Varios saltos en el mismo párrafo cuentan todos: el contenido
+            # siguiente puede quedar varias páginas más adelante.
+            pagina += saltos
+            # El siguiente párrafo empieza en página nueva. Solo es
+            # comprobada si todos los saltos fueron estructurales; si alguno
+            # vino de la caché de Word, la certeza baja a estimada.
+            inicio_comprobado = saltos_estructurales == saltos
+        elif not _parrafo_tiene_contenido(p):
+            # Párrafo vacío: el siguiente sigue en el inicio de página.
+            pass
+        else:
+            inicio_comprobado = False
 
     return paginacion
 
@@ -321,6 +794,10 @@ class ExtractedDocx:
     footers: list
     footnotes: etree._Element | None
     _cuerpo: set
+    # Subconjunto de `_cuerpo` con solo prosa: sin listas, captions de tabla
+    # ni líneas de leyenda. La alineación justificada se exige solo aquí
+    # (revisión PR #100).
+    _cuerpo_prosa: set = field(default_factory=set, repr=False)
     # Párrafos de la carátula (primera sección; issue handover #3): las
     # reglas de carátula validan SOLO estos, no keywords repetidas en el cuerpo.
     _caratula: set = field(default_factory=set, repr=False)
@@ -334,9 +811,34 @@ class ExtractedDocx:
     # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
     _cache: dict = field(default_factory=dict, repr=False)
-    # Paginación real (ítem 1 de la Fase 2): párrafo -> número físico de
-    # página, calculada a partir de los saltos que Word persiste en el XML.
+    # Paginación física (ítem 1 de la Fase 2, corregida en M3/VA-04):
+    # párrafo -> `PaginaFisica` (número + grado de certeza), calculada a
+    # partir de los saltos que Word persiste en el XML.
     _paginacion: dict = field(default_factory=dict, repr=False)
+    # `word/styles.xml` (opcional): de aquí sale el formato heredado de los
+    # estilos de párrafo/carácter y de `docDefaults` (M1/VA-02). Si la parte
+    # falta o está mal formada, queda `None` y las reglas afectadas reportan
+    # la propiedad como `(ausente)` en vez de tumbar la validación.
+    styles: etree._Element | None = None
+    # Resolvedor de formato efectivo, construido una vez por documento.
+    _resolvedor: ResolvedorFormato | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        self._resolvedor = ResolvedorFormato(self.styles)
+
+    def formato_efectivo(self, nodo, propiedad: str) -> str | None:
+        """Valor efectivo de una propiedad de formato para un run o párrafo.
+
+        Delega en `ResolvedorFormato`: formato directo → estilo de carácter →
+        cadena del estilo de párrafo (`basedOn`) → `docDefaults`. Devuelve
+        `None` cuando la propiedad no aparece en ninguna capa (el analizador
+        la reporta como `(ausente)`).
+        """
+        if self._resolvedor is None:  # pragma: no cover - defensivo
+            self._resolvedor = ResolvedorFormato(self.styles)
+        return self._resolvedor.formato_efectivo(nodo, propiedad)
 
     @property
     def header(self) -> etree._Element | None:
@@ -348,6 +850,10 @@ class ExtractedDocx:
 
     def is_cuerpo(self, node) -> bool:
         return _para_ancestor(node) in self._cuerpo
+
+    def is_cuerpo_prosa(self, node) -> bool:
+        """¿El nodo vive en un párrafo de prosa del cuerpo?"""
+        return _para_ancestor(node) in self._cuerpo_prosa
 
     def is_caratula(self, node) -> bool:
         """¿El nodo vive en un párrafo de la carátula (primera sección)?"""
@@ -401,14 +907,41 @@ class ExtractedDocx:
         except ValueError:
             return False
 
-    def pagina_de(self, node) -> int | None:
-        """Número físico de página de un párrafo (None si no es un párrafo
-        del cuerpo del documento). Es la forma de "devolver también el
-        número de página real" pedida en el ítem 1 de la Fase 2."""
+    def _pagina_de(self, node) -> PaginaFisica | None:
+        """Información de página del párrafo que contiene `node`."""
         if node is None:
             return None
         p = _para_ancestor(node)
         return self._paginacion.get(p)
+
+    def pagina_de(self, node) -> int | None:
+        """Número físico de página de un párrafo (None si no es un párrafo
+        del cuerpo del documento). Es la forma de "devolver también el
+        número de página real" pedida en el ítem 1 de la Fase 2.
+
+        El número es la mejor estimación disponible; para saber si está
+        comprobado o solo estimado, usar `certeza_pagina_de()`.
+        """
+        info = self._pagina_de(node)
+        return info.numero if info is not None else None
+
+    def certeza_pagina_de(self, node) -> str | None:
+        """Grado de certeza de la página de un párrafo (M3/VA-04).
+
+        Devuelve ``PAGINA_COMPROBADA``, ``PAGINA_ESTIMADA`` o
+        ``PAGINA_DESCONOCIDA``; ``None`` si el nodo no es un párrafo del
+        cuerpo. La distinción evita afirmar una página cuando el XML no la
+        respalda (sin marcadores o solo con la caché de render de Word).
+        """
+        info = self._pagina_de(node)
+        return info.certeza if info is not None else None
+
+    def pagina_confirmada_de(self, node) -> bool | None:
+        """¿La página del párrafo está respaldada por un salto estructural?"""
+        certeza = self.certeza_pagina_de(node)
+        if certeza is None:
+            return None
+        return certeza == PAGINA_COMPROBADA
 
     def part(self, name: str) -> etree._Element | None:
         return {
@@ -432,6 +965,8 @@ class ExtractedDocx:
         zados/pies consulta TODAS las partes del tipo (`header*.xml`,
         `footer*.xml`) y combina los resultados. Con `contexto == "cuerpo"`
         se filtra por los párrafos del cuerpo real del documento; con
+        `contexto == "cuerpo_prosa"`, por el subconjunto de prosa de ese
+        cuerpo (sin listas, captions ni leyendas); con
         `contexto == "seccion_cuerpo"`, por las secciones que rigen ese
         cuerpo (márgenes, papel), lo que deja fuera las secciones landscape
         de anexos; con `contexto == "caratula"`, por los párrafos de la
@@ -448,6 +983,8 @@ class ExtractedDocx:
             nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
         if contexto == "cuerpo":
             nodos = [n for n in nodos if self.is_cuerpo(n)]
+        if contexto == "cuerpo_prosa":
+            nodos = [n for n in nodos if self.is_cuerpo_prosa(n)]
         if contexto == "seccion_cuerpo":
             nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
         if contexto == "caratula":
@@ -456,6 +993,23 @@ class ExtractedDocx:
             nodos = [n for n in nodos if self.is_caratula_ficha(n)]
         self._cache[clave] = nodos
         return nodos
+
+
+def _parsear_opcional(xml_bytes: bytes | None) -> etree._Element | None:
+    """Parsea una parte OPC opcional del DOCX.
+
+    `word/styles.xml` no es obligatorio y un archivo mal formado no debe
+    tumbar la validación completa (M1/VA-02): si falta o no parsea, se
+    devuelve `None` y las reglas de formato reportan `(ausente)`. El parser
+    desactiva entidades y red para no abrir XXE en partes no confiables.
+    """
+    if not xml_bytes:
+        return None
+    try:
+        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+        return etree.fromstring(xml_bytes, parser=parser)
+    except etree.XMLSyntaxError:
+        return None
 
 
 def extract(docx_path: str) -> ExtractedDocx:
@@ -483,24 +1037,33 @@ def extract(docx_path: str) -> ExtractedDocx:
     Raises:
         zipfile.BadZipFile: Si el archivo no es un ZIP válido o una parte
             supera el límite de descompresión (posible zip bomb).
+        InvalidDocumentError: Si ``word/document.xml`` (o una parte
+            opcional presente) tiene XML mal formado, si la raíz no es
+            ``w:document`` o si falta ``w:body``.
         KeyError: Si falta document.xml u otra parte esencial del DOCX.
     """
     with zipfile.ZipFile(docx_path) as z:
         names = z.namelist()
-        document = etree.fromstring(_leer_parte(z, "word/document.xml"))
+        document = _parsear_parte(_leer_parte(z, "word/document.xml"), "word/document.xml")
+        _validar_documento(document)
         headers = [
-            etree.fromstring(_leer_parte(z, n))
+            _parsear_parte(_leer_parte(z, n), n)
             for n in sorted(x for x in names if x.startswith("word/header") and x.endswith(".xml"))
         ]
         footers = [
-            etree.fromstring(_leer_parte(z, n))
+            _parsear_parte(_leer_parte(z, n), n)
             for n in sorted(x for x in names if x.startswith("word/footer") and x.endswith(".xml"))
         ]
         footnotes_xml = (
             _leer_parte(z, "word/footnotes.xml") if "word/footnotes.xml" in names else None
         )
         footnotes = (
-            etree.fromstring(footnotes_xml) if footnotes_xml and len(footnotes_xml) > 0 else None
+            _parsear_parte(footnotes_xml, "word/footnotes.xml")
+            if footnotes_xml and len(footnotes_xml) > 0
+            else None
+        )
+        styles = _parsear_opcional(
+            _leer_parte(z, "word/styles.xml") if "word/styles.xml" in names else None
         )
 
     return ExtractedDocx(
@@ -509,8 +1072,10 @@ def extract(docx_path: str) -> ExtractedDocx:
         footers=footers,
         footnotes=footnotes,
         _cuerpo=_cuerpo_paras(document),
+        _cuerpo_prosa=_cuerpo_prosa(document, styles),
         _caratula=_caratula_paras(document),
         _caratula_ficha=_caratula_ficha_paras(document),
         _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),
+        styles=styles,
     )

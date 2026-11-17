@@ -19,7 +19,7 @@ import yaml
 from _docx_builder import _ANADIDAS_REVISION, _HEADINGS_CUANT, _headings_insertadas
 
 # ---------------------------------------------------------------------------
-# Nombres de las reglas de reglas_unt.yaml (49).
+# Nombres de las reglas de reglas_unt.yaml (50).
 # ---------------------------------------------------------------------------
 
 REGLAS = [
@@ -58,6 +58,7 @@ REGLAS = [
     "indice_subdivisiones",
     "resumen_longitud",
     "palabras_clave_minimo",
+    "abstract_contenido",
     "referencias_minimo_cuantitativo",
     "referencias_minimo_cualitativo",
     "referencias_minimo_revision",
@@ -146,10 +147,13 @@ REGLAS_ACOPLADAS = {
     },
     "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
     "caratula_ciudad_pais_negrita": {"caratula_universidad_negrita_mayusculas"},
-    # indice_subdivisiones renombra "INDICE DE CONTENIDOS" -> "ÍNDICE GENERAL".
-    # Con el xpath tolerante ("indice") el primer match cae en "INDICE DE
-    # TABLAS": las páginas pasan de distintas a repetidas, así que
-    # indice_paginas_separadas detecta el desvío. Acople unidireccional.
+    # indice_subdivisiones renombra la subdivisión "INDICE DE CONTENIDOS" ->
+    # "ÍNDICE GENERAL" y el título paraguas "ÍNDICE" -> "CONTENIDO GENERAL".
+    # Con el XPath por texto completo (PR #102) ya no queda ningún título de
+    # contenidos identificable —ni el específico ni el genérico "Índice"—, así
+    # que indice_paginas_separadas pasa a NO APLICABLE (antes fallaba con
+    # paginas_repetidas por el XPath tolerante).
+    # Acople unidireccional: la presencia la reporta indice_subdivisiones.
     # (Las reglas de TOC pasan a n/a con ese renombre, pero el `found` exitoso
     # es "cumple" en ambos casos -> sin acople observable.)
     "indice_subdivisiones": {"indice_paginas_separadas"},
@@ -165,7 +169,7 @@ REGLAS_ACOPLADAS = {
     # aplicables y siguen siéndolo. El paso 6 convierte el caso contradictorio en
     # un error centinela propio en vez de validar contra las tres.
     # NOTA: el centinela `tipo_documento_contradictorio` aparece en el
-    # documento mutado pero no se cuenta aquí porque no es una de las 49
+    # documento mutado pero no se cuenta aquí porque no es una de las 50
     # reglas (lo deriva la detección).
     "deteccion_tipo_documento": {
         "estructura_tinv_cuantitativo",
@@ -219,6 +223,18 @@ def _mut_margen(attr: str):
 
 def _renombrar_heading(cfg: dict, actual: str, nuevo: str) -> None:
     cfg["headings"] = [nuevo if h == actual else h for h in cfg["headings"]]
+
+
+def _mut_indice_subdivisiones(cfg: dict) -> None:
+    """Deja el documento sin ningún título de índice de contenidos.
+
+    Renombra la subdivisión ("INDICE DE CONTENIDOS") y el título paraguas
+    ("ÍNDICE"): la regla acepta el título genérico como contenidos cuando no
+    hay subdivisión (tesis real), así que renombrar solo la subdivisión ya no
+    produce el desvío (revisión PR #102).
+    """
+    _renombrar_heading(cfg, "INDICE DE CONTENIDOS", "ÍNDICE GENERAL")
+    _renombrar_heading(cfg, "ÍNDICE", "CONTENIDO GENERAL")
 
 
 def _renumerar_tdc(cfg: dict, actual: str, nuevo: str) -> None:
@@ -353,11 +369,10 @@ _MUTACIONES = {
     "estructura_tinv_revision_literatura": lambda c: c.update(
         headings=_headings_insertadas(_HEADINGS_CUANT, _ANADIDAS_REVISION)
     ),
-    "indice_subdivisiones": lambda c: _renombrar_heading(
-        c, "INDICE DE CONTENIDOS", "ÍNDICE GENERAL"
-    ),
+    "indice_subdivisiones": _mut_indice_subdivisiones,
     "resumen_longitud": lambda c: c.update(resumen_palabras=60),
     "palabras_clave_minimo": lambda c: c.update(palabras_clave_n=2),
+    "abstract_contenido": lambda c: c.update(abstract_palabras=0),
     "referencias_minimo_cuantitativo": lambda c: c.update(referencias_n=19),
     "referencias_minimo_cualitativo": _mut_referencias_cualitativo,
     "referencias_minimo_revision": _mut_referencias_revision,
@@ -365,7 +380,9 @@ _MUTACIONES = {
     "anexos_minimos_cualitativo": _mut_anexos_cualitativo,
     "caratula_orcid": lambda c: c["portada"].pop("orcid"),
     "proyecto_caratula_texto": _mut_proyecto_caratula,
-    "indice_paginas_separadas": lambda c: c.update(indices_paginas_separadas=False),
+    "indice_paginas_separadas": lambda c: c.update(
+        indices_paginas_separadas=False, marcador_render_final=True
+    ),
     "encabezado_membrete": lambda c: c.update(header_logo=False),
     "encabezado_formato": lambda c: c.update(header_fuente="Arial"),
     "notas_al_pie_consistencia": lambda c: c.update(notas_pie_ids=[1, 2, 4]),
@@ -404,7 +421,7 @@ RUTA_REGLAS_YAML = Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
 
 
 def _validar_sincronizacion() -> None:
-    """Falla el import si `_MUTACIONES` no cubre exactamente las 49 reglas.
+    """Falla el import si `_MUTACIONES` no cubre exactamente las 50 reglas.
 
     Evita la desincronización silenciosa factory↔YAML: el error ocurre en la
     recolecta de tests (cuando se importa el factory), no cuando un test
@@ -427,7 +444,7 @@ _validar_sincronizacion()
 
 
 # Conveniencia: exposición del resultado esperado del documento base.
-# Desde el paso 4 el documento base pasa las 49 reglas: no hay desvíos, solo
+# Desde el paso 4 el documento base pasa las 50 reglas: no hay desvíos, solo
 # 2 esquemas que no le aplican.
 DESVIOS_BASE = 0
 TOTAL_REGLAS = len(REGLAS)
