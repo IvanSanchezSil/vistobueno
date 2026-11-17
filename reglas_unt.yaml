@@ -1126,11 +1126,17 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas
     separadas)."'
+  # Revisión PR #102: el primer ítem comparaba `contains(..., 'contenidos')`,
+  # que también coincide con prosa del cuerpo ("los contenidos de…"), así que
+  # la regla pasaba sin comprobar que existiera el índice de contenidos. Ahora
+  # exige el TEXTO COMPLETO del título: "Índice" (tesis aprobada) o "Índice de
+  # contenidos". Los ítems de tablas y figuras conservan `contains` (límite
+  # conocido: una mención en prosa también los satisface); no se endurecen sin
+  # plantillas reales para contrastar.
   presencia_xml:
   - parte: document
     contexto: todos
-    xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'contenidos')]
+    xpath: //w:body//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de contenidos' or normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice']
     comparacion: exists
   - parte: document
     contexto: todos
@@ -1401,18 +1407,21 @@ reglas:
   ubicacion: "Sección Índice (párr. 193, 1066, 2600, 3495)"
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)." — Manual, párrafo 193.'
-  # M3 (VA-04): el texto real es "ÍNDICE DE CONTENIDOS/TABLAS/FIGURAS". El
-  # XPath pliega tildes (translate) y compara el TEXTO COMPLETO del párrafo,
+  # M3 (VA-04): el texto real es "ÍNDICE DE CONTENIDOS/TABLAS/FIGURAS", pero la
+  # tesis aprobada titula la primera sección solo "Índice" (párr. 62). El
+  # XPath pliega tildes (translate) y compara el TEXTO COMPLETO del párrafo
   # para que la línea PAGEREF de la tabla de contenido no se confunda con el
   # título de la sección (revisión PR #102). Con `contains` y solo tildes
   # plegadas la regla daba un falso positivo `paginas_repetidas` sobre la
   # tesis aprobada (10, 11, 11); con el texto completo exacto pasa (10, 12,
-  # 14). Límite: se toma la primera coincidencia de cada XPath en orden de
-  # documento.
+  # 14). El primer XPath prefiere "indice de contenidos" y solo cae al título
+  # genérico "indice" cuando aquel no existe, para que un título paraguas
+  # "ÍNDICE" no le gane a la subdivisión. Límite: se toma la primera
+  # coincidencia de cada XPath en orden de documento.
   paginacion:
     comparacion: paginas_distintas
     xpaths:
-      - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"]'
+      - '(//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"] | //w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice"][not(//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"])])[1]'
       - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de tablas"]'
       - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de figuras"]'
 
