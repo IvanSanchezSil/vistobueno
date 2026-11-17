@@ -326,6 +326,15 @@ reglas:
   # (párr. 176) pero no da tolerancia. Se usa 0,1 cm (1 mm): absorbe el
   # redondeo cm↔EMU y el ajuste manual del dibujo sin admitir un logo de
   # otro tamaño. Tolerancia ratificada el 2026-11-16.
+  # Desvío conocido: la plantilla oficial que se entrega al estudiante trae
+  # el logo a 6,10 x 4,88 cm, fuera de la tolerancia. El manual es la fuente
+  # de verdad y la plantilla es solo una guía, así que el aviso se mantiene
+  # como `warning` y se lee como «la plantilla oficial se aparta del
+  # manual», no como defecto del estudiante.
+  # La comparación se aplica a todas las imágenes de la carátula: con
+  # `cantidad_minima: 1`, una carátula con el logo correcto y cualquier otra
+  # imagen no cumple. La descripción de la regla habla en singular, así que
+  # el aviso no debe leerse como «una imagen con el tamaño esperado».
   # El ancho es el `cx` y el alto el `cy` del `wp:extent`; `contexto:
   # caratula` limita la búsqueda a la primera sección, así que una imagen
   # solo en el cuerpo o en el encabezado no satisface la carátula.
