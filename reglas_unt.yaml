@@ -1290,12 +1290,19 @@ reglas:
   aplicar_si:
     tipo_documento: tinv_cuantitativo
   descripcion: Anexos obligatorios para Trabajo de Investigación Cuantitativo
+  # EVALUADO (M6/VA-14): decisión de 2026-11-08. El manual dice «Base de
+  # datos cuantitativo» y la tesis real titula «Base de datos»; el ítem 5 se
+  # fija como «Base de datos». La comparación es por subcadena, así que
+  # también satisface el título largo. Un anexo escaneado como imagen no se
+  # ve en el texto XML: la ausencia reportada exige revisión manual.
+  # Comparación por subcadena ratificada el 2026-11-16: se mantiene, sin
+  # exigir coincidencia de título completo.
   valor_esperado:
   - Matriz de consistencia
   - Instrumento(s) de recolección de datos
   - Ficha técnica del instrumento
   - Consentimiento informado
-  - Base de datos cuantitativa
+  - Base de datos
   - Reporte de similitud
   - Carta de autorización institucional
   - Declaración jurada
@@ -1314,7 +1321,7 @@ reglas:
     - Instrumento(s) de recolección de datos
     - Ficha técnica del instrumento
     - Consentimiento informado
-    - Base de datos cuantitativa
+    - Base de datos
     - Reporte de similitud
     - Carta de autorización institucional
     - Declaración jurada

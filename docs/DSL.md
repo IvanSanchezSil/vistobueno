@@ -354,7 +354,11 @@ lista_obligatoria:
 ```
 
 - Cada ítem se busca como subcadena (normalizada a minúsculas) en el texto
-  de la sección. Usado por las reglas de *anexos mínimos*.
+  de la sección. Usado por las reglas de *anexos mínimos*. Por ser
+  subcadena, un ítem corto como «Base de datos» también satisface títulos
+  más largos («Base de datos cuantitativa»).
+- Solo se lee el texto del DOCX: un anexo escaneado como imagen no se
+  detecta y su ausencia reportada exige revisión manual.
 - `hasta_final: true` es necesario en anexos: sin él, `seccion()` cortaría
   en el primer `TITULO` posterior (el siguiente "Anexo N.") y solo se
   revisaría el primero. Con él, el slice llega al final del documento.

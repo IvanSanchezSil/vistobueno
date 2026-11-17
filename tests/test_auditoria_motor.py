@@ -128,6 +128,46 @@ def test_aud02_reporta_todos_los_faltantes_sin_truncar():
     assert "Carta de autorización de publicación" in regla.found
 
 
+def _anexos_con(nombre: str | None) -> dict:
+    """Fixture con el ítem 5 renombrado o eliminado (M6/VA-14).
+
+    Un plan cuantitativo no lleva el anexo «Base de datos cualitativa»: se
+    retira para que la ausencia del ítem 5 no quede oculta por esa cadena.
+    """
+    cfg = configuracion_anexos_titulos()
+    items = cfg["anexos_items"]
+    items.remove("Base de datos cuantitativa")
+    items.remove("Base de datos cualitativa")
+    if nombre is not None:
+        items.insert(4, nombre)
+    return cfg
+
+
+def test_m6_reconoce_el_titulo_real_base_de_datos():
+    """VA-14: la tesis real titula «Base de datos», no «... cuantitativa»."""
+    path = compilar_docx(_anexos_con("Base de datos"))
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["anexos_minimos_cuantitativo"]
+    assert regla.passed, regla.found
+    assert regla.severity.value == "warning"
+
+
+def test_m6_informa_la_ausencia_del_anexo():
+    """VA-14: si el anexo no está, la regla lo informa (no queda verde)."""
+    path = compilar_docx(_anexos_con(None))
+    try:
+        res = _por_regla(validate_docx(path, RULES))
+    finally:
+        _sin_archivo(path)
+    regla = res["anexos_minimos_cuantitativo"]
+    assert not regla.passed
+    assert "Base de datos" in regla.found
+    assert "items_obligatorios=9" in regla.found
+
+
 def _para_sz(texto: str, sz: str) -> str:
     return (
         "<w:p><w:r><w:rPr>"

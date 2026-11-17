@@ -133,6 +133,20 @@ decisión de 2026-11-08. Mantener warning. **Aceptación:** el título real se
 reconoce y su ausencia se informa. Un anexo como imagen requiere revisión
 manual; texto XML no encontrado no demuestra ausencia del contenido escaneado.
 
+- **Estado 2026-11-15:** corregido en `c2eb680`. El ítem 5 de
+  `anexos_minimos_cuantitativo` es «Base de datos» y conserva `warning`. La
+  nota `EVALUADO` documenta la decisión y el límite: la comparación es por
+  subcadena y un anexo escaneado como imagen no se ve en el texto XML, así
+  que la ausencia reportada exige revisión manual. Evidencia:
+  `937 passed, 4 skipped`; regresión `test_m6_*` (título real reconocido y
+  ausencia informada); ruff, ruff format, mypy y linter limpios; ejemplos
+  regenerados.
+- **Decisión ratificada (2026-11-16):** la comparación por **subcadena** se
+  mantiene: un anexo «Base de datos cualitativa» también satisface el ítem
+  cuantitativo. No se exige coincidencia de título completo. Sigue en pie el
+  otro límite, que no es una decisión: un anexo escaneado como imagen no se
+  ve en el texto XML, así que la ausencia reportada exige revisión manual.
+
 ### M7. Comprobar lo que anuncia la regla del logo — VA-15
 
 **Archivos:** regla `caratula_logotipo_tamano`, analizador de imagen, tests.

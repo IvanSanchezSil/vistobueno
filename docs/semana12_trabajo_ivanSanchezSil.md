@@ -212,6 +212,29 @@ comportamiento ya implementado; el manual local no está en el repo.
 **Entrega:** commit `feeab66`, rama `semana12-m5-resumen-abstract`, PR apilado
 sobre #103.
 
+### 2026-11-15 — M6 / VA-14: nombre del anexo «Base de datos»
+
+**Reproducción previa al arreglo:** con la tesis real titulada «Base de datos»
+(no «Base de datos cuantitativa»), `anexos_minimos_cuantitativo` reportaba el
+ítem como faltante (`faltan=['Base de datos cuantitativa']`).
+
+**Arreglo:** el ítem 5 de `anexos_minimos_cuantitativo` pasa a «Base de datos»
+y se añade la nota `EVALUADO` con la decisión de 2026-11-08. La regla sigue en
+`warning`. Se documenta que la detección es textual (un anexo escaneado como
+imagen requiere revisión manual) y que la comparación por subcadena hace que
+«Base de datos cualitativa» también satisfaga el ítem.
+
+**Decisión ratificada (2026-11-16):** la comparación por **subcadena** se
+mantiene; no se exige coincidencia de título completo. La ratificación confirma
+el comportamiento ya implementado.
+
+**Verificación:** `937 passed, 4 skipped`; regresión `test_m6_*` (título real
+reconocido y ausencia informada); ruff, ruff format, mypy y linter limpios;
+ejemplos regenerados con el valor esperado nuevo.
+
+**Entrega:** commit `c2eb680`, rama `semana12-m6-anexo-base-datos`, PR apilado
+sobre #104.
+
 ---
 
 ## Evidencias
@@ -225,8 +248,10 @@ sobre #103.
 | Suite M11 | 836 passed, 4 skipped, 6 xfailed |
 | Regresión M4 | `tests/test_tipo_documento.py::TestDeclaracionesMultiples` (9 casos) |
 | Regresión M5 | `tests/test_f3_mecanizacion.py::TestM5ResumenAbstract` (10 casos) |
+| Regresión M6 | `tests/test_auditoria_motor.py::test_m6_*` (2 casos) |
 | Suite M4 | 924 passed, 4 skipped |
 | Suite M5 | 935 passed, 4 skipped |
+| Suite M6 | 937 passed, 4 skipped |
 | Estado de los hallazgos | §2 de `HANDOVER_CORRECTITUD_2026-11-12.md` |
 
 ---
