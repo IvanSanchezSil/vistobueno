@@ -1,6 +1,6 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.13.0 (2026-11-12 — trámite del depósito y título observado)<br>
+**Versión**: 1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)<br>
 **Fecha**: 2026-11-12<br>
 **Estado**: Implementado
 
@@ -496,14 +496,16 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=false" \
 
 | Código | Significado |
 |--------|-------------|
-| `200` | Validación exitosa |
-| `204` | Ficha o depósito publicado en el buzón |
+| `200` | Validación exitosa, conciliación aplicada o papeleo generado |
+| `201` | Ficha publicada en el buzón (`POST /ficha-pendiente`) |
+| `204` | Depósito confirmado, inconsistencia registrada o conciliación aplicada sin cuerpo |
 | `400` | Campo `archivo` presente pero sin nombre |
 | `403` | Petición al buzón desde otro equipo o sin token válido (solo en los endpoints del buzón) |
-| `404` | Ficha o depósito reportados: vacíos o expirados (TTL de 1 hora) |
+| `404` | Ficha fuera de la ventana de autorrelleno, o trámite/depósito fuera de la ventana de retención |
+| `409` | Revisión, título, autores o estado canónico en conflicto: no se cambia nada |
 | `413` | Archivo excede 10 MB |
 | `415` | Tipo de archivo no soportado (no es `.docx`) |
-| `422` | Solicitud mal formada (sin campo `archivo`) / Cabecera ZIP inválida / Archivo vacío / DOCX corrupto o sin estructura válida / Correo inválido |
+| `422` | Solicitud mal formada (sin campo `archivo`) / Cabecera ZIP inválida / Archivo vacío / DOCX corrupto o sin estructura válida / Correo inválido / Falta la atestación del operador o la revisión esperada / Handle no institucional |
 | `429` | Se superó el límite de peticiones de validación (header `Retry-After`) |
 | `500` | Error interno del servidor |
 
@@ -567,33 +569,127 @@ pre-llenar).
   `POST /ficha-pendiente`) para que el userscript la lea y rellene el
   formulario oficial. Ver la sección siguiente.
 
-## Buzón de una ranura (comunicación con el userscript)
+## Buzón del trámite de depósito (v1.14.0)
 
 Mecanismo de intercambio entre la SPA y el userscript que corre sobre
 las páginas de DSpace en el navegador del operador. Sin archivos, sin
-pegar, sin sesiones: **una ranura en memoria del proceso, TTL de 1 hora,
-"última gana"**. Supuesto documentado: un operador, una tesis en vuelo.
+pegar, sin sesiones: **una ranura en memoria del proceso, "última gana"**.
+Supuesto documentado: un operador, una tesis en vuelo.
+
+La v1.14.0 separa tres estados que antes se confundían:
+
+| Estado | Qué lo prueba | Quién lo registra |
+|--------|---------------|-------------------|
+| Rellenado | la ficha se copió al formulario | el userscript (lectura del buzón) |
+| Enviado | hubo un clic en "Depositar" | el userscript (`timestamp`) |
+| Archivado | el operador confirmó el ítem | el operador (atestación explícita) |
+
+El clic en "Depositar" **no** prueba que el ítem exista. El estado
+archivado es una **atestación del operador**, no un estado verificado por
+el servidor: el servidor no consulta DSpace.
 
 ### Endpoints
 
 | Endpoint | Método | Quién llama | Qué hace |
 |----------|--------|-------------|----------|
-| `/ficha-pendiente` | `POST` (201) | la SPA | Publica la ficha completada y devuelve `{tramite_id, vence_en}`; reemplaza la anterior |
-| `/ficha-pendiente` | `GET` → `{ficha, tramite_id, vence_en}` | el userscript | Lee la ficha a rellenar y su identidad; `404` si vacía o expirada |
-| `/deposito` | `POST` (204) | el userscript | Reporta `{tramite_id, handle, titulo_observado, timestamp}` del ítem archivado |
-| `/deposito` | `GET` → `DepositoRecibido` | la SPA | Sondea el reporte; `404` si vacío o expirado |
+| `/ficha-pendiente` | `POST` (201) | la SPA | Publica la ficha completada y devuelve `{tramite_id, revision, autofill_hasta, retenido_hasta, vence_en}`; reemplaza la anterior |
+| `/ficha-pendiente` | `GET` → `{ficha, tramite_id, revision, …}` | el userscript | Lee la ficha a rellenar; `404` si la ranura está vacía o venció la ventana de autorelleno |
+| `/tramite` | `GET` → `{ficha, tramite_id, revision, inconsistencia, deposito, …}` | la SPA y el userscript | Lee el trámite retenido completo, aunque el autorelleno ya venció |
+| `/deposito` | `POST` (204) | el userscript (tras el clic del operador) | Confirma el depósito archivado: `{tramite_id, handle, titulo_observado, autores_observados?, timestamp, revision_esperada, atestacion}` |
+| `/deposito` | `GET` → `DepositoRecibido` | la SPA | Lee la confirmación; `404` si no hay o venció la retención |
+| `/ficha-pendiente/inconsistencia` | `POST` (204) | el userscript | Marca una divergencia entre el ítem y la ficha; bloquea el papeleo hasta conciliar |
+| `/ficha-pendiente/reconciliar` | `POST` → `ReconciliacionResponse` | la SPA | Reemplaza la ficha canónica por una corrección revisada; incrementa la revisión |
 
-- `FichaPendientePublicada.tramite_id`: identifica una publicación
-  concreta. `vence_en` indica cuándo expira.
-- `DepositoRecibido.handle`: URI del ítem (`https://hdl.handle.net/…`).
-- `DepositoRecibido.titulo_observado`: la SPA lo **coteja por igualdad
-  normalizada** con la ficha en vuelo antes de usar el handle. La
-  coincidencia por inclusión no identifica una tesis.
-- `DepositoRecibido.timestamp`: momento del clic en "Depositar"
-  capturado por el userscript (ISO 8601, hora de pared del Perú);
-  alimenta la columna HORA del registro y la constancia. Un timestamp
-  sin offset se interpreta como `America/Lima`; uno con offset se
-  convierte a esa zona (AUD-32).
+### Dos ventanas de tiempo
+
+| Ventana | Variable | Por defecto | Qué vence |
+|---------|----------|-------------|-----------|
+| Autorrelleno | `VISTOBUENO_TTL_AUTORRELLENO_SEG` | 1 hora | la ficha deja de servirse en `GET /ficha-pendiente` |
+| Retención del trámite | `VISTOBUENO_TTL_TRAMITE_SEG` | 24 horas | el trámite completo desaparece (ficha, depósito y estado) |
+
+La retención se ajusta al alza si el valor de autorrelleno es mayor
+(`retencion = max(retencion, autorrelleno)`). **Vencer el autorrelleno no
+borra nada**: la ficha canónica, la identidad del trámite, la evidencia
+de depósito y la confirmación siguen disponibles en `GET /tramite` hasta
+que vence la retención. Solo se corta la ventana de relleno.
+
+### Confirmación explícita del depósito
+
+`POST /deposito` es un contrato de escritura **quebrado** respecto de
+v1.13.0: el payload automático de la versión anterior recibe `422` y no
+crea evidencia ni habilita papeleo.
+
+```json
+{
+  "tramite_id": "a1b2c3",
+  "handle": "https://hdl.handle.net/20.500.14414/27871",
+  "titulo_observado": "Taller de dramatización de títeres",
+  "autores_observados": ["Cerna Vidal Kassiel"],
+  "timestamp": "2026-11-16T09:30:00-05:00",
+  "revision_esperada": 0,
+  "atestacion": "operador"
+}
+```
+
+Reglas del servidor:
+
+- `atestacion` debe ser exactamente `"operador"`. Sin ese campo, la
+  respuesta es `422`.
+- `revision_esperada` debe ser igual a la revisión vigente. Si no, la
+  respuesta es `409` y **no cambia nada**: un panel viejo no confirma
+  datos nuevos. El servidor guarda la revisión exacta que se confirmó.
+- `handle` debe tener la forma institucional exacta
+  `https://hdl.handle.net/20.500.14414/<número>`; otra cosa es `422`.
+- El título observado se compara por **igualdad normalizada** (sin
+  acentos, sin diferencias de caja) con el título canónico. Si la ficha
+  canónica no trae título, no hay nada que comparar: la confirmación se
+  registra con `titulo_verificado=false`. Si el título canónico existe y
+  difiere, la respuesta es `409` y el operador debe conciliar.
+- `autores_observados` es **opcional**: son la evidencia publicada por la
+  página del ítem. Si vienen, se comparan por conjunto normalizado con
+  los autores canónicos; si difieren, la respuesta es `409`. Si no
+  vienen, la confirmación se registra con `autores_verificados=false` y
+  la interfaz dice "autores no verificados" (nunca "coinciden").
+- `timestamp` es el momento del clic en "Depositar" (hora de Perú) y
+  sigue alimentando la columna HORA del registro y de la constancia. El
+  servidor genera `confirmado_en`, que es **solo auditoría**.
+
+Respuestas:
+
+| Código | Cuándo |
+|--------|--------|
+| `204` | confirmación aceptada |
+| `404` | no hay trámite retenido |
+| `409` | el trámite, la revisión, el título o los autores no coinciden |
+| `422` | falta la atestación, falta la revisión esperada o el handle no es institucional |
+
+### Conciliación e inconsistencia
+
+- `POST /ficha-pendiente/reconciliar` exige `revision_esperada`, `motivo`
+  y un `handle` válido. Con una revisión obsoleta devuelve `409` y no
+  escribe nada. **Funciona sin depósito**: no crea evidencia de depósito
+  ni habilita papeleo. Con un depósito confirmado exige el mismo handle,
+  conserva la evidencia e **invalida la confirmación**: la revisión
+  nueva exige una reconfirmación. El handle nunca aprueba datos por sí
+  solo.
+- `POST /ficha-pendiente/inconsistencia` exige `revision_esperada` y al
+  menos un motivo. Marca la divergencia y bloquea el papeleo hasta la
+  conciliación. Una revisión obsoleta devuelve `409` y no cambia nada.
+
+### Condiciones para generar papeleo
+
+`POST /fila-registro` y `POST /constancia` devuelven `409` si falta
+alguna de estas condiciones:
+
+1. hay un depósito confirmado del `tramite_id` de la solicitud;
+2. el `handle` y el `timestamp` de la solicitud coinciden con los del
+   depósito;
+3. `revision_confirmada` del depósito es igual a la revisión vigente;
+4. no hay inconsistencia pendiente de conciliar;
+5. la ficha de la solicitud es **exactamente** igual a la ficha canónica.
+
+El papeleo usa los valores del servidor (ficha canónica, handle y
+timestamp del depósito). El cliente no puede sustituirlos.
 
 ### Seguridad
 
@@ -756,6 +852,54 @@ dos autores generan dos constancias y dos filas con el mismo handle.
   copia las celdas del archivo descargado.
 
 ## Changelog
+
+### v1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)
+
+**Cambio incompatible**: el userscript 1.2.0 es la única versión que
+habla con este contrato. El estado guardado por la versión 1.1.0 se
+descarta (no se migra): el protocolo 2 usa la clave `vb_envio` con
+`protocolo: 2`.
+
+- **`POST /deposito` exige atestación y revisión**: el payload debe
+  incluir `atestacion: "operador"` y `revision_esperada`. El payload
+  automático de v1.13.0 (sin atestación ni revisión) recibe `422` y no
+  crea evidencia ni habilita papeleo.
+- **Rellenar, enviar y archivar son estados distintos**: el clic en
+  "Depositar" solo aporta la `timestamp` (hora del papeleo). El estado
+  archivado requiere la confirmación explícita del operador en la página
+  del ítem. Es una atestación del operador, no un estado verificado por
+  el servidor.
+- **Revisión de la ficha**: `POST /ficha-pendiente` devuelve `revision`;
+  cada conciliación la incrementa. La confirmación guarda la revisión
+  exacta (`revision_confirmada`). Una confirmación con revisión obsoleta
+  devuelve `409` y no cambia nada.
+- **Nueva conciliación**: `POST /ficha-pendiente/reconciliar` reemplaza
+  la ficha canónica. Funciona sin depósito (no crea evidencia) y con
+  depósito (exige el mismo handle e invalida la confirmación).
+- **Nueva marca de inconsistencia**: `POST /ficha-pendiente/inconsistencia`
+  bloquea el papeleo hasta la conciliación.
+- **Nueva lectura del trámite**: `GET /tramite` devuelve la ficha
+  canónica, la revisión, la inconsistencia y el depósito confirmado.
+- **Dos ventanas**: `VISTOBUENO_TTL_AUTORRELLENO_SEG` (1 hora, solo el
+  relleno) y `VISTOBUENO_TTL_TRAMITE_SEG` (24 horas, el trámite
+  completo). Vencer el autorrelleno no borra la ficha, la identidad, la
+  evidencia ni la confirmación.
+- **Autores opcionales**: `autores_observados` es la evidencia publicada
+  por la página del ítem. Si no viene, la confirmación se registra con
+  `autores_verificados=false`; la interfaz dice "no verificados".
+- **Título con comparación exacta**: `titulo_verificado` indica si el
+  título canónico existía y coincidió. Si la ficha canónica no trae
+  título, no hay nada que comparar y el valor es `false`.
+- **Handle estricto**: solo se acepta la forma institucional
+  `https://hdl.handle.net/20.500.14414/<número>`.
+- **El papeleo exige confirmación vigente**: `POST /fila-registro` y
+  `POST /constancia` devuelven `409` sin depósito confirmado, con
+  revisión invalidada, con inconsistencia pendiente o con una ficha que
+  no sea exactamente la canónica.
+- **`DepositoRecibido`** agrega `revision_confirmada`, `confirmado_en`,
+  `confirmado_por`, `confirmacion_vigente`, `titulo_verificado` y
+  `autores_verificados`. El alias `titulo` se conserva como
+  deprecado.
 
 ### v1.13.0 (2026-11-16 — trámite del depósito, estado canónico y título observado)
 

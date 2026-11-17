@@ -58,10 +58,10 @@ la sede.
 
 | Componente | Estado | Nota |
 |---|---|---|
-| API de validación | Listo | Contrato v1.13.0 |
+| API de validación | Listo | Contrato v1.14.0 |
 | Pantalla de ficha de depósito | Listo | Verificada contra la API real el 2026-11-04 |
-| Buzón de una ranura | Listo | TTL 1 h, "última gana", un solo worker |
-| Userscript de relleno | Listo | Versión 1.1.0, `@connect localhost` |
+| Buzón de una ranura | Listo | "Última gana", un solo worker; 1 h de autorrelleno y 24 h de retención del trámite |
+| Userscript de relleno | Listo | Versión 1.2.0 (protocolo 2), `@connect localhost` |
 | Mock de DSpace | Listo | Para ensayo sin tocar la instancia real |
 | Constancia (Modelo B) y fila del registro | Listo | Requiere `VISTOBUENO_FIRMA` y la plantilla oficial |
 | Hallazgos AUD-24 a AUD-27 del motor | **Abiertos** | Los ve el operador; ver §7 |
@@ -81,7 +81,7 @@ resuelve o se pospone el piloto; no se improvisa durante el ensayo.
 | 3 | Un `Host` ajeno se rechaza | `curl -s -o /dev/null -w "%{http_code}\n" -H "Host: atacante.example" http://127.0.0.1:8000/docs` → **400** |
 | 4 | La plantilla del Modelo B está en `recursos/` | Existe `recursos/TESIS DIGITAL MODELO B-2026.docx`, o `VISTOBUENO_PLANTILLA_CONSTANCIA` apunta a ella |
 | 5 | `VISTOBUENO_FIRMA` está definida | `curl` a `POST /constancia` con una ficha de prueba no devuelve **500** |
-| 6 | El userscript está instalado en Tampermonkey en su versión actual | Tampermonkey muestra **1.1.0** en la lista de scripts |
+| 6 | El userscript está instalado en Tampermonkey en su versión actual | Tampermonkey muestra **1.2.0** en la lista de scripts. La 1.1.0 habla el protocolo 1: no es compatible con el contrato v1.14.0 |
 | 7 | La SPA está levantada y apuntando a la API local | La pantalla de carga abre y el botón de subir documento responde |
 | 8 | Hay un documento de prueba aprobado | Una tesis real del operador o `docs/ejemplos/doc_bueno.docx`. **Nunca** una plantilla oficial vacía |
 | 9 | El navegador no tiene una ficha de una sesión anterior | La clave `vb-ficha-deposito` de `localStorage` está limpia |
@@ -139,8 +139,9 @@ cada uno, en el mismo orden.
 Se corrige lo que haga falta y se pulsa **«Preparar depósito»**.
 
 **Esperado:** la pantalla entra en el panel de espera y la API responde
-**`201`** `POST /ficha-pendiente` con `{tramite_id, vence_en}`. La SPA
-conserva esa identidad y solo acepta un depósito del mismo trámite.
+**`201`** `POST /ficha-pendiente` con `{tramite_id, revision,
+autofill_hasta, retenido_hasta, vence_en}`. La SPA conserva esa identidad y
+solo acepta un depósito del mismo trámite.
 
 Comprobación por terminal:
 
@@ -148,8 +149,12 @@ Comprobación por terminal:
 curl -s http://127.0.0.1:8000/ficha-pendiente | head -c 400
 ```
 
-**Esperado:** el sobre `{ficha, tramite_id, vence_en}`. La ficha contiene
-los valores corregidos del paso 4.
+**Esperado:** el sobre `{ficha, tramite_id, revision, ...}`. La ficha
+contiene los valores corregidos del paso 4.
+
+El trámite tiene dos ventanas: 1 hora para el **autorrelleno** y 24 horas
+de **retención** del trámite completo. Vencer la primera no borra la
+ficha: el trámite sigue en `GET /tramite`.
 
 ### Paso 6 — Rellenar el formulario de DSpace
 
@@ -167,26 +172,49 @@ El userscript **no** toca el selector de archivos. El operador adjunta el
 
 **Esperado:** el botón **Depositar** queda habilitado.
 
-### Paso 8 — Enviar y capturar el handle
+### Paso 8 — Enviar y registrar la hora del clic
 
 Se pulsa **Depositar**.
 
-**Esperado:** el userscript reporta el handle, el trámite, el título
-observado y el timestamp al buzón:
+**Esperado:** el clic queda registrado como la hora del envío (ISO 8601,
+hora de Perú). **Todavía no hay depósito confirmado**: el clic en
+"Depositar" no prueba que el ítem exista.
+
+Comprobación por terminal:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8000/deposito
+```
+
+**Esperado:** `404`. Si devuelve `200`, el userscript instalado es el
+antiguo (1.1.0): hay que actualizarlo a la versión 1.2.0.
+
+### Paso 9 — Confirmar el ítem archivado
+
+En la página del ítem (`/items/<uuid>`), el userscript muestra un panel
+con el handle, el título y los autores observados. El operador compara
+esos datos con la ficha y pulsa **«Confirmar depósito archivado»**.
+
+**Esperado:** el panel queda en "Confirmado por el operador" y el buzón
+devuelve la confirmación:
 
 ```bash
 curl -s http://127.0.0.1:8000/deposito
 ```
 
-**Esperado:** `handle`, `tramite_id`, `titulo_observado` y `timestamp`
-(ISO 8601, hora de Perú). El campo `titulo` se conserva como alias
-deprecado.
+**Esperado:** `handle`, `tramite_id`, `titulo_observado`, `timestamp`,
+`revision_confirmada`, `confirmado_en`, `confirmado_por: "operador"` y
+`confirmacion_vigente: true`.
 
-La SPA coteja el `titulo_observado` recibido con la ficha en vuelo por
-igualdad normalizada. La coincidencia por inclusión no basta. Si no
-coinciden, avisa y no usa el handle: es la defensa contra un handle ajeno.
+- Si el título no coincide, el panel no deja confirmar y la API responde
+  `409`. La coincidencia por inclusión no basta.
+- Si la página no publica autores, la confirmación queda con
+  `autores_verificados: false`: el panel dice "autores no verificados",
+  nunca "coinciden".
+- El estado "archivado" es una **atestación del operador**. La API no
+  consulta DSpace.
 
-### Paso 9 — Generar la constancia
+### Paso 10 — Generar la constancia
 
 Desde la pantalla de la ficha, la descarga de constancia.
 
@@ -204,7 +232,7 @@ deposite de nuevo en lugar de editar el timestamp o el handle.
 > o la plantilla del Modelo B. El mensaje en el `detail` nombra cuál de
 > las dos.
 
-### Paso 10 — Generar la fila del registro
+### Paso 11 — Generar la fila del registro
 
 **Esperado:** una fila con las columnas del registro oficial, en orden:
 N°, TESIS/TSP, BACHILLER/LICENCIADO, N° MATRIC., DD, MM, AA, HORA,
@@ -217,15 +245,15 @@ Excel o LibreOffice, sin errores de pegado.
 La columna **N° va vacía**: la numeración es del registro oficial de la
 biblioteca.
 
-### Paso 11 — Un caso límite
+### Paso 12 — Un caso límite
 
 Con la misma sesión, se prueba **uno** de estos tres:
 
 | Caso | Cómo se provoca | Comportamiento esperado |
 |---|---|---|
-| Ficha expirada | Se deja pasar más de 1 hora desde «Preparar depósito» | `GET /ficha-pendiente` devuelve `404`; el userscript avisa que no hay ficha |
-| Título que no coincide | Se edita el título en la pantalla **después** de preparar el depósito | La SPA avisa la discrepancia y no usa el handle |
-| Colección equivocada | Se elige otra colección en el formulario de DSpace | El depósito se registra igual, pero el handle apunta a otra colección: se anota como hallazgo de la sede, no del software |
+| Ficha expirada | Se deja pasar más de 1 hora desde «Preparar depósito» | `GET /ficha-pendiente` devuelve `404`; el userscript avisa que no hay ficha. El trámite sigue en `GET /tramite` hasta las 24 h |
+| Título que no coincide | Se edita el título en la pantalla **después** de preparar el depósito | La SPA avisa la discrepancia y no usa el handle. Si hay un depósito confirmado, la conciliación incrementa la revisión y exige una reconfirmación |
+| Colección equivocada | Se elige otra colección en el formulario de DSpace | El handle apunta a otra colección: se anota como hallazgo de la sede, no del software |
 
 **Esperado:** en los tres casos el sistema no falla en silencio y el
 operador tiene una señal visible.
@@ -272,6 +300,10 @@ Además:
   formulario oficial.
 - El buzón es memoria del proceso: **reiniciar la API lo vacía**. Se
   re-valida y se vuelve a preparar la ficha.
+- El buzón tiene dos ventanas: 1 hora para el **autorrelleno** y 24 horas
+  de **retención** del trámite. Pasada la primera, el userscript ya no
+  rellena el formulario, pero el trámite sigue disponible en
+  `GET /tramite` para confirmar y para el papeleo.
 
 ---
 
@@ -338,9 +370,9 @@ del operador. Eso acota el daño de cualquier depósito de más.
 
 ## 11. Cierre de la sesión
 
-1. Confirmar que el handle del paso 8 aparece en la ficha del buzón y en
-   la fila del registro.
-2. Confirmar que la constancia del paso 9 no tiene MERGEFIELD sin
+1. Confirmar que el handle del paso 9 aparece en la ficha del buzón y en
+   la fila del registro, con `confirmacion_vigente: true`.
+2. Confirmar que la constancia del paso 10 no tiene MERGEFIELD sin
    reemplazar.
 3. Anotar en la tabla de hallazgos todo lo que no salió como se esperaba.
 4. Limpiar el estado local: `localStorage` y el buzón.
@@ -357,7 +389,7 @@ flujo queda **apto para uso diario** o necesita otra iteración.
 | Término | Qué significa aquí |
 |---|---|
 | Ficha de depósito | El conjunto de metadatos que la SPA prepara y el userscript vuelca en el formulario de DSpace |
-| Buzón | Una ranura en memoria de la API donde espera la ficha. TTL 1 h, "última gana" |
+| Buzón | Una ranura en memoria de la API donde espera la ficha. "Última gana"; 1 h de autorrelleno y 24 h de retención del trámite |
 | Handle | La URI que asigna DSpace al ítem depositado (`https://hdl.handle.net/…`) |
 | Extraído | Un valor que la API leyó del `.docx` |
 | Manual | Un valor que escribe el operador: matrícula, DNI, ORCID |
