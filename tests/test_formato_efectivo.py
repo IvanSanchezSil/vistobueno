@@ -209,6 +209,33 @@ def test_alineacion_cuerpo_sigue_exigiendo_justificacion_a_la_prosa():
     assert "(ausente)" in regla.found, regla.found
 
 
+def test_alineacion_cuerpo_sin_prosa_no_aplica():
+    """Un documento sin párrafos de prosa no puede incumplir la alineación.
+
+    Las cinco plantillas oficiales dejan el cuerpo con listas, títulos y
+    leyendas, sin prosa: con `all_eq` sobre 0 nodos la regla salía en error
+    (`sin valores que comparar`) y el estudiante no podía corregirlo. Debe
+    publicarse como no aplicable (revisión PR #100).
+    """
+    cfg = configuracion_base()
+    cfg["cuerpo_prosa_base"] = False
+    cfg["styles"] = _estilos({"DescripcionUN": {"type": "paragraph", "name": "caption"}})
+    cfg["cuerpo_parrafos_extra"] = [
+        {
+            "texto": "Ítem de lista por numeración.",
+            "ppr": '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>',
+        },
+        {"texto": "Tabla 1. Resultados del estudio.", "estilo": "DescripcionUN"},
+        {"texto": "---: Fuente elaborada por el autor."},
+    ]
+
+    regla = _validar(cfg, "alineacion_cuerpo")
+    assert regla is not None
+    assert not regla.aplicable, regla.found
+    assert regla.passed, regla.found
+    assert regla.found == "no aplica a este documento", regla.found
+
+
 def test_estilo_de_caracter_aporta_el_formato_del_run():
     """`w:rStyle` se resuelve antes que el estilo de párrafo."""
     cfg = configuracion_base()

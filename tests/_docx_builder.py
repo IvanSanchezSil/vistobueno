@@ -548,15 +548,19 @@ def _document_xml(cfg: dict) -> str:
             # Párrafos de prosa del cuerpo: viven entre Introducción y
             # Referencias (el extractor define el cuerpo por ese rango
             # semántico, no por la última sección del documento).
-            paras.append(
-                _cuerpo_para(
-                    "La motricidad fina se desarrolla a través de estrategias lúdicas.", cfg
+            # `cuerpo_prosa_base=False` permite construir un documento cuyo
+            # cuerpo solo tenga listas, títulos y leyendas, como las
+            # plantillas oficiales (revisión PR #100).
+            if cfg.get("cuerpo_prosa_base", True):
+                paras.append(
+                    _cuerpo_para(
+                        "La motricidad fina se desarrolla a través de estrategias lúdicas.", cfg
+                    )
                 )
-            )
-            paras.append(
-                _cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg)
-            )
-            paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
+                paras.append(
+                    _cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg)
+                )
+                paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
             paras.extend(
                 _cuerpo_parrafo_extra(spec) for spec in cfg.get("cuerpo_parrafos_extra", [])
             )
