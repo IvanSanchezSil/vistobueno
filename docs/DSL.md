@@ -101,7 +101,7 @@ Verifica atributos de nodos o su presencia vía XPath.
 ```yaml
 atributo_xml:
   parte: document | footer | header     # defecto: document
-  contexto: todos | cuerpo | seccion_cuerpo | caratula  # defecto: todos
+  contexto: todos | cuerpo | cuerpo_prosa | seccion_cuerpo | caratula  # defecto: todos
   xpath: //w:sectPr[1]/w:pgSz
   atributo: "@w:w"                      # solo para comparaciones de valor
   comparacion: eq | all_eq | contains | exists | not_exists
@@ -118,6 +118,16 @@ atributo_xml:
   Se usa p. ej. en `sangria_parrafo` (esperado 720 twips, tolerancia 12) para
   aceptar los 708/709 twips (~1.25 cm) de las plantillas oficiales. Si el
   valor o el esperado no son numéricos, se compara por igualdad exacta.
+- `contexto: cuerpo` restringe la consulta al cuerpo real (entre el heading
+  "Introducción" y el de "Referencias"/"Bibliografía"/"Anexos") y excluye
+  títulos, párrafos vacíos y líneas de caption `Nota.`/`Fuente.`.
+- `contexto: cuerpo_prosa` es un subconjunto de `cuerpo` que además excluye
+  ítems de lista (`w:numPr` directo o estilo cuyo `w:name` sea
+  `List Paragraph`), títulos de tabla y figura (estilo cuyo `w:name` contenga
+  `caption`) y líneas de leyenda (`---: ...`). El filtro es por nombre de
+  estilo, no por identificador, para que funcione igual en Word en español e
+  inglés. Se usa en `alineacion_cuerpo`: el manual justifica la prosa, no las
+  listas ni los títulos de tabla.
 - `contexto: caratula` restringe la consulta a los párrafos de la carátula:
   los `w:p` de nivel superior anteriores al primer `w:pPr/w:sectPr` del cuerpo
   (el salto que cierra la portada). Si el documento no declara ese salto, se
@@ -523,6 +533,75 @@ Usado por `estructura_tinv_cuantitativo`, `estructura_tinv_cualitativo`,
 `estructura_tinv_revision_literatura` y por las 5 estructuras de
 `reglas_unt_pendientes.yaml`.
 
+### 17. `formato_efectivo` → `AnalizadorFormato` (M1)
+
+Resuelve el formato **efectivo** de los runs o párrafos sujetos a la regla,
+en vez de leer solo el primer run y solo el formato directo. Es la sección
+que usan las reglas de fuente, tamaño, interlineado, alineación y negrita
+del cuerpo y de la carátula.
+
+```yaml
+formato_efectivo:
+  parte: document
+  contexto: cuerpo | cuerpo_prosa | caratula | todos | seccion_cuerpo   # defecto: todos
+  sujeto: run | parrafo                                  # defecto: run
+  parrafo_xpath: //w:body//w:p
+  propiedad: w:rFonts/@w:ascii    # o un toggle: w:b
+  comparacion: eq | all_eq | contains                    # defecto: all_eq
+  esperado: Times New Roman
+  tolerancia: 12                  # opcional, igual que atributo_xml
+  n_a_si_sin_nodos: true          # opcional
+  n_a_si_ausente: true            # opcional
+```
+
+- `parrafo_xpath` selecciona **primero** los párrafos candidatos (respetando
+  `parte` y `contexto`); después se resuelve el valor efectivo de cada sujeto.
+  No se ignora una propiedad ausente ni se supone que cumple.
+- `sujeto: run` evalúa **todos los runs con texto** de cada párrafo,
+  incluidos los que viven dentro de un `w:hyperlink`. Un run sin texto no
+  aporta valor y no exime al párrafo. `sujeto: parrafo` evalúa las
+  propiedades de `w:pPr` (p. ej. `w:jc` o `w:spacing`).
+- `propiedad` es `w:elemento/@w:atributo` para una propiedad con valor, o
+  `w:elemento` para un toggle OOXML (`w:b`, `w:i`, `w:u`). Un toggle
+  ausente en todas las capas devuelve `"0"` (Word lo considera apagado);
+  el resto de propiedades ausentes devuelve `(ausente)`.
+- `comparacion: all_eq` es la recomendada: `eq` solo miraría el primer
+  sujeto y repetiría el defecto de VA-01.
+- `n_a_si_sin_nodos`: si el `parrafo_xpath` no selecciona párrafos, la
+  regla se marca n/a. `n_a_si_ausente`: si la parte XML no existe, la regla
+  se marca n/a en vez de fallar.
+
+**Precedencia de resolución** (de mayor a menor), igual que Word:
+
+1. formato directo: `w:rPr` del run o `w:pPr` del párrafo;
+2. estilo de carácter (`w:rStyle`) y su cadena `basedOn`;
+3. estilo de párrafo (`w:pStyle`, o el estilo de párrafo por defecto
+   `w:default="1"`) y su cadena `basedOn` (sus `w:rPr`/`w:pPr`);
+4. `w:docDefaults` (`w:rPrDefault`/`w:pPrDefault`).
+
+Un ciclo en la cadena `basedOn` no tumba la validación: el analizador lo
+reporta como incumplimiento (`ciclo de estilos: A -> B -> A`), porque un
+documento con estilos cíclicos no permite conocer el formato efectivo.
+
+**Límites declarados** (M1/VA-02): no se resuelven temas (`w:asciiTheme`),
+numeración (`w:numPr`), formato condicional de tablas, estilos de tabla ni
+cambios de formato con seguimiento (`w:rPrChange`/`w:pPrChange`). Leer
+`basedOn` no promete soporte completo de estilos. Un `word/styles.xml`
+ausente o mal formado se trata como ausente: las reglas afectadas fallan
+con `(ausente)` en vez de tumbar la validación.
+
+El alcance de los títulos es explícito: `contexto: cuerpo` excluye los
+párrafos con estilo de título (los títulos tienen su propio formato en el
+manual). Si una regla necesita evaluar títulos, debe seleccionarlos con su
+propio `parrafo_xpath`; el analizador no los exime por sí mismo.
+
+`contexto: cuerpo_prosa` es el subconjunto de prosa de `cuerpo`: además de
+los títulos, excluye listas (`w:numPr` o estilo `List Paragraph`), captions
+de tabla y figura (estilo `Caption`) y leyendas (`---: ...`). Se usa en
+`alineacion_cuerpo`, porque el manual solo justifica el texto continuo;
+`fuente_principal`, `tamano_cuerpo` e `interlineado` siguen con
+`contexto: cuerpo` para revisar también listas y títulos.
+
 ---
 
 ## Componentes de código
@@ -587,7 +666,7 @@ tiempo de carga. Detecta:
   también la sintaxis inválida (p. ej. `//wp:ind` o `//w:p[`). Evita que la
   regla reviente con `XPathEvalError` en tiempo de ejecución.
 - **Claves desconocidas a nivel de regla**: el conjunto de claves válidas es
-  **cerrado** (29 en total: las 18 secciones de analizador más los 11 campos
+  **cerrado** (30 en total: las 19 secciones de analizador más los 11 campos
   de regla). Cualquier otra clave —una sección mal escrita (`atributo_xmls`) o
   un truncamiento (`conteo`)— se reporta; antes la regla desaparecía del
   reporte en silencio. La similitud difusa solo se usa para sugerir la sección

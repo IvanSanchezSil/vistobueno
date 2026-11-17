@@ -35,11 +35,19 @@ la ficha (`reglas_ficha.yaml`):
 |-----------|----------|-----------|
 | Tesis real (copia local con PII) | **verde** | 43 de 49 reglas evaluadas, 6 no aplicables, 0 errores, **5 warnings** |
 | Tesis real, versión anterior (copia local con PII) | **rojo** | 1 error (`estructura_tinv_cuantitativo`: faltan 5 headings) + los mismos 5 warnings |
-| `EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
+| `EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+| `TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 6 warnings |
+
+El resultado de las plantillas es **orientativo**: son documentos de
+instrucción con texto de relleno (el título va en rojo y mezcla negrita),
+así que `caratula_titulo_negrita_mixta` las marca a propósito. La regla se
+mantiene estricta porque, para un estudiante que deja el placeholder, es
+la guía correcta (decisión de la revisión del PR #100). El test
+`tests/test_tipo_documento.py::TestSinCambioDeComportamiento::test_plantillas_oficiales_resultado_orientativo`
+fija este resultado cuando `recursos/` está disponible.
 
 Los 5 warnings de la tesis real (los mismos de la auditoría):
 
@@ -551,8 +559,8 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 
 | ID | Responsable | Estado | Tarea del nuevo handover |
 |----|-------------|--------|-------------------------|
-| VA-01 | Int3 | pendiente | M1: todos los runs |
-| VA-02 | Int3 | pendiente | M1: formato efectivo |
+| VA-01 | Int3 | M1 implementado, pendiente de verificación (PR #100, `8c63dcc`): todos los runs con texto | M1: todos los runs |
+| VA-02 | Int3 | M1 implementado, pendiente de verificación (PR #100, `8c63dcc`): formato efectivo con límites declarados | M1: formato efectivo |
 | VA-03 | Int3 | pendiente | M2: A4 en secciones |
 | VA-04 | Int3 | pendiente | M3: paginación |
 | VA-05 | Int3 | pendiente | M4: declaraciones múltiples |

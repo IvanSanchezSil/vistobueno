@@ -31,6 +31,14 @@ FOOTNOTES_CONTENT_TYPE = (
     'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>\n'
 )
 
+# Override que solo se agrega cuando el ZIP incluye `word/styles.xml` (M1).
+# Declararlo siempre dejaría una parte colgante en el paquete base, que no
+# trae `styles`: el OPC exige que cada `Override` apunte a una parte real.
+STYLES_CONTENT_TYPE = (
+    '  <Override PartName="/word/styles.xml" '
+    'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>\n'
+)
+
 RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
