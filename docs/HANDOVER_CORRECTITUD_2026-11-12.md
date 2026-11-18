@@ -82,7 +82,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-10 | P1 | Resguardo identificado solo por filename | F1 / Int2 | Pendiente |
 | VA-11 | P2 | DOCX malformado devuelve 500 | M1a + B5 / Int3, Int1 | M1a cerrado — PR #99 fusionado (`7d90502`; implementación `f601f29`): el extractor valida XML, raíz y cuerpo con `InvalidDocumentError`; B5 de Int1 pendiente |
 | VA-12 | P2 | Markdown activo en el PDF | M9 / Int3 | Pendiente |
-| VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | Pendiente: PR #75 sigue abierto y con conflictos; el diff queda limitado a la ficha |
+| VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | Cerrado — PR #75 fusionado: AUD-24 a AUD-27 cerrados y etiquetas de las plantillas oficiales cubiertas |
 | VA-14 | P2 | «Base de datos» acordado, pero no aplicado | M6 / Int3 | Cerrado — PR #105 fusionado (`a666778`; implementación `c2eb680`): el ítem 5 es «Base de datos»; el título real se reconoce y su ausencia se informa. Comparación por subcadena ratificada el 2026-11-16. La detección es textual: un anexo escaneado como imagen exige revisión manual |
 | VA-15 | P2 | Se anuncia tamaño de logo sin medirlo | M7 / Int3 | Cerrado — PR #106 fusionado (`de0ca8bb`; implementación `b92f7f3`, `ad78342`); la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) |
 | VA-16 | P2 | ORCID sin comprobación por persona/destino | M8 / Int3 | Pendiente |

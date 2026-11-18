@@ -243,9 +243,10 @@ pytest tests/ --cov=validator --cov-report=term-missing
 nix flake check
 ```
 
-La suite actual (**854 tests recolectados: 845 pasan, 3 se omiten y 6
-quedan en xfail estrictos** en la verificación local) incluye los **tests
-de propiedad** (F6): un factory
+La suite termina **en verde** (referencia en un clon sin `recursos/` ni
+`frontend/dist`: `983 passed, 9 skipped`; los `skipped` son tests que
+necesitan esas carpetas, no fallos; ya no quedan `xfail` de la ficha) e
+incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en
 `tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
 este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)

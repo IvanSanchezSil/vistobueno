@@ -360,6 +360,39 @@ def _caratula_paras(doc) -> set:
     return set(paras[:limite])
 
 
+def _caratula_ficha_paras(doc) -> set:
+    """Párrafos de la carátula incluyendo el que cierra la sección.
+
+    Igual que `_caratula_paras`, pero el conjunto también incluye el primer
+    párrafo que contiene un `w:pPr/w:sectPr` (el salto de sección que
+    delimita la carátula). Ese párrafo suele llevar la ciudad y el año
+    (`Trujillo - Perú, 2026`), que la ficha de depósito necesita capturar
+    para `dc.date.issued` y `dc.title` (handover AUD-26).
+    """
+    paras = doc.xpath("//w:body/w:p", namespaces=NS)
+    limite = len(paras)
+    for i, p in enumerate(paras):
+        pPr = p.find(W + "pPr")
+        if pPr is not None and pPr.find(W + "sectPr") is not None:
+            limite = i + 1
+            break
+    else:
+        # Sin salto de sección no hay forma estructural de delimitar la
+        # carátula. Se corta en el primer encabezado (RESUMEN, DEDICATORIA,
+        # ÍNDICE...): lo que sigue ya es cuerpo y no debe competir por el
+        # año de portada (AUD-26: una referencia «López, J. 2024.» no puede
+        # ganarle al año de la carátula). Sin encabezados, todo el body sigue
+        # siendo candidato (fallback robusto).
+        for i, p in enumerate(paras):
+            pPr = p.find(W + "pPr")
+            st = pPr.find(W + "pStyle") if pPr is not None else None
+            val = st.get(W + "val") if st is not None else ""
+            if es_heading(val):
+                limite = i
+                break
+    return set(paras[:limite])
+
+
 class CicloEstilosError(ValueError):
     """Ciclo en la cadena `basedOn` de los estilos de Word.
 
@@ -768,6 +801,10 @@ class ExtractedDocx:
     # Párrafos de la carátula (primera sección; issue handover #3): las
     # reglas de carátula validan SOLO estos, no keywords repetidas en el cuerpo.
     _caratula: set = field(default_factory=set, repr=False)
+    # Párrafos de la carátula **más el párrafo que cierra la sección** (el
+    # `w:p` con `w:pPr/w:sectPr` que lleva la ciudad y el año). Usado por las
+    # reglas de la ficha de depósito (diseño 17, AUD-26).
+    _caratula_ficha: set = field(default_factory=set, repr=False)
     # Secciones que rigen el cuerpo real (issue handover #2): las reglas de
     # márgenes validan solo estas, excluyendo secciones landscape de anexos.
     _secciones_cuerpo: set = field(default_factory=set, repr=False)
@@ -821,6 +858,14 @@ class ExtractedDocx:
     def is_caratula(self, node) -> bool:
         """¿El nodo vive en un párrafo de la carátula (primera sección)?"""
         return _para_ancestor(node) in self._caratula
+
+    def is_caratula_ficha(self, node) -> bool:
+        """¿El nodo vive en la carátula **o en el párrafo que cierra la sección**?
+
+        Para las reglas de la ficha de depósito: captura también el `w:p`
+        con `w:pPr/w:sectPr` (ciudad y año) que la carátula pura excluye.
+        """
+        return _para_ancestor(node) in self._caratula_ficha
 
     def _nodo_seccion(self, node):
         """Ancestro `w:sectPr` del nodo (o el mismo si es un sectPr)."""
@@ -944,6 +989,8 @@ class ExtractedDocx:
             nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
         if contexto == "caratula":
             nodos = [n for n in nodos if self.is_caratula(n)]
+        if contexto == "caratula_ficha":
+            nodos = [n for n in nodos if self.is_caratula_ficha(n)]
         self._cache[clave] = nodos
         return nodos
 
@@ -1027,6 +1074,7 @@ def extract(docx_path: str) -> ExtractedDocx:
         _cuerpo=_cuerpo_paras(document),
         _cuerpo_prosa=_cuerpo_prosa(document, styles),
         _caratula=_caratula_paras(document),
+        _caratula_ficha=_caratula_ficha_paras(document),
         _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),
         styles=styles,

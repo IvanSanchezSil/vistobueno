@@ -316,18 +316,18 @@ dejarlo dicho en la documentación.
 ## 6. Contrato que Int1 exige (y sus tests)
 
 Int1 (**API**) escribe los tests; Int3 (**motor**) los hace pasar. Los tests
-con `xfail(strict=True)` marcan los criterios de aceptación: cuando el
-motor los cumpla, el `XPASS` estricto pone el CI en rojo hasta que se quite
-la marca.
+con `xfail(strict=True)` marcaron los criterios de aceptación mientras el
+motor no los cumplía; Int3 quitó la marca en el PR #75 al implementar
+AUD-24 a AUD-27.
 
 | Contrato | Dónde | Criterio |
 |----------|-------|----------|
 | Ficha utilizable | `tests/test_api_contract.py` (`TestContratoFichaUtilizable`) | todo `extraidos` con `detectado=True` trae un valor **no vacío** |
 | Año válido | `tests/test_api_contract.py` | `dc.date.issued` con `detectado=True` es un año (`\b(19\|20)\d{2}\b`) |
-| Autores completos | `tests/test_captura_ficha.py` (`xfail`) | `dc.contributor.author` trae **un autor por párrafo**, con el formato "Apellido, Nombre" (sin partir por la coma) |
-| Asesor presente | `tests/test_captura_ficha.py` (`xfail`) | `dc.contributor.advisor` con `detectado=True` trae texto |
-| Palabras clave limpias | `tests/test_captura_ficha.py` (`xfail`) | `dc.subject` sin puntuación final (AUD-27) |
-| Una constancia por autor | `tests/test_constancia.py` (`TestConstanciasConCapturaReal`, `xfail`) | 2 autores reales → 2 constancias + 2 filas, cada una con su matrícula |
+| Autores completos | `tests/test_captura_ficha.py` (cerrado, PR #75) | `dc.contributor.author` trae **un autor por párrafo**, con el formato "Apellido, Nombre" (sin partir por la coma) |
+| Asesor presente | `tests/test_captura_ficha.py` (cerrado, PR #75) | `dc.contributor.advisor` con `detectado=True` trae texto |
+| Palabras clave limpias | `tests/test_captura_ficha.py` (cerrado, PR #75) | `dc.subject` sin puntuación final (AUD-27) |
+| Una constancia por autor | `tests/test_constancia.py` (`TestConstanciasConCapturaReal`, cerrado en PR #75) | 2 autores reales → 2 constancias + 2 filas, cada una con su matrícula |
 | Paridad real | `tests/test_paridad_formatos.py` | sin aserciones vacías; caso "detectado pero incompleto" comparando `passed` con legacy |
 
 El DOCX de la carátula real (con placeholders) lo construye
@@ -548,6 +548,13 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > `_sigpalabra` solo como respaldo para títulos de <4 caracteres). AUD-07
 > sigue la decisión del 2026-11-08: XPath amplio de «para optar» y warning en
 > la línea de 12 pt; `n_a_si_sin_nodos` solo para documentos sin esa línea.
+>
+> **Actualizado (2026-11-11, Int3)**: el **PR #75** (`semana11-motor-ficha`)
+> cierra AUD-24, AUD-25, AUD-26 y AUD-27. La captura se verificó contra la
+> tesis real y contra las 5 plantillas: dos autores completos, asesora,
+> año de portada 2026, abstract y palabras clave sin puntuación final. Los
+> `xfail` de `tests/test_captura_ficha.py` y `tests/test_constancia.py` se
+> retiraron; la suite queda en verde.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -573,10 +580,10 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-21 | Int1 | **cerrado** | PR #67 |
 | AUD-22 | Int1 | **cerrado** | PR #69 |
 | AUD-23 | Int1 | **cerrado: los archivos quedan sin trackear** (decisión 2026-10-28) | — |
-| AUD-24 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| AUD-25 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| AUD-26 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| AUD-27 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
+| AUD-24 | Int3 (criterio: Int1) | **cerrado** (autores completos; test sin `xfail`) | PR #75 |
+| AUD-25 | Int3 (criterio: Int1) | **cerrado** (asesor del párrafo siguiente; `detectado=false` si queda vacío) | PR #75 |
+| AUD-26 | Int3 (criterio: Int1) | **cerrado** (año de portada 2026, no el 2024 del título) | PR #75 |
+| AUD-27 | Int3 (criterio: Int1) | **cerrado** (palabras clave sin puntuación final) | PR #75 |
 | Nuevo: `palabras_clave_minimo` | Int3 | **decidido: se mantiene `error`** (intencional; las 5 plantillas fallan a propósito) | — |
 | Nuevo: plantillas no cuantitativas | Int3 | documentar | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
@@ -594,9 +601,8 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 Tareas, dependencias y aceptación para los tres integrantes en
 [`HANDOVER_CORRECTITUD_2026-11-12.md`](HANDOVER_CORRECTITUD_2026-11-12.md).
 Los ID `VA` no reemplazan los `AUD`. Esta documentación no cierra los defectos.
-VA-13 corresponde a AUD-24 a AUD-27; PR #75 sigue abierto y con conflictos
-(estado comprobado el 2026-11-17). VA-20 añade la verificación del relleno
-Angular.
+VA-13 corresponde a AUD-24 a AUD-27; el PR #75 se fusionó y cierra la
+captura de la ficha. VA-20 añade la verificación del relleno Angular.
 VA-21 es un riesgo de restauración/autofill reportado por el usuario y pendiente
 de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 
@@ -614,7 +620,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
 | VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 pendiente | M1a + B5: documento inválido |
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
-| VA-13 | Int3 | pendiente: PR #75 sigue abierto y con conflictos; el diff queda limitado a la ficha | M0: PR #75, AUD-24 a AUD-27 |
+| VA-13 | Int3 | **cerrado** (PR #75 fusionado): AUD-24 a AUD-27 y las etiquetas de las plantillas oficiales cubiertas | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | **cerrado** (PR #105, merge `a666778`; implementación `c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
 | VA-15 | Int3 | **cerrado** (PR #106, merge `de0ca8bb`; implementación `b92f7f3`, `ad78342`): el tamaño del logo se mide y se avisa; la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |

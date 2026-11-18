@@ -64,7 +64,14 @@ _CAMPOS_REGEX = (
     "filtro",
     "excluir",
     "regex_indice",
+    "quitar_prefijo",
+    "quitar_sufijo",
 )
+
+# Valores admitidos por `extraccion.seleccion`. Un typo desactiva la
+# selección en silencio (el analizador se queda con la primera pieza), así
+# que se valida al cargar el DSL.
+_SELECCIONES_EXTRACCION = frozenset({"primero", "ultimo", "primero_no_vacio"})
 
 # Claves de nivel de REGLA (no de sección) que el motor reconoce. Cualquier
 # otra clave es o una sección mal escrita o un error de configuración.
@@ -291,6 +298,24 @@ def _lint_imagen(config: dict, hallazgos: list[str], rule_id: str) -> None:
         isinstance(tolerancia, bool) or not isinstance(tolerancia, (int, float)) or tolerancia <= 0
     ):
         hallazgos.append(f"[{rule_id}] imagen: 'tolerancia_cm' debe ser un número positivo")
+
+
+def _lint_extraccion(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `extraccion.seleccion`.
+
+    Un valor con typo (`ultima`, `primer_no_vacio`) no coincide con ninguna
+    rama de `AnalizadorExtraccion._piezas` y desactiva la selección sin
+    aviso: la captura se queda con la primera pieza y el error solo se ve en
+    la ficha del estudiante. Se detecta al cargar las reglas.
+    """
+    seleccion = config.get("seleccion")
+    if seleccion is None:
+        return
+    if not isinstance(seleccion, str) or seleccion not in _SELECCIONES_EXTRACCION:
+        hallazgos.append(
+            f"[{rule_id}] extraccion: 'seleccion' inválida '{seleccion}' "
+            f"(valores admitidos: {sorted(_SELECCIONES_EXTRACCION)})"
+        )
 
 
 def _lint_lista_obligatoria(config: dict, hallazgos: list[str], rule_id: str) -> None:
@@ -950,6 +975,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_patron_cantidad(c, hallazgos, rule_id)
                 elif seccion == "paginacion":
                     _lint_paginacion(c, hallazgos, rule_id)
+                elif seccion == "extraccion":
+                    _lint_extraccion(c, hallazgos, rule_id)
                 _lint_xpath(c, hallazgos, rule_id, seccion)
     _lint_contexto(rules, hallazgos)
     _lint_secciones_desconocidas(rules, hallazgos)
