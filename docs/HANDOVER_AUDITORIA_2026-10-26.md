@@ -3,8 +3,9 @@
 **Origen:** `docs/AUDIT_COMPORTAMIENTO_VISTOBUENO_2026-10-26.md` (27 hallazgos).
 **Estado:** abierto. La pila de correctitud del motor de la Semana 12
 (PR #98 a #106) quedó fusionada en `master` el 2026-11-17 (`ca9a4100`) y
-cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11). Siguen
-pendientes los ítems de Int1, Int2, VA-13 y el bloque normativo (NM-01 a
+cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11); el PR #75,
+fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Siguen
+pendientes los ítems de Int1, Int2 y el bloque normativo (NM-01 a
 NM-07).
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
@@ -33,6 +34,10 @@ actualiza la tabla de estado (§11) y el bloque de aviso de `AGENTS.md`.
 
 Ejecución del motor DSL (`reglas_unt.yaml`, 49 reglas) con las capturas de
 la ficha (`reglas_ficha.yaml`):
+
+> Medición histórica: se hizo con el catálogo de 49 reglas. El catálogo
+> actual tiene 50 reglas y el documento bueno evalúa 44 (§11); la tabla
+> conserva las cifras de la fecha en que se midió.
 
 | Documento | Semáforo | Resultado |
 |-----------|----------|-----------|
@@ -555,6 +560,11 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > año de portada 2026, abstract y palabras clave sin puntuación final. Los
 > `xfail` de `tests/test_captura_ficha.py` y `tests/test_constancia.py` se
 > retiraron; la suite queda en verde.
+>
+> **Actualizado (2026-11-18, Int3):** el PR #75 quedó fusionado en `master`
+> (`244d377`). AUD-24 a AUD-27 están cerrados y el bloque de aviso sigue en
+> `AGENTS.md` porque aún faltan los ítems de Int1, Int2 y el bloque
+> normativo (NM-01 a NM-07).
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -585,7 +595,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-26 | Int3 (criterio: Int1) | **cerrado** (año de portada 2026, no el 2024 del título) | PR #75 |
 | AUD-27 | Int3 (criterio: Int1) | **cerrado** (palabras clave sin puntuación final) | PR #75 |
 | Nuevo: `palabras_clave_minimo` | Int3 | **decidido: se mantiene `error`** (intencional; las 5 plantillas fallan a propósito) | — |
-| Nuevo: plantillas no cuantitativas | Int3 | documentar | — |
+| Nuevo: plantillas no cuantitativas | Int3 | **documentado** (§5): se evalúan con el esquema cuantitativo; el alcance por tipo se cierra en M12c (NM-03) | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
 | AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
 | AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR #71) |
