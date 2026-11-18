@@ -573,8 +573,7 @@ Queda ratificado y publicado:
 - **Angular real**: las pruebas de DOM prueban el núcleo, no la
   persistencia del modelo de Angular. La instalación en el laboratorio y
   la persistencia siguen siendo una puerta de verificación abierta.
-- **US-11 (parte)** y **US-13 (parte)** siguen abiertos, con sus casos de
-  aceptación sin invertir.
+- **US-13 (parte)** sigue abierto, con su caso de aceptación sin invertir
 - **Int2**: la SPA debe consumir `GET /tramite`, la revisión y la
   confirmación vigente. Ese trabajo es de Int2 y no se tocó aquí.
 
@@ -592,4 +591,7 @@ Queda ratificado y publicado:
 - **US-07**: `tramiteIdActual` para validar clics en Depositar, limpiar
   botón y panel al salir del formulario, no poner hora al trámite de otro
   borrador.
+- **US-11**: plazo de recuperación tras 5 fallos de conexión, toast de
+  recuperación con instrucción explícita al operador, el botón "Rellenar"
+  reintenta de forma explícita.
 

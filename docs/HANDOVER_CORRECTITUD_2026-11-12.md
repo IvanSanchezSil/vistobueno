@@ -90,7 +90,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-18 | P2 | Total presentado como reglas evaluadas | B7 + M10 / Int1, Int3 | B7 cerrado — PR #93 fusionado (`a6c8d4e`). Falta M10 (Int3) para CLI y exportador |
 | VA-19 | P1 | Un archivo real bloquea la siguiente validación | B1 + F4 / Int1, Int2 | Pendiente |
 | VA-20 | P1 | Éxito de relleno sin comprobar aceptación de Angular | B3 / Int1 | Parcial — rama `api-flujo-deposito-confirmado` (US-02): los valores escritos se releen y las filas se concilian con los controles del widget. Falta la puerta de Angular: el laboratorio no se ejecutó |
-| VA-21 | P1 | Autofill y restauración del navegador pueden recuperar datos ajenos | B8 + F5 / Int1, Int2 | Parcial — B8: rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador (US-08). Falta F5 (Int2) y la verificación en navegador real |
+| VA-21 | P1 | Autofill y restauración del navegador pueden recuperar datos ajenos | B8 + F5 / Int1, Int2 | Parcial — B8: rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador (US-08). B3: plazo de recuperación tras 5 fallos (US-11 cerrado). Falta F5 (Int2) y la verificación en navegador real |
 | NM-01 | P1 | Paginación normativa incorrecta | M12a / Int3 | Pendiente |
 | NM-02 | P1 | Carátula acepta escuela ausente y asesor 36 pt | M12b / Int3 | Pendiente |
 | NM-03 | P1 | Esquemas y alcance sin correspondencia demostrada | M12c / Int3; F3 / Int2 | Pendiente |

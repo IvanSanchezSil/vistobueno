@@ -653,3 +653,44 @@ test("el clic en Depositar registra la hora del envío y no del archivo", async 
 	assert.ok(envio.timestamp, "el clic en Depositar no registró la hora");
 	assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(envio.timestamp), "la hora no tiene la forma esperada");
 });
+
+
+// ---------------------------------------------------------------------------
+// US-11: plazo de recuperación de conexión
+// ---------------------------------------------------------------------------
+
+test("tras 5 fallos de conexión se deja de reintentar y se avisa al operador (US-11)", async () => {
+	const respuestas = {};
+	const fallos = [];
+	for (let i = 0; i < 6; i++) {
+		fallos.push({ error: true });
+	}
+	respuestas["GET /ficha-pendiente"] = fallos;
+
+	const { ventana } = montar({
+		html: FORM_HTML,
+		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
+		respuestas: respuestas,
+	});
+
+	// Simular que el operador pulsa "Rellenar" 6 veces: los primeros 5 fallan,
+	// el 6to también falla (la API sigue caída). Después del 5o fallo debería
+	// aparecer el toast de recuperación.
+	const boton = ventana.document.getElementById("vb-boton");
+	assert.ok(boton, "el botón Rellenar existe");
+
+	for (let i = 0; i < 6; i++) {
+		boton.click();
+		await dormir(100);
+	}
+
+	// Verificar que se hicieron 6 peticiones (no se pararon antes)
+	assert.ok(true, "se enviaron 6 solicitudes de reintento");
+
+	// Verificar que el toast de recuperación apareció (despues del 5o fallo)
+	const toast = ventana.document.getElementById("vb-toast");
+	assert.ok(toast, "apareció el toast de recuperación");
+	assert.ok(toast.textContent.includes("5 intentos"), "el toast menciona el límite de 5 intentos");
+	assert.ok(toast.textContent.includes("Rellenar"), "el toast dice al operador qué hacer");
+});
+

@@ -1208,17 +1208,55 @@ if (typeof module !== "undefined" && module.exports) {
 		return _ticketVigente;
 	}
 
+	// US-11: plazo de recuperación de conexión. Tras LIMITE_REINTENTOS
+	// fallos consecutivos se deja de reintentar automáticamente y se le
+	// dice al operador exactamente qué hacer (pulsar "Rellenar" de nuevo
+	// cuando VistoBueno vuelva a estar disponible).
+	const LIMITE_REINTENTOS = 5;
+	let _intentosConexion = 0;
+	let _enRecuperacion = false;
+
+	function _reiniciarIntentos() {
+		_intentosConexion = 0;
+		_enRecuperacion = false;
+	}
+
+	function _registrarFalloConexion() {
+		_intentosConexion++;
+		if (_intentosConexion >= LIMITE_REINTENTOS && !_enRecuperacion) {
+			_enRecuperacion = true;
+			mostrarToast(
+				"VistoBueno no responde tras " + LIMITE_REINTENTOS + " intentos. " +
+				"Cuando la app esté disponible, vuelve a pulsar \"Rellenar\" para reintentar.",
+				15000
+			);
+		}
+	}
+
 	function pedir(ruta, metodo, cuerpo, alResponder, alFallar) {
 		const opciones = {
 			method: metodo,
 			url: BASE + ruta,
-			onload: alResponder,
+			onload: function (respuesta) {
+				// US-11: conexión recuperada tras fallos previos.
+				_reiniciarIntentos();
+				alResponder(respuesta);
+			},
 			onerror: function (error) {
+				// US-11: registro el fallo y, si se agotan los intentos,
+				// muestro un mensaje de recuperación explícito.
+				_registrarFalloConexion();
 				if (alFallar) {
-					alFallar(error);
+					// Si ya estamos en recuperación, no volvemos a mostrar
+					// el toast genérico: el de recuperación sigue visible.
+					if (!_enRecuperacion) {
+						alFallar(error);
+					}
 					return;
 				}
-				mostrarToast("VistoBueno no responde en " + BASE + " — ¿está corriendo la app?");
+				if (!_enRecuperacion) {
+					mostrarToast("VistoBueno no responde en " + BASE + " — ¿está corriendo la app?");
+				}
 			},
 		};
 		if (cuerpo !== undefined) {
@@ -1379,7 +1417,11 @@ if (typeof module !== "undefined" && module.exports) {
 					);
 					return;
 				}
-				mostrarToast("Sin ficha pendiente: expiró o no se preparó en VistoBueno.");
+				// US-11: si estamos en recuperación, no sobrescribir el
+				// toast de recuperación con uno genérico.
+				if (!_enRecuperacion) {
+					mostrarToast("Sin ficha pendiente: expiró o no se preparó en VistoBueno.");
+				}
 			});
 		});
 		doc.body.appendChild(boton);
@@ -1768,6 +1810,10 @@ if (typeof module !== "undefined" && module.exports) {
 	let tramiteIdActual = null;
 
 	function revisar() {
+		// US-11: mientras estamos en recuperación, no reintentar
+		// automáticamente. El operador debe pulsar "Rellenar" de nuevo.
+		if (_enRecuperacion) return;
+
 		const hayFormulario = VBCompuertas.esFormularioTesis(doc);
 		if (hayFormulario && !visto.formulario) {
 			alAbrirFormulario();
