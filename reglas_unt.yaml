@@ -526,14 +526,19 @@ reglas:
     comparacion: exists
   - parte: footer
     contexto: todos
-    xpath: //w:instrText[contains(., 'PAGE')]
+    # Campo PAGE exacto: `contains(., 'PAGE')` también aceptaba PAGEREF,
+    # que es una referencia a un marcador y no el número de página.
+    xpath: //w:instrText[contains(concat(' ', normalize-space(.), ' '), ' PAGE ')]
     comparacion: exists
   atributo_xml:
     parte: footer
     contexto: todos
-    xpath: //w:p/w:pPr/w:jc
+    # La alineación se exige al párrafo QUE CONTIENE EL CAMPO PAGE, no al
+    # primer párrafo del pie: un pie puede tener un párrafo derecho sin
+    # número y otro izquierdo con el número (NM-01).
+    xpath: //w:p[.//w:instrText[contains(concat(' ', normalize-space(.), ' '), ' PAGE ')]]/w:pPr/w:jc
     atributo: '@w:val'
-    comparacion: eq
+    comparacion: all_eq
     esperado: right
 - id: numeracion_preliminares_romano
   tipo: atributo_xml
@@ -552,6 +557,22 @@ reglas:
     atributo: '@w:fmt'
     comparacion: all_eq
     esperado: lowerRoman
+  presencia_xml:
+  - parte: document
+    contexto: todos
+    # La primera sección de preliminares empieza en i porque la carátula se
+    # cuenta aunque no se numere. Un `w:start` distinto de 1 la haría
+    # arrancar en otro valor (NM-01, roman_restart_99).
+    xpath: (//w:sectPr)[position() = 1]/w:pgNumType[@w:start and @w:start != '1']
+    comparacion: not_exists
+  - parte: document
+    contexto: todos
+    # Las secciones siguientes continúan la numeración sin reiniciarla:
+    # cualquier `w:start` explícito es un reinicio. El valor correcto
+    # depende del número de páginas y no se puede verificar sin
+    # renderizar (límite documentado en el handover).
+    xpath: (//w:sectPr)[position() < last()][position() > 1]/w:pgNumType[@w:start]
+    comparacion: not_exists
 - id: numeracion_cuerpo_arabigo
   tipo: presencia_xml
   descripcion: La numeración en arábigos se inicia en la Introducción, continuando el correlativo desde
@@ -564,9 +585,21 @@ reglas:
     (por ejemplo, si la numeración de las páginas preliminares termina en "xi", corresponde a la primera
     página de la Introducción el número 12)."'
   presencia_xml:
-    parte: document
+  - parte: document
     contexto: todos
-    xpath: (//w:sectPr)[position() = last()]/w:pgNumType
+    # El cuerpo puede no declarar `w:pgNumType` (decimal por defecto) o
+    # declararlo explícitamente como decimal. Antes se rechazaba cualquier
+    # nodo, así que un decimal explícito correcto fallaba por existir
+    # (NM-01, explicit_decimal).
+    xpath: (//w:sectPr)[position() = last()]/w:pgNumType[@w:fmt and translate(@w:fmt, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') != 'decimal']
+    comparacion: not_exists
+  - parte: document
+    contexto: todos
+    # Reiniciar el cuerpo en 1 cuando hay preliminares contradice el
+    # correlativo del manual. Un `w:start` mayor no se puede validar sin
+    # renderizar: el número correcto depende del total de páginas
+    # preliminares (límite documentado en el handover).
+    xpath: (//w:sectPr)[position() = last()]/w:pgNumType[@w:start = '1' and count((//w:sectPr)[position() < last()]) > 0]
     comparacion: not_exists
 - id: caratula_no_se_enumera
   tipo: presencia_xml
@@ -579,7 +612,10 @@ reglas:
   presencia_xml:
     parte: document
     contexto: todos
-    xpath: //w:sectPr[1]/w:titlePg
+    # `w:titlePg` solo vale si no está apagado. Antes bastaba con que el
+    # nodo existiera, así que `w:val="0"` (primera página igual al resto,
+    # con número visible) pasaba (NM-01, cover_titlepg_false).
+    xpath: //w:sectPr[1]/w:titlePg[not(@w:val='0') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'false') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'off')]
     comparacion: exists
 - id: caratula_universidad_negrita_mayusculas
   tipo: formato_efectivo

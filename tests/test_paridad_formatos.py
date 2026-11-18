@@ -410,9 +410,22 @@ def _verificar_paridad(docx_path: str) -> dict:
         "estructura_tinv_revision_literatura",
         "estructura_tinv_cuantitativo",
     }
+    # M12a (NM-01): el DSL corrige la numeración y el pie activo; el YAML
+    # legacy se conserva como fuente de verdad histórica y no incorpora esas
+    # correcciones. En `numeracion_cuerpo_arabigo` el decimal explícito ahora
+    # pasa en DSL y sigue fallando en legacy; en `numeracion_posicion` el
+    # veredicto coincide, pero el `found` cambia porque el DSL solo mira el
+    # párrafo que contiene PAGE. Las regresiones de NM-01 viven en
+    # `tests/test_m12a_numeracion.py`.
+    divergen_por_nm01 = {
+        "numeracion_cuerpo_arabigo",
+        "numeracion_posicion",
+    }
     diffs = []
     for rid in sorted(legacy):
         legacy_res, dsl_res = legacy[rid], dsl[rid]
+        if rid in divergen_por_nm01:
+            continue
         if rid in divergen_por_aplicabilidad:
             if dsl_res.aplicable:
                 # La estructura ES aplicable: los dos motores tienen que
