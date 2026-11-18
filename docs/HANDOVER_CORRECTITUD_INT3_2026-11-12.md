@@ -193,6 +193,17 @@ cierre su bloque de código. Restringir el fetcher de PDF a recursos permitidos.
 documento no activan accesos a recursos. Usar un fetcher simulado; no acceder
 a archivos sensibles ni hacer peticiones reales para demostrarlo.
 
+- **Estado 2026-11-18:** corregido en `95f4ad5`. El texto del documento se
+  escapa también para Markdown (imágenes, enlaces, énfasis, código y
+  encabezados); la cerca del bloque de un prompt es más larga que cualquier
+  racha de backticks del contenido; y el fetcher del PDF solo acepta `data:`
+  (rechaza `file:`, `http:`, `https:` y `ftp:`). Evidencia: `987 passed,
+  9 skipped`; regresiones `test_markdown_neutraliza_imagenes_y_enlaces_del_documento`,
+  `test_prompt_con_backticks_no_cierra_el_bloque_de_codigo`,
+  `test_fetcher_restringido_rechaza_recursos_externos` y
+  `test_pdf_no_abre_recursos_externos` (fetcher espiado, sin red ni
+  archivos); ruff, ruff format y mypy limpios.
+
 ### M10. Contadores de CLI y exportación — VA-18
 
 **Archivos:** `validator/cli.py`, `exportador.py`, pruebas de CLI/exportación.
