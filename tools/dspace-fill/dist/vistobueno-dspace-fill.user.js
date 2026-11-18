@@ -501,6 +501,10 @@ const VBEjecutor = (() => {
 		if (el.disabled || el.readOnly) {
 			return { ok: false, detalle: "el control no admite edición" };
 		}
+		// US-05: corrección del operador → no se pisa.
+		if (_conservarSiHayValor(doc, op, el, op.valor)) {
+			return { ok: true, detalle: "se conservó el valor escrito por el operador" };
+		}
 		_ponerTexto(doc, el, op.valor);
 		// Se relee el valor: un control que revierte lo escrito (listener
 		// de Angular, render posterior) NO cuenta como relleno.
@@ -625,6 +629,11 @@ const VBEjecutor = (() => {
 				sinFila.push(i + 1);
 				continue;
 			}
+			// US-05: corrección del operador → no se pisa.
+			if (_conservarSiHayValor(doc, op, filas[i], valor)) {
+				aplicadas++;
+				continue;
+			}
 			_ponerTexto(doc, filas[i], valor);
 			if (_valorDe(filas[i]) === valor) aplicadas++;
 		}
@@ -678,6 +687,11 @@ const VBEjecutor = (() => {
 				sinFila.push(i + 1);
 				continue;
 			}
+			// US-05: corrección del operador → no se pisa ni el tipo.
+			if (_conservarSiHayValor(doc, op, valoresFinal[i], valor)) {
+				aplicadas++;
+				continue;
+			}
 			// El tipo se elige ANTES de escribir el número: si la opción
 			// no existe, el valor anterior (por ejemplo, un pasaporte)
 			// queda intacto y la operación se reporta como fallida.
@@ -717,6 +731,10 @@ const VBEjecutor = (() => {
 		// y el operador selecciona a mano, como hace hoy).
 		const input = doc.querySelector(op.selectorInput);
 		if (!input) return { ok: false, detalle: "no se encontró el campo" };
+		// US-02: validar estado efectivo del control antes de escribir
+		if (input.disabled || input.readOnly) {
+			return { ok: false, detalle: "el control no admite edición" };
+		}
 		const previo = _valorDe(input);
 		_ponerTexto(doc, input, op.texto);
 		const intentos = 8;
@@ -732,7 +750,16 @@ const VBEjecutor = (() => {
 				if (texto === op.texto) {
 					el.click();
 					_evento(doc, input, "change");
-					return { ok: true, detalle: "" };
+					// US-02 / US-01: releer el valor - un control que
+					// revierte lo escrito (listener de Angular, render
+					// posterior) NO cuenta como relleno.
+					const actual = _valorDe(input);
+					if (actual === op.texto) {
+						return { ok: true, detalle: "" };
+					}
+					// Valor no quedó: restablecer y reintentar
+					_ponerTexto(doc, input, previo);
+					break;
 				}
 			}
 		}
@@ -740,7 +767,45 @@ const VBEjecutor = (() => {
 		// anterior. Borrarlo dejaría el formulario sin el dato que el
 		// operador había escrito (US-03).
 		_ponerTexto(doc, input, previo);
-		return { ok: false, detalle: "no se encontró la opción " + op.texto };
+		return { ok: false, detalle: "no se encontró la opción " + op.texto + " (agotados " + intentos + " intentos)" };
+	}
+
+	function _selectoresDe(op) {
+		// Selectores que la operación necesita en el DOM.
+		const salida = [];
+		if (op.selector) salida.push(op.selector);
+		if (op.selectorMeta) salida.push(op.selectorMeta);
+		if (op.selectorValor) salida.push(op.selectorValor);
+		if (op.selectorInput) salida.push(op.selectorInput);
+		return salida;
+	}
+
+	async function _esperarControles(doc, plan, dormir, intentos) {
+		// US-05: esperar a que los controles del plan existan. Un campo
+		// que renderiza tarde no debe quedar "a mano" para siempre. Si
+		// después del margen no aparece, el plan sigue: la operación
+		// correspondiente se reportará pendiente (fallo visible).
+		const pendientes = new Set();
+		(plan.operaciones || []).forEach(function (op) {
+			_selectoresDe(op).forEach(function (sel) {
+				if (!doc.querySelector(sel)) pendientes.add(sel);
+			});
+		});
+		for (let i = 0; i < intentos && pendientes.size; i++) {
+			await dormir(120);
+			pendientes.forEach(function (sel) {
+				if (doc.querySelector(sel)) pendientes.delete(sel);
+			});
+		}
+	}
+
+	function _conservarSiHayValor(doc, op, el, esperado) {
+		// US-05: en un reintento, un campo que ya tiene un valor
+		// distinto del esperado es una corrección del operador: no se
+		// pisa. El campo cuenta como completo porque ya tiene contenido.
+		if (!op.preservarSiLleno || !el) return false;
+		const actual = _valorDe(el).trim();
+		return !!actual && actual !== esperado;
 	}
 
 	async function aplicarPlan(doc, plan, opciones) {
@@ -749,6 +814,11 @@ const VBEjecutor = (() => {
 		const exitosos = [];
 		const fallidos = [];
 		const detalle = [];
+		// US-05: esperar los controles del plan antes de empezar. Un
+		// campo que renderiza tarde (asesor, resumen) no debe quedar
+		// "a mano" para siempre: se le da un margen y, si no aparece, la
+		// operación se reporta pendiente (fallo visible, no silencio).
+		await _esperarControles(doc, plan, dormir, config.intentosEspera || 8);
 		for (const op of plan.operaciones) {
 			const etiqueta = op.campo || op.tipo;
 			let resultado = { ok: false, detalle: "operación desconocida" };
@@ -780,6 +850,141 @@ const VBEjecutor = (() => {
 
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = VBEjecutor;
+}
+
+
+// Estado del relleno del formulario: pendiente, en curso, parcial o
+// verificado.
+//
+// Un relleno parcial NO bloquea el formulario. Si un campo quedó a mano
+// (el control no apareció, el tipo de documento no existe, el botón "+"
+// no agrego la fila), el operador debe poder completarlo y el
+// userscript debe poder reintentar SOLO ese campo sin pisar lo que el
+// operador ya corrigió (US-05).
+//
+// Módulo puro: no toca el DOM ni la API. El wrapper decide cuándo
+// aplicar y cuándo reintentar.
+
+const VBRelleno = (() => {
+	const ESTADOS = {
+		// Nada escrito todavía.
+		PENDIENTE: "pendiente",
+		// El plan está corriendo: no se puede decidir todavía.
+		EN_CURSO: "en_curso",
+		// Parte de los campos quedó escrita y parte no.
+		PARCIAL: "parcial",
+		// Todos los campos con dato quedaron escritos.
+		VERIFICADO: "verificado",
+	};
+
+	// Un campo con dato en la ficha que el userscript no pudo escribir
+	// queda pendiente. Un campo SIN dato en la ficha no es un fallo del
+	// relleno: lo completa el operador a mano y no se reintenta.
+	function evaluar(detalle, omitidos) {
+		const campos = {};
+		const pendientes = [];
+		const ejecutadas = detalle || [];
+		ejecutadas.forEach(function (item) {
+			const estado = item.estado === "completo" ? "completo" : "pendiente";
+			campos[item.campo] = estado;
+			if (estado === "pendiente") pendientes.push(item.campo);
+		});
+		(omitidos || []).forEach(function (campo) {
+			if (!(campo in campos)) campos[campo] = "sin_dato";
+		});
+		const completados = Object.keys(campos).filter(function (campo) {
+			return campos[campo] === "completo";
+		});
+		let estado;
+		if (!ejecutadas.length) {
+			// El plan no tenía operaciones: no se escribió nada.
+			estado = ESTADOS.PENDIENTE;
+		} else if (!pendientes.length) {
+			estado = ESTADOS.VERIFICADO;
+		} else if (completados.length) {
+			estado = ESTADOS.PARCIAL;
+		} else {
+			estado = ESTADOS.PENDIENTE;
+		}
+		return {
+			estado: estado,
+			campos: campos,
+			pendientes: pendientes,
+			completados: completados,
+		};
+	}
+
+	// Un plan con datos esenciales inválidos (un autor sin nombre, una
+	// lista de DNI que no corresponde a los autores) NO se ejecuta: el
+	// relleno dejaría los datos desalineados. El operador corrige la
+	// ficha en VistoBueno y vuelve a preparar.
+	function puedeIntentar(plan) {
+		if (!plan) return false;
+		return !plan.problemas || plan.problemas.length === 0;
+	}
+
+	// Reintento: solo las operaciones de los campos que quedaron
+	// pendientes. El modo `preservarSiLleno` impide pisar lo que el
+	// operador escribió a mano en el intento anterior.
+	function planARetry(plan, pendientes) {
+		if (!plan) return plan;
+		const lista = Array.isArray(pendientes) ? pendientes : [];
+		if (!lista.length) return plan;
+		const operaciones = (plan.operaciones || [])
+			.filter(function (op) {
+				return lista.indexOf(op.campo) !== -1;
+			})
+			.map(function (op) {
+				// En el reintento no se pisa lo que el operador ya
+				// escribió a mano en el campo pendiente.
+				return Object.assign({}, op, { preservarSiLleno: true });
+			});
+		return {
+			operaciones: operaciones,
+			omitidos: plan.omitidos || [],
+			problemas: plan.problemas || [],
+			soloPendientes: true,
+		};
+	}
+
+	return {
+		ESTADOS: ESTADOS,
+		evaluar: evaluar,
+		puedeIntentar: puedeIntentar,
+		planARetry: planARetry,
+	};
+})();
+
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = VBRelleno;
+}
+
+
+// Tickets de operación: evita que un callback antiguo reemplace el
+// estado más nuevo cuando hay varias operaciones en vuelo (US-06).
+//
+// Cada operación async obtiene un ticket con un identificador y una
+// marca de agua. Antes de guardar estado o aplicar cambios, el callback
+// comprueba que su ticket siga siendo el vigente; si no, descarta su
+// resultado.
+//
+// Módulo puro: no toca el DOM ni la API.
+
+const VBTicket = (() => {
+	let ultimoTicket = 0;
+
+	function nuevoTicket() {
+		ultimoTicket++;
+		return ultimoTicket;
+	}
+
+	return {
+		nuevoTicket: nuevoTicket,
+	};
+})();
+
+if (typeof module !== "undefined" && module.exports) {
+	module.exports = VBTicket;
 }
 
 
@@ -990,6 +1195,19 @@ if (typeof module !== "undefined" && module.exports) {
 	const CLAVE_ENVIO = "vb_envio";
 	const PROTOCOLO = 2;
 
+	// US-06: ticket de operación para evitar que un callback antiguo
+	// reemplace el estado más nuevo cuando hay varias operaciones en vuelo.
+	let _ticketVigente = 0;
+
+	function _ticketActual() {
+		return _ticketVigente;
+	}
+
+	function _nuevoTicket() {
+		_ticketVigente++;
+		return _ticketVigente;
+	}
+
 	function pedir(ruta, metodo, cuerpo, alResponder, alFallar) {
 		const opciones = {
 			method: metodo,
@@ -1019,26 +1237,31 @@ if (typeof module !== "undefined" && module.exports) {
 	}
 
 	function obtenerFicha(alRecibir) {
+		// US-06: cada solicitud obtiene su propio ticket. Un callback
+		// antiguo no puede reemplazar el estado de una solicitud nueva.
+		const ticket = _nuevoTicket();
 		pedir(
 			"/ficha-pendiente",
 			"GET",
 			undefined,
 			function (respuesta) {
+				if (ticket !== _ticketActual()) return;
 				if (respuesta.status !== 200) {
-					alRecibir(null, "sin_ficha"); // vacía o fuera de la ventana
+					alRecibir(null, "sin_ficha", ticket); // vacía o fuera de la ventana
 					return;
 				}
 				const sobre = _analizar(respuesta);
 				if (!sobre || !sobre.ficha || !sobre.tramite_id) {
 					// La API anterior a v1.13.0 devolvía la ficha pelada. Sin
 					// `tramite_id` no se puede atar el depósito: fail-closed.
-					alRecibir(null, "contrato_desactualizado");
+					alRecibir(null, "contrato_desactualizado", ticket);
 					return;
 				}
-				alRecibir(sobre);
+				alRecibir(sobre, ticket);
 			},
 			function () {
-				alRecibir(null, "sin_conexion");
+				if (ticket !== _ticketActual()) return;
+				alRecibir(null, "sin_conexion", ticket);
 			}
 		);
 	}
@@ -1047,28 +1270,32 @@ if (typeof module !== "undefined" && module.exports) {
 		// El trámite retenido sigue disponible aunque la ventana de
 		// autorelleno haya vencido: el panel se arma con la revisión
 		// vigente, no con un dato guardado en el navegador.
+		// US-06: ticket para evitar que una respuesta antigua reemplace el estado nuevo.
+		const ticket = _nuevoTicket();
 		pedir(
 			"/tramite",
 			"GET",
 			undefined,
 			function (respuesta) {
+				if (ticket !== _ticketActual()) return;
 				if (respuesta.status === 404) {
-					alRecibir(null, "sin_tramite");
+					alRecibir(null, "sin_tramite", ticket);
 					return;
 				}
 				if (respuesta.status !== 200) {
-					alRecibir(null, "error_" + respuesta.status);
+					alRecibir(null, "error_" + respuesta.status, ticket);
 					return;
 				}
 				const tramite = _analizar(respuesta);
 				if (!tramite || !tramite.tramite_id) {
-					alRecibir(null, "contrato_desactualizado");
+					alRecibir(null, "contrato_desactualizado", ticket);
 					return;
 				}
-				alRecibir(tramite);
+				alRecibir(tramite, ticket);
 			},
 			function () {
-				alRecibir(null, "sin_conexion");
+				if (ticket !== _ticketActual()) return;
+				alRecibir(null, "sin_conexion", ticket);
 			}
 		);
 	}
@@ -1141,9 +1368,9 @@ if (typeof module !== "undefined" && module.exports) {
 			"border:none;padding:10px 14px;border-radius:8px;font:13px sans-serif;cursor:pointer;" +
 			"max-width:420px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap";
 		boton.addEventListener("click", function () {
-			obtenerFicha(function (sobre, motivo) {
+			obtenerFicha(function (sobre, motivo, ticket) {
 				if (sobre) {
-					llenar(sobre);
+					llenar(sobre, ticket);
 					return;
 				}
 				if (motivo === "contrato_desactualizado") {
@@ -1165,60 +1392,133 @@ if (typeof module !== "undefined" && module.exports) {
 		return el ? (el.value || "").trim() : "";
 	}
 
-	function llenar(sobre) {
+	const RELLENO = {
+		GUARDADO: "relleno",
+	};
+
+	function _rellenoPrevio(envio, tramiteId, revision) {
+		// El resultado del último relleno de ESTE trámite y ESTA revisión.
+		// Una revisión nueva invalida el resultado anterior: la ficha
+		// cambió y hay que rellenar de nuevo.
+		if (!envio || envio.tramite_id !== tramiteId) return null;
+		const relleno = envio[RELLENO.GUARDADO];
+		if (!relleno || typeof relleno !== "object") return null;
+		if (relleno.revision !== revision) return null;
+		return relleno;
+	}
+
+	function llenar(sobre, ticket) {
+		// US-06: si el ticket ya no es vigente, ignorar (callback antiguo).
+		if (ticket !== undefined && ticket !== _ticketActual()) return;
 		const ficha = sobre.ficha;
 		const tramiteId = sobre.tramite_id;
 		const revision = typeof sobre.revision === "number" ? sobre.revision : 0;
 		const tituloFicha = (VBMapeador.valorExtraido(ficha, "dc.title") || "").trim();
 		const tituloActual = _tituloDelFormulario();
 		const envio = _leerEnvio();
-		// Si el userscript YA llenó ESTE trámite y el formulario sigue
-		// mostrando su título, NO se vuelve a llenar: el operador ya
-		// corrigió lo que quiso y un segundo relleno pisaría sus
-		// cambios (revisión PR #71, b1).
+		const plan = VBMapeador.construirPlan(ficha, VBCompuertas.SELECTORES);
+
+		// US-07: recordar el tramite del formulario actual para validar
+		// clics en Depositar de otras pestañas.
+		tramiteIdActual = tramiteId;
+
+		// US-05: datos esenciales invalidos (un autor sin nombre, una
+		// lista de DNI que no corresponde a los autores) NO,inician el
+		// plan: el relleno dejaria los datos desalineados. No se registra
+		// ningun envio: el operador corrige la ficha y vuelve a preparar.
+		if (!VBRelleno.puedeIntentar(plan)) {
+			const problemas = (plan.problemas || [])
+				.map(function (problema) {
+					return problema.campo + ": " + problema.detalle;
+				})
+				.join(" ");
+			mostrarToast(
+				"La ficha tiene datos que no se pueden rellenar (" +
+					problemas +
+					"). Corrigela en VistoBueno y vuelve a preparar el deposito.",
+				12000
+			);
+			return;
+		}
+
+		// Si el userscript YA lleno ESTE tramite y el formulario sigue
+		// mostrando su titulo, NO se vuelve a llenar: el operador ya
+		// corrigio lo que quiso y un segundo relleno pisaria sus
+		// cambios (PR #71, M4).
 		//
-		// La condición exige el mismo `tramite_id`: una ficha nueva con
-		// el mismo título es otro trámite y sí se debe rellenar. También
-		// exige un envío registrado: si el operador escribió el título a
-		// mano (sin relleno previo), el llenado sigue adelante.
-		const yaLleno =
+		// US-05: un relleno PARCIAL no bloquea. Solo un relleno
+		// verificado (todos los campos con dato quedaron escritos) cierra
+		// el formulario; un parcial se reintenta solo con los campos que
+		// quedaron pendientes.
+		const previo = _rellenoPrevio(envio, tramiteId, revision);
+		const esParcial = previo && previo.estado === VBRelleno.ESTADOS.PARCIAL;
+		const esVerificado = previo && previo.estado === VBRelleno.ESTADOS.VERIFICADO;
+		const mismoTramite =
 			envio &&
 			envio.tramite_id === tramiteId &&
 			envio.titulo &&
 			tituloFicha &&
 			VBCompuertas.titulosCoinciden(envio.titulo, tituloFicha);
-		if (yaLleno && tituloActual && VBCompuertas.titulosCoinciden(tituloActual, tituloFicha)) {
-			mostrarToast("El formulario ya tiene esta tesis: no se volvió a rellenar.");
-			return;
+		if (mismoTramite) {
+			// US-05: un relleno PARCIAL no bloquea. Solo un relleno
+			// verificado (todos los campos con dato quedaron escritos) cierra
+			// el formulario; un parcial se reintenta solo con los campos que
+			// quedaron pendientes.
+			if (esVerificado) {
+				mostrarToast("El formulario ya tiene esta tesis: no se volvio a rellenar.");
+				return;
+			}
+			if (!previo && tituloActual && VBCompuertas.titulosCoinciden(tituloActual, tituloFicha)) {
+				mostrarToast("El formulario ya tiene esta tesis: no se volvio a rellenar.");
+				return;
+			}
 		}
-		const plan = VBMapeador.construirPlan(ficha, VBCompuertas.SELECTORES);
-		VBEjecutor.aplicarPlan(doc, plan).then(function (resumen) {
-			const partes = ["Rellenado de VistoBueno — revisa antes de continuar."];
+
+		// Reintento: solo los campos pendientes del ultimo intento, y
+		// sin pisar lo que el operador escribio a mano.
+		const planEfectivo = esParcial
+			? VBRelleno.planARetry(plan, previo.pendientes)
+			: plan;
+
+		VBEjecutor.aplicarPlan(doc, planEfectivo).then(function (resumen) {
+			const estado = VBRelleno.evaluar(resumen.detalle, resumen.omitidos);
+			const partes = ["Rellenado de VistoBueno - revisa antes de continuar."];
 			if (resumen.exitosos.length) partes.push("Lleno: " + resumen.exitosos.join(", ") + ".");
 			if (resumen.fallidos.length) partes.push("A mano: " + resumen.fallidos.join(", ") + ".");
 			if (resumen.omitidos.length) partes.push("Sin dato: " + resumen.omitidos.join(", ") + ".");
 			(resumen.problemas || []).forEach(function (problema) {
 				partes.push("Problema: " + problema.campo + ": " + problema.detalle + ".");
 			});
+			if (estado.estado === VBRelleno.ESTADOS.PARCIAL) {
+				partes.push(
+					"Relleno parcial: vuelve a pulsar Rellenar para completar solo lo que quedo a mano."
+				);
+			}
 			mostrarToast(partes.join(" "), 12000);
 			// El timestamp del clic en "Depositar" se conserva solo si es
-			// el MISMO trámite: un trámite nuevo empieza sin hora (PR #71).
-			const previo = _leerEnvio();
+			// el MISMO tramite: un tramite nuevo empieza sin hora (PR #71).
+			const anterior = _leerEnvio();
 			_guardarEnvio({
 				tramite_id: tramiteId,
 				revision: revision,
 				titulo: VBMapeador.valorExtraido(ficha, "dc.title") || null,
 				timestamp:
-					previo && previo.tramite_id === tramiteId ? previo.timestamp || null : null,
+					anterior && anterior.tramite_id === tramiteId ? anterior.timestamp || null : null,
+				[RELLENO.GUARDADO]: {
+					estado: estado.estado,
+					revision: revision,
+					campos: estado.campos,
+					pendientes: estado.pendientes,
+				},
 			});
 		});
 	}
 
 	function alAbrirFormulario() {
-		obtenerFicha(function (sobre, motivo) {
+		obtenerFicha(function (sobre, motivo, ticket) {
 			if (sobre) {
 				mostrarBoton(_tituloEsperadoDeFicha(sobre));
-				llenar(sobre);
+				llenar(sobre, ticket);
 				return;
 			}
 			if (motivo === "contrato_desactualizado") {
@@ -1462,10 +1762,25 @@ if (typeof module !== "undefined" && module.exports) {
 	// ítem abierto después) no quede bloqueada por la anterior.
 	const visto = { formulario: false, panel: null };
 
+	// US-07: el tramite_id del formulario actualmente visible. Se usa para
+	// evitar que un clic en Depositar de otro borrador ponga hora al trámite
+	// equivocado.
+	let tramiteIdActual = null;
+
 	function revisar() {
 		const hayFormulario = VBCompuertas.esFormularioTesis(doc);
 		if (hayFormulario && !visto.formulario) {
 			alAbrirFormulario();
+		}
+		// US-07: al salir del formulario, invalidar el tramite actual para
+		// que un clic en Depositar de otra pestaña no ponga hora al trámite
+		// equivocado.
+		if (!hayFormulario && visto.formulario) {
+			tramiteIdActual = null;
+			VBPanel.quitar(doc);
+			visto.panel = null;
+			const boton = doc.getElementById("vb-boton");
+			if (boton) boton.remove();
 		}
 		visto.formulario = hayFormulario;
 
@@ -1523,7 +1838,10 @@ if (typeof module !== "undefined" && module.exports) {
 				: null;
 			if (boton) {
 				const envio = _leerEnvio();
-				if (envio && envio.tramite_id) {
+				// US-07: solo poner hora si el tramite del envío es el del
+				// formulario actual. Evita que un clic en otra pestaña ponga
+				// hora al trámite equivocado.
+				if (envio && envio.tramite_id && envio.tramite_id === tramiteIdActual) {
 					envio.timestamp = VBReloj.ahoraLima();
 					GM_setValue(CLAVE_ENVIO, envio);
 				}

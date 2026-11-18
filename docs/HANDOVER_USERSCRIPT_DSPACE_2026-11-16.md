@@ -573,8 +573,23 @@ Queda ratificado y publicado:
 - **Angular real**: las pruebas de DOM prueban el núcleo, no la
   persistencia del modelo de Angular. La instalación en el laboratorio y
   la persistencia siguen siendo una puerta de verificación abierta.
-- **US-01, US-05, US-06, US-07 y la parte restante de US-11** siguen
-  abiertos, con sus casos de aceptación sin invertir.
+- **US-11 (parte)** y **US-13 (parte)** siguen abiertos, con sus casos de
+  aceptación sin invertir.
 - **Int2**: la SPA debe consumir `GET /tramite`, la revisión y la
   confirmación vigente. Ese trabajo es de Int2 y no se tocó aquí.
+
+### US-* cerrados en este lote (2026-11-18)
+
+- **US-01**: evento del combobox con `change` + `click` en opción y
+  relectura del valor efectivo (fallo visible si Angular revierte).
+- **US-02**: validación `disabled`/`readonly` del control antes de escribir
+  y relectura del valor tras seleccionar.
+- **US-05**: máquina de estados del relleno (pendiente/parcial/verificado),
+  `preservarSiLleno` para no pisar correcciones del operador, reintento
+  solo de campos pendientes, datos esenciales inválidos bloquean el plan.
+- **US-06**: tickets de operación para cancelar callbacks viejos; una
+  operación por contexto; no guardar `vb_envio` desde callback obsoleto.
+- **US-07**: `tramiteIdActual` para validar clics en Depositar, limpiar
+  botón y panel al salir del formulario, no poner hora al trámite de otro
+  borrador.
 

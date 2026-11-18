@@ -79,6 +79,10 @@ const VBEjecutor = (() => {
 		if (el.disabled || el.readOnly) {
 			return { ok: false, detalle: "el control no admite edición" };
 		}
+		// US-05: corrección del operador → no se pisa.
+		if (_conservarSiHayValor(doc, op, el, op.valor)) {
+			return { ok: true, detalle: "se conservó el valor escrito por el operador" };
+		}
 		_ponerTexto(doc, el, op.valor);
 		// Se relee el valor: un control que revierte lo escrito (listener
 		// de Angular, render posterior) NO cuenta como relleno.
@@ -203,6 +207,11 @@ const VBEjecutor = (() => {
 				sinFila.push(i + 1);
 				continue;
 			}
+			// US-05: corrección del operador → no se pisa.
+			if (_conservarSiHayValor(doc, op, filas[i], valor)) {
+				aplicadas++;
+				continue;
+			}
 			_ponerTexto(doc, filas[i], valor);
 			if (_valorDe(filas[i]) === valor) aplicadas++;
 		}
@@ -256,6 +265,11 @@ const VBEjecutor = (() => {
 				sinFila.push(i + 1);
 				continue;
 			}
+			// US-05: corrección del operador → no se pisa ni el tipo.
+			if (_conservarSiHayValor(doc, op, valoresFinal[i], valor)) {
+				aplicadas++;
+				continue;
+			}
 			// El tipo se elige ANTES de escribir el número: si la opción
 			// no existe, el valor anterior (por ejemplo, un pasaporte)
 			// queda intacto y la operación se reporta como fallida.
@@ -295,6 +309,10 @@ const VBEjecutor = (() => {
 		// y el operador selecciona a mano, como hace hoy).
 		const input = doc.querySelector(op.selectorInput);
 		if (!input) return { ok: false, detalle: "no se encontró el campo" };
+		// US-02: validar estado efectivo del control antes de escribir
+		if (input.disabled || input.readOnly) {
+			return { ok: false, detalle: "el control no admite edición" };
+		}
 		const previo = _valorDe(input);
 		_ponerTexto(doc, input, op.texto);
 		const intentos = 8;
@@ -310,7 +328,16 @@ const VBEjecutor = (() => {
 				if (texto === op.texto) {
 					el.click();
 					_evento(doc, input, "change");
-					return { ok: true, detalle: "" };
+					// US-02 / US-01: releer el valor - un control que
+					// revierte lo escrito (listener de Angular, render
+					// posterior) NO cuenta como relleno.
+					const actual = _valorDe(input);
+					if (actual === op.texto) {
+						return { ok: true, detalle: "" };
+					}
+					// Valor no quedó: restablecer y reintentar
+					_ponerTexto(doc, input, previo);
+					break;
 				}
 			}
 		}
@@ -318,7 +345,45 @@ const VBEjecutor = (() => {
 		// anterior. Borrarlo dejaría el formulario sin el dato que el
 		// operador había escrito (US-03).
 		_ponerTexto(doc, input, previo);
-		return { ok: false, detalle: "no se encontró la opción " + op.texto };
+		return { ok: false, detalle: "no se encontró la opción " + op.texto + " (agotados " + intentos + " intentos)" };
+	}
+
+	function _selectoresDe(op) {
+		// Selectores que la operación necesita en el DOM.
+		const salida = [];
+		if (op.selector) salida.push(op.selector);
+		if (op.selectorMeta) salida.push(op.selectorMeta);
+		if (op.selectorValor) salida.push(op.selectorValor);
+		if (op.selectorInput) salida.push(op.selectorInput);
+		return salida;
+	}
+
+	async function _esperarControles(doc, plan, dormir, intentos) {
+		// US-05: esperar a que los controles del plan existan. Un campo
+		// que renderiza tarde no debe quedar "a mano" para siempre. Si
+		// después del margen no aparece, el plan sigue: la operación
+		// correspondiente se reportará pendiente (fallo visible).
+		const pendientes = new Set();
+		(plan.operaciones || []).forEach(function (op) {
+			_selectoresDe(op).forEach(function (sel) {
+				if (!doc.querySelector(sel)) pendientes.add(sel);
+			});
+		});
+		for (let i = 0; i < intentos && pendientes.size; i++) {
+			await dormir(120);
+			pendientes.forEach(function (sel) {
+				if (doc.querySelector(sel)) pendientes.delete(sel);
+			});
+		}
+	}
+
+	function _conservarSiHayValor(doc, op, el, esperado) {
+		// US-05: en un reintento, un campo que ya tiene un valor
+		// distinto del esperado es una corrección del operador: no se
+		// pisa. El campo cuenta como completo porque ya tiene contenido.
+		if (!op.preservarSiLleno || !el) return false;
+		const actual = _valorDe(el).trim();
+		return !!actual && actual !== esperado;
 	}
 
 	async function aplicarPlan(doc, plan, opciones) {
@@ -327,6 +392,11 @@ const VBEjecutor = (() => {
 		const exitosos = [];
 		const fallidos = [];
 		const detalle = [];
+		// US-05: esperar los controles del plan antes de empezar. Un
+		// campo que renderiza tarde (asesor, resumen) no debe quedar
+		// "a mano" para siempre: se le da un margen y, si no aparece, la
+		// operación se reporta pendiente (fallo visible, no silencio).
+		await _esperarControles(doc, plan, dormir, config.intentosEspera || 8);
 		for (const op of plan.operaciones) {
 			const etiqueta = op.campo || op.tipo;
 			let resultado = { ok: false, detalle: "operación desconocida" };

@@ -77,7 +77,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-05 | P2 | Dos tipos declarados: gana el primero | M4 / Int3 | Pendiente |
 | VA-06 | P2 | Resumen sin máximo de palabras | M5 / Int3 | Pendiente |
 | VA-07 | P2 | Abstract vacío; palabras clave incompletas | M5 / Int3 | Pendiente |
-| VA-08 | P1 | Permanecen filas de autores/DNI anteriores | B4 / Int1 | Pendiente |
+| VA-08 | P1 | Permanecen filas de autores/DNI anteriores | B4 / Int1 | Cerrado en código — rama `api-flujo-deposito-confirmado` (US-03, US-04): las filas sobrantes se quitan con el control del widget y los pares autor/DNI conservan la posición. Falta la evidencia en el navegador real |
 | VA-09 | P1 | Ficha y depósito sin identidad de trámite | B2 + F2 / Int1, Int2 | Cerrado — PR #95 fusionado (`0469983`): B2 y F2 implementados; contrato v1.13.0 |
 | VA-10 | P1 | Resguardo identificado solo por filename | F1 / Int2 | Pendiente |
 | VA-11 | P2 | DOCX malformado devuelve 500 | M1a + B5 / Int3, Int1 | Pendiente |
@@ -89,8 +89,8 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-17 | P1 | Ejemplos DOCX dañados; guardia incompleta | B6 / Int1; M11 / Int3 | Pendiente |
 | VA-18 | P2 | Total presentado como reglas evaluadas | B7 + M10 / Int1, Int3 | B7 cerrado — PR #93 fusionado (`a6c8d4e`). Falta M10 (Int3) para CLI y exportador |
 | VA-19 | P1 | Un archivo real bloquea la siguiente validación | B1 + F4 / Int1, Int2 | Pendiente |
-| VA-20 | P1 | Éxito de relleno sin comprobar aceptación de Angular | B3 / Int1 | Pendiente |
-| VA-21 | P1 | Autofill y restauración del navegador pueden recuperar datos ajenos | B8 + F5 / Int1, Int2 | Riesgo reportado; verificar en navegador real |
+| VA-20 | P1 | Éxito de relleno sin comprobar aceptación de Angular | B3 / Int1 | Parcial — rama `api-flujo-deposito-confirmado` (US-02): los valores escritos se releen y las filas se concilian con los controles del widget. Falta la puerta de Angular: el laboratorio no se ejecutó |
+| VA-21 | P1 | Autofill y restauración del navegador pueden recuperar datos ajenos | B8 + F5 / Int1, Int2 | Parcial — B8: rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador (US-08). Falta F5 (Int2) y la verificación en navegador real |
 | NM-01 | P1 | Paginación normativa incorrecta | M12a / Int3 | Pendiente |
 | NM-02 | P1 | Carátula acepta escuela ausente y asesor 36 pt | M12b / Int3 | Pendiente |
 | NM-03 | P1 | Esquemas y alcance sin correspondencia demostrada | M12c / Int3; F3 / Int2 | Pendiente |

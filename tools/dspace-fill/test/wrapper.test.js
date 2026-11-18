@@ -377,6 +377,92 @@ test("una meta completada después vuelve a evaluarse (no queda vista)", async (
 	assert.strictEqual(posteos(peticiones, "/deposito").length, 0);
 });
 
+
+
+test("al salir del formulario se quita el botón y el tramite actual (US-07)", async () => {
+	const { ventana, dom } = montar({
+		html: FORM_HTML,
+		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
+		respuestas: {
+			"GET /ficha-pendiente": {
+				status: 200,
+				body: {
+					ficha: {
+						extraidos: [
+							{ campo: "dc.title", valor: TITULO_FICHA, pagina: 1, detectado: true },
+						],
+						manuales: [],
+					},
+					tramite_id: "tramite-1",
+					revision: 0,
+				},
+			},
+		},
+	});
+	await dormir(1300);
+	// El botón debería existir
+	assert.ok(ventana.document.getElementById("vb-boton"), "el botón existe en el formulario");
+
+	// Cambiar a MyDSpace (no es formulario)
+	const dom2 = new JSDOM("<html><body><h1>MyDSpace</h1></body></html>", {
+		url: "https://repositorio.unitru.edu.pe/mydspace",
+		runScripts: "dangerously",
+	});
+	const ventana2 = dom2.window;
+	ventana2.GM_setValue = ventana.GM_setValue;
+	ventana2.GM_getValue = ventana.GM_getValue;
+	ventana2.GM_xmlhttpRequest = ventana.GM_xmlhttpRequest;
+	ventana2.localStorage = ventana.localStorage;
+	ventana2.eval(DIST);
+	await dormir(800);
+
+	// El botón debería haberse quitado (el observador detecta el cambio de ruta)
+	assert.strictEqual(ventana2.document.getElementById("vb-boton"), null, "el botón se quita al salir del formulario");
+});
+
+
+
+test("clic en Depositar de otro tramite no pone hora al trámite actual (US-07)", async () => {
+	const { ventana } = montar({
+		html: FORM_HTML,
+		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
+		respuestas: {
+			"GET /ficha-pendiente": {
+				status: 200,
+				body: {
+					ficha: {
+						extraidos: [
+							{ campo: "dc.title", valor: TITULO_FICHA, pagina: 1, detectado: true },
+						],
+						manuales: [],
+					},
+					tramite_id: "tramite-1",
+					revision: 0,
+				},
+			},
+		},
+	});
+	await dormir(1300);
+
+	// Simular que el usuario venía de otro tramite: establecer el envío
+	// con tramite_id diferente DESPUES de que llenar() estableció
+	// tramiteIdActual. Esto simula navegar de un borrador a otro.
+	ventana.localStorage.setItem("vb:vb_envio", JSON.stringify({
+		protocolo: 2,
+		tramite_id: "tramite-2", // trámite del borrador anterior
+		revision: 0,
+		titulo: "Otra tesis",
+		timestamp: null,
+	}));
+
+	// Hacer clic en Depositar: el tramite_id del envio (tramite-2) no
+	// coincide con tramiteIdActual (tramite-1), así que no debe actualizar el timestamp.
+	ventana.document.getElementById("deposit").click();
+	const envio = JSON.parse(ventana.localStorage.getItem("vb:vb_envio"));
+	assert.strictEqual(envio.timestamp, null, "no se puso hora porque el tramite no coincide");
+	assert.strictEqual(envio.tramite_id, "tramite-2", "el tramite_id no se sobreescribe");
+});
+
 // ---------------------------------------------------------------------------
 // El formulario: rellenar y registrar el clic en Depositar
 // ---------------------------------------------------------------------------
@@ -420,6 +506,118 @@ test("el formulario se rellena y guarda el envío con el protocolo 2", async () 
 	assert.strictEqual(envio.tramite_id, "tramite-1");
 	assert.strictEqual(envio.revision, 0);
 	assert.strictEqual(envio.timestamp, null);
+});
+
+test("datos esenciales invalidos: no se inicia el relleno ni se registra envio", async () => {
+	const { ventana } = montar({
+		html: FORM_HTML,
+		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
+		respuestas: {
+			"GET /ficha-pendiente": {
+				status: 200,
+				body: {
+					ficha: {
+						extraidos: [
+							{ campo: "dc.title", valor: TITULO_FICHA, pagina: 1, detectado: true },
+							{
+								campo: "dc.contributor.author",
+								valor: ["", "Varas Vega Cinthya"],
+								pagina: 1,
+								detectado: true,
+							},
+						],
+						manuales: [],
+					},
+					tramite_id: "tramite-1",
+					revision: 0,
+				},
+			},
+		},
+	});
+	await dormir(1300);
+	const titulo = ventana.document.querySelector('input[name="dc.title"]').value;
+	assert.strictEqual(titulo, "", "el titulo no se lleno cuando los datos son invalidos");
+	const envioRaw = ventana.localStorage.getItem("vb:vb_envio");
+	assert.strictEqual(envioRaw, null, "no se registro envio para datos invalidos");
+});
+
+test("relleno verificado: segundo clic no vuelve a llenar", async () => {
+	const { ventana } = montar({
+		html: FORM_HTML,
+		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
+		respuestas: {
+			"GET /ficha-pendiente": {
+				status: 200,
+				body: {
+					ficha: {
+						extraidos: [
+							{ campo: "dc.title", valor: TITULO_FICHA, pagina: 1, detectado: true },
+							{
+								campo: "dc.contributor.author",
+								valor: ["Cerna Vidal Kassiel"],
+								pagina: 1,
+								detectado: true,
+							},
+						],
+						manuales: [],
+					},
+					tramite_id: "tramite-1",
+					revision: 0,
+				},
+			},
+		},
+	});
+	// Llenar el formulario
+	await dormir(1300);
+	const titulo = ventana.document.querySelector('input[name="dc.title"]').value;
+	assert.strictEqual(titulo, TITULO_FICHA, "el relleno escribio el titulo");
+	const envio = JSON.parse(ventana.localStorage.getItem("vb:vb_envio"));
+	assert.strictEqual(envio.tramite_id, "tramite-1");
+
+	// Simular que el usuario pulsa el boton Rellenar otra vez: montar de nuevo
+	const ventana2 = montar({
+		html: FORM_HTML,
+		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
+		respuestas: {
+			"GET /ficha-pendiente": {
+				status: 200,
+				body: {
+					ficha: {
+						extraidos: [
+							{ campo: "dc.title", valor: TITULO_FICHA, pagina: 1, detectado: true },
+							{
+								campo: "dc.contributor.author",
+								valor: ["Cerna Vidal Kassiel"],
+								pagina: 1,
+								detectado: true,
+							},
+						],
+						manuales: [],
+					},
+					tramite_id: "tramite-1",
+					revision: 0,
+				},
+			},
+		},
+		envio: {
+			protocolo: 2,
+			tramite_id: "tramite-1",
+			revision: 0,
+			titulo: TITULO_FICHA,
+			timestamp: null,
+			relleno: {
+				estado: "verificado",
+				revision: 0,
+				campos: { titulo: "completo", autores: "completo", asesor: "sin_dato" },
+				pendientes: [],
+			},
+		},
+	});
+	await dormir(1300);
+	const titulo2 = ventana2.ventana.document.querySelector('input[name="dc.title"]').value;
+	assert.strictEqual(titulo2, "", "el formulario verificado no se volvio a llenar");
+	const toast = ventana2.ventana.document.getElementById("vb-toast");
+	assert.ok(toast.textContent.includes("no se volvio a rellenar"), "el aviso dice que no se repite el relleno");
 });
 
 test("el clic en Depositar registra la hora del envío y no del archivo", async () => {

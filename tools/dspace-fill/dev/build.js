@@ -13,6 +13,8 @@ const partes = [
 	"src/compuertas.js",
 	"src/mapeador.js",
 	"src/ejecutor.js",
+	"src/relleno.js",
+	"src/ticket.js",
 	"src/panel.js",
 	"src/reloj.js",
 	"src/wrapper.js",
