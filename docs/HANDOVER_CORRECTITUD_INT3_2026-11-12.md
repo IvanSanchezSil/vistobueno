@@ -1,6 +1,10 @@
 # Handover Integrante 3 — motor — 2026-11-12
 
-**Estado:** tareas pendientes. Implementar solo los archivos asignados a este integrante.
+**Estado:** M1 a M7 implementados y fusionados en `master` el 2026-11-17.
+Merges: M1 `f6428d1` (#100), M1a `7d90502` (#99), M2 `2286886` (#101), M3
+`0a6d78b` (#102), M4 `32a3c13` (#103), M5 `4a1ae60` (#104), M6 `a666778`
+(#105) y M7 `de0ca8b` (#106). Quedan pendientes M8 (VA-16), M9 (VA-12),
+M10 (VA-18) y M12 (NM-01 a NM-07).
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
 Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
