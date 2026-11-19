@@ -389,11 +389,40 @@ verifica un mínimo:
 ```yaml
 hipervinculo_texto:
   parte: document
-  contexto: todos
+  contexto: caratula
   xpath: //w:body//w:hyperlink
-  patron: 'https?://orcid\.org/\d{4}-?\d{4}-?\d{4}-?\d{4}'
+  patron: 'https?://orcid\.org/\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]'
   cantidad_minima: 1
 ```
+
+Con la sub-configuración `validar_orcid` (M8/VA-16) se valida además el
+contenido del identificador y su relación con la carátula:
+
+```yaml
+hipervinculo_texto:
+  # ...
+  validar_orcid:
+    checksum: true     # ISO 7064 MOD 11-2; el último carácter puede ser X
+    destino: true      # el Target de la relación debe ser el mismo perfil
+    por_persona: true  # cada autor y el asesor deben tener su ORCID debajo
+```
+
+- `checksum` usa el algoritmo ISO 7064 MOD 11-2 que define ORCID. Un
+  identificador con forma correcta pero dígito de control inválido falla
+  con `invalidos=[... checksum]`.
+- `destino` lee `word/_rels/document.xml.rels` y exige que el `Target`
+  del `w:hyperlink` apunte a `orcid.org` con **el mismo** identificador
+  visible. Un texto correcto con destino falso falla con
+  `invalidos=[... destino]`. Si la parte de relaciones falta o está mal
+  formada, el destino se considera ausente.
+- `por_persona` reconoce los bloques «AUTORES:»/«AUTORA:» y
+  «ASESOR(A):» de la carátula: cada párrafo de nombre es una persona y su
+  ORCID debe estar en el mismo párrafo o en el siguiente. Una línea de
+  ORCID en texto plano (sin hipervínculo) no satisface la regla. Si la
+  estructura de la carátula no se reconoce, se mantiene la comprobación
+  global de `cantidad_minima`.
+- La identidad del perfil no se verifica por red: el motor solo compara
+  texto y destino dentro del DOCX.
 
 Usado por la regla *caratula_orcid* (el código ORCID debe ser un
 hipervínculo de 16 dígitos, normalizado a minúsculas y entre paréntesis).

@@ -744,3 +744,47 @@ def test_imagen_con_clave_desconocida_se_detecta():
     """Un typo (`tolerancia`) desactivaría la tolerancia en silencio."""
     hallazgos = _hallazgos(_regla_imagen(ancho_cm=6.73, alto_cm=4.84, tolerancia=0.1))
     assert any("tolerancia" in h for h in hallazgos)
+
+
+# M8/VA-16: sub-configuración `validar_orcid` de `hipervinculo_texto`
+# ---------------------------------------------------------------------------
+
+
+def _regla_orcid(**config) -> dict:
+    """Regla mínima de hipervínculo para probar el linter."""
+    return {
+        "id": "orcid_x",
+        "tipo": "formato_texto",
+        "severidad": "warning",
+        "descripcion": "ORCID de prueba",
+        "hipervinculo_texto": {
+            "parte": "document",
+            "xpath": "//w:body//w:hyperlink",
+            "patron": r"https?://orcid\.org/\d{4}",
+            **config,
+        },
+    }
+
+
+def test_validar_orcid_valido_no_produce_hallazgo():
+    hallazgos = _hallazgos(
+        _regla_orcid(validar_orcid={"checksum": True, "destino": True, "por_persona": True})
+    )
+    assert not hallazgos
+
+
+def test_validar_orcid_con_clave_desconocida_se_detecta():
+    """Un typo (`por_personas`) dejaría el ORCID por persona sin validar."""
+    hallazgos = _hallazgos(_regla_orcid(validar_orcid={"por_personas": True}))
+    assert any("validar_orcid" in h and "por_personas" in h for h in hallazgos)
+
+
+@pytest.mark.parametrize("valor", [1, "true", None])
+def test_validar_orcid_con_valor_no_booleano_se_detecta(valor):
+    hallazgos = _hallazgos(_regla_orcid(validar_orcid={"checksum": valor}))
+    assert any("checksum" in h and "booleano" in h for h in hallazgos)
+
+
+def test_validar_orcid_no_diccionario_se_detecta():
+    hallazgos = _hallazgos(_regla_orcid(validar_orcid=True))
+    assert any("validar_orcid" in h and "diccionario" in h for h in hallazgos)
