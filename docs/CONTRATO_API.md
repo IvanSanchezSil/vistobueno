@@ -94,8 +94,8 @@ El archivo se procesó correctamente y se evaluaron las reglas.
     ]
   },
   "resumen": {
-    "total": 49,
-    "total_evaluadas": 43,
+    "total": 50,
+    "total_evaluadas": 44,
     "reglas_no_aplicables": 6,
     "fallidos_error": 0,
     "fallidos_warning": 2
@@ -135,8 +135,8 @@ El archivo se procesó correctamente y se evaluaron las reglas.
   "metadatos": {
     "archivo_nombre": "tesis.docx",
     "archivo_tamano_bytes": 123456,
-    "reglas_evaluadas": 43,
-    "reglas_totales": 49,
+    "reglas_evaluadas": 44,
+    "reglas_totales": 50,
     "version_esquema": "2026-09-01",
     "tipo_documento_declarado": null,
     "tipo_documento_inferido": "tinv_cuantitativo",
@@ -147,7 +147,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 
 > **Nota sobre los conteos**: el ejemplo muestra un plan cuantitativo conforme,
 > donde las 6 reglas de otros tipos de documento no aplican. Por eso
-> `total` (49) ≠ `total_evaluadas` (43) y `reglas_no_aplicables` = 6.
+> `total` (50) ≠ `total_evaluadas` (44) y `reglas_no_aplicables` = 6.
 
 ### Descripción de campos de respuesta
 
@@ -984,12 +984,12 @@ respuestas no cambia.
   `detectado=false`, `valor=null` y `pagina=null`. El operador lo
   teclea en la pantalla de ficha en vez de pre-llenar el formulario
   oficial de DSpace con un dato inservible.
-- El motor (Int3) sigue siendo quien captura: cuando corrija las reglas
-  de `reglas_ficha.yaml` (AUD-24 a AUD-27), el valor correcto viaja
-  con `detectado=true` sin tocar la API.
-- Criterios de aceptación de Int3 en `tests/test_captura_ficha.py`
-  (`xfail(strict=True)`) y en `tests/test_constancia.py`
-  (`TestConstanciasConCapturaReal`).
+- El motor (Int3) sigue siendo quien captura. AUD-24 a AUD-27 quedaron
+  cerrados en el PR #75: el valor correcto viaja con `detectado=true` sin
+  tocar la API.
+- Criterios de aceptación de Int3 en `tests/test_captura_ficha.py` y en
+  `tests/test_constancia.py` (`TestConstanciasConCapturaReal`); ya no
+  tienen `xfail`.
 
 ### v1.9.0 (2026-10-28 — auditoría de comportamiento: acceso local y límite)
 

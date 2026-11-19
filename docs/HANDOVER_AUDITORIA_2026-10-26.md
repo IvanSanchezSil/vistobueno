@@ -1,8 +1,11 @@
 # Handover: remediación de la auditoría de comportamiento (2026-10-26)
 
 **Origen:** `docs/AUDIT_COMPORTAMIENTO_VISTOBUENO_2026-10-26.md` (27 hallazgos).
-**Estado:** abierto. Queda trabajo pendiente en el motor (Int3); la parte de
-frontend (Int2) está cerrada (AUD-16 a AUD-18, PR #68).
+**Estado:** abierto. La pila de correctitud del motor de la Semana 12
+(PR #98 a #106) quedó fusionada en `master` el 2026-11-17 (`ca9a4100`) y
+cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11). Siguen
+pendientes los ítems de Int1, Int2, VA-13 y el bloque normativo (NM-01 a
+NM-07).
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
 todavía no ha cerrado.
@@ -35,13 +38,60 @@ la ficha (`reglas_ficha.yaml`):
 |-----------|----------|-----------|
 | Tesis real (copia local con PII) | **verde** | 43 de 49 reglas evaluadas, 6 no aplicables, 0 errores, **5 warnings** |
 | Tesis real, versión anterior (copia local con PII) | **rojo** | 1 error (`estructura_tinv_cuantitativo`: faltan 5 headings) + los mismos 5 warnings |
-| `EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
-| `TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx` | **rojo** | 1 error (`palabras_clave_minimo`) + 6 warnings |
+| `EDUCACION INICIAL-PLANTILLA INVESTIGACIÓN CUANTITATIVA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 8 warnings |
+| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN EDUCACION TEMPRANA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 8 warnings |
+| `PROGRAMA DE SEGUNDA ESPECIALIDAD EN ESTIMULACIÓN-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 8 warnings |
+| `TECNOLOGIA EDUCATIVA-ADMINISTRACION Y GERENCIA EDUCATIVA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 8 warnings |
+| `TECNOLOGIA EDUCATIVA-INFORMATICA EDUCATIVA-PLANTILLA.docx` | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 8 warnings |
 
-Los 5 warnings de la tesis real (los mismos de la auditoría):
+El resultado de las plantillas es **orientativo**: son documentos de
+instrucción con texto de relleno (el título va en rojo y mezcla negrita),
+así que `caratula_titulo_negrita_mixta` las marca a propósito. La regla se
+mantiene estricta porque, para un estudiante que deja el placeholder, es
+la guía correcta (decisión de la revisión del PR #100). El test
+`tests/test_tipo_documento.py::TestSinCambioDeComportamiento::test_plantillas_oficiales_resultado_orientativo`
+fija este resultado cuando `recursos/` está disponible.
+
+Los 8 warnings de cada plantilla son `caratula_titulo_trabajo_tamano`,
+`caratula_optar_grado_tamano`, `caratula_logotipo_tamano`,
+`indice_subdivisiones`, `resumen_longitud`, `abstract_contenido`,
+`referencias_minimo_cuantitativo` y `anexos_minimos_cuantitativo`. El test
+que fija el baseline se salta cuando `recursos/` no está disponible, así que
+la cifra se verificó de forma local contra las cinco plantillas.
+
+### 2.1 Evidencia medida (2026-11-17, tras la pila #98–#106)
+
+Ejecución del motor DSL con `reglas_unt.yaml` (50 reglas) sobre el mismo
+corpus:
+
+| Documento | Semáforo | Resultado |
+|-----------|----------|-----------|
+| Tesis real (copia local con PII) | **verde** | 42 de 50 reglas evaluadas, 8 no aplicables, 0 errores, **5 warnings** |
+| Tesis real, versión anterior (copia local con PII) | **rojo** | 4 errores (`tamano_cuerpo`, `interlineado`, `alineacion_cuerpo` y `estructura_tinv_cuantitativo`) + los mismos 5 warnings |
+| Las 5 plantillas oficiales | **rojo** | 2 errores (`palabras_clave_minimo`, `caratula_titulo_negrita_mixta`) + 8 warnings |
+
+La diferencia con la medición del 2026-10-28 es intencionada: la pila de la
+Semana 12 endurece la detección (formato efectivo de todo el texto, A4 en
+todas las secciones, paginación real, todas las declaraciones del Anexo 10,
+límites del Resumen y del Abstract, anexo «Base de datos» y medición del
+logotipo) y corrige el falso error de `alineacion_cuerpo` en documentos sin
+prosa.
+
+Los 5 warnings de la tesis real en esta medición:
+
+```
+caratula_titulo_trabajo_tamano   13 runs a 13 pt; esperado 14 pt
+caratula_optar_grado_tamano      9 runs a 12 pt; esperado 13 pt
+caratula_logotipo_tamano         imagenes=1 tamanos=6.56x4.21cm esperado=6.73x4.84±0.10cm
+sangria_parrafo                  144 valores, 4 incumplen: 3 a 1.00 cm y 1 a 0.50 cm; esperado 1.27 cm
+anexos_minimos_cuantitativo      items_obligatorios=9 encontrados=5
+```
+
+`indice_apunta_secciones` no aparece en esta medición: la regla ya pasaba en
+`master` antes de la pila (`d8947be`). La lista del 2026-10-28 refleja el
+código de esa fecha.
+
+Los 5 warnings de la tesis real en la medición del 2026-10-28:
 
 ```
 caratula_titulo_trabajo_tamano   @w:val=['26'] esperado=28
@@ -266,18 +316,18 @@ dejarlo dicho en la documentación.
 ## 6. Contrato que Int1 exige (y sus tests)
 
 Int1 (**API**) escribe los tests; Int3 (**motor**) los hace pasar. Los tests
-con `xfail(strict=True)` marcan los criterios de aceptación: cuando el
-motor los cumpla, el `XPASS` estricto pone el CI en rojo hasta que se quite
-la marca.
+con `xfail(strict=True)` marcaron los criterios de aceptación mientras el
+motor no los cumplía; Int3 quitó la marca en el PR #75 al implementar
+AUD-24 a AUD-27.
 
 | Contrato | Dónde | Criterio |
 |----------|-------|----------|
 | Ficha utilizable | `tests/test_api_contract.py` (`TestContratoFichaUtilizable`) | todo `extraidos` con `detectado=True` trae un valor **no vacío** |
 | Año válido | `tests/test_api_contract.py` | `dc.date.issued` con `detectado=True` es un año (`\b(19\|20)\d{2}\b`) |
-| Autores completos | `tests/test_captura_ficha.py` (`xfail`) | `dc.contributor.author` trae **un autor por párrafo**, con el formato "Apellido, Nombre" (sin partir por la coma) |
-| Asesor presente | `tests/test_captura_ficha.py` (`xfail`) | `dc.contributor.advisor` con `detectado=True` trae texto |
-| Palabras clave limpias | `tests/test_captura_ficha.py` (`xfail`) | `dc.subject` sin puntuación final (AUD-27) |
-| Una constancia por autor | `tests/test_constancia.py` (`TestConstanciasConCapturaReal`, `xfail`) | 2 autores reales → 2 constancias + 2 filas, cada una con su matrícula |
+| Autores completos | `tests/test_captura_ficha.py` (cerrado, PR #75) | `dc.contributor.author` trae **un autor por párrafo**, con el formato "Apellido, Nombre" (sin partir por la coma) |
+| Asesor presente | `tests/test_captura_ficha.py` (cerrado, PR #75) | `dc.contributor.advisor` con `detectado=True` trae texto |
+| Palabras clave limpias | `tests/test_captura_ficha.py` (cerrado, PR #75) | `dc.subject` sin puntuación final (AUD-27) |
+| Una constancia por autor | `tests/test_constancia.py` (`TestConstanciasConCapturaReal`, cerrado en PR #75) | 2 autores reales → 2 constancias + 2 filas, cada una con su matrícula |
 | Paridad real | `tests/test_paridad_formatos.py` | sin aserciones vacías; caso "detectado pero incompleto" comparando `passed` con legacy |
 
 El DOCX de la carátula real (con placeholders) lo construye
@@ -309,7 +359,7 @@ oficiales.
 | # | Tema | Decisión | Consecuencia |
 |---|------|----------|--------------|
 | 1 | Sangría (`sangria_parrafo`) | Se mantiene la regla literal. **No** se eximen estilos de cita en bloque. | Nota `EVALUADO` en el YAML. Las citas en bloque usan `w:left` sin `firstLine`, así que la comparación ya las ignora. Sin cambio de código. |
-| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | Cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`. El efecto se ve cuando AUD-02 lea la sección de anexos. Sigue siendo `warning`. |
+| 2 | Anexos (`anexos_minimos_cuantitativo`) | El ítem 5 pasa a «Base de datos». El manual dice «Base de datos cuantitativo» y la tesis real titula «Base de datos». | **Implementado en M6 (`c2eb680`)**: cambio de dato en `reglas_unt.yaml` + nota `EVALUADO`; el título real se reconoce y su ausencia se informa. Sigue siendo `warning`. |
 | 3 | AUD-05 (selectores de carátula) | Se endurece solo la regla `error` (`caratula_autores_tamano`): todos los runs con texto y todos los párrafos de autores hasta ASESOR/ORCID. Las dos reglas `warning` conservan el selector actual, con la limitación documentada. | Un falso positivo en una regla `error` pone el semáforo en rojo; en una `warning` solo agrega ruido. **Implementado en el PR #73**: XPath del bloque de autores (todos los runs con texto, desde «AUTORES:» hasta antes de «ASESOR(A):», con las líneas ORCID) y comparación `all_eq`. |
 | 4 | AUD-06 (heurística del índice) | Igualdad del título normalizado; `_sigpalabra` queda como respaldo cuando el título normalizado tiene menos de 4 caracteres. | **Implementado en el PR #73** (con AUD-01 ya estable): el match por subcadena se sustituye por igualdad del título normalizado; `_sigpalabra` solo se usa para títulos de <4 caracteres. |
 | 5 | AUD-07 (alcance de `caratula_optar_grado_tamano`) | El manual exige 13 pt en la línea «para optar» (párr. 1056 y 1076), pero la tesis aprobada de la auditoría y las 5 plantillas oficiales usan 12 pt. Se sigue el manual: el XPath queda amplio (`para optar`, sin acotar a «Bachiller») y el desvío se reporta como **warning**, sin cambiar el semáforo. | Se cierra AUD-07 en el PR #73. `n_a_si_sin_nodos` solo cubre los documentos que no tienen esa línea. El desvío de la tesis/plantillas se documenta en la nota `EVALUADO` de AUD-04. |
@@ -498,6 +548,13 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > `_sigpalabra` solo como respaldo para títulos de <4 caracteres). AUD-07
 > sigue la decisión del 2026-11-08: XPath amplio de «para optar» y warning en
 > la línea de 12 pt; `n_a_si_sin_nodos` solo para documentos sin esa línea.
+>
+> **Actualizado (2026-11-11, Int3)**: el **PR #75** (`semana11-motor-ficha`)
+> cierra AUD-24, AUD-25, AUD-26 y AUD-27. La captura se verificó contra la
+> tesis real y contra las 5 plantillas: dos autores completos, asesora,
+> año de portada 2026, abstract y palabras clave sin puntuación final. Los
+> `xfail` de `tests/test_captura_ficha.py` y `tests/test_constancia.py` se
+> retiraron; la suite queda en verde.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -523,10 +580,10 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-21 | Int1 | **cerrado** | PR #67 |
 | AUD-22 | Int1 | **cerrado** | PR #69 |
 | AUD-23 | Int1 | **cerrado: los archivos quedan sin trackear** (decisión 2026-10-28) | — |
-| AUD-24 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| AUD-25 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| AUD-26 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
-| AUD-27 | Int3 (criterio: Int1) | pendiente (Int3) — criterio de aceptación listo | PR #67 (test) |
+| AUD-24 | Int3 (criterio: Int1) | **cerrado** (autores completos; test sin `xfail`) | PR #75 |
+| AUD-25 | Int3 (criterio: Int1) | **cerrado** (asesor del párrafo siguiente; `detectado=false` si queda vacío) | PR #75 |
+| AUD-26 | Int3 (criterio: Int1) | **cerrado** (año de portada 2026, no el 2024 del título) | PR #75 |
+| AUD-27 | Int3 (criterio: Int1) | **cerrado** (palabras clave sin puntuación final) | PR #75 |
 | Nuevo: `palabras_clave_minimo` | Int3 | **decidido: se mantiene `error`** (intencional; las 5 plantillas fallan a propósito) | — |
 | Nuevo: plantillas no cuantitativas | Int3 | documentar | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
@@ -544,31 +601,31 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 Tareas, dependencias y aceptación para los tres integrantes en
 [`HANDOVER_CORRECTITUD_2026-11-12.md`](HANDOVER_CORRECTITUD_2026-11-12.md).
 Los ID `VA` no reemplazan los `AUD`. Esta documentación no cierra los defectos.
-VA-13 corresponde a AUD-24 a AUD-27; PR #75 sigue abierto y con conflictos en
-la consulta del 2026-11-12. VA-20 añade la verificación del relleno Angular.
+VA-13 corresponde a AUD-24 a AUD-27; el PR #75 se fusionó y cierra la
+captura de la ficha. VA-20 añade la verificación del relleno Angular.
 VA-21 es un riesgo de restauración/autofill reportado por el usuario y pendiente
 de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 
 | ID | Responsable | Estado | Tarea del nuevo handover |
 |----|-------------|--------|-------------------------|
-| VA-01 | Int3 | pendiente | M1: todos los runs |
-| VA-02 | Int3 | pendiente | M1: formato efectivo |
-| VA-03 | Int3 | pendiente | M2: A4 en secciones |
-| VA-04 | Int3 | pendiente | M3: paginación |
-| VA-05 | Int3 | pendiente | M4: declaraciones múltiples |
-| VA-06 | Int3 | pendiente | M5: límites del Resumen |
-| VA-07 | Int3 | pendiente | M5: Abstract y palabras clave |
+| VA-01 | Int3 | **cerrado** (PR #100, merge `f6428d1`; implementación `8c63dcc`): todos los runs con texto | M1: todos los runs |
+| VA-02 | Int3 | **cerrado** (PR #100, merge `f6428d1`; implementación `8c63dcc`, `c3577f6`): formato efectivo con límites declarados | M1: formato efectivo |
+| VA-03 | Int3 | **cerrado** (PR #101, merge `2286886`; implementación `8983464`, `ca80948`): todas las secciones y las que no declaran `w:pgSz` | M2: A4 en secciones |
+| VA-04 | Int3 | **cerrado** (PR #102, merge `0a6d78b`; implementación `3477d84`, `83c3508`): orden, valor y certeza; las ramas n/a marcan la regla como no aplicable | M3: paginación |
+| VA-05 | Int3 | **cerrado** (PR #103, merge `32a3c13`; implementación `5fb2344`): todas las casillas marcadas | M4: declaraciones múltiples |
+| VA-06 | Int3 | **cerrado** (PR #104, merge `4a1ae60`; implementación `feeab66`): límites del Resumen | M5: límites del Resumen |
+| VA-07 | Int3 | **cerrado** (PR #104, merge `4a1ae60`; implementación `feeab66`): Abstract y palabras clave | M5: Abstract y palabras clave |
 | VA-08 | Int1 | pendiente | B4: filas sobrantes |
-| VA-09 | Int1 + Int2 | pendiente | B2 + F2: identidad de trámite |
+| VA-09 | Int1 + Int2 | **cerrado** (PR #95, merge `0469983`): B2 y F2 implementados; contrato v1.13.0 | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
-| VA-11 | Int3 + Int1 | pendiente | M1a + B5: documento inválido |
+| VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 pendiente | M1a + B5: documento inválido |
 | VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
-| VA-13 | Int3 | pendiente de integración | M0: PR #75, AUD-24 a AUD-27 |
-| VA-14 | Int3 | pendiente | M6: «Base de datos» |
-| VA-15 | Int3 | pendiente | M7: alcance de la regla del logo |
+| VA-13 | Int3 | **cerrado** (PR #75 fusionado): AUD-24 a AUD-27 y las etiquetas de las plantillas oficiales cubiertas | M0: PR #75, AUD-24 a AUD-27 |
+| VA-14 | Int3 | **cerrado** (PR #105, merge `a666778`; implementación `c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
+| VA-15 | Int3 | **cerrado** (PR #106, merge `de0ca8bb`; implementación `b92f7f3`, `ad78342`): el tamaño del logo se mide y se avisa; la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) | M7: alcance de la regla del logo |
 | VA-16 | Int3 | pendiente | M8: ORCID |
-| VA-17 | Int1 + Int3 | pendiente | B6: ejemplos; M11: factory |
-| VA-18 | Int1 + Int3 | pendiente | B7 + M10: conteos |
+| VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
+| VA-18 | Int1 + Int3 | B7 **cerrado** (PR #93, merge `a6c8d4e`); M10 pendiente | B7 + M10: conteos |
 | VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
 | VA-20 | Int1 | pendiente | B3 y puerta Angular de Int1: antes del piloto |
 | VA-21 | Int1 + Int2 | riesgo pendiente de verificar | B8 + F5: autofill y restauración |
