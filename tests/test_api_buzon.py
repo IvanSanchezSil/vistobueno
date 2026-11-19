@@ -1,18 +1,20 @@
-"""Tests del buzón de una ranura (comunicación app ↔ userscript, v1.13.0).
+"""Tests del buzón de trámite (comunicación app ↔ userscript, v1.14.0).
 
-Cubre dos niveles:
+Cubre tres niveles:
 
-- Unitario: la clase Buzon (TTL, última-gana, trámite, ranuras
-  independientes, copia defensiva, invalidación del depósito anterior).
-- Contrato: los endpoints HTTP del buzón sobre la app real (POST → GET,
-  201 con `tramite_id`, envelopes, 404/409, 422 con payload inválido) y
-  la invariante de seguridad: el buzón NUNCA emite cabeceras CORS.
+- Unitario: la clase Buzon (dos ventanas TTL, revisión, conciliación,
+  inconsistencia, confirmación explícita y copia defensiva).
+- Contrato: los endpoints HTTP del buzón sobre la app real (publicación,
+  autorelleno, trámite retenido, confirmación, conciliación, papeleo) y
+  los 409/422 que impiden que un cliente viejo habilite el papeleo.
+- Seguridad: el buzón NUNCA emite cabeceras CORS y solo se sirve por
+  loopback (o token compartido).
 
 Uso:
     pytest tests/test_api_buzon.py -v
 """
 
-import time
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from conftest import CLIENTE
@@ -20,17 +22,47 @@ from fastapi.testclient import TestClient
 
 import validator.api
 from validator.api import app
-from validator.buzon import Buzon, SinFichaVigente, TramiteNoCoincide
+from validator.buzon import (
+    AutoresNoCoinciden,
+    Buzon,
+    ConfirmacionInvalida,
+    HandleInvalido,
+    HandleNoCoincide,
+    RevisionNoCoincide,
+    SinFichaVigente,
+    TituloNoCoincide,
+    TramiteNoCoincide,
+)
 
 # Cliente con un peer que NO es loopback: simula una petición que llega
 # desde otro equipo de la red (auditoría 2026-10-26, AUD-09). El Host es
 # el loopback para aislar el control del peer (AUD-28).
 CLIENTE_FUERA = TestClient(app, client=("10.0.0.5", 40000), base_url="http://127.0.0.1")
 
+TITULO = "Tesis de prueba"
+AUTOR = "Ana María Pérez García"
+# Mismo nombre sin tilde: la comparación normalizada lo acepta.
+AUTOR_SIN_TILDE = "Ana María Pérez Garcia"
+# Nombre realmente distinto: la comparación debe rechazarlo.
+AUTOR_DISTINTO = "Otra Persona"
 FICHA = {
     "extraidos": [
-        {"campo": "dc.title", "valor": "Tesis de prueba", "pagina": 1, "detectado": True},
-        {"campo": "escuela", "valor": None, "pagina": None, "detectado": False},
+        {"campo": "dc.title", "valor": TITULO, "pagina": 1, "detectado": True},
+        {"campo": "dc.contributor.author", "valor": [AUTOR], "pagina": 1, "detectado": True},
+        {"campo": "dc.date.issued", "valor": "2026", "pagina": 1, "detectado": True},
+        {"campo": "escuela", "valor": "Educación Inicial", "pagina": 1, "detectado": True},
+    ],
+    "manuales": [
+        {"campo": "matricula", "valor": "10584011-18"},
+        {"campo": "renati.author.dni", "valor": "12345678"},
+    ],
+}
+
+FICHA_SIN_AUTORES = {
+    "extraidos": [
+        {"campo": "dc.title", "valor": TITULO, "pagina": 1, "detectado": True},
+        {"campo": "dc.date.issued", "valor": "2026", "pagina": 1, "detectado": True},
+        {"campo": "escuela", "valor": "Educación Inicial", "pagina": 1, "detectado": True},
     ],
     "manuales": [
         {"campo": "matricula", "valor": "10584011-18"},
@@ -46,33 +78,80 @@ FICHA_REEMPLAZO = {
 }
 
 HANDLE = "https://hdl.handle.net/20.500.14414/99999"
+OTRO_HANDLE = "https://hdl.handle.net/20.500.14414/88888"
 TIMESTAMP = "2026-10-19T18:10:00"
-TITULO_OBSERVADO = "Tesis de prueba"
+TITULO_OBSERVADO = TITULO
 
 
-def _cuerpo_deposito(tramite_id: str) -> dict:
-    return {
+class RelojFalso:
+    """Reloj controlable para probar las dos ventanas sin dormir."""
+
+    def __init__(self, inicio: datetime | None = None) -> None:
+        self.ahora = inicio or datetime(2026, 1, 1, 9, 0, tzinfo=UTC)
+
+    def __call__(self) -> datetime:
+        return self.ahora
+
+    def avanzar(self, segundos: float) -> None:
+        self.ahora += timedelta(seconds=segundos)
+
+
+def _cuerpo_deposito(
+    tramite_id: str,
+    *,
+    revision: int = 0,
+    handle: str = HANDLE,
+    titulo: str = TITULO_OBSERVADO,
+    autores: list[str] | None = None,
+    timestamp: str = TIMESTAMP,
+    atestacion: str = "operador",
+) -> dict:
+    cuerpo = {
         "tramite_id": tramite_id,
-        "handle": HANDLE,
-        "titulo_observado": TITULO_OBSERVADO,
-        "timestamp": TIMESTAMP,
+        "handle": handle,
+        "titulo_observado": titulo,
+        "timestamp": timestamp,
+        "revision_esperada": revision,
     }
+    if autores is not None:
+        cuerpo["autores_observados"] = autores
+    if atestacion:
+        cuerpo["atestacion"] = atestacion
+    return cuerpo
 
 
 def _publicar_ficha(cliente: TestClient = CLIENTE, ficha: dict = FICHA):
     return cliente.post("/ficha-pendiente", json=ficha)
 
 
-def _publicar_deposito(tramite_id: str, cliente: TestClient = CLIENTE):
-    return cliente.post("/deposito", json=_cuerpo_deposito(tramite_id))
+def _publicar_deposito(
+    tramite_id: str,
+    *,
+    revision: int = 0,
+    autores: list[str] | None = None,
+    titulo: str = TITULO_OBSERVADO,
+    cliente: TestClient = CLIENTE,
+):
+    return cliente.post(
+        "/deposito",
+        json=_cuerpo_deposito(tramite_id, revision=revision, autores=autores, titulo=titulo),
+    )
+
+
+def _solicitud_papeleo(tramite_id: str, ficha: dict = FICHA) -> dict:
+    return {
+        "ficha": ficha,
+        "tramite_id": tramite_id,
+        "handle": HANDLE,
+        "timestamp": TIMESTAMP,
+    }
 
 
 @pytest.fixture(autouse=True)
-def _buzon_limpio():
+def _buzon_limpio(monkeypatch):
     """Aísla los tests: el buzón es un singleton del proceso."""
-    validator.api._BUZON.limpiar()
+    monkeypatch.setattr(validator.api, "_BUZON", Buzon())
     yield
-    validator.api._BUZON.limpiar()
 
 
 # ---------------------------------------------------------------------------
@@ -81,125 +160,304 @@ def _buzon_limpio():
 
 
 class TestBuzonUnitario:
-    """La ranura única con TTL, trámite y depósito atado a la ficha."""
+    """Dos ventanas, revisión, confirmación explícita y conciliación."""
 
     def test_ranura_vacia_devuelve_none(self):
-        """Sin publicar nada, la lectura devuelve None."""
         buzon = Buzon()
         assert buzon.leer_ficha() is None
+        assert buzon.leer_tramite() is None
         assert buzon.leer_deposito() is None
 
     def test_publicar_y_leer_ficha(self):
-        """Lo publicado se lee intacto, junto con su trámite."""
         buzon = Buzon()
-        tramite_id, vence_en = buzon.publicar_ficha({"extraidos": [1], "manuales": []})
+        publicacion = buzon.publicar_ficha(FICHA)
+        assert publicacion.revision == 0
+        assert publicacion.autofill_hasta < publicacion.retenido_hasta
         leida = buzon.leer_ficha()
         assert leida is not None
-        ficha, tramite_leido, vence_leido = leida
-        assert ficha == {"extraidos": [1], "manuales": []}
-        assert tramite_leido == tramite_id
-        assert vence_leido == vence_en
+        assert leida.ficha == FICHA
+        assert leida.tramite_id == publicacion.tramite_id
+        assert leida.revision == 0
 
     def test_ultima_gana_con_tramite_nuevo(self):
-        """Publicar de nuevo reemplaza ficha y trámite."""
         buzon = Buzon()
-        primero, _ = buzon.publicar_ficha({"a": 1})
-        segundo, _ = buzon.publicar_ficha({"b": 2})
-        assert primero != segundo
+        primero = buzon.publicar_ficha({"a": 1})
+        segundo = buzon.publicar_ficha({"b": 2})
+        assert primero.tramite_id != segundo.tramite_id
         leida = buzon.leer_ficha()
         assert leida is not None
-        assert leida[0] == {"b": 2}
-        assert leida[1] == segundo
+        assert leida.ficha == {"b": 2}
+        assert leida.tramite_id == segundo.tramite_id
+        assert leida.revision == 0
 
-    def test_ttl_expira_ficha_y_deposito(self):
-        """Con el TTL vencido, ambas ranuras se limpian."""
-        buzon = Buzon(ttl_segundos=0.01)
-        tramite_id, _ = buzon.publicar_ficha({"a": 1})
-        buzon.reportar_deposito(_cuerpo_deposito(tramite_id))
-        time.sleep(0.05)
+    def test_vencer_autorelleno_no_borra_el_tramite(self):
+        """La ventana corta solo bloquea el relleno; la evidencia sigue."""
+        reloj = RelojFalso()
+        buzon = Buzon(reloj=reloj)
+        publicacion = buzon.publicar_ficha(FICHA)
+        reloj.avanzar(3601)
+
         assert buzon.leer_ficha() is None
-        assert buzon.leer_deposito() is None
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.autofill_habil is False
+        assert estado.ficha == FICHA
+        assert estado.tramite_id == publicacion.tramite_id
 
-    def test_ttl_vigente_devuelve_contenido(self):
-        """Dentro del TTL, la ficha sigue disponible."""
-        buzon = Buzon(ttl_segundos=60)
-        buzon.publicar_ficha({"a": 1})
-        assert buzon.leer_ficha() is not None
-        assert buzon.leer_ficha() is not None
-
-    def test_ranuras_independientes(self):
-        """La ficha y su depósito conviven sin pisarse."""
-        buzon = Buzon()
-        tramite_id, _ = buzon.publicar_ficha({"ficha": True})
-        buzon.reportar_deposito(_cuerpo_deposito(tramite_id))
-        leida = buzon.leer_ficha()
-        assert leida is not None
-        assert leida[0] == {"ficha": True}
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
         assert buzon.leer_deposito() is not None
 
-    def test_snapshot_agrupa_ficha_y_deposito_canonicos(self):
-        """La instantánea reúne el estado que usa el papeleo."""
-        buzon = Buzon()
-        tramite_id, vence_en = buzon.publicar_ficha({"titulo": "Tesis canónica"})
-        buzon.reportar_deposito(_cuerpo_deposito(tramite_id))
+    def test_retencion_expirada_limpia_todo(self):
+        reloj = RelojFalso()
+        buzon = Buzon(reloj=reloj)
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
+        reloj.avanzar(86401)
 
-        snapshot = buzon.leer_snapshot()
-        assert snapshot is not None
-        assert snapshot.ficha == {"titulo": "Tesis canónica"}
-        assert snapshot.tramite_id == tramite_id
-        assert snapshot.vence_en == vence_en
-        assert snapshot.deposito["handle"] == HANDLE
-        assert snapshot.deposito["timestamp"] == TIMESTAMP
+        assert buzon.leer_ficha() is None
+        assert buzon.leer_tramite() is None
+        assert buzon.leer_deposito() is None
+        with pytest.raises(SinFichaVigente):
+            buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
 
-    def test_snapshot_sin_deposito_es_none(self):
-        """Una ficha sin depósito no habilita el papeleo."""
+    def test_retencion_menor_se_ajusta_al_autorelleno(self):
+        reloj = RelojFalso()
+        buzon = Buzon(
+            ttl_autorelleno_segundos=3600,
+            ttl_tramite_segundos=60,
+            reloj=reloj,
+        )
+        publicacion = buzon.publicar_ficha(FICHA)
+        reloj.avanzar(3599)
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.retenido_hasta == publicacion.autofill_hasta
+
+    def test_confirmacion_exige_atestacion(self):
         buzon = Buzon()
-        buzon.publicar_ficha({"titulo": "Tesis canónica"})
-        assert buzon.leer_snapshot() is None
+        publicacion = buzon.publicar_ficha(FICHA)
+        with pytest.raises(ConfirmacionInvalida):
+            buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id, atestacion=""))
+        assert buzon.leer_deposito() is None
+
+    def test_confirmacion_exige_revision(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        cuerpo = _cuerpo_deposito(publicacion.tramite_id)
+        cuerpo.pop("revision_esperada")
+        with pytest.raises(ConfirmacionInvalida):
+            buzon.reportar_deposito(cuerpo)
+        assert buzon.leer_deposito() is None
+
+    def test_revision_obsoleta_no_cambia_nada(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        with pytest.raises(RevisionNoCoincide):
+            buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id, revision=99))
+        assert buzon.leer_deposito() is None
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.revision == 0
+
+    def test_tramite_ajeno_no_confirma(self):
+        buzon = Buzon()
+        buzon.publicar_ficha(FICHA)
+        with pytest.raises(TramiteNoCoincide):
+            buzon.reportar_deposito(_cuerpo_deposito("tramite-anterior"))
+
+    def test_titulo_distinto_bloquea_la_confirmacion(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        with pytest.raises(TituloNoCoincide):
+            buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id, titulo="Otra tesis"))
+        assert buzon.leer_deposito() is None
+
+    def test_handle_de_otro_repositorio_no_confirma(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        with pytest.raises(HandleInvalido):
+            buzon.reportar_deposito(
+                _cuerpo_deposito(
+                    publicacion.tramite_id,
+                    handle="https://hdl.handle.net/1234/99999",
+                )
+            )
+        assert buzon.leer_deposito() is None
+
+    def test_autores_distintos_bloquean_la_confirmacion(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        with pytest.raises(AutoresNoCoinciden):
+            buzon.reportar_deposito(
+                _cuerpo_deposito(publicacion.tramite_id, autores=["Otra Persona"])
+            )
+        assert buzon.leer_deposito() is None
+
+    def test_autores_iguales_se_verifican(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id, autores=[AUTOR]))
+        deposito = buzon.leer_deposito()
+        assert deposito is not None
+        assert deposito["autores_verificados"] is True
+
+    def test_autores_ausentes_se_registran_como_no_verificados(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
+        deposito = buzon.leer_deposito()
+        assert deposito is not None
+        assert deposito["autores_observados"] is None
+        assert deposito["autores_verificados"] is False
+
+    def test_confirmado_en_lo_genera_el_servidor(self):
+        reloj = RelojFalso()
+        buzon = Buzon(reloj=reloj)
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(
+            _cuerpo_deposito(publicacion.tramite_id, timestamp="2026-10-19T18:10:00")
+        )
+        deposito = buzon.leer_deposito()
+        assert deposito is not None
+        assert deposito["timestamp"] == "2026-10-19T18:10:00"
+        assert deposito["confirmado_en"] == reloj.ahora.isoformat()
+        assert deposito["confirmado_por"] == "operador"
+        assert deposito["revision_confirmada"] == 0
+        assert deposito["estado"] == "confirmado_por_operador"
+
+    def test_conciliar_sin_deposito_no_crea_evidencia(self):
+        buzon = Buzon()
+        buzon.publicar_ficha(FICHA)
+        estado = buzon.reconciliar(
+            ficha={**FICHA, "extraidos": [{**FICHA["extraidos"][0], "valor": "Corregido"}]},
+            revision_esperada=0,
+            handle=HANDLE,
+            motivo="Corrección del título",
+        )
+        assert estado.revision == 1
+        assert estado.deposito is None
+        assert estado.confirmacion_vigente is False
+        assert buzon.leer_deposito() is None
+
+    def test_conciliar_con_revision_obsoleta_falla(self):
+        buzon = Buzon()
+        buzon.publicar_ficha(FICHA)
+        with pytest.raises(RevisionNoCoincide):
+            buzon.reconciliar(
+                ficha=FICHA_REEMPLAZO,
+                revision_esperada=99,
+                handle=HANDLE,
+                motivo="Corrección",
+            )
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.ficha == FICHA
+        assert estado.revision == 0
+
+    def test_conciliar_post_confirmacion_invalida_confirmacion(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
+        corregida = {
+            **FICHA,
+            "extraidos": [
+                {**FICHA["extraidos"][0], "valor": "Título corregido"},
+                *FICHA["extraidos"][1:],
+            ],
+        }
+        estado = buzon.reconciliar(
+            ficha=corregida,
+            revision_esperada=0,
+            handle=HANDLE,
+            motivo="Título corregido",
+        )
+        assert estado.revision == 1
+        assert estado.deposito is not None
+        assert estado.deposito["handle"] == HANDLE
+        assert estado.deposito["revision_confirmada"] == 0
+        assert estado.confirmacion_vigente is False
+
+    def test_conciliar_con_handle_ajeno_y_deposito_falla(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
+        with pytest.raises(HandleNoCoincide):
+            buzon.reconciliar(
+                ficha=FICHA_REEMPLAZO,
+                revision_esperada=0,
+                handle=OTRO_HANDLE,
+                motivo="Otra tesis",
+            )
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.revision == 0
+        assert estado.ficha == FICHA
+
+    def test_inconsistencia_bloquea_y_se_limpia_al_conciliar(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.marcar_inconsistencia(
+            tramite_id=publicacion.tramite_id,
+            handle=HANDLE,
+            revision_esperada=0,
+            motivos=["El título del ítem no coincide"],
+        )
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.inconsistencia is not None
+        assert estado.inconsistencia["motivos"] == ["El título del ítem no coincide"]
+
+        estado = buzon.reconciliar(
+            ficha=FICHA,
+            revision_esperada=0,
+            handle=HANDLE,
+            motivo="Título revisado",
+        )
+        assert estado.inconsistencia is None
+
+    def test_inconsistencia_con_revision_obsoleta_falla(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        with pytest.raises(RevisionNoCoincide):
+            buzon.marcar_inconsistencia(
+                tramite_id=publicacion.tramite_id,
+                handle=HANDLE,
+                revision_esperada=99,
+                motivos=["motivo"],
+            )
+        estado = buzon.leer_tramite()
+        assert estado is not None
+        assert estado.inconsistencia is None
 
     def test_lectura_devuelve_copia(self):
-        """Mutar lo leído no corrompe el contenido almacenado."""
         buzon = Buzon()
         buzon.publicar_ficha({"a": 1, "lista": [1]})
         leido = buzon.leer_ficha()
         assert leido is not None
-        leido[0]["a"] = 999
-        leido[0]["lista"][0] = 999
+        leido.ficha["a"] = 999
+        leido.ficha["lista"][0] = 999
         otra = buzon.leer_ficha()
         assert otra is not None
-        assert otra[0] == {"a": 1, "lista": [1]}
-
-    def test_limpiar_vacia_todo(self):
-        """limpiar() vacía ficha, trámite y depósito."""
-        buzon = Buzon()
-        tramite_id, _ = buzon.publicar_ficha({"a": 1})
-        buzon.reportar_deposito(_cuerpo_deposito(tramite_id))
-        buzon.limpiar()
-        assert buzon.leer_ficha() is None
-        assert buzon.leer_deposito() is None
+        assert otra.ficha == {"a": 1, "lista": [1]}
 
     def test_nueva_ficha_borra_deposito_anterior(self):
-        """El depósito viejo no sobrevive a una ficha nueva."""
         buzon = Buzon()
-        primero, _ = buzon.publicar_ficha({"titulo": "Tesis de prueba"})
-        buzon.reportar_deposito(_cuerpo_deposito(primero))
-        assert buzon.leer_deposito() is not None
-        segundo, _ = buzon.publicar_ficha({"titulo": "Tesis de prueba"})
-        assert primero != segundo
+        primero = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(primero.tramite_id))
+        segundo = buzon.publicar_ficha(FICHA)
+        assert primero.tramite_id != segundo.tramite_id
         assert buzon.leer_deposito() is None
-
-    def test_reporte_sin_ficha_falla(self):
-        """No se acepta un depósito si no hay ficha vigente."""
-        buzon = Buzon()
-        with pytest.raises(SinFichaVigente):
-            buzon.reportar_deposito(_cuerpo_deposito("cualquiera"))
-
-    def test_reporte_con_tramite_ajeno_falla(self):
-        """El depósito debe traer el trámite de la ficha vigente."""
-        buzon = Buzon()
-        buzon.publicar_ficha({"a": 1})
         with pytest.raises(TramiteNoCoincide):
-            buzon.reportar_deposito(_cuerpo_deposito("tramite-anterior"))
+            buzon.reportar_deposito(_cuerpo_deposito(primero.tramite_id))
+
+    def test_limpiar_vacia_todo(self):
+        buzon = Buzon()
+        publicacion = buzon.publicar_ficha(FICHA)
+        buzon.reportar_deposito(_cuerpo_deposito(publicacion.tramite_id))
+        buzon.limpiar()
+        assert buzon.leer_ficha() is None
+        assert buzon.leer_tramite() is None
+        assert buzon.leer_deposito() is None
 
 
 # ---------------------------------------------------------------------------
@@ -210,29 +468,33 @@ class TestBuzonUnitario:
 class TestBuzonEndpoints:
     """Flujo POST → GET sobre la app FastAPI real."""
 
+    @pytest.fixture(autouse=True)
+    def _firma(self, monkeypatch):
+        monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")
+
     def test_publicar_y_leer_ficha(self):
-        """POST /ficha-pendiente → 201 con trámite; GET devuelve el sobre."""
         respuesta = _publicar_ficha()
         assert respuesta.status_code == 201
         publicada = respuesta.json()
         assert publicada["tramite_id"]
-        assert publicada["vence_en"]
+        assert publicada["revision"] == 0
+        assert publicada["autofill_hasta"] < publicada["retenido_hasta"]
+        assert publicada["vence_en"] == publicada["autofill_hasta"]
 
         leida = CLIENTE.get("/ficha-pendiente")
         assert leida.status_code == 200
         sobre = leida.json()
         assert sobre["ficha"] == FICHA
         assert sobre["tramite_id"] == publicada["tramite_id"]
-        assert sobre["vence_en"] == publicada["vence_en"]
+        assert sobre["revision"] == 0
+        assert sobre["autofill_hasta"] == publicada["autofill_hasta"]
 
     def test_ficha_vacia_da_404(self):
-        """GET sin publicar antes → 404 con detalle en español."""
         respuesta = CLIENTE.get("/ficha-pendiente")
         assert respuesta.status_code == 404
         assert "ficha" in respuesta.json()["detail"]
 
     def test_ficha_ultima_gana_por_http(self):
-        """Publicar dos veces: GET devuelve la segunda y un trámite nuevo."""
         primera = _publicar_ficha().json()
         segunda = _publicar_ficha(ficha=FICHA_REEMPLAZO).json()
         assert primera["tramite_id"] != segunda["tramite_id"]
@@ -242,14 +504,12 @@ class TestBuzonEndpoints:
         assert leida.json()["tramite_id"] == segunda["tramite_id"]
 
     def test_ficha_payload_invalido_da_422(self):
-        """POST sin extraidos/manuales → 422 de validación."""
         respuesta = CLIENTE.post("/ficha-pendiente", json={"cualquier": "cosa"})
         assert respuesta.status_code == 422
 
     def test_publicar_y_leer_deposito(self):
-        """POST /deposito → 204; GET devuelve el reporte y el alias."""
         tramite_id = _publicar_ficha().json()["tramite_id"]
-        respuesta = _publicar_deposito(tramite_id)
+        respuesta = _publicar_deposito(tramite_id, autores=[AUTOR])
         assert respuesta.status_code == 204
 
         leido = CLIENTE.get("/deposito")
@@ -260,46 +520,97 @@ class TestBuzonEndpoints:
         assert deposito["titulo_observado"] == TITULO_OBSERVADO
         assert deposito["titulo"] == TITULO_OBSERVADO
         assert deposito["timestamp"] == TIMESTAMP
+        assert deposito["revision_confirmada"] == 0
+        assert deposito["confirmacion_vigente"] is True
+        assert deposito["autores_verificados"] is True
+        assert deposito["confirmado_por"] == "operador"
+        assert deposito["confirmado_en"]
 
     def test_deposito_vacio_da_404(self):
-        """GET /deposito sin reporte previo → 404."""
         respuesta = CLIENTE.get("/deposito")
         assert respuesta.status_code == 404
+        assert "depósito" in respuesta.json()["detail"]
 
     def test_deposito_sin_ficha_da_404(self):
-        """POST /deposito sin ficha vigente → 404."""
         respuesta = _publicar_deposito("tramite-sin-ficha")
         assert respuesta.status_code == 404
         assert "ficha" in respuesta.json()["detail"]
 
     def test_deposito_con_tramite_ajeno_da_409(self):
-        """Un trámite que no es el vigente → 409."""
         _publicar_ficha()
         respuesta = _publicar_deposito("tramite-anterior")
         assert respuesta.status_code == 409
         assert "trámite" in respuesta.json()["detail"]
 
     def test_deposito_payload_invalido_da_422(self):
-        """POST /deposito sin handle/título/timestamp → 422."""
         respuesta = CLIENTE.post("/deposito", json={"handle": ""})
         assert respuesta.status_code == 422
 
-    def test_payload_viejo_con_titulo_da_422(self):
-        """El payload v1.12.0 no entra: falta `tramite_id` y sobra `titulo`."""
+    def test_payload_automatico_viejo_da_422_y_no_habilita_papeleo(self):
+        """El contrato exige atestación y revisión; el reporte viejo no entra."""
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        viejo = {
+            "tramite_id": tramite_id,
+            "handle": HANDLE,
+            "titulo_observado": TITULO_OBSERVADO,
+            "timestamp": TIMESTAMP,
+        }
+        respuesta = CLIENTE.post("/deposito", json=viejo)
+        assert respuesta.status_code == 422
+        assert CLIENTE.get("/deposito").status_code == 404
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 409
+        )
+
+    def test_payload_con_titulo_viejo_da_422(self):
         tramite_id = _publicar_ficha().json()["tramite_id"]
         respuesta = CLIENTE.post(
             "/deposito",
             json={
-                "tramite_id": tramite_id,
-                "handle": HANDLE,
+                **_cuerpo_deposito(tramite_id),
                 "titulo": TITULO_OBSERVADO,
-                "timestamp": TIMESTAMP,
             },
         )
         assert respuesta.status_code == 422
 
+    def test_confirmacion_con_revision_obsoleta_da_409(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        assert _publicar_deposito(tramite_id, revision=99).status_code == 409
+        assert CLIENTE.get("/deposito").status_code == 404
+        # La revisión correcta sí confirma.
+        assert _publicar_deposito(tramite_id, revision=0).status_code == 204
+
+    def test_handle_de_otro_repositorio_da_422(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        respuesta = CLIENTE.post(
+            "/deposito",
+            json=_cuerpo_deposito(tramite_id, handle="https://hdl.handle.net/1234/99999"),
+        )
+        assert respuesta.status_code == 422
+
+    def test_titulo_distinto_da_409(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        respuesta = CLIENTE.post(
+            "/deposito",
+            json=_cuerpo_deposito(tramite_id, titulo="Otra tesis"),
+        )
+        assert respuesta.status_code == 409
+        assert "título" in respuesta.json()["detail"].lower()
+
+    def test_autores_distintos_dan_409(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        respuesta = _publicar_deposito(tramite_id, autores=["Otra Persona"])
+        assert respuesta.status_code == 409
+        assert "autores" in respuesta.json()["detail"].lower()
+
+    def test_autores_ausentes_se_registran_como_no_verificados(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        assert _publicar_deposito(tramite_id).status_code == 204
+        deposito = CLIENTE.get("/deposito").json()
+        assert deposito["autores_observados"] is None
+        assert deposito["autores_verificados"] is False
+
     def test_nueva_ficha_invalida_deposito_y_reporte_viejo(self):
-        """Una ficha nueva descarta el depósito y rechaza el trámite viejo."""
         primero = _publicar_ficha().json()["tramite_id"]
         assert _publicar_deposito(primero).status_code == 204
 
@@ -309,23 +620,325 @@ class TestBuzonEndpoints:
         assert _publicar_deposito(primero).status_code == 409
 
     def test_reintento_del_mismo_tramite_se_acepta(self):
-        """El userscript puede reintentar el mismo trámite tras un fallo."""
         tramite_id = _publicar_ficha().json()["tramite_id"]
         assert _publicar_deposito(tramite_id).status_code == 204
-
         segundo = CLIENTE.post(
             "/deposito",
-            json={
-                **_cuerpo_deposito(tramite_id),
-                "handle": "https://hdl.handle.net/20.500.14414/88888",
-                "timestamp": "2026-10-19T18:11:00",
-            },
+            json=_cuerpo_deposito(
+                tramite_id,
+                handle=OTRO_HANDLE,
+                timestamp="2026-10-19T18:11:00",
+            ),
         )
         assert segundo.status_code == 204
         leido = CLIENTE.get("/deposito").json()
         assert leido["tramite_id"] == tramite_id
-        assert leido["handle"] == "https://hdl.handle.net/20.500.14414/88888"
+        assert leido["handle"] == OTRO_HANDLE
         assert leido["timestamp"] == "2026-10-19T18:11:00"
+
+
+class TestVentanasTemporales:
+    """Autorelleno y retención son ventanas distintas sobre el mismo trámite."""
+
+    def test_confirmacion_tardia_tras_expirar_autorelleno(self, monkeypatch):
+        """La secuencia completa: ficha vencida para rellenar, depósito tardío."""
+        monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")
+        reloj = RelojFalso()
+        monkeypatch.setattr(validator.api, "_BUZON", Buzon(reloj=reloj))
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+
+        reloj.avanzar(3601)
+        assert CLIENTE.get("/ficha-pendiente").status_code == 404
+
+        tramite = CLIENTE.get("/tramite")
+        assert tramite.status_code == 200
+        assert tramite.json()["autofill_habil"] is False
+        assert tramite.json()["revision"] == 0
+
+        assert _publicar_deposito(tramite_id, revision=0).status_code == 204
+        assert CLIENTE.get("/deposito").status_code == 200
+        fila = CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id))
+        assert fila.status_code == 200
+        assert TITULO in fila.json()["filas"][0]
+
+    def test_retencion_expirada_bloquea_confirmacion_y_papeleo(self, monkeypatch):
+        reloj = RelojFalso()
+        monkeypatch.setattr(validator.api, "_BUZON", Buzon(reloj=reloj))
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+
+        reloj.avanzar(86401)
+        assert CLIENTE.get("/tramite").status_code == 404
+        assert _publicar_deposito(tramite_id).status_code == 404
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 409
+        )
+
+    def test_reinicio_vacia_el_buzon(self, monkeypatch):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        assert _publicar_deposito(tramite_id).status_code == 204
+        monkeypatch.setattr(validator.api, "_BUZON", Buzon())
+        assert CLIENTE.get("/tramite").status_code == 404
+        assert CLIENTE.get("/deposito").status_code == 404
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 409
+        )
+
+    def test_tramite_legible_sin_autorelleno(self, monkeypatch):
+        reloj = RelojFalso()
+        monkeypatch.setattr(validator.api, "_BUZON", Buzon(reloj=reloj))
+        _publicar_ficha()
+        reloj.avanzar(3601)
+        tramite = CLIENTE.get("/tramite").json()
+        assert tramite["ficha"] == FICHA
+        assert tramite["autofill_habil"] is False
+        assert tramite["deposito"] is None
+
+
+class TestConciliacion:
+    """Corrección revisada: sin ciclo, con revisión y sin aprobar por handle."""
+
+    def test_correccion_previa_a_confirmacion(self, monkeypatch):
+        """Autor canónico incorrecto → ítem corregido → conciliar → confirmar."""
+        monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+
+        # El ítem observado contradice la ficha: no se puede confirmar.
+        rechazo = _publicar_deposito(tramite_id, revision=0, autores=[AUTOR_DISTINTO])
+        assert rechazo.status_code == 409
+        assert CLIENTE.get("/deposito").status_code == 404
+
+        ficha_corregida = {
+            **FICHA,
+            "extraidos": [
+                {**FICHA["extraidos"][0]},
+                {**FICHA["extraidos"][1], "valor": [AUTOR_SIN_TILDE]},
+                *FICHA["extraidos"][2:],
+            ],
+        }
+        conciliacion = CLIENTE.post(
+            "/ficha-pendiente/reconciliar",
+            json={
+                "tramite_id": tramite_id,
+                "handle": HANDLE,
+                "ficha": ficha_corregida,
+                "motivo": "El autor del ítem es el correcto",
+                "revision_esperada": 0,
+            },
+        )
+        assert conciliacion.status_code == 200
+        assert conciliacion.json()["revision"] == 1
+        assert conciliacion.json()["confirmacion_vigente"] is False
+        assert conciliacion.json()["deposito"] is None
+
+        # Conciliar no creó evidencia de depósito.
+        assert CLIENTE.get("/deposito").status_code == 404
+        assert (
+            CLIENTE.post(
+                "/fila-registro",
+                json=_solicitud_papeleo(tramite_id, ficha_corregida),
+            ).status_code
+            == 409
+        )
+
+        # El cliente relee la revisión y confirma por separado.
+        tramite = CLIENTE.get("/tramite").json()
+        assert tramite["revision"] == 1
+        assert tramite["ficha"] == ficha_corregida
+        confirmacion = _publicar_deposito(tramite_id, revision=1, autores=[AUTOR_SIN_TILDE])
+        assert confirmacion.status_code == 204
+
+        fila = CLIENTE.post(
+            "/fila-registro",
+            json=_solicitud_papeleo(tramite_id, ficha_corregida),
+        )
+        assert fila.status_code == 200
+        assert AUTOR_SIN_TILDE in fila.json()["filas"][0]
+
+    def test_panel_viejo_no_confirma_la_revision_nueva(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        ficha_corregida = {
+            **FICHA,
+            "extraidos": [
+                {**FICHA["extraidos"][0], "valor": "Corregido"},
+                *FICHA["extraidos"][1:],
+            ],
+        }
+        assert (
+            CLIENTE.post(
+                "/ficha-pendiente/reconciliar",
+                json={
+                    "tramite_id": tramite_id,
+                    "handle": HANDLE,
+                    "ficha": ficha_corregida,
+                    "motivo": "Título corregido",
+                    "revision_esperada": 0,
+                },
+            ).status_code
+            == 200
+        )
+        # El panel abierto en revisión 0 intenta confirmar después.
+        assert _publicar_deposito(tramite_id, revision=0).status_code == 409
+        assert CLIENTE.get("/deposito").status_code == 404
+        # La revisión vigente sí confirma, con el título canónico nuevo.
+        assert _publicar_deposito(tramite_id, revision=1, titulo="Corregido").status_code == 204
+
+    def test_reconciliacion_post_confirmacion_exige_reconfirmar(self, monkeypatch):
+        monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        assert _publicar_deposito(tramite_id, revision=0, autores=[AUTOR]).status_code == 204
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 200
+        )
+
+        ficha_corregida = {
+            **FICHA,
+            "extraidos": [
+                {**FICHA["extraidos"][0], "valor": "Título corregido"},
+                *FICHA["extraidos"][1:],
+            ],
+        }
+        conciliacion = CLIENTE.post(
+            "/ficha-pendiente/reconciliar",
+            json={
+                "tramite_id": tramite_id,
+                "handle": HANDLE,
+                "ficha": ficha_corregida,
+                "motivo": "Título corregido",
+                "revision_esperada": 0,
+            },
+        )
+        assert conciliacion.status_code == 200
+        assert conciliacion.json()["revision"] == 1
+        assert conciliacion.json()["confirmacion_vigente"] is False
+        assert conciliacion.json()["deposito"]["handle"] == HANDLE
+        assert conciliacion.json()["deposito"]["revision_confirmada"] == 0
+
+        # La evidencia se conserva, pero el papeleo exige reconfirmar.
+        assert (
+            CLIENTE.post(
+                "/fila-registro",
+                json=_solicitud_papeleo(tramite_id, ficha_corregida),
+            ).status_code
+            == 409
+        )
+        assert (
+            _publicar_deposito(
+                tramite_id, revision=1, autores=[AUTOR], titulo="Título corregido"
+            ).status_code
+            == 204
+        )
+        fila = CLIENTE.post(
+            "/fila-registro",
+            json=_solicitud_papeleo(tramite_id, ficha_corregida),
+        )
+        assert fila.status_code == 200
+        assert "Título corregido" in fila.json()["filas"][0]
+
+    def test_conciliar_con_handle_ajeno_da_409(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        assert _publicar_deposito(tramite_id).status_code == 204
+        respuesta = CLIENTE.post(
+            "/ficha-pendiente/reconciliar",
+            json={
+                "tramite_id": tramite_id,
+                "handle": OTRO_HANDLE,
+                "ficha": FICHA_REEMPLAZO,
+                "motivo": "Otra tesis",
+                "revision_esperada": 0,
+            },
+        )
+        assert respuesta.status_code == 409
+        assert "handle" in respuesta.json()["detail"].lower()
+        assert CLIENTE.get("/deposito").json()["handle"] == HANDLE
+
+    def test_reconciliar_sin_deposito_no_crea_evidencia(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        respuesta = CLIENTE.post(
+            "/ficha-pendiente/reconciliar",
+            json={
+                "tramite_id": tramite_id,
+                "handle": HANDLE,
+                "ficha": FICHA,
+                "motivo": "Revisión sin cambios",
+                "revision_esperada": 0,
+            },
+        )
+        assert respuesta.status_code == 200
+        assert respuesta.json()["revision"] == 1
+        assert CLIENTE.get("/deposito").status_code == 404
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 409
+        )
+
+    def test_inconsistencia_bloquea_papeleo_y_se_limpia_al_conciliar(self, monkeypatch):
+        monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        assert _publicar_deposito(tramite_id).status_code == 204
+
+        marca = CLIENTE.post(
+            "/ficha-pendiente/inconsistencia",
+            json={
+                "tramite_id": tramite_id,
+                "handle": HANDLE,
+                "motivos": ["El título del ítem no coincide"],
+                "revision_esperada": 0,
+            },
+        )
+        assert marca.status_code == 204
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 409
+        )
+        assert (
+            "inconsistencia"
+            in CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id))
+            .json()["detail"]
+            .lower()
+        )
+
+        assert (
+            CLIENTE.post(
+                "/ficha-pendiente/reconciliar",
+                json={
+                    "tramite_id": tramite_id,
+                    "handle": HANDLE,
+                    "ficha": FICHA,
+                    "motivo": "Título revisado",
+                    "revision_esperada": 0,
+                },
+            ).status_code
+            == 200
+        )
+        assert _publicar_deposito(tramite_id, revision=1).status_code == 204
+        assert (
+            CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id)).status_code == 200
+        )
+
+    def test_inconsistencia_con_revision_obsoleta_da_409(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        respuesta = CLIENTE.post(
+            "/ficha-pendiente/inconsistencia",
+            json={
+                "tramite_id": tramite_id,
+                "handle": HANDLE,
+                "motivos": ["motivo"],
+                "revision_esperada": 99,
+            },
+        )
+        assert respuesta.status_code == 409
+        assert CLIENTE.get("/tramite").json()["inconsistencia"] is None
+
+    def test_inconsistencia_sin_motivos_da_422(self):
+        tramite_id = _publicar_ficha().json()["tramite_id"]
+        respuesta = CLIENTE.post(
+            "/ficha-pendiente/inconsistencia",
+            json={
+                "tramite_id": tramite_id,
+                "handle": HANDLE,
+                "motivos": ["   "],
+                "revision_esperada": 0,
+            },
+        )
+        assert respuesta.status_code == 422
 
 
 class TestAccesoBuzon:
@@ -337,51 +950,38 @@ class TestAccesoBuzon:
     """
 
     def test_peticion_desde_otro_equipo_da_403(self):
-        """Un peer que no es loopback no puede leer la ficha."""
         _publicar_ficha()
         respuesta = CLIENTE_FUERA.get("/ficha-pendiente")
         assert respuesta.status_code == 403
         assert "loopback" in respuesta.json()["detail"]
 
     def test_peticion_desde_otro_equipo_no_pisa_la_ficha(self):
-        """Un tercero tampoco puede sobrescribir la ficha en vuelo."""
         _publicar_ficha()
         respuesta = _publicar_ficha(cliente=CLIENTE_FUERA, ficha=FICHA_REEMPLAZO)
         assert respuesta.status_code == 403
-        # La ficha original sigue intacta.
         assert CLIENTE.get("/ficha-pendiente").json()["ficha"] == FICHA
 
-    def test_peticion_desde_otro_equipo_no_reporta_depositos(self):
-        """Tampoco puede inyectar un handle en la ranura de depósito."""
+    def test_peticion_desde_otro_equipo_no_confirma_depositos(self):
         respuesta = _publicar_deposito("cualquier-tramite", cliente=CLIENTE_FUERA)
         assert respuesta.status_code == 403
         assert CLIENTE.get("/deposito").status_code == 404
 
     def test_loopback_sigue_funcionando(self):
-        """El caso normal (SPA y userscript en la misma máquina) no cambia."""
         assert _publicar_ficha().status_code == 201
         assert CLIENTE.get("/ficha-pendiente").status_code == 200
 
     def test_loopback_no_necesita_token(self, monkeypatch):
-        """Con token configurado, el loopback sigue sin necesitarlo.
-
-        La SPA y el userscript hablan con `127.0.0.1` y no envían el
-        header: si el loopback exigiera el token, el flujo local se
-        rompería en cuanto alguien defina `VISTOBUENO_API_TOKEN`.
-        """
         monkeypatch.setenv("VISTOBUENO_API_TOKEN", "secreto-de-prueba")
         assert _publicar_ficha().status_code == 201
         assert CLIENTE.get("/ficha-pendiente").status_code == 200
 
     def test_token_ausente_da_403(self, monkeypatch):
-        """Con token configurado, la petición remota sin header va a 403."""
         monkeypatch.setenv("VISTOBUENO_API_TOKEN", "secreto-de-prueba")
         respuesta = CLIENTE_FUERA.get("/ficha-pendiente")
         assert respuesta.status_code == 403
         assert "token" in respuesta.json()["detail"].lower()
 
     def test_token_incorrecto_da_403(self, monkeypatch):
-        """Con token configurado, un token equivocado va a 403."""
         monkeypatch.setenv("VISTOBUENO_API_TOKEN", "secreto-de-prueba")
         respuesta = CLIENTE_FUERA.get(
             "/ficha-pendiente",
@@ -390,7 +990,6 @@ class TestAccesoBuzon:
         assert respuesta.status_code == 403
 
     def test_token_correcto_permite_el_buzon(self, monkeypatch):
-        """Con token configurado y correcto, el flujo normal sigue igual."""
         monkeypatch.setenv("VISTOBUENO_API_TOKEN", "secreto-de-prueba")
         cabeceras = {"X-VistoBueno-Token": "secreto-de-prueba"}
         respuesta = CLIENTE.post("/ficha-pendiente", json=FICHA, headers=cabeceras)
@@ -400,12 +999,6 @@ class TestAccesoBuzon:
         assert leida.json()["ficha"] == FICHA
 
     def test_token_correcto_habilita_a_otro_equipo(self, monkeypatch):
-        """El caso documentado: API expuesta + token → el remoto entra.
-
-        Este es el motivo del token compartido. Con el orden anterior
-        (loopback primero) ningún peer remoto podía pasar nunca, y la
-        variable `VISTOBUENO_API_TOKEN` no habilitaba nada.
-        """
         monkeypatch.setenv("VISTOBUENO_API_TOKEN", "secreto-de-prueba")
         cabeceras = {"X-VistoBueno-Token": "secreto-de-prueba"}
         respuesta = CLIENTE_FUERA.post("/ficha-pendiente", json=FICHA, headers=cabeceras)
@@ -415,7 +1008,6 @@ class TestAccesoBuzon:
         assert leida.json()["ficha"] == FICHA
 
     def test_sin_token_configurado_el_remoto_sigue_cerrado(self):
-        """Sin token configurado, el loopback es la única puerta."""
         respuesta = CLIENTE_FUERA.get("/ficha-pendiente")
         assert respuesta.status_code == 403
         assert "loopback" in respuesta.json()["detail"]
@@ -445,4 +1037,19 @@ class TestBuzonInvarianteSinCors:
         respuesta = CLIENTE.get("/deposito")
         assert "access-control-allow-origin" not in respuesta.headers
         respuesta = CLIENTE.post("/deposito", json=_cuerpo_deposito("cualquiera"))
+        assert "access-control-allow-origin" not in respuesta.headers
+
+    def test_tramite_y_conciliacion_sin_cors(self):
+        respuesta = CLIENTE.get("/tramite")
+        assert "access-control-allow-origin" not in respuesta.headers
+        respuesta = CLIENTE.post(
+            "/ficha-pendiente/reconciliar",
+            json={
+                "tramite_id": "x",
+                "handle": HANDLE,
+                "ficha": FICHA,
+                "motivo": "x",
+                "revision_esperada": 0,
+            },
+        )
         assert "access-control-allow-origin" not in respuesta.headers

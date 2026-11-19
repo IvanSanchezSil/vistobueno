@@ -1,6 +1,10 @@
 // Tests del ejecutor: aplicar un plan sobre el fixture del DOM real.
 // El combobox de derechos se prueba en su modo de fallo visible (el
-// listbox vacío → false; el operador selecciona a mano como hoy).
+// listbox vacío → fallo; el operador selecciona a mano como hoy).
+//
+// Las filas repetibles se concilian con los controles del widget: el
+// botón "+" agrega y el botón de quitar elimina. Nunca se borran nodos
+// del DOM.
 
 const test = require("node:test");
 const assert = require("node:assert");
@@ -64,8 +68,9 @@ test("las filas repetidas se llenan por índice (autores y palabras)", async () 
 	// El fixture trae UNA fila por campo y sin botón "+": los valores
 	// extra quedan pendientes y el resumen lo reporta (fallo visible).
 	assert.strictEqual(doc.querySelector(SELECTORES.autores).value, "Cerna Vidal Kassiel");
-	assert.ok(resumen.fallidos.includes("filas"));
-	assert.ok(resumen.fallidos.includes("combobox"));
+	assert.ok(resumen.fallidos.includes("autores"));
+	assert.ok(resumen.fallidos.includes("palabras clave"));
+	assert.ok(resumen.fallidos.includes("derechos de acceso"));
 });
 
 test("el QUALDROP elige la opción DNI por sufijo y llena el número", async () => {
@@ -87,15 +92,20 @@ test("el QUALDROP elige la opción DNI por sufijo y llena el número", async () 
 	assert.strictEqual(doc.querySelector(SELECTORES.dniAsesorValor).value, "11222333");
 });
 
-test("el combobox sin opciones falla visible y devuelve el input a vacío", async () => {
+test("el combobox sin opciones falla visible y RESTAURA el valor anterior", async () => {
 	const dom = domFormulario();
 	const doc = dom.window.document;
+	doc.querySelector(SELECTORES.derechosInput).value = "Acceso restringido";
 	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
 
 	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
 
-	assert.ok(resumen.fallidos.includes("combobox"));
-	assert.strictEqual(doc.querySelector(SELECTORES.derechosInput).value, "");
+	assert.ok(resumen.fallidos.includes("derechos de acceso"));
+	assert.strictEqual(
+		doc.querySelector(SELECTORES.derechosInput).value,
+		"Acceso restringido",
+		"el fallo del combobox borró el dato anterior del operador"
+	);
 });
 
 test("el combobox coopera cuando el listbox renderiza la opción", async () => {
@@ -118,7 +128,7 @@ test("el combobox coopera cuando el listbox renderiza la opción", async () => {
 	});
 
 	assert.ok(renderizado);
-	assert.ok(resumen.exitosos.includes("combobox"));
+	assert.ok(resumen.exitosos.includes("derechos de acceso"));
 	assert.strictEqual(doc.querySelector(SELECTORES.derechosInput).value, "Acceso abierto");
 });
 
@@ -127,14 +137,43 @@ test("operación sobre selector ausente queda como fallida, no explota", async (
 	const doc = dom.window.document;
 	const plan = {
 		operaciones: [
-			{ tipo: "texto", selector: "input[name=\"no.existe\"]", valor: "x" },
-			{ tipo: "filas", selector: "input[name=\"tampoco\"]", valores: ["x"] },
-			{ tipo: "qualdrop", selectorMeta: "select[name=\"cero\"]", opcionSufijo: "x", selectorValor: "input[name=\"cero\"]", valores: ["x"] },
+			{ tipo: "texto", campo: "ausente", selector: "input[name=\"no.existe\"]", valor: "x" },
+			{ tipo: "filas", campo: "filas ausentes", selector: "input[name=\"tampoco\"]", valores: ["x"] },
+			{ tipo: "qualdrop", campo: "qualdrop ausente", selectorMeta: "select[name=\"cero\"]", opcionSufijo: "x", selectorValor: "input[name=\"cero\"]", valores: ["x"] },
 		],
 		omitidos: [],
 	};
 	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
-	assert.deepStrictEqual(resumen.fallidos, ["texto", "filas", "qualdrop"]);
+	assert.deepStrictEqual(resumen.fallidos, ["ausente", "filas ausentes", "qualdrop ausente"]);
+});
+
+test("un control deshabilitado no se informa como relleno", async () => {
+	const dom = domFormulario();
+	const doc = dom.window.document;
+	const input = doc.querySelector(SELECTORES.titulo);
+	input.disabled = true;
+	const plan = {
+		operaciones: [{ tipo: "texto", campo: "título", selector: SELECTORES.titulo, valor: "x" }],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+	assert.deepStrictEqual(resumen.exitosos, []);
+	assert.deepStrictEqual(resumen.fallidos, ["título"]);
+});
+
+test("un valor que el control revierte no se informa como relleno", async () => {
+	const dom = domFormulario();
+	const doc = dom.window.document;
+	const input = doc.querySelector(SELECTORES.titulo);
+	input.addEventListener("input", () => {
+		input.value = "anterior";
+	});
+	const plan = {
+		operaciones: [{ tipo: "texto", campo: "título", selector: SELECTORES.titulo, valor: "nuevo" }],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+	assert.deepStrictEqual(resumen.fallidos, ["título"]);
 });
 
 // ---------------------------------------------------------------------------
@@ -184,13 +223,13 @@ test("el botón + real agrega filas dentro de su propia array", async () => {
 	const { doc, ajeno } = domConFilasRepetibles();
 	const plan = {
 		operaciones: [
-			{ tipo: "filas", selector: 'input[name="dc.contributor.author"]', valores: ["A", "B", "C"] },
+			{ tipo: "filas", campo: "autores", selector: 'input[name="dc.contributor.author"]', valores: ["A", "B", "C"] },
 		],
 		omitidos: [],
 	};
 	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
 
-	assert.deepStrictEqual(resumen.exitosos, ["filas"]);
+	assert.deepStrictEqual(resumen.exitosos, ["autores"]);
 	const valores = Array.from(doc.querySelectorAll('input[name="dc.contributor.author"]')).map(
 		(el) => el.value
 	);
@@ -203,9 +242,10 @@ test("autores y DNI crecen en arrays distintas y quedan alineados", async () => 
 	const { doc } = domConFilasRepetibles();
 	const plan = {
 		operaciones: [
-			{ tipo: "filas", selector: 'input[name="dc.contributor.author"]', valores: ["A", "B"] },
+			{ tipo: "filas", campo: "autores", selector: 'input[name="dc.contributor.author"]', valores: ["A", "B"] },
 			{
 				tipo: "qualdrop",
+				campo: "DNI del autor",
 				selectorMeta: 'select[name="renati.author_QUALDROP_METADATA"]',
 				opcionSufijo: "renati.author.dni",
 				selectorValor: 'input[name="renati.author_QUALDROP_VALUE"]',
@@ -232,11 +272,14 @@ test("autores y DNI crecen en arrays distintas y quedan alineados", async () => 
 // ---------------------------------------------------------------------------
 
 function domFormularioReal() {
-	// Fixture con la estructura real (#N_array + ds-form-add-more) y el
-	// render asíncrono de Angular: la fila aparece DESPUÉS del clic.
+	// Fixture con la estructura real (#N_array + ds-form-add-more + botón
+	// de quitar) y el render asíncrono de Angular: la fila aparece o se
+	// quita DESPUÉS del clic.
 	const html = fs.readFileSync(path.join(__dirname, "fixtures", "form-array.html"), "utf8");
 	return new JSDOM(html, { runScripts: "dangerously" });
 }
+
+const dormirReal = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test("el + que renderiza de forma asíncrona igual agrega la fila", async () => {
 	const dom = domFormularioReal();
@@ -244,11 +287,9 @@ test("el + que renderiza de forma asíncrona igual agrega la fila", async () => 
 	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
 
 	// El render del fixture tarda 50 ms: el ejecutor debe esperarlo.
-	const resumen = await VBEjecutor.aplicarPlan(doc, plan, {
-		dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
-	});
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirReal });
 
-	assert.ok(resumen.exitosos.includes("filas"), "las filas repetidas no se llenaron");
+	assert.ok(resumen.exitosos.includes("autores"), "las filas repetidas no se llenaron");
 	const autores = Array.from(doc.querySelectorAll('input[name="dc.contributor.author"]')).map(
 		(el) => el.value
 	);
@@ -264,11 +305,9 @@ test("con render asíncrono los DNI de los dos autores quedan alineados", async 
 	const doc = dom.window.document;
 	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
 
-	const resumen = await VBEjecutor.aplicarPlan(doc, plan, {
-		dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
-	});
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirReal });
 
-	assert.ok(resumen.exitosos.includes("qualdrop"), "el QUALDROP no se llenó");
+	assert.ok(resumen.exitosos.includes("DNI del autor"), "el QUALDROP no se llenó");
 	const valores = Array.from(doc.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')).map(
 		(el) => el.value
 	);
@@ -277,4 +316,166 @@ test("con render asíncrono los DNI de los dos autores quedan alineados", async 
 		doc.querySelectorAll('select[name="renati.author_QUALDROP_METADATA"]')
 	).map((el) => el.value);
 	assert.deepStrictEqual(metas, ["0: renati.author.dni", "0: renati.author.dni"]);
+});
+
+// ---------------------------------------------------------------------------
+// Filas sobrantes: se quitan con el control del widget, no borrando nodos
+// ---------------------------------------------------------------------------
+
+test("2→1 autores: la fila sobrante se quita con el botón de quitar", async () => {
+	const dom = domFormularioReal();
+	const doc = dom.window.document;
+	// Dos autores de entrada (como un borrador ya iniciado).
+	const plan = {
+		operaciones: [
+			{
+				tipo: "filas",
+				campo: "autores",
+				selector: 'input[name="dc.contributor.author"]',
+				valores: ["Cerna Vidal Kassiel"],
+			},
+		],
+		omitidos: [],
+	};
+	// Se agrega una segunda fila con el control del widget.
+	// Los ids reales empiezan con dígito (#11_array): no son válidos como
+	// selector CSS, se buscan por atributo.
+	const array = doc.querySelector('[id="11_array"]');
+	const lista = array.querySelector(".cdk-drop-list");
+	const clon = lista.querySelector(".cdk-drag.form-row").cloneNode(true);
+	clon.querySelectorAll("[data-vb-agregar],[data-vb-quitar]").forEach((el) => el.remove());
+	clon.querySelectorAll("input").forEach((el) => {
+		el.value = "Persona Anterior";
+	});
+	lista.appendChild(clon);
+	// El fixture solo agrega filas con su propio botón: se re-renderiza
+	// el control de quitar simulando el ngIf del bundle.
+	const grupo = lista.querySelectorAll(".cdk-drag.form-row")[1];
+	const quitar = doc.createElement("div");
+	const botonQuitar = doc.createElement("button");
+	botonQuitar.type = "button";
+	botonQuitar.setAttribute("aria-label", "Remove");
+	quitar.appendChild(botonQuitar);
+	grupo.appendChild(quitar);
+	botonQuitar.addEventListener("click", () => {
+		setTimeout(() => grupo.remove(), 10);
+	});
+
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirReal });
+
+	assert.deepStrictEqual(resumen.fallidos, [], "no se quitó la fila sobrante");
+	const autores = Array.from(doc.querySelectorAll('input[name="dc.contributor.author"]'));
+	assert.strictEqual(autores.length, 1, "quedó la fila sobrante en el formulario");
+	assert.strictEqual(autores[0].value, "Cerna Vidal Kassiel");
+});
+
+test("sin control de quitar la operación falla visible: no se borra el nodo", async () => {
+	// Estructura sin el botón de quitar (fila única o versión de UI
+	// distinta): el ejecutor no puede conciliar y lo dice.
+	const dom = new JSDOM(`<!doctype html><html><body>
+		<div id="11_array">
+			<div class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
+					<input type="text" name="dc.contributor.author" value="A">
+				</div>
+				<div role="group" cdkdrag class="cdk-drag form-row">
+					<input type="text" name="dc.contributor.author" value="Persona Anterior">
+				</div>
+			</div>
+		</div>
+	</body></html>`);
+	const doc = dom.window.document;
+	const plan = {
+		operaciones: [
+			{
+				tipo: "filas",
+				campo: "autores",
+				selector: 'input[name="dc.contributor.author"]',
+				valores: ["Cerna Vidal Kassiel"],
+			},
+		],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+
+	assert.deepStrictEqual(resumen.fallidos, ["autores"]);
+	assert.strictEqual(
+		doc.querySelectorAll('input[name="dc.contributor.author"]').length,
+		2,
+		"el ejecutor borró el nodo en vez de usar el control del widget"
+	);
+});
+
+test("el DNI no se escribe si el tipo de documento no existe", async () => {
+	// Sin la opción DNI, el número anterior (pasaporte) queda intacto.
+	const dom = new JSDOM(`<!doctype html><html><body>
+		<select name="renati.author_QUALDROP_METADATA">
+			<option value="1: renati.author.pasaporte">Pasaporte</option>
+		</select>
+		<input type="text" name="renati.author_QUALDROP_VALUE" value="PASAPORTE-ANTERIOR">
+	</body></html>`);
+	const doc = dom.window.document;
+	const plan = {
+		operaciones: [
+			{
+				tipo: "qualdrop",
+				campo: "DNI del autor",
+				selectorMeta: 'select[name="renati.author_QUALDROP_METADATA"]',
+				opcionSufijo: "renati.author.dni",
+				selectorValor: 'input[name="renati.author_QUALDROP_VALUE"]',
+				valores: ["11111111"],
+			},
+		],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+
+	assert.deepStrictEqual(resumen.fallidos, ["DNI del autor"]);
+	assert.strictEqual(
+		doc.querySelector('input[name="renati.author_QUALDROP_VALUE"]').value,
+		"PASAPORTE-ANTERIOR",
+		"el número se escribió bajo un tipo que no es DNI"
+	);
+});
+
+test("un hueco en la lista deja su fila vacía y no desplaza el resto", async () => {
+	const dom = new JSDOM(`<!doctype html><html><body>
+		<div id="13_array">
+			<div class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
+					<select name="renati.author_QUALDROP_METADATA">
+						<option value="0: renati.author.dni">DNI</option>
+					</select>
+					<input type="text" name="renati.author_QUALDROP_VALUE">
+				</div>
+				<div role="group" cdkdrag class="cdk-drag form-row">
+					<select name="renati.author_QUALDROP_METADATA">
+						<option value="0: renati.author.dni">DNI</option>
+					</select>
+					<input type="text" name="renati.author_QUALDROP_VALUE">
+				</div>
+			</div>
+		</div>
+	</body></html>`);
+	const doc = dom.window.document;
+	const plan = {
+		operaciones: [
+			{
+				tipo: "qualdrop",
+				campo: "DNI del autor",
+				selectorMeta: 'select[name="renati.author_QUALDROP_METADATA"]',
+				opcionSufijo: "renati.author.dni",
+				selectorValor: 'input[name="renati.author_QUALDROP_VALUE"]',
+				valores: ["", "22222222"],
+			},
+		],
+		omitidos: [],
+	};
+	const resumen = await VBEjecutor.aplicarPlan(doc, plan, { dormir: dormirRapido });
+
+	assert.deepStrictEqual(resumen.fallidos, []);
+	const valores = Array.from(doc.querySelectorAll('input[name="renati.author_QUALDROP_VALUE"]')).map(
+		(el) => el.value
+	);
+	assert.deepStrictEqual(valores, ["", "22222222"]);
 });

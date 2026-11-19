@@ -34,8 +34,8 @@ test("ficha completa produce el plan con todas las operaciones", () => {
 	assert.deepStrictEqual(tipos, [
 		"texto", // título
 		"filas", // autores
-		"texto", // asesor
-		"texto", // resumen
+		"filas", // asesor (campo repetible del formulario)
+		"filas", // resumen (campo repetible del formulario)
 		"filas", // palabras clave
 		"texto", // año
 		"qualdrop", // DNI autor
@@ -44,6 +44,24 @@ test("ficha completa produce el plan con todas las operaciones", () => {
 		"combobox", // fix Acceso abierto (siempre)
 	]);
 	assert.deepStrictEqual(plan.omitidos, []);
+	assert.deepStrictEqual(plan.problemas, []);
+});
+
+test("cada operación identifica el campo para el resumen", () => {
+	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
+	const campos = plan.operaciones.map((op) => op.campo);
+	assert.deepStrictEqual(campos, [
+		"título",
+		"autores",
+		"asesor",
+		"resumen",
+		"palabras clave",
+		"año de emisión",
+		"DNI del autor",
+		"DNI del asesor",
+		"ORCID del asesor",
+		"derechos de acceso",
+	]);
 });
 
 test("el título viaja íntegro al selector correcto", () => {
@@ -61,11 +79,51 @@ test("los autores y las palabras clave van como filas alineadas", () => {
 	assert.deepStrictEqual(palabras.valores, ["títeres", "lectura"]);
 });
 
+test("asesor y resumen se tratan como filas: una fila sobrante se puede quitar", () => {
+	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
+	const asesor = plan.operaciones.find((op) => op.selector === SELECTORES.asesor);
+	assert.strictEqual(asesor.tipo, "filas");
+	assert.deepStrictEqual(asesor.valores, ["Ms. Ada Lovelace"]);
+	const resumen = plan.operaciones.find((op) => op.selector === SELECTORES.resumen);
+	assert.strictEqual(resumen.tipo, "filas");
+});
+
 test("el QUALDROP del autor alinea DNI por posición y fija el sufijo", () => {
 	const plan = VBMapeador.construirPlan(fichaCompleta(), SELECTORES);
 	const dni = plan.operaciones.find((op) => op.tipo === "qualdrop" && op.opcionSufijo === "renati.author.dni");
 	assert.deepStrictEqual(dni.valores, ["12345678", "87654321"]);
 	assert.strictEqual(dni.selectorMeta, SELECTORES.dniAutorMeta);
+});
+
+test("un hueco en la lista de DNI no compacta: se reportan los autores sin DNI", () => {
+	// El DNI del segundo autor no puede terminar en la fila del primero.
+	const ficha = fichaCompleta();
+	ficha.manuales.find((m) => m.campo === "renati.author.dni").valor = ["", "22222222"];
+	const plan = VBMapeador.construirPlan(ficha, SELECTORES);
+	const dni = plan.operaciones.find((op) => op.tipo === "qualdrop" && op.opcionSufijo === "renati.author.dni");
+	assert.deepStrictEqual(dni.valores, ["", "22222222"]);
+	assert.strictEqual(plan.problemas.length, 1);
+	assert.strictEqual(plan.problemas[0].campo, "DNI del autor");
+	assert.match(plan.problemas[0].detalle, /autor 1/);
+});
+
+test("una lista de DNI de otra longitud no se empareja a mano", () => {
+	const ficha = fichaCompleta();
+	ficha.manuales.find((m) => m.campo === "renati.author.dni").valor = ["12345678"];
+	const plan = VBMapeador.construirPlan(ficha, SELECTORES);
+	assert.ok(!plan.operaciones.some((op) => op.opcionSufijo === "renati.author.dni"));
+	assert.strictEqual(plan.problemas.length, 1);
+	assert.match(plan.problemas[0].detalle, /uno por autor/);
+});
+
+test("un autor sin nombre impide el relleno de la lista de autores", () => {
+	const ficha = fichaCompleta();
+	ficha.extraidos.find((e) => e.campo === "dc.contributor.author").valor = ["Cerna Vidal Kassiel", ""];
+	const plan = VBMapeador.construirPlan(ficha, SELECTORES);
+	assert.ok(!plan.operaciones.some((op) => op.selector === SELECTORES.autores));
+	assert.strictEqual(plan.problemas.length, 1);
+	assert.strictEqual(plan.problemas[0].campo, "autores");
+	assert.match(plan.problemas[0].detalle, /autor 2/);
 });
 
 test("campos sin detectar se omiten con nombre legible para el toast", () => {
@@ -94,6 +152,7 @@ test("el año puede venir como fecha completa: se extraen los 4 dígitos", () =>
 test("DNI del autor acepta valor único o lista", () => {
 	const ficha = fichaCompleta();
 	ficha.manuales.find((m) => m.campo === "renati.author.dni").valor = "12345678";
+	ficha.extraidos.find((e) => e.campo === "dc.contributor.author").valor = ["Cerna Vidal Kassiel"];
 	const plan = VBMapeador.construirPlan(ficha, SELECTORES);
 	const dni = plan.operaciones.find((op) => op.tipo === "qualdrop" && op.opcionSufijo === "renati.author.dni");
 	assert.deepStrictEqual(dni.valores, ["12345678"]);
@@ -105,4 +164,10 @@ test("sin manuales no hay QUALDROP ni ORCID, y no explota", () => {
 	const plan = VBMapeador.construirPlan(ficha, SELECTORES);
 	assert.ok(!plan.operaciones.some((op) => op.tipo === "qualdrop"));
 	assert.ok(!plan.operaciones.some((op) => op.selector === SELECTORES.orcidAsesor));
+});
+
+test("listaPosicional conserva los huecos; comoLista los descarta", () => {
+	assert.deepStrictEqual(VBMapeador.listaPosicional(["", "B", ""]), ["", "B", ""]);
+	assert.deepStrictEqual(VBMapeador.listaPosicional(["", "B"]), ["", "B"]);
+	assert.deepStrictEqual(VBMapeador.comoLista(["", "B"]), ["B"]);
 });
