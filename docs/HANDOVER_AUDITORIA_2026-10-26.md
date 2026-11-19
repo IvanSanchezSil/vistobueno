@@ -3,9 +3,12 @@
 **Origen:** `docs/AUDIT_COMPORTAMIENTO_VISTOBUENO_2026-10-26.md` (27 hallazgos).
 **Estado:** abierto. La pila de correctitud del motor de la Semana 12
 (PR #98 a #106) quedó fusionada en `master` el 2026-11-17 (`ca9a4100`) y
-cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11). Siguen
-pendientes los ítems de Int1, Int2, VA-13 y el bloque normativo (NM-01 a
-NM-07).
+cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11); el PR #75,
+fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Siguen
+pendientes VA-10, VA-11 (B5), VA-12, VA-16, VA-17 (B6), VA-18 (M10), VA-19 y
+la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
+PR #116), además del bloque normativo (NM-01 a NM-07). Un PR abierto no cierra
+el hallazgo hasta su integración y verificación.
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
 todavía no ha cerrado.
@@ -33,6 +36,13 @@ actualiza la tabla de estado (§11) y el bloque de aviso de `AGENTS.md`.
 
 Ejecución del motor DSL (`reglas_unt.yaml`, 49 reglas) con las capturas de
 la ficha (`reglas_ficha.yaml`):
+
+> Medición histórica: se hizo con el catálogo de 49 reglas. El catálogo
+> actual tiene 50 reglas y el documento bueno del factory evalúa 44 (6 n/a),
+> según
+> `tests/test_tipo_documento.py::TestDosFases::test_el_documento_bueno_cuenta_44_de_50`
+> y `README.md:253`; la tesis real medida en §2.1 evalúa 42 (8 n/a). La tabla
+> conserva las cifras de la fecha en que se midió.
 
 | Documento | Semáforo | Resultado |
 |-----------|----------|-----------|
@@ -307,9 +317,10 @@ el motor excluye los placeholders entre paréntesis?
 **Las 4 plantillas no cuantitativas se evalúan contra el esquema
 `tinv_cuantitativo`.** Los programas de segunda especialidad y las
 licenciaturas en tecnología educativa no se detectan como otro tipo: se
-evalúan con el esquema de tesis cuantitativa (43 reglas evaluadas, 6 no
-aplicables). Hoy la app solo soporta el esquema cuantitativo; conviene
-dejarlo dicho en la documentación.
+evalúan con el esquema de tesis cuantitativa (44 reglas evaluadas, 6 no
+aplicables con el catálogo actual de 50). Hoy la app solo soporta el esquema
+cuantitativo; el alcance por tipo queda documentado en esta sección y se
+amplía en M12c (NM-03), que sigue pendiente.
 
 ---
 
@@ -555,6 +566,14 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > año de portada 2026, abstract y palabras clave sin puntuación final. Los
 > `xfail` de `tests/test_captura_ficha.py` y `tests/test_constancia.py` se
 > retiraron; la suite queda en verde.
+>
+> **Actualizado (2026-11-19, Int3):** el PR #75 quedó fusionado en `master`
+> (`244d377`). AUD-24 a AUD-27 están cerrados y el bloque de aviso sigue en
+> `AGENTS.md` porque aún faltan VA-10, VA-11 (B5), VA-12, VA-16, VA-17 (B6),
+> VA-18 (M10), VA-19 y la verificación en navegador real de VA-08, VA-20 y
+> VA-21 (parciales tras el PR #116), además del bloque normativo (NM-01 a
+> NM-07). Los PR abiertos no cierran un hallazgo hasta su integración y
+> verificación.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -585,7 +604,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-26 | Int3 (criterio: Int1) | **cerrado** (año de portada 2026, no el 2024 del título) | PR #75 |
 | AUD-27 | Int3 (criterio: Int1) | **cerrado** (palabras clave sin puntuación final) | PR #75 |
 | Nuevo: `palabras_clave_minimo` | Int3 | **decidido: se mantiene `error`** (intencional; las 5 plantillas fallan a propósito) | — |
-| Nuevo: plantillas no cuantitativas | Int3 | documentar | — |
+| Nuevo: plantillas no cuantitativas | Int3 | **cerrado** (documentado en §5): se evalúan con el esquema cuantitativo; la ampliación del alcance por tipo se sigue en M12c (NM-03), que queda aparte | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
 | AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
 | AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR #71) |
@@ -615,7 +634,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-05 | Int3 | **cerrado** (PR #103, merge `32a3c13`; implementación `5fb2344`): todas las casillas marcadas | M4: declaraciones múltiples |
 | VA-06 | Int3 | **cerrado** (PR #104, merge `4a1ae60`; implementación `feeab66`): límites del Resumen | M5: límites del Resumen |
 | VA-07 | Int3 | **cerrado** (PR #104, merge `4a1ae60`; implementación `feeab66`): Abstract y palabras clave | M5: Abstract y palabras clave |
-| VA-08 | Int1 | pendiente | B4: filas sobrantes |
+| VA-08 | Int1 | **cerrado en código** (PR #116, merge `d576b09`; US-03 y US-04): se quitan las filas sobrantes con el control del widget y los pares autor/DNI conservan la posición; falta la evidencia en navegador real | B4: filas sobrantes |
 | VA-09 | Int1 + Int2 | **cerrado** (PR #95, merge `0469983`): B2 y F2 implementados; contrato v1.13.0 | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
 | VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 pendiente | M1a + B5: documento inválido |
@@ -627,8 +646,8 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | B7 **cerrado** (PR #93, merge `a6c8d4e`); M10 pendiente | B7 + M10: conteos |
 | VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
-| VA-20 | Int1 | pendiente | B3 y puerta Angular de Int1: antes del piloto |
-| VA-21 | Int1 + Int2 | riesgo pendiente de verificar | B8 + F5: autofill y restauración |
+| VA-20 | Int1 | **parcial** (PR #116, merge `d576b09`; US-02): los valores escritos se releen y las filas se concilian con los controles del widget; falta la puerta de Angular | B3 y puerta Angular de Int1: antes del piloto |
+| VA-21 | Int1 + Int2 | **parcial** (PR #116, merge `d576b09`; US-08 y US-11): rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador; falta F5 (Int2) y la verificación en navegador real | B8 + F5: autofill y restauración |
 
 ### Ampliación normativa — 2026-11-12
 
