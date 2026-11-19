@@ -231,7 +231,7 @@
 		boton.addEventListener("click", function () {
 			obtenerFicha(function (sobre, motivo, ticket) {
 				if (sobre) {
-					llenar(sobre, ticket);
+					llenar(sobre, ticket, true);
 					return;
 				}
 				if (motivo === "contrato_desactualizado") {
@@ -272,7 +272,7 @@
 		return relleno;
 	}
 
-	function llenar(sobre, ticket) {
+	function llenar(sobre, ticket, forzar) {
 		// US-06: si el ticket ya no es vigente, ignorar (callback antiguo).
 		if (ticket !== undefined && ticket !== VBTicket.ticketActual()) return;
 		const ficha = sobre.ficha;
@@ -319,7 +319,7 @@
 			envio.titulo &&
 			tituloFicha &&
 			VBCompuertas.titulosCoinciden(envio.titulo, tituloFicha);
-		if (mismoTramite) {
+		if (mismoTramite && !forzar) {
 			// US-05: un relleno PARCIAL no bloquea. Solo un relleno
 			// verificado (todos los campos con dato quedaron escritos) cierra
 			// el formulario; un parcial se reintenta solo con los campos que
@@ -336,9 +336,22 @@
 
 		// Reintento: solo los campos pendientes del ultimo intento, y
 		// sin pisar lo que el operador escribio a mano.
-		const planEfectivo = esParcial
-			? VBRelleno.planARetry(plan, previo.pendientes)
-			: plan;
+		//
+		// US-05: si el relleno ya fue verificado pero el operador
+		// pulsa explicitamente "Rellenar" (forzar), re-intentamos TODOS
+		// los campos con preservarSiLleno: se llena lo que falta y se
+		// conserva lo que el operador ya corrigio a mano.
+		let planEfectivo;
+		if (esVerificado && forzar) {
+			const todosLosCampos = (plan.operaciones || []).map(function (op) {
+				return op.campo;
+			});
+			planEfectivo = VBRelleno.planARetry(plan, todosLosCampos);
+		} else if (esParcial) {
+			planEfectivo = VBRelleno.planARetry(plan, previo.pendientes);
+		} else {
+			planEfectivo = plan;
+		}
 
 		VBEjecutor.aplicarPlan(doc, planEfectivo).then(function (resumen) {
 			const estado = VBRelleno.evaluar(resumen.detalle, resumen.omitidos);
