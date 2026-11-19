@@ -26,8 +26,10 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 
+from . import orcid
 from .detalle import (
     detalle_jerarquia,
+    detalle_lista_acotada,
     detalle_texto_lista,
     detalle_texto_regex,
     detalle_xml_atributo,
@@ -48,6 +50,9 @@ from .tokenizer import PARRAFO, TITULO, es_heading, seccion, solo, tokenizar
 
 # Prefijos de namespace para resolver names en atributos (ej. "@w:val").
 PREFIX_NS = NS
+
+# Atributo `r:id` de `w:hyperlink` (relación con el destino del enlace).
+_R_ID = "{" + NS["r"] + "}id"
 
 AUSENTE = "(ausente)"
 """Centinela de una propiedad de formato que no aparece en ninguna capa.
@@ -827,6 +832,15 @@ class AnalizadorHipervinculo(Analizador):
 
     Sección DSL `hipervinculo_texto` (F3), p. ej. ORCID:
     `https://orcid.org/XXXXXXXXXXXXXXXX` (16 dígitos).
+
+    Con la sub-configuración `validar_orcid` (M8/VA-16) además:
+
+    - `checksum`: valida el dígito de control ISO 7064 MOD 11-2 (admite X).
+    - `destino`: exige que el `Target` de la relación sea el perfil del
+      mismo identificador visible (texto correcto con destino falso falla).
+    - `por_persona`: cuenta los autores y el asesor de la carátula y exige
+      un ORCID debajo de cada uno. Si la carátula no se reconoce, se queda
+      con la comprobación global de cantidad.
     """
 
     def analizar(self, extracted: ExtractedDocx) -> tuple[bool, str]:
@@ -839,13 +853,67 @@ class AnalizadorHipervinculo(Analizador):
 
         nodos = self._nodos(extracted, parte, contexto)
         rx = re.compile(patron, re.IGNORECASE if ignore_case else 0)
-        coinciden = [n for n in nodos if rx.search(text_of(n))]
+        opciones = self.config.get("validar_orcid")
+
+        # El manual pide el código entre paréntesis, no la URL completa. Con
+        # `validar_orcid` son candidatos TODOS los hipervínculos cuyo texto
+        # contenga un ORCID: limitarse al `patron` dejaba sin validar el
+        # destino y el checksum en esa forma (falso verde, revisión #115).
+        # Se conserva el orden de documento y no se duplican nodos.
+        candidatos = {id(n): n for n in nodos if rx.search(text_of(n))}
+        if isinstance(opciones, dict):
+            for nodo in nodos:
+                if orcid.extraer(text_of(nodo)) is not None:
+                    candidatos[id(nodo)] = nodo
+        coinciden = list(candidatos.values())
         n = len(coinciden)
-        if n < minimo:
-            return False, f"hipervinculos={n} minimo={minimo}"
+
+        personas = 0
+        sin_estructura = False
+        problemas: list[str] = []
+        if isinstance(opciones, dict):
+            invalidos: list[str] = []
+            for nodo in coinciden:
+                identificador = orcid.extraer(text_of(nodo))
+                if identificador is None:
+                    invalidos.append("sin identificador")
+                    continue
+                if opciones.get("checksum", True) and not orcid.checksum_valido(identificador):
+                    invalidos.append(f"{identificador} checksum")
+                if opciones.get("destino", True) and not orcid.destino_corresponde(
+                    extracted.destino_relacion(nodo.get(_R_ID)), identificador
+                ):
+                    invalidos.append(f"{identificador} destino")
+            if invalidos:
+                problemas.append(f"invalidos={detalle_lista_acotada(invalidos)}")
+            if opciones.get("por_persona"):
+                personas, faltan = self._personas_sin_orcid(extracted)
+                sin_estructura = personas == 0
+                if faltan:
+                    problemas.append(f"sin_orcid={detalle_lista_acotada(faltan)}")
+
+        detalle = f"hipervinculos={n} minimo={minimo}"
+        if personas:
+            detalle += f" personas={personas}"
+        elif sin_estructura:
+            detalle += " personas=0 (n/a)"
+        if problemas:
+            detalle += " " + " ".join(problemas)
+
+        ok = n >= minimo
         if maximo is not None and n > maximo:
-            return False, f"hipervinculos={n} maximo={maximo}"
-        return True, f"hipervinculos={n} minimo={minimo}"
+            ok = False
+        return ok and not problemas, detalle
+
+    @staticmethod
+    def _personas_sin_orcid(extracted: ExtractedDocx) -> tuple[int, list[str]]:
+        """Personas de la carátula y las que no tienen un ORCID debajo."""
+        parrafos = [
+            (text_of(p), orcid.tiene_orcid_en_parrafo(p))
+            for p in extracted.document.xpath("//w:body/w:p", namespaces=NS)
+            if extracted.is_caratula(p)
+        ]
+        return orcid.revisar_caratula(parrafos)
 
 
 class AnalizadorNotaPie(Analizador):

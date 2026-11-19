@@ -267,6 +267,46 @@ _CLAVES_IMAGEN = frozenset(
 )
 
 
+# Claves que entiende `validar_orcid` dentro de `hipervinculo_texto`. Un typo
+# desactivaría una comprobación en silencio (p. ej. `por_persona` mal escrito
+# deja el ORCID por persona sin validar), así que se revisa al cargar el DSL.
+_CLAVES_VALIDAR_ORCID = frozenset({"checksum", "destino", "por_persona"})
+
+
+def _lint_hipervinculo(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida la sub-configuración `validar_orcid` de `hipervinculo_texto`.
+
+    Solo se admiten las tres comprobaciones documentadas y con valor
+    booleano; cualquier otra clave es un error de configuración.
+    """
+    opciones = config.get("validar_orcid")
+    if opciones is None:
+        return
+    if not isinstance(opciones, dict):
+        hallazgos.append(f"[{rule_id}] hipervinculo_texto: 'validar_orcid' debe ser un diccionario")
+        return
+    desconocidas = sorted(set(opciones) - _CLAVES_VALIDAR_ORCID)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] hipervinculo_texto: claves desconocidas en 'validar_orcid' "
+            f"{desconocidas} (válidas: {sorted(_CLAVES_VALIDAR_ORCID)})"
+        )
+    for clave in sorted(set(opciones) & _CLAVES_VALIDAR_ORCID):
+        if not isinstance(opciones[clave], bool):
+            hallazgos.append(
+                f"[{rule_id}] hipervinculo_texto: 'validar_orcid.{clave}' debe ser booleano"
+            )
+    # `checksum` y `destino` valen `true` si se omiten (fallo cerrado). En
+    # cambio `por_persona` solo tiene sentido sobre los párrafos de la
+    # carátula del documento: en otra parte o contexto callaría sin aviso.
+    if opciones.get("por_persona") is True:
+        if config.get("parte", "document") != "document" or config.get("contexto") != "caratula":
+            hallazgos.append(
+                f"[{rule_id}] hipervinculo_texto: 'validar_orcid.por_persona' exige "
+                "parte=document y contexto=caratula"
+            )
+
+
 def _lint_imagen(config: dict, hallazgos: list[str], rule_id: str) -> None:
     """Valida `imagen`: claves conocidas y la medición opcional del dibujo.
 
@@ -963,6 +1003,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_formato(c, hallazgos, rule_id)
                 elif seccion == "imagen":
                     _lint_imagen(c, hallazgos, rule_id)
+                elif seccion == "hipervinculo_texto":
+                    _lint_hipervinculo(c, hallazgos, rule_id)
                 elif seccion == "automata_secuencia":
                     _lint_automata_secuencia(c, hallazgos, rule_id)
                 elif seccion == "automata_pila":

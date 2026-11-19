@@ -16,6 +16,7 @@ from _xml_constants import (
     FOOTNOTES_CONTENT_TYPE,
     FOOTNOTES_REL,
     HEADER_RELS,
+    HYPERLINK_REL,
     PNG_LOGO,
     PNS,
     RELS,
@@ -169,10 +170,13 @@ def _cover_para(spec: dict) -> str:
     if spec.get("logo"):
         return f"<w:p>{_logo(spec.get('ancho_cm', 6.73), spec.get('alto_cm', 4.84))}</w:p>"
     if spec.get("orcid"):
+        rid = spec.get("rid", "rIdOrc")
+        texto = spec.get("texto", "https://orcid.org/0000-0002-1825-0097")
+        rpr = f'<w:rPr><w:sz w:val="{spec["sz"]}"/></w:rPr>' if spec.get("sz") else ""
         return (
             f'<w:p><w:pPr><w:jc w:val="{spec.get("jc", "center")}"/></w:pPr>'
-            f'<w:hyperlink r:id="rIdOrc" xmlns:r="{RNS}">'
-            f'<w:r><w:t xml:space="preserve">https://orcid.org/0000-0002-1825-0097</w:t></w:r>'
+            f'<w:hyperlink r:id="{rid}" xmlns:r="{RNS}">'
+            f'<w:r>{rpr}<w:t xml:space="preserve">{texto}</w:t></w:r>'
             f"</w:hyperlink></w:p>"
         )
     jc = spec.get("jc", "center")
@@ -410,9 +414,25 @@ def configuracion_base() -> dict:
         },
         "autores_label": {"texto": "Autores: ", "negrita": False, "sz": 24},
         "autores_nombre": {"texto": "Ana María Pérez García", "negrita": False, "sz": 24},
+        "orcid_autor": {
+            "orcid": True,
+            "rid": "rIdOrc",
+            "texto": "https://orcid.org/0000-0002-1825-0097",
+            "destino": "https://orcid.org/0000-0002-1825-0097",
+            "jc": "center",
+            "sz": 24,
+        },
         "asesor": {
             "texto": "Asesor(a): Mag. Carlos Alberto RODRÍGUEZ MIRANDA",
             "negrita": True,
+            "sz": 24,
+        },
+        "orcid_asesor": {
+            "orcid": True,
+            "rid": "rIdOrc2",
+            "texto": "https://orcid.org/0000-0002-1694-233X",
+            "destino": "https://orcid.org/0000-0002-1694-233X",
+            "jc": "center",
             "sz": 24,
         },
         "linea_label": {"texto": "Línea de investigación: ", "negrita": False, "sz": 24},
@@ -423,7 +443,6 @@ def configuracion_base() -> dict:
         },
         "ciudad": {"texto": "TRUJILLO - PERÚ, 2026", "negrita": True, "sz": 24},
         "proyecto": {"texto": "PROYECTO DE INVESTIGACIÓN", "negrita": False, "sz": 26},
-        "orcid": {"orcid": True, "jc": "center"},
     }
     return {
         "portada": portada,
@@ -543,6 +562,11 @@ def _document_xml(cfg: dict) -> str:
     # Portada
     for spec in cfg["portada"].values():
         paras.append(_cover_para(spec))
+    if cfg.get("caratula_con_sect"):
+        # Carátula delimitada por su propio salto de sección. Sin este
+        # marcador `is_caratula` cubre todo el documento y un ORCID del
+        # cuerpo satisface la regla (revisión de #115).
+        paras.append(_sect_marker(cfg))
 
     # Preliminares (resumen con su contenido, luego referencias y anexos)
     indices_separados = cfg.get("indices_paginas_separadas", False)
@@ -688,11 +712,40 @@ def _sect_final(cfg: dict) -> str:
     )
 
 
-def _document_rels(con_notas: bool) -> str:
-    """Relaciones de `word/document.xml`, con notas al pie si existen."""
-    if not con_notas:
-        return DOCUMENT_RELS
-    return DOCUMENT_RELS.replace("</Relationships>", f"{FOOTNOTES_REL}</Relationships>")
+def _orcid_rels(cfg: dict) -> str:
+    """Relaciones de los hipervínculos ORCID de la portada (M8/VA-16).
+
+    Cada persona con `orcid` en su spec aporta una relación con su `rid` y
+    su `destino` (o el texto visible si no se declara). Así se puede probar
+    un texto correcto que apunta a otro perfil.
+    """
+    rels = []
+    vistos = set()
+    for spec in cfg["portada"].values():
+        if not spec.get("orcid"):
+            continue
+        rid = spec.get("rid", "rIdOrc")
+        if rid in vistos:
+            continue
+        vistos.add(rid)
+        destino = spec.get("destino") or spec.get("texto", "https://orcid.org/0000-0002-1825-0097")
+        rels.append(HYPERLINK_REL.format(rid=rid, target=destino))
+    # El hipervínculo del cuerpo (M1) usa `rIdOrc`; si la portada no declara
+    # ese id, se agrega una relación por defecto para no dejar el `r:id`
+    # colgando en las pruebas que quitan el ORCID de la carátula.
+    if cfg.get("cuerpo_hipervinculo") and "rIdOrc" not in vistos:
+        rels.append(
+            HYPERLINK_REL.format(rid="rIdOrc", target="https://orcid.org/0000-0002-1825-0097")
+        )
+    return "".join(rels)
+
+
+def _document_rels(con_notas: bool, cfg: dict) -> str:
+    """Relaciones de `word/document.xml`, con ORCID y notas al pie si existen."""
+    extra = _orcid_rels(cfg)
+    if con_notas:
+        extra += FOOTNOTES_REL
+    return DOCUMENT_RELS.replace("</Relationships>", f"{extra}</Relationships>")
 
 
 def _content_types(con_notas: bool, con_estilos: bool) -> str:
@@ -771,7 +824,7 @@ def compilar_docx(cfg: dict) -> str:
         z.writestr("[Content_Types].xml", _content_types(bool(notas), estilos is not None))
         z.writestr("_rels/.rels", RELS)
         z.writestr("word/document.xml", _document_xml(cfg))
-        z.writestr("word/_rels/document.xml.rels", _document_rels(bool(notas)))
+        z.writestr("word/_rels/document.xml.rels", _document_rels(bool(notas), cfg))
         z.writestr("word/header1.xml", _header_xml(cfg))
         z.writestr("word/_rels/header1.xml.rels", HEADER_RELS)
         z.writestr("word/footer1.xml", _footer_xml(cfg["footer_jc"]))

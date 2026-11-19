@@ -1428,18 +1428,30 @@ reglas:
 
 - id: caratula_orcid
   tipo: formato_texto
-  descripcion: El código ORCID del autor y asesor se muestra como hipervínculo, entre paréntesis, debajo del nombre
+  descripcion: Cada autor y el asesor muestran su ORCID como hipervínculo, entre paréntesis, debajo del nombre
   valor_esperado: 'https://orcid.org/XXXXXXXXXXXX'
   severidad: warning
   ubicacion: 'Carátula, especificaciones (párr. 179-180)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos..."'
+  # EVALUADO (M8/VA-16): antes bastaba con que existiera UN hipervínculo
+  # ORCID en cualquier parte del documento. Ahora se limita a la carátula y
+  # se exige uno por persona (autores y asesor), con dígito de control ISO
+  # 7064 MOD 11-2 (admite X) y destino al perfil del mismo identificador.
+  # La identidad del perfil no se verifica por red: fuera del alcance.
+  # Con `validar_orcid` se revisa todo hipervínculo con ORCID visible, no
+  # solo los que encajan con `patron`: el manual pide el código entre
+  # paréntesis (revisión #115). `checksum` y `destino` valen true si se omiten.
   hipervinculo_texto:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body//w:hyperlink
-    patron: 'https?://orcid\.org/\d{4}-?\d{4}-?\d{4}-?\d{4}'
+    patron: 'https?://orcid\.org/\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]'
     cantidad_minima: 1
+    validar_orcid:
+      checksum: true
+      destino: true
+      por_persona: true
 
 # ─── CARÁTULA DEL PROYECTO ──────────────────────────────────
 # EVALUADO: se valida la línea de tipo y su tamaño 13pt (sz val 26).
