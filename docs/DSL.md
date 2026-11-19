@@ -407,6 +407,10 @@ hipervinculo_texto:
     por_persona: true  # cada autor y el asesor deben tener su ORCID debajo
 ```
 
+- Con `validar_orcid`, los candidatos son **todos** los `w:hyperlink` cuyo
+  texto contenga un ORCID (`orcid.extraer`), no solo los que encajan con
+  `patron`: el manual pide el código entre paréntesis y limitarse al patrón
+  de URL dejaba el checksum y el destino sin comprobar.
 - `checksum` usa el algoritmo ISO 7064 MOD 11-2 que define ORCID. Un
   identificador con forma correcta pero dígito de control inválido falla
   con `invalidos=[... checksum]`.
@@ -416,11 +420,18 @@ hipervinculo_texto:
   `invalidos=[... destino]`. Si la parte de relaciones falta o está mal
   formada, el destino se considera ausente.
 - `por_persona` reconoce los bloques «AUTORES:»/«AUTORA:» y
-  «ASESOR(A):» de la carátula: cada párrafo de nombre es una persona y su
-  ORCID debe estar en el mismo párrafo o en el siguiente. Una línea de
+  «ASESOR(A):» de la carátula (la etiqueta exige los dos puntos): cada
+  párrafo de nombre es una persona y su ORCID debe estar en el mismo
+  párrafo o en el siguiente. Las etiquetas «anexos», «jurado»,
+  «referencias» y «presentación» cierran el bloque aunque no haya salto de
+  sección, para no contar las referencias como personas. Una línea de
   ORCID en texto plano (sin hipervínculo) no satisface la regla. Si la
-  estructura de la carátula no se reconoce, se mantiene la comprobación
-  global de `cantidad_minima`.
+  estructura de la carátula no se reconoce, el detalle informa
+  `personas=0 (n/a)` y se mantiene la comprobación global de
+  `cantidad_minima`.
+- `checksum` y `destino` valen `true` si se omiten (fallo cerrado);
+  `por_persona` exige `parte: document` y `contexto: caratula` (el linter
+  rechaza otra combinación).
 - La identidad del perfil no se verifica por red: el motor solo compara
   texto y destino dentro del DOCX.
 

@@ -3,8 +3,9 @@
 **Estado:** M1 a M7 implementados y fusionados en `master` el 2026-11-17.
 Merges: M1 `f6428d1` (#100), M1a `7d90502` (#99), M2 `2286886` (#101), M3
 `0a6d78b` (#102), M4 `32a3c13` (#103), M5 `4a1ae60` (#104), M6 `a666778`
-(#105) y M7 `de0ca8b` (#106). Quedan pendientes M8 (VA-16), M9 (VA-12),
-M10 (VA-18) y M12 (NM-01 a NM-07).
+(#105) y M7 `de0ca8b` (#106). M8 (VA-16) está **corregido en código** en el
+PR #115 (abierto, pendiente de fusión y de la medición con plantillas y
+tesis real). Quedan pendientes M9 (VA-12), M10 (VA-18) y M12 (NM-01 a NM-07).
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
 Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
@@ -178,11 +179,31 @@ descripción y dejar la medición expresamente pendiente, no «cerrada».
 
 ### M8. ORCID por persona y destino — VA-16
 
+**Estado:** corregido en código en el PR #115 (abierto, pendiente de fusión).
+
 **Archivos:** `reglas_unt.yaml`, `AnalizadorHipervinculo`, extractor de relaciones.
-Delimitar carátula, asociar cada persona y resolver el destino del vínculo.
-Aceptar dígito de control X y validar el identificador. No verificar identidad
-por red. **Aceptación:** falta un autor, solo hay ORCID del asesor, texto
-correcto con destino falso, ORCID válido terminado en X y checksum incorrecto.
+**Hecho:** asociación por persona en la carátula (`AUTORES:`/`ASESOR(A):` con
+dos puntos, con cortes por anexos/jurado/referencias/presentación y sin contar
+las notas de plantilla entre paréntesis), checksum
+ISO 7064 MOD 11-2 (admite `X`), destino del vínculo y validación del código
+entre paréntesis (la forma que cita el manual). No se verifica identidad por
+red. **Aceptación cubierta:** falta un autor, solo hay ORCID del asesor, texto
+correcto con destino falso, ORCID válido terminado en X, checksum incorrecto,
+código entre paréntesis con destino correcto/ajeno/inválido, estructura sin
+`sectPr` reconocida como n/a y carátula delimitada ejercitada en pruebas.
+
+**Medición (2026-11-19):** `scripts/eval_contra_plantillas.py` sobre las 5
+plantillas oficiales y `scripts/benchmark_tesis.py` sobre la tesis real:
+
+| Corpus | Antes (`master`) | Con #115 |
+|---|---|---|
+| 5 plantillas oficiales | 40/50 cada una; `caratula_orcid` **verde** con `0000-0000-0000-0000` | 39/50 cada una; `caratula_orcid` **rojo** por checksum (ORCID de relleno inválido) |
+| Tesis real (`tesis_linares_2026.docx`) | rojo, 42 evaluadas, 4 errores, 5 warnings; `caratula_orcid` verde | idéntico; `caratula_orcid` verde |
+
+Las plantillas de relleno traen ORCID `0000-0000-0000-0000` (checksum
+inválido), así que el rojo es el veredicto correcto. La tesis real usa ORCID
+válidos y no cambia. Queda como límite la identidad del perfil (fuera de
+alcance) y la continuidad de la numeración de preliminares.
 
 ### M9. Texto literal y recursos restringidos en PDF — VA-12
 
