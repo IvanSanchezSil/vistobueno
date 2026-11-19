@@ -367,6 +367,10 @@ def _verificar_paridad(docx_path: str) -> dict:
         # El veredicto coincide en estos fixtures (todas las secciones tienen
         # el mismo papel), pero el `found` del DSL cuenta más valores.
         "papel_tamano",
+        # M12a (NM-01): el veredicto coincide; solo cambia `found` porque
+        # el DSL mira el párrafo que contiene PAGE. Las regresiones viven
+        # en `tests/test_m12a_numeracion.py`.
+        "numeracion_posicion",
     }
     # M1 (formato efectivo): estas reglas migraron de `atributo_xml` (solo
     # formato directo) a `formato_efectivo`. El veredicto se conserva en los
@@ -410,9 +414,21 @@ def _verificar_paridad(docx_path: str) -> dict:
         "estructura_tinv_revision_literatura",
         "estructura_tinv_cuantitativo",
     }
+    # M12a (NM-01): el DSL corrige la numeración y el pie activo; el YAML
+    # legacy se conserva como fuente de verdad histórica y no incorpora esas
+    # correcciones. En `numeracion_cuerpo_arabigo` el decimal explícito ahora
+    # pasa en DSL y sigue fallando en legacy, así que la excepción es
+    # completa. En `numeracion_posicion` solo cambia `found` y se mantiene
+    # en `solo_passed`. Las regresiones de NM-01 viven en
+    # `tests/test_m12a_numeracion.py`.
+    divergen_por_nm01 = {
+        "numeracion_cuerpo_arabigo",
+    }
     diffs = []
     for rid in sorted(legacy):
         legacy_res, dsl_res = legacy[rid], dsl[rid]
+        if rid in divergen_por_nm01:
+            continue
         if rid in divergen_por_aplicabilidad:
             if dsl_res.aplicable:
                 # La estructura ES aplicable: los dos motores tienen que

@@ -112,6 +112,33 @@ anexos_minimos_cuantitativo      items_obligatorios=9 faltan=[...9...]
 indice_apunta_secciones          entrada_sin_seccion=['1.2.1.General18','1.3.1.General19']
 ```
 
+### 2.2 Verificación M12a (NM-01) contra la tesis real — 2026-11-19
+
+Ejecución de `python scripts/benchmark_tesis.py recursos/tesis/` y de
+`python -m validator.cli recursos/tesis/tesis_linares_2026.docx reglas_unt.yaml --json`
+con el catálogo de 50 reglas, antes y después del PR #114:
+
+| YAML | Semáforo | Evaluadas | Errores | Warnings | 4 reglas de numeración |
+|---|---|---|---|---|---|
+| `master` (pre-M12a) | rojo | 42 de 50 | 4 | 5 | pasan |
+| rama #114 | rojo | 42 de 50 | 4 | 5 | pasan |
+
+El documento versionado en `recursos/tesis/` es la «versión anterior» citada
+arriba, no la copia verde con PII que no se versiona. Las cuatro reglas
+(`numeracion_cuerpo_arabigo`, `numeracion_posicion`,
+`numeracion_preliminares_romano` y `caratula_no_se_enumera`) conservan su
+veredicto: M12a no introduce regresiones sobre la tesis real.
+
+La medición también detectó un falso negativo en el selector propuesto durante
+la reevaluación: en la tesis real el primer `w:sectPr` **no** declara
+`titlePg` y el nodo vivo está en el segundo. Por eso
+`caratula_no_se_enumera` usa `(//w:sectPr[w:titlePg])[1]` (primera sección que
+declara `titlePg`), no `(//w:sectPr)[1]`. Con este último la tesis pasaba de 4
+a 5 errores; el caso queda fijado con
+`test_titlepg_en_seccion_posterior_no_falla` en `tests/test_m12a_numeracion.py`.
+La copia verde con PII no está disponible en este clon, así que el cierre
+final queda condicionado a repetir la medición con esa copia.
+
 ---
 
 ## 3. Estructura real de la carátula
@@ -658,7 +685,7 @@ No se cerraron defectos con esta documentación. Los detalles están en M12 de I
 
 | ID | Responsable | Estado | Trabajo |
 |---|---|---|---|
-| NM-01 | Int3 | pendiente | M12a: numeración y pies |
+| NM-01 | Int3 | **corregido en código** (PR #114, abierto; pendiente de fusión y verificación final): 6 veredictos corregidos con 15 regresiones en `tests/test_m12a_numeracion.py`; continuidad exacta declarada como límite sin render | M12a: numeración y pies |
 | NM-02 | Int3 | pendiente | M12b: bloques de carátula |
 | NM-03 | Int3; Int2 comunica límites | pendiente | M12c y F3: esquemas y alcance |
 | NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |

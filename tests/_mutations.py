@@ -347,7 +347,9 @@ _MUTACIONES = {
     "sangria_parrafo": lambda c: c.update(sangria=0),
     "numeracion_posicion": lambda c: c.update(footer_jc="center"),
     "numeracion_preliminares_romano": lambda c: c.update(prel_numfmt="decimal"),
-    "numeracion_cuerpo_arabigo": lambda c: c.update(final_numtype="decimal"),
+    # El decimal explícito es válido (NM-01); la mutación debe usar un
+    # formato realmente incorrecto para seguir probando la regla.
+    "numeracion_cuerpo_arabigo": lambda c: c.update(final_numtype="lowerRoman"),
     "caratula_no_se_enumera": lambda c: c.update(titlepg=False),
     "caratula_universidad_negrita_mayusculas": lambda c: c["portada"]["univ"].update(negrita=False),
     "caratula_facultad_negrita_mayusculas": lambda c: c["portada"]["facultad"].update(
