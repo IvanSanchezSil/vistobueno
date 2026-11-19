@@ -85,7 +85,7 @@ están pendientes de integración y verificación final. NM-08 registra una pol�
 | VA-13 | P1 | Autores, asesor, año y palabras clave mal capturados | M0 / Int3 | Cerrado — PR #75 fusionado: AUD-24 a AUD-27 cerrados y etiquetas de las plantillas oficiales cubiertas |
 | VA-14 | P2 | «Base de datos» acordado, pero no aplicado | M6 / Int3 | Cerrado — PR #105 fusionado (`a666778`; implementación `c2eb680`): el ítem 5 es «Base de datos»; el título real se reconoce y su ausencia se informa. Comparación por subcadena ratificada el 2026-11-16. La detección es textual: un anexo escaneado como imagen exige revisión manual |
 | VA-15 | P2 | Se anuncia tamaño de logo sin medirlo | M7 / Int3 | Cerrado — PR #106 fusionado (`de0ca8bb`; implementación `b92f7f3`, `ad78342`); la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) |
-| VA-16 | P2 | ORCID sin comprobación por persona/destino | M8 / Int3 | Pendiente |
+| VA-16 | P2 | ORCID sin comprobación por persona/destino | M8 / Int3 | Corregido en código — PR #115 (abierto): un ORCID por autor/asesor en la carátula, checksum ISO 7064 MOD 11-2 (admite `X`), destino y código entre paréntesis; falta medir con plantillas y tesis real |
 | VA-17 | P1 | Ejemplos DOCX dañados; guardia incompleta | B6 / Int1; M11 / Int3 | M11 cerrado — PR #98 fusionado (`dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC y regresión; B6 de Int1 regenera `docs/ejemplos/` |
 | VA-18 | P2 | Total presentado como reglas evaluadas | B7 + M10 / Int1, Int3 | B7 cerrado — PR #93 fusionado (`a6c8d4e`). Falta M10 (Int3) para CLI y exportador |
 | VA-19 | P1 | Un archivo real bloquea la siguiente validación | B1 + F4 / Int1, Int2 | Pendiente |

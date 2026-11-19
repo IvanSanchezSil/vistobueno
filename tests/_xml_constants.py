@@ -44,15 +44,23 @@ RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>"""
 
-# Relaciones de `word/document.xml`: cabecera, pie, imagen de portada y
-# hipervínculo ORCID. Los destinos son relativos a `word/`.
+# Relaciones de `word/document.xml`: cabecera, pie e imagen de portada. Los
+# destinos son relativos a `word/`. Los hipervínculos ORCID se generan en el
+# builder a partir de la portada (uno por persona, M8/VA-16).
 DOCUMENT_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rIdHeader" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
   <Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
   <Relationship Id="rIdImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.png"/>
-  <Relationship Id="rIdOrc" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://orcid.org/0000-0002-1825-0097" TargetMode="External"/>
 </Relationships>"""
+
+# Relación de hipervínculo externo (ORCID). Se completa con el `Id` y el
+# `Target` de cada persona de la portada.
+HYPERLINK_REL = (
+    '  <Relationship Id="{rid}" '
+    'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" '
+    'Target="{target}" TargetMode="External"/>\n'
+)
 
 # Relación de notas al pie; se agrega a `DOCUMENT_RELS` solo si existe la parte.
 FOOTNOTES_REL = (
