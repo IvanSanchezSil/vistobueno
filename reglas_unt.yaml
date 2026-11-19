@@ -617,10 +617,13 @@ reglas:
     # `w:titlePg` solo vale si no está apagado. Antes bastaba con que el
     # nodo existiera, así que `w:val="0"` (primera página igual al resto,
     # con número visible) pasaba (NM-01, cover_titlepg_false).
-    # El paréntesis es imprescindible: `//w:sectPr[1]` tomaría el primer
-    # hijo de CADA padre, así que un `titlePg` vivo en el cuerpo salvaba
-    # una carátula con `w:val="0"`. Solo rige el de la primera sección.
-    xpath: (//w:sectPr)[1]/w:titlePg[not(@w:val='0') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'false') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'off')]
+    # No basta `//w:sectPr[1]`: toma el primer hijo de CADA padre, así que
+    # un `titlePg` vivo en el cuerpo salvaba una carátula con `w:val="0"`.
+    # Tampoco `(//w:sectPr)[1]`: en la tesis real esa sección no declara
+    # `titlePg` y el vivo está en la siguiente (falso negativo medido el
+    # 2026-11-19). Rige la PRIMERA sección que declara `titlePg`; las
+    # posteriores (por ejemplo el cuerpo) no pueden salvar la carátula.
+    xpath: (//w:sectPr[w:titlePg])[1]/w:titlePg[not(@w:val='0') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'false') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'off')]
     comparacion: exists
 - id: caratula_universidad_negrita_mayusculas
   tipo: formato_efectivo

@@ -109,6 +109,19 @@ def _titlepg_vivo_en_otra_seccion(doc) -> None:
     titlepg.set(f"{{{W}}}val", "true")
 
 
+def _titlepg_solo_en_seccion_posterior(doc) -> None:
+    """Estructura de la tesis real: el primer sectPr no declara `titlePg`."""
+    sectprs = _sectprs(doc)
+    titlepg = sectprs[0].find(f"{{{W}}}titlePg")
+    if titlepg is not None:
+        sectprs[0].remove(titlepg)
+    destino = sectprs[1]
+    vivo = destino.find(f"{{{W}}}titlePg")
+    if vivo is None:
+        vivo = etree.SubElement(destino, f"{{{W}}}titlePg")
+    vivo.attrib.pop(f"{{{W}}}val", None)
+
+
 def _formato_cuerpo_incorrecto(doc) -> None:
     _pg_num(_sectprs(doc)[-1]).set(f"{{{W}}}fmt", "lowerRoman")
 
@@ -272,8 +285,16 @@ def test_inicio_2_en_seccion_posterior_no_es_reinicio(docx_base, tmp_path):
 
 
 def test_titlepg_apagado_en_caratula_no_salva_el_de_otra_seccion(docx_base, tmp_path):
-    """`//w:sectPr[1]` miraba cada padre; solo rige la primera sección."""
+    """Un `titlePg` vivo en otra sección no salva una carátula apagada."""
     destino = tmp_path / "titlepg-otra-seccion.docx"
     _mutar(docx_base, destino, {"word/document.xml": _titlepg_vivo_en_otra_seccion})
     _, res = _por_regla(str(destino))
     assert not res["caratula_no_se_enumera"]["passed"]
+
+
+def test_titlepg_en_seccion_posterior_no_falla(docx_base, tmp_path):
+    """La tesis real declara `titlePg` en el segundo sectPr, no en el primero."""
+    destino = tmp_path / "titlepg-seccion-posterior.docx"
+    _mutar(docx_base, destino, {"word/document.xml": _titlepg_solo_en_seccion_posterior})
+    _, res = _por_regla(str(destino))
+    assert res["caratula_no_se_enumera"]["passed"]
