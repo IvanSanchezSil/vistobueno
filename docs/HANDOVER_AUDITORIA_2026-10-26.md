@@ -4,8 +4,9 @@
 **Estado:** abierto. La pila de correctitud del motor de la Semana 12
 (PR #98 a #106) quedó fusionada en `master` el 2026-11-17 (`ca9a4100`) y
 cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11); el PR #75,
-fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Siguen
-pendientes VA-10, VA-11 (B5), VA-12, VA-16, VA-17 (B6), VA-18 (M10), VA-19 y
+fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). El PR #113 (abierto)
+corrige VA-12 en código (M9), pendiente de fusión. Siguen
+pendientes VA-10, VA-11 (B5), VA-16, VA-17 (B6), VA-18 (M10), VA-19 y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
 PR #116), además del bloque normativo (NM-01 a NM-07). Un PR abierto no cierra
 el hallazgo hasta su integración y verificación.
@@ -596,11 +597,12 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 >
 > **Actualizado (2026-11-19, Int3):** el PR #75 quedó fusionado en `master`
 > (`244d377`). AUD-24 a AUD-27 están cerrados y el bloque de aviso sigue en
-> `AGENTS.md` porque aún faltan VA-10, VA-11 (B5), VA-12, VA-16, VA-17 (B6),
+> `AGENTS.md` porque aún faltan VA-10, VA-11 (B5), VA-16, VA-17 (B6),
 > VA-18 (M10), VA-19 y la verificación en navegador real de VA-08, VA-20 y
 > VA-21 (parciales tras el PR #116), además del bloque normativo (NM-01 a
-> NM-07). Los PR abiertos no cierran un hallazgo hasta su integración y
-> verificación.
+> NM-07). VA-12 quedó **corregido en código** en el PR #113 (abierto):
+> sigue sin cerrarse hasta su fusión y verificación. Los PR abiertos no
+> cierran un hallazgo hasta su integración y verificación.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -665,7 +667,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-09 | Int1 + Int2 | **cerrado** (PR #95, merge `0469983`): B2 y F2 implementados; contrato v1.13.0 | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
 | VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 pendiente | M1a + B5: documento inválido |
-| VA-12 | Int3 | pendiente | M9: PDF sin recursos no permitidos |
+| VA-12 | Int3 | **corregido en código** (PR #113, abierto; pendiente de fusión): el texto del documento se escapa para Markdown, la cerca del prompt no se puede cerrar y el fetcher del PDF solo acepta `data:` | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | **cerrado** (PR #75 fusionado): AUD-24 a AUD-27 y las etiquetas de las plantillas oficiales cubiertas | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | **cerrado** (PR #105, merge `a666778`; implementación `c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
 | VA-15 | Int3 | **cerrado** (PR #106, merge `de0ca8bb`; implementación `b92f7f3`, `ad78342`): el tamaño del logo se mide y se avisa; la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) | M7: alcance de la regla del logo |
