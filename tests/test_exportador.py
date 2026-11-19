@@ -12,13 +12,14 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 import markdown
 import pytest
 
 from validator.exportador import _main, reporte_a_markdown, reporte_a_pdf
 
-REPORTE = {
+REPORTE: dict[str, Any] = {
     "semaforo": "rojo",
     "resultados": [
         {
@@ -132,6 +133,30 @@ def test_markdown_neutraliza_imagenes_y_enlaces_del_documento():
     assert "<img" not in md
 
 
+def test_markdown_no_escapa_la_virgulilla():
+    """Revisión #113: `\\~` se renderizaba con una barra invertida visible.
+
+    La virgulilla no es sintaxis activa sin la extensión de tachado, así que
+    escaparla solo ensuciaba el texto («rango \\~2,5 cm»).
+    """
+    reporte = {
+        **REPORTE,
+        "resultados": [
+            {
+                **REPORTE["resultados"][1],
+                "message": "El margen ronda ~2,5 cm",
+                "found": "rango ~2,5 cm",
+            }
+        ],
+    }
+    md = reporte_a_markdown(reporte)
+    assert "\\~" not in md
+    assert "~2,5 cm" in md
+    html = markdown.markdown(md, extensions=["tables", "fenced_code", "toc"])
+    assert "\\~" not in html
+    assert "~2,5 cm" in html
+
+
 def test_prompt_con_backticks_no_cierra_el_bloque_de_codigo():
     """VA-12: un prompt no puede escapar de su bloque y volverse Markdown."""
     reporte = {
@@ -168,20 +193,65 @@ def test_fetcher_restringido_rechaza_recursos_externos():
     assert b"hola" in respuesta.read()
 
 
+def _fetcher_espia(monkeypatch: pytest.MonkeyPatch) -> tuple[list[str], list[str]]:
+    """Envuelve el fetcher restringido para registrar intentos y rechazos.
+
+    WeasyPrint invoca el fetcher con `__call__` (no con `fetch`), así que el
+    espía implementa `__call__` y delega en el fetcher real, que rechaza todo
+    lo que no sea `data:`.
+    """
+    from validator import exportador
+
+    restringido = exportador._crear_fetcher_restringido()
+    intentos: list[str] = []
+    rechazados: list[str] = []
+
+    class _Espia:
+        def __call__(self, url, headers=None):
+            intentos.append(str(url))
+            try:
+                return restringido.fetch(str(url), headers=headers)
+            except ValueError:
+                rechazados.append(str(url))
+                raise
+
+    monkeypatch.setattr(exportador, "_crear_fetcher_restringido", lambda: _Espia())
+    return intentos, rechazados
+
+
 def test_pdf_no_abre_recursos_externos(monkeypatch):
-    """VA-12: generar el PDF de un reporte hostil no toca archivos ni red."""
-    from weasyprint.urls import URLFetcher
+    """VA-12 (ruta normal): el Markdown hostil ya viene escapado.
 
-    llamadas: list[str] = []
-
-    def espia(self, url, headers=None):
-        llamadas.append(str(url))
-        raise AssertionError(f"acceso a recurso externo: {url}")
-
-    monkeypatch.setattr(URLFetcher, "fetch", espia)
+    El espía va sobre la capa del fetcher (donde WeasyPrint sí llama), de modo
+    que el test falla si el escapado deja pasar una imagen o un enlace.
+    """
+    intentos, rechazados = _fetcher_espia(monkeypatch)
     pdf = reporte_a_pdf(REPORTE_CON_RECURSOS)
     assert pdf[:4] == b"%PDF"
-    assert llamadas == []
+    assert [u for u in intentos if not u.startswith("data:")] == []
+    assert rechazados == []
+
+
+def test_pdf_rechaza_recursos_externos_sin_escapar(monkeypatch):
+    """VA-12 (capa del fetcher): aunque el Markdown ya venga hostil, se corta.
+
+    Se salta `_escapar_texto` monkeypatcheando `reporte_a_markdown` para que el
+    HTML llegue con `<img>` y enlaces activos; el fetcher restringido debe
+    rechazar `file://` y `http://`, y el PDF se genera igual.
+    """
+    from validator import exportador
+
+    hostil = "# Reporte\n\n![x](file:///etc/passwd)\n\n<img src='http://ejemplo.test/x.png'>\n"
+    monkeypatch.setattr(exportador, "reporte_a_markdown", lambda _reporte: hostil)
+    intentos, rechazados = _fetcher_espia(monkeypatch)
+
+    pdf = exportador.reporte_a_pdf(REPORTE)
+    assert pdf[:4] == b"%PDF"
+    externos = [u for u in intentos if not u.startswith("data:")]
+    assert externos, "WeasyPrint debió intentar cargar el recurso inyectado"
+    assert set(externos) == set(rechazados)
+    assert any(u.startswith("file:") for u in externos)
+    assert any(u.startswith("http:") for u in externos)
 
 
 def test_main_exporta_markdown_y_pdf(tmp_path: Path):

@@ -34,6 +34,9 @@ _ESCAPES_MD = {"&": "&amp;", "<": "&lt;", ">": "&gt;", "|": "&#124;"}
 # Además del HTML y el pipe, el texto del documento puede contener sintaxis
 # Markdown activa (imágenes, enlaces, énfasis, código). Si se cuela en el
 # Markdown, el PDF la interpreta y puede intentar cargar un recurso — VA-12.
+# La virgulilla (`~`) no se escapa: sin la extensión de tachado, Python-Markdown
+# la deja literal, y escaparla imprimía una barra invertida visible («rango
+# \~2,5 cm») — revisión #113.
 _ESCAPES_TEXTO = {
     **_ESCAPES_MD,
     "\\": "\\\\",
@@ -45,7 +48,6 @@ _ESCAPES_TEXTO = {
     "(": "\\(",
     ")": "\\)",
     "!": "\\!",
-    "~": "\\~",
     "#": "\\#",
 }
 
