@@ -3,8 +3,10 @@
 **Estado:** M1 a M7 implementados y fusionados en `master` el 2026-11-17.
 Merges: M1 `f6428d1` (#100), M1a `7d90502` (#99), M2 `2286886` (#101), M3
 `0a6d78b` (#102), M4 `32a3c13` (#103), M5 `4a1ae60` (#104), M6 `a666778`
-(#105) y M7 `de0ca8b` (#106). Quedan pendientes M8 (VA-16), M9 (VA-12),
-M10 (VA-18) y M12 (NM-01 a NM-07).
+(#105) y M7 `de0ca8b` (#106). M8 (VA-16) está corregido en código en el
+PR #115 (abierto); M9 (VA-12) está corregido en código en el PR #113
+(abierto, pendiente de fusión). Quedan pendientes M10 (VA-18) y M12
+(NM-01 a NM-07).
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
 Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
@@ -203,6 +205,19 @@ a archivos sensibles ni hacer peticiones reales para demostrarlo.
   `test_fetcher_restringido_rechaza_recursos_externos` y
   `test_pdf_no_abre_recursos_externos` (fetcher espiado, sin red ni
   archivos); ruff, ruff format y mypy limpios.
+- **Revisión 2026-11-19 (PR #113, `1c617f1`):** se atendieron las tres
+  observaciones de `retblast`. (1) La prueba del fetcher ya no es vacua:
+  `test_pdf_no_abre_recursos_externos` espía la capa del fetcher (que
+  WeasyPrint invoca con `__call__`) y
+  `test_pdf_rechaza_recursos_externos_sin_escapar` salta `_escapar_texto`
+  (monkeypatcheando `reporte_a_markdown`) para comprobar que, con HTML
+  hostil, se rechazan `file://` y `http://` y el PDF se genera igual;
+  verificado que falla si se quita `url_fetcher` de `reporte_a_pdf`.
+  (2) `REPORTE` anotado como `dict[str, Any]`; mypy limpio también sobre
+  `tests/test_exportador.py`. (3) `_escapar_texto` ya no escapa `~` (se
+  renderizaba con barra invertida literal), con la regresión
+  `test_markdown_no_escapa_la_virgulilla`. Evidencia: `989 passed,
+  9 skipped`; ruff, ruff format y mypy limpios.
 
 ### M10. Contadores de CLI y exportación — VA-18
 
