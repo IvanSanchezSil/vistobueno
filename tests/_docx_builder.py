@@ -562,6 +562,11 @@ def _document_xml(cfg: dict) -> str:
     # Portada
     for spec in cfg["portada"].values():
         paras.append(_cover_para(spec))
+    if cfg.get("caratula_con_sect"):
+        # Carátula delimitada por su propio salto de sección. Sin este
+        # marcador `is_caratula` cubre todo el documento y un ORCID del
+        # cuerpo satisface la regla (revisión de #115).
+        paras.append(_sect_marker(cfg))
 
     # Preliminares (resumen con su contenido, luego referencias y anexos)
     indices_separados = cfg.get("indices_paginas_separadas", False)

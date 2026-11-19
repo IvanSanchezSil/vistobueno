@@ -296,6 +296,15 @@ def _lint_hipervinculo(config: dict, hallazgos: list[str], rule_id: str) -> None
             hallazgos.append(
                 f"[{rule_id}] hipervinculo_texto: 'validar_orcid.{clave}' debe ser booleano"
             )
+    # `checksum` y `destino` valen `true` si se omiten (fallo cerrado). En
+    # cambio `por_persona` solo tiene sentido sobre los párrafos de la
+    # carátula del documento: en otra parte o contexto callaría sin aviso.
+    if opciones.get("por_persona") is True:
+        if config.get("parte", "document") != "document" or config.get("contexto") != "caratula":
+            hallazgos.append(
+                f"[{rule_id}] hipervinculo_texto: 'validar_orcid.por_persona' exige "
+                "parte=document y contexto=caratula"
+            )
 
 
 def _lint_imagen(config: dict, hallazgos: list[str], rule_id: str) -> None:

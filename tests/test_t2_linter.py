@@ -759,6 +759,7 @@ def _regla_orcid(**config) -> dict:
         "descripcion": "ORCID de prueba",
         "hipervinculo_texto": {
             "parte": "document",
+            "contexto": "caratula",
             "xpath": "//w:body//w:hyperlink",
             "patron": r"https?://orcid\.org/\d{4}",
             **config,
@@ -771,6 +772,26 @@ def test_validar_orcid_valido_no_produce_hallazgo():
         _regla_orcid(validar_orcid={"checksum": True, "destino": True, "por_persona": True})
     )
     assert not hallazgos
+
+
+@pytest.mark.parametrize(
+    "contexto",
+    ["todos", "cuerpo", None],
+)
+def test_validar_orcid_por_persona_fuera_de_caratula_se_detecta(contexto):
+    """`por_persona` solo rige sobre los párrafos de la carátula."""
+    regla = _regla_orcid(validar_orcid={"por_persona": True})
+    if contexto is None:
+        regla["hipervinculo_texto"].pop("contexto")
+    else:
+        regla["hipervinculo_texto"]["contexto"] = contexto
+    hallazgos = _hallazgos(regla)
+    assert any("por_persona" in h and "caratula" in h for h in hallazgos)
+
+
+def test_validar_orcid_por_persona_en_otra_parte_se_detecta():
+    hallazgos = _hallazgos(_regla_orcid(parte="headers", validar_orcid={"por_persona": True}))
+    assert any("por_persona" in h and "caratula" in h for h in hallazgos)
 
 
 def test_validar_orcid_con_clave_desconocida_se_detecta():

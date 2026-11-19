@@ -1395,6 +1395,9 @@ reglas:
   # se exige uno por persona (autores y asesor), con dígito de control ISO
   # 7064 MOD 11-2 (admite X) y destino al perfil del mismo identificador.
   # La identidad del perfil no se verifica por red: fuera del alcance.
+  # Con `validar_orcid` se revisa todo hipervínculo con ORCID visible, no
+  # solo los que encajan con `patron`: el manual pide el código entre
+  # paréntesis (revisión #115). `checksum` y `destino` valen true si se omiten.
   hipervinculo_texto:
     parte: document
     contexto: caratula

@@ -22,20 +22,32 @@ from .extractor import W, text_of
 _ORCID = re.compile(r"(?<![\dXx])(\d{4})-?(\d{4})-?(\d{4})-?(\d{3}[\dXx])(?![\dXx])")
 
 # Línea de ORCID completa: el identificador solo, o la URL del perfil, con
-# paréntesis opcionales (el manual pide «entre paréntesis») y una etiqueta
-# «ORCID:» opcional, que algunas plantillas agregan delante.
+# paréntesis opcionales (el manual pide «entre paréntesis»), una etiqueta
+# «ORCID:» / «Código ORCID:» opcional y un punto final opcional. Se aplica
+# sobre `_norm`, así que los acentos no importan.
 _LINEA_ORCID = re.compile(
-    r"^\(?\s*(?:orcid\s*:\s*)?(?:https?://(?:www\.)?orcid\.org/)?"
-    r"\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]\s*\)?$",
+    r"^\s*(?:(?:codigo\s+)?orcid\s*:\s*)?\(?\s*"
+    r"(?:https?://(?:www\.)?orcid\.org/)?"
+    r"\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]\s*\)?\s*\.?\s*$",
     re.IGNORECASE,
 )
 
 _ACENTOS = str.maketrans("ÁÉÍÓÚÜÑáéíóúüñ", "AEIOUUNaeiouun")
 
-# Etiquetas de la carátula que abren/cierran los bloques de personas.
+# Etiquetas de la carátula que abren los bloques de personas. Se exigen los
+# dos puntos: un «Autor, A. (1990)…» de REFERENCIAS no debe abrir un bloque
+# (revisión de #115). Aceptamos `autor`, `autores`, `autora`, `asesor`,
+# `asesora` y `asesor(a)`.
+_ETIQUETA_AUTOR = re.compile(r"^autor(?:es|a)?\s*:")
+_ETIQUETA_ASESOR = re.compile(r"^asesor(?:a|\(a\))?\s*:")
+
+# Etiquetas que cierran el bloque aunque no haya salto de sección. «anexos»,
+# «jurado», «referencias» y «presentación» son las que aparecen después de
+# la carátula en plantillas sin `w:sectPr` propio (revisión de #115).
 _FIN_BLOQUE = re.compile(
     r"^(linea|trujillo|ciudad|ano|resumen|indice|dedicatoria|agradecimiento|"
-    r"abstract|universidad|facultad|escuela|programa|tesis|para optar|titulo|proyecto)\b"
+    r"abstract|universidad|facultad|escuela|programa|tesis|para optar|titulo|proyecto|"
+    r"anexos|jurado|referencias|presentacion)\b"
 )
 
 
@@ -99,7 +111,7 @@ def _resto_tras_etiqueta(texto: str) -> str:
 
 def _es_linea_orcid(texto: str) -> bool:
     """¿El párrafo es solo la línea del ORCID (con o sin paréntesis)?"""
-    return bool(_LINEA_ORCID.match(texto.strip()))
+    return bool(_LINEA_ORCID.match(_norm(texto)))
 
 
 def revisar_caratula(parrafos: list[tuple[str, bool]]) -> tuple[int, list[str]]:
@@ -136,7 +148,7 @@ def revisar_caratula(parrafos: list[tuple[str, bool]]) -> tuple[int, list[str]]:
             cerrar()
             break
 
-        if normalizado.startswith("autor"):
+        if _ETIQUETA_AUTOR.match(normalizado):
             cerrar()
             estado = "autores"
             resto = _resto_tras_etiqueta(texto)
@@ -145,7 +157,7 @@ def revisar_caratula(parrafos: list[tuple[str, bool]]) -> tuple[int, list[str]]:
                 pendiente = [resto, tiene]
             continue
 
-        if normalizado.startswith("asesor"):
+        if _ETIQUETA_ASESOR.match(normalizado):
             cerrar()
             estado = "asesor"
             resto = _resto_tras_etiqueta(texto)
@@ -160,6 +172,12 @@ def revisar_caratula(parrafos: list[tuple[str, bool]]) -> tuple[int, list[str]]:
         if _es_linea_orcid(texto):
             if pendiente is not None and tiene:
                 pendiente[1] = True
+            continue
+
+        # Las notas de la plantilla van entre paréntesis («(en caso de un
+        # autor(a) adicional…)»); no son personas y no deben reportarse como
+        # un nombre sin ORCID (medición del 2026-11-19).
+        if texto.strip().startswith("("):
             continue
 
         # Otro párrafo dentro del bloque: es una persona nueva.

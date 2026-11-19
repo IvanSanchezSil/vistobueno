@@ -29,6 +29,7 @@ from abc import ABC, abstractmethod
 from . import orcid
 from .detalle import (
     detalle_jerarquia,
+    detalle_lista_acotada,
     detalle_texto_lista,
     detalle_texto_regex,
     detalle_xml_atributo,
@@ -852,12 +853,24 @@ class AnalizadorHipervinculo(Analizador):
 
         nodos = self._nodos(extracted, parte, contexto)
         rx = re.compile(patron, re.IGNORECASE if ignore_case else 0)
-        coinciden = [n for n in nodos if rx.search(text_of(n))]
+        opciones = self.config.get("validar_orcid")
+
+        # El manual pide el código entre paréntesis, no la URL completa. Con
+        # `validar_orcid` son candidatos TODOS los hipervínculos cuyo texto
+        # contenga un ORCID: limitarse al `patron` dejaba sin validar el
+        # destino y el checksum en esa forma (falso verde, revisión #115).
+        # Se conserva el orden de documento y no se duplican nodos.
+        candidatos = {id(n): n for n in nodos if rx.search(text_of(n))}
+        if isinstance(opciones, dict):
+            for nodo in nodos:
+                if orcid.extraer(text_of(nodo)) is not None:
+                    candidatos[id(nodo)] = nodo
+        coinciden = list(candidatos.values())
         n = len(coinciden)
 
         personas = 0
+        sin_estructura = False
         problemas: list[str] = []
-        opciones = self.config.get("validar_orcid")
         if isinstance(opciones, dict):
             invalidos: list[str] = []
             for nodo in coinciden:
@@ -872,15 +885,18 @@ class AnalizadorHipervinculo(Analizador):
                 ):
                     invalidos.append(f"{identificador} destino")
             if invalidos:
-                problemas.append(f"invalidos={invalidos}")
+                problemas.append(f"invalidos={detalle_lista_acotada(invalidos)}")
             if opciones.get("por_persona"):
                 personas, faltan = self._personas_sin_orcid(extracted)
-                if personas and faltan:
-                    problemas.append(f"sin_orcid={faltan}")
+                sin_estructura = personas == 0
+                if faltan:
+                    problemas.append(f"sin_orcid={detalle_lista_acotada(faltan)}")
 
         detalle = f"hipervinculos={n} minimo={minimo}"
         if personas:
             detalle += f" personas={personas}"
+        elif sin_estructura:
+            detalle += " personas=0 (n/a)"
         if problemas:
             detalle += " " + " ".join(problemas)
 

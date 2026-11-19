@@ -227,6 +227,20 @@ def detalle_texto_lista(valores: list[str], incumplimientos: list[tuple[int, str
     return detalle
 
 
+def detalle_lista_acotada(items: list[str], tope: int = 8) -> str:
+    """Lista de textos citados en un detalle, con tope y texto recortado.
+
+    Usada por comprobaciones que formatean su propia lista (por ejemplo
+    `validar_orcid`): aplica las mismas reglas de la casa que
+    `detalle_texto_regex` —textos de hasta `MAX_TEXTO` y aviso de cuántos
+    faltan— sin fijar un formato de `repr` que puede crecer sin límite.
+    """
+    recortados = [_texto_corto(str(item)) for item in items[:tope]]
+    if len(items) > tope:
+        recortados.append(f"+{len(items) - tope} más")
+    return ", ".join(recortados)
+
+
 def detalle_jerarquia(fallos: list[str]) -> str:
     """Detalle de una comprobación de jerarquía (`automata_pila` y similar)."""
     if not fallos:

@@ -9,6 +9,7 @@ que cada persona de la carátula tenga su enlace.
 La identidad del perfil no se verifica por red (fuera de alcance).
 """
 
+import re
 from pathlib import Path
 
 import pytest
@@ -208,3 +209,128 @@ def test_linea_orcid_sin_hipervinculo_no_satisface():
     assert resultado.passed is False
     assert "sin_orcid=" in resultado.found
     assert "Ana María Pérez García" in resultado.found
+
+
+# ---------------------------------------------------------------------------
+# Revisión de #115: forma del manual, delimitación de carátula y detalle
+# ---------------------------------------------------------------------------
+
+
+def _config_con_codigo_entre_parentesis(texto: str, destino: str) -> dict:
+    """Texto visible entre paréntesis, tal como lo pide el manual (párr. 179)."""
+    cfg = configuracion_base()
+    cfg["portada"]["orcid_autor"].update(texto=f"({texto})", destino=destino)
+    return cfg
+
+
+def test_codigo_orcid_entre_parentesis_con_destino_correcto_pasa():
+    """Antes el `patron` de URL no veía el código: falso rojo."""
+    identificador = "0000-0002-1825-0097"
+    resultado = _resultado(_config_con_codigo_entre_parentesis(identificador, ORCID_AUTOR))
+    assert resultado.passed is True
+    assert "invalidos=" not in resultado.found
+    assert "sin_orcid=" not in resultado.found
+
+
+def test_codigo_orcid_entre_parentesis_con_destino_ajeno_falla():
+    """Antes no se validaba el destino: falso verde."""
+    identificador = "0000-0002-1825-0097"
+    cfg = _config_con_codigo_entre_parentesis(identificador, ORCID_ASESOR)
+    resultado = _resultado(cfg)
+    assert resultado.passed is False
+    assert "destino" in resultado.found
+
+
+def test_codigo_orcid_entre_parentesis_con_checksum_invalido_falla():
+    """Antes no se validaba el checksum: falso verde."""
+    identificador = "0000-0000-0000-0000"
+    cfg = _config_con_codigo_entre_parentesis(identificador, f"https://orcid.org/{identificador}")
+    resultado = _resultado(cfg)
+    assert resultado.passed is False
+    assert "checksum" in resultado.found
+
+
+def test_referencias_no_abren_un_bloque_de_autores():
+    """«Autor, A. (1990)…» no tiene la etiqueta `AUTORES:` del manual."""
+    parrafos = [
+        ("Autor, A. (1990). Fuente bibliográfica.", False),
+        ("Bautista, B. (1991). Otra fuente.", False),
+    ]
+    assert orcid.revisar_caratula(parrafos) == (0, [])
+
+
+def test_nota_de_plantilla_entre_parentesis_no_es_persona():
+    """Estructura medida en las plantillas oficiales (2026-11-19)."""
+    parrafos = [
+        ("AUTORA:", False),
+        ("Br. Apellidos completos, Nombres completos", False),
+        (ORCID_AUTOR, True),
+        ("(en caso de un autor(a) adicional, ubicar en orden alfabético)", False),
+        ("ASESORA:", False),
+        ("(Dr. o Mg. o Lic.) (Apellidos completos, Nombres completos)", False),
+        (ORCID_ASESOR, True),
+        ("Línea de Investigación", False),
+    ]
+    assert orcid.revisar_caratula(parrafos) == (1, [])
+
+
+@pytest.mark.parametrize("etiqueta", ["ANEXOS", "JURADO", "REFERENCIAS", "PRESENTACIÓN"])
+def test_etiquetas_posteriores_cierran_el_bloque(etiqueta):
+    """Sin salto de sección, estas etiquetas cortan la cuenta de personas."""
+    parrafos = [
+        ("AUTORES:", False),
+        ("Br. Pérez, Ana", False),
+        (etiqueta, False),
+        ("Texto que no es una persona", False),
+    ]
+    total, faltan = orcid.revisar_caratula(parrafos)
+    assert total == 1
+    assert faltan == ["Br. Pérez, Ana"]
+
+
+def test_linea_orcid_acepta_codigo_y_punto_final():
+    """Variante escrita por plantillas: «Código ORCID: (…).»"""
+    parrafos = [
+        ("AUTORA:", False),
+        ("Br. Pérez, Ana", False),
+        (f"Código ORCID: ({ORCID_AUTOR}).", True),
+        ("Línea de investigación: Educación", False),
+    ]
+    assert orcid.revisar_caratula(parrafos) == (1, [])
+
+
+def test_orcid_del_cuerpo_no_satisface_la_regla_de_caratula():
+    """`contexto: caratula` solo rige con la carátula delimitada por `sectPr`."""
+    cfg = configuracion_base()
+    cfg["portada"].pop("orcid_autor")
+    cfg["portada"].pop("orcid_asesor")
+    cfg["cuerpo_hipervinculo"] = {"texto": ORCID_AUTOR}
+
+    # Sin el salto de sección, `is_caratula` cubre casi todo el documento y
+    # el enlace del cuerpo se cuenta como si fuera de la portada.
+    sin_delimitar = _resultado(cfg)
+    assert int(re.search(r"hipervinculos=(\d+)", sin_delimitar.found).group(1)) > 0
+
+    cfg["caratula_con_sect"] = True
+    delimitada = _resultado(cfg)
+    assert delimitada.passed is False
+    assert "hipervinculos=0" in delimitada.found
+    assert "personas=2" in delimitada.found
+    assert "sin_orcid=" in delimitada.found
+
+
+def test_detalle_de_personas_va_acotado():
+    """El detalle no puede crecer sin límite con `repr` de muchos nombres."""
+    cfg = configuracion_base()
+    cfg["portada"].pop("orcid_autor")
+    for i in range(12):
+        cfg["portada"] = _insertar_despues(
+            cfg["portada"],
+            "autores_nombre" if i == 0 else f"autor_extra_{i - 1}",
+            f"autor_extra_{i}",
+            {"texto": f"Autor sin ORCID número {i} con un nombre bastante largo", "sz": 24},
+        )
+    resultado = _resultado(cfg)
+    assert resultado.passed is False
+    assert "[" not in resultado.found
+    assert "más" in resultado.found
