@@ -18,6 +18,8 @@ Partes OPC mínimas que admite el extractor:
   todas las partes que existan y cuyo XML sea válido.
 - ``word/footnotes.xml`` — opcional; si existe y no está vacía, se
   parsea.
+- ``word/_rels/document.xml.rels`` — opcional; solo se usa para resolver
+  el destino de los hipervínculos (ORCID, M8/VA-16).
 
 El extractor localiza las partes **por nombre**, no por las relaciones
 de ``_rels/.rels`` ni por ``[Content_Types].xml``; esos archivos no se
@@ -41,6 +43,9 @@ NS = {
     "pic": "http://schemas.openxmlformats.org/drawingml/2006/picture",
     "wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
 }
+
+# Namespace del paquete de relaciones (`word/_rels/document.xml.rels`).
+_RELS_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 # Grado de certeza de la página asignada a un párrafo (M3/VA-04). No toda
 # página se puede afirmar con la misma fuerza: un salto explícito del autor
@@ -820,6 +825,10 @@ class ExtractedDocx:
     # falta o está mal formada, queda `None` y las reglas afectadas reportan
     # la propiedad como `(ausente)` en vez de tumbar la validación.
     styles: etree._Element | None = None
+    # Destinos de las relaciones de `word/document.xml.rels` (Id → Target).
+    # Se usa para comprobar que el texto de un hipervínculo ORCID coincide
+    # con su destino real (M8/VA-16); si la parte falta, queda vacío.
+    relaciones: dict[str, str] = field(default_factory=dict, repr=False)
     # Resolvedor de formato efectivo, construido una vez por documento.
     _resolvedor: ResolvedorFormato | None = field(
         default=None, init=False, repr=False, compare=False
@@ -950,6 +959,18 @@ class ExtractedDocx:
             "header": self.header,
         }.get(name)
 
+    def destino_relacion(self, rid: str | None) -> str | None:
+        """Destino de una relación de `document.xml` (``None`` si no existe).
+
+        Sirve para comprobar que el texto visible de un hipervínculo coincide
+        con su destino real: en un DOCX el texto y el `Target` son
+        independientes, así que un ORCID correcto puede apuntar a otra parte
+        (M8/VA-16).
+        """
+        if not rid:
+            return None
+        return self.relaciones.get(rid)
+
     def _arboles(self, parte: str) -> list:
         return {
             "document": [self.document],
@@ -993,6 +1014,23 @@ class ExtractedDocx:
             nodos = [n for n in nodos if self.is_caratula_ficha(n)]
         self._cache[clave] = nodos
         return nodos
+
+
+def _relaciones(xml_bytes: bytes | None) -> dict[str, str]:
+    """Mapa Id → Target de `word/_rels/document.xml.rels` (vacío si falta).
+
+    Solo se usa para resolver el destino de los hipervínculos (M8/VA-16). Un
+    archivo ausente o mal formado deja el mapa vacío: las reglas que lo
+    consultan fallan con «destino ausente», no tumban la validación.
+    """
+    raiz = _parsear_opcional(xml_bytes)
+    if raiz is None:
+        return {}
+    return {
+        rel.get("Id"): rel.get("Target")
+        for rel in raiz.iter(f"{{{_RELS_NS}}}Relationship")
+        if rel.get("Id") and rel.get("Target")
+    }
 
 
 def _parsear_opcional(xml_bytes: bytes | None) -> etree._Element | None:
@@ -1065,6 +1103,12 @@ def extract(docx_path: str) -> ExtractedDocx:
         styles = _parsear_opcional(
             _leer_parte(z, "word/styles.xml") if "word/styles.xml" in names else None
         )
+        rels_xml = (
+            _leer_parte(z, "word/_rels/document.xml.rels")
+            if "word/_rels/document.xml.rels" in names
+            else None
+        )
+        relaciones = _relaciones(rels_xml)
 
     return ExtractedDocx(
         document=document,
@@ -1078,4 +1122,5 @@ def extract(docx_path: str) -> ExtractedDocx:
         _secciones_cuerpo=_secciones_cuerpo(document),
         _paginacion=_paginacion_para(document),
         styles=styles,
+        relaciones=relaciones,
     )

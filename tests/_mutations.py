@@ -322,6 +322,16 @@ def _mut_anexos_cualitativo(c: dict) -> None:
     c["anexos_items"].remove("Juicio de expertos")
 
 
+def _mut_caratula_orcid(c: dict) -> None:
+    """Quita el ORCID de todas las personas de la carátula (M8/VA-16).
+
+    Con la validación por persona ya no basta con dejar un solo enlace: la
+    mutación retira el autor y el asesor para que falle la regla.
+    """
+    for clave in ("orcid_autor", "orcid_asesor"):
+        c["portada"].pop(clave, None)
+
+
 def _mut_proyecto_caratula(c: dict) -> None:
     _voltear_proyecto(c)
     c["portada"]["proyecto"].update(sz=24)
@@ -378,7 +388,7 @@ _MUTACIONES = {
     "referencias_minimo_revision": _mut_referencias_revision,
     "anexos_minimos_cuantitativo": lambda c: c["anexos_items"].remove("Reporte de similitud"),
     "anexos_minimos_cualitativo": _mut_anexos_cualitativo,
-    "caratula_orcid": lambda c: c["portada"].pop("orcid"),
+    "caratula_orcid": _mut_caratula_orcid,
     "proyecto_caratula_texto": _mut_proyecto_caratula,
     "indice_paginas_separadas": lambda c: c.update(
         indices_paginas_separadas=False, marcador_render_final=True
