@@ -46,7 +46,7 @@
 	<form id="editSubmissionForm">
 		<div id="10_array" class="ng-untouched ng-pristine ng-valid">
 			<div id="cdk-drop-list-0" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col">
 						<div><div class="form-row">
@@ -59,7 +59,7 @@
 
 		<div id="11_array" class="ng-untouched ng-pristine ng-invalid">
 			<div id="cdk-drop-list-2" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col">
 						<div><div class="form-row">
@@ -75,7 +75,7 @@
 
 		<div id="15_array" class="ng-untouched ng-pristine ng-invalid">
 			<div id="cdk-drop-list-3" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col">
 						<div><div class="form-row">
@@ -88,7 +88,7 @@
 
 		<div id="37_array" class="ng-untouched ng-pristine ng-invalid">
 			<div id="cdk-drop-list-4" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col">
 						<div><div class="form-row">
@@ -101,7 +101,7 @@
 
 		<div id="43_array" class="ng-untouched ng-pristine ng-invalid">
 			<div id="cdk-drop-list-5" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col">
 						<div><div class="form-row">
@@ -117,7 +117,7 @@
 
 		<div id="13_array" class="ng-untouched ng-pristine ng-valid">
 			<div id="cdk-drop-list-6" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col-sm-4 pr-0">
 						<div><div class="form-row">
@@ -146,7 +146,7 @@
 
 		<div id="17_array" class="ng-untouched ng-pristine ng-valid">
 			<div id="cdk-drop-list-7" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col-sm-4 pr-0">
 						<div><div class="form-row">
@@ -170,7 +170,7 @@
 
 		<div id="19_array" class="ng-untouched ng-pristine ng-valid">
 			<div id="cdk-drop-list-8" role="listbox" class="cdk-drop-list" aria-label="Sortable list">
-				<div role="group" class="cdk-drag form-row cdk-drag-disabled">
+				<div role="group" cdkdrag class="cdk-drag form-row cdk-drag-disabled">
 					<div class="cdk-drag-handle drag-handle"><i class="fas fa-grip-vertical fa-fw"></i></div>
 					<ds-dynamic-form-control-container class="col">
 						<div><div class="form-row">
@@ -207,28 +207,83 @@
 		// JS mínimo del mock (sin Angular): hace crecer las filas, simula
 		// el filtrado del combobox y navega al "ítem archivado".
 
-		// Botones "+" (ds-form-add-more): clonan la última fila del MISMO
-		// array #N_array y la re-etiquetan (#N_array-<índice>-<campo>), como
-		// el formulario real. La fila nueva no repite el botón: el mock
-		// deja uno por array.
+		// Filas repetibles (como el widget real de DSpace 8.1):
+		// - el botón "+" (ds-form-add-more) vive en la ÚLTIMA fila;
+		// - el botón de quitar (aria-label "Remove") solo existe cuando
+		//   hay más de una fila (ngIf del bundle capturado).
+		// El userscript usa ESOS controles: nunca borra nodos del DOM.
+		function botonAgregar() {
+			const boton = document.createElement("button");
+			boton.type = "button";
+			boton.setAttribute("role", "button");
+			boton.className = "ds-form-add-more btn btn-link";
+			boton.setAttribute("title", "Añadir más");
+			boton.setAttribute("aria-label", "Añadir más");
+			const icono = document.createElement("i");
+			icono.className = "fas fa-plus";
+			boton.appendChild(icono);
+			boton.appendChild(document.createTextNode(" Añadir"));
+			return boton;
+		}
+
+		function botonQuitar() {
+			const boton = document.createElement("button");
+			boton.type = "button";
+			boton.className = "ds-form-remove btn btn-link";
+			boton.setAttribute("title", "Remove");
+			boton.setAttribute("aria-label", "Remove");
+			const icono = document.createElement("i");
+			icono.className = "fas fa-times";
+			boton.appendChild(icono);
+			return boton;
+		}
+
+		function renderizar(array) {
+			const lista = array.querySelector(".cdk-drop-list");
+			if (!lista) return;
+			const filas = Array.from(lista.querySelectorAll(".cdk-drag.form-row"));
+			filas.forEach(function (fila, indice) {
+				const esUltima = indice === filas.length - 1;
+				const agregar = fila.querySelector("button.ds-form-add-more");
+				if (esUltima && !agregar) fila.appendChild(botonAgregar());
+				if (!esUltima && agregar) agregar.remove();
+				const quitar = fila.querySelector('button[aria-label="Remove"]');
+				if (filas.length > 1 && !quitar) fila.appendChild(botonQuitar());
+				if (filas.length <= 1 && quitar) quitar.remove();
+			});
+		}
+
 		document.querySelectorAll('[id$="_array"]').forEach(function (array) {
 			const lista = array.querySelector(".cdk-drop-list");
-			const boton = array.querySelector("button.ds-form-add-more");
-			if (!lista || !boton) return;
-			boton.addEventListener("click", function () {
-				const filas = lista.querySelectorAll(".cdk-drag.form-row");
-				if (!filas.length) return;
-				const indice = filas.length;
-				const clon = filas[filas.length - 1].cloneNode(true);
-				clon.querySelectorAll("[id]").forEach(function (el) {
-					el.id = el.id.replace(/-\d+-/, "-" + indice + "-");
-				});
-				const botonClon = clon.querySelector("button.ds-form-add-more");
-				if (botonClon) botonClon.remove();
-				clon.querySelectorAll("input,select,textarea").forEach(function (el) {
-					if (el.type !== "button") el.value = "";
-				});
-				lista.appendChild(clon);
+			if (!lista) return;
+			renderizar(array);
+			array.addEventListener("click", function (evento) {
+				const boton = evento.target.closest ? evento.target.closest("button") : null;
+				if (!boton) return;
+				const fila = boton.closest(".cdk-drag.form-row");
+				if (!fila) return;
+				if (boton.classList.contains("ds-form-add-more")) {
+					const filas = lista.querySelectorAll(".cdk-drag.form-row");
+					if (!filas.length) return;
+					const indice = filas.length;
+					const clon = filas[filas.length - 1].cloneNode(true);
+					clon.querySelectorAll("[id]").forEach(function (el) {
+						el.id = el.id.replace(/-\d+-/, "-" + indice + "-");
+					});
+					clon.querySelectorAll('button.ds-form-add-more,button[aria-label="Remove"]').forEach(function (el) {
+						el.remove();
+					});
+					clon.querySelectorAll("input,select,textarea").forEach(function (el) {
+						if (el.type !== "button") el.value = "";
+					});
+					lista.appendChild(clon);
+					renderizar(array);
+					return;
+				}
+				if (boton.getAttribute("aria-label") === "Remove") {
+					fila.remove();
+					renderizar(array);
+				}
 			});
 		});
 
@@ -239,13 +294,17 @@
 			"Acceso embargado",
 			"Acceso restringido",
 		];
+		function vaciar(elemento) {
+			// Sin innerHTML: el listbox se limpia quitando nodos.
+			while (elemento.firstChild) elemento.removeChild(elemento.firstChild);
+		}
 		document.getElementById("dc_rights").addEventListener("input", function (e) {
 			const listbox = document.getElementById("combobox_dc_rights_listbox");
-			listbox.innerHTML = "";
+			vaciar(listbox);
 			const texto = e.target.value.toLowerCase();
 			if (!texto) return;
 			setTimeout(function () {
-				listbox.innerHTML = "";
+				vaciar(listbox);
 				for (const etiqueta of opcionesDerechos) {
 					if (etiqueta.toLowerCase().includes(texto)) {
 						const opcion = document.createElement("button");
@@ -253,7 +312,7 @@
 						opcion.textContent = etiqueta;
 						opcion.addEventListener("click", function () {
 							document.getElementById("dc_rights").value = etiqueta;
-							listbox.innerHTML = "";
+							vaciar(listbox);
 						});
 						listbox.appendChild(opcion);
 					}
@@ -261,9 +320,10 @@
 			}, 100);
 		});
 
-		// Depositar: simula el fin del envío y salta al ítem archivado.
+		// Depositar: simula el fin del envío y salta a la página del ítem
+		// (ruta real de DSpace: /items/<uuid>).
 		document.getElementById("deposit").addEventListener("click", function () {
-			window.location.href = "/mock/item";
+			window.location.href = "/items/mock-uuid-1";
 		});
 
 		// --- Botones de "comfy testing" (hallazgo 1 de la revisión) ---
@@ -317,11 +377,14 @@
 					const sobre = await r.json();
 					const ficha = sobre.ficha || {};
 					const titulo = (ficha.extraidos || []).find(function (e) { return e.campo === "dc.title"; });
-					estadoFicha.innerHTML = "✅ <strong>Ficha en el buzón</strong> — \"" +
-						(titulo ? String(titulo.valor || "").slice(0, 60) : "?") + "…\" — el userscript la usará." +
-						" <small>trámite: " + (sobre.tramite_id || "?") + "</small>";
+					estadoFicha.textContent =
+						"✅ Ficha en el buzón — \"" +
+						(titulo ? String(titulo.valor || "").slice(0, 60) : "?") +
+						"…\" — el userscript la usará. Trámite: " +
+						(sobre.tramite_id || "?");
 				} else if (r.status === 404) {
-					estadoFicha.innerHTML = "Sin ficha en el buzón (vacía o expirada). <strong>Publica una con el botón azul.</strong>";
+					estadoFicha.textContent =
+						"Sin ficha en el buzón (vacía o expirada). Publica una con el botón azul.";
 				} else {
 					estadoFicha.textContent = "El buzón respondió HTTP " + r.status + ".";
 				}
@@ -340,9 +403,11 @@
 				});
 				if (r.status === 201) {
 					const publicada = await r.json();
-					estadoFicha.innerHTML = "✅ <strong>Ficha publicada</strong> — trámite <code>" +
-						(publicada.tramite_id || "?") + "</code>. Pulsa el botón verde flotante " +
-						"<strong>\"Rellenar\"</strong> (arriba a la derecha) para llenar el formulario con esta ficha.";
+					estadoFicha.textContent =
+						"✅ Ficha publicada — trámite " +
+						(publicada.tramite_id || "?") +
+						'. Pulsa el botón verde flotante "Rellenar" (arriba a la derecha) ' +
+						"para llenar el formulario con esta ficha.";
 				} else if (r.status === 502) {
 					estadoFicha.textContent = "La API no responde en :8000 — ¿corrió nix run .#serve?";
 				} else {

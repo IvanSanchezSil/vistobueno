@@ -5,7 +5,10 @@
 // Rutas:
 //   /                  → índice del mock
 //   /mock/submit       → formulario de envío (mismos name/id del real)
-//   /mock/item         → ítem archivado con handle
+//   /items/<uuid>      → ítem archivado con handle (ruta real de DSpace:
+//                        el panel de confirmación SOLO aparece aquí)
+//   /mock/item         → alias del ítem (compatibilidad con el checklist)
+//   /mydspace          → ruta que NO es un ítem: el panel no debe aparecer
 //   /shim-gm.js        → shim de GM_* (corre el userscript como script común)
 //   /userscript.js     → dist del userscript (build de dev/build.js)
 //   /api-proxy/<ruta>  → proxy same-origin hacia la API real de
@@ -81,6 +84,8 @@ const rutas = {
 	"/": ["dev/mock-dspace/index.html"],
 	"/mock/submit": ["dev/mock-dspace/submit.html"],
 	"/mock/item": ["dev/mock-dspace/item.html"],
+	// MyDSpace: ruta real del portal que NO es la página de un ítem.
+	"/mydspace": ["dev/mock-dspace/index.html"],
 	"/shim-gm.js": ["dev/shim-gm.js"],
 	"/userscript.js": ["dist/vistobueno-dspace-fill.user.js"],
 };
@@ -96,6 +101,11 @@ const servidor = http.createServer(function (solicitud, respuesta) {
 
 		if (url.startsWith("/api-proxy/")) {
 			proxyApi(respuesta, solicitud.method, "/" + url.slice("/api-proxy/".length), cuerpo);
+			return;
+		}
+		// Página de ítem: la ruta real de DSpace es /items/<uuid>.
+		if (/^\/items\/[^/]+\/?$/.test(url)) {
+			servirArchivo(respuesta, "dev/mock-dspace/item.html");
 			return;
 		}
 		const ruta = rutas[url];

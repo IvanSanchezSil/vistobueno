@@ -34,6 +34,20 @@ test("el dist contiene los módulos y el wrapper", () => {
 	assert.ok(dist.includes("VBMapeador"));
 	assert.ok(dist.includes("VBEjecutor"));
 	assert.ok(dist.includes("VBReloj"));
+	assert.ok(dist.includes("VBPanel"));
 	assert.ok(dist.includes("ds-form-add-more"));
 	assert.ok(dist.includes("UserScript"));
+});
+
+test("el dist declara la versión 1.2.0 (protocolo incompatible con 1.1.0)", () => {
+	assert.match(dist, /@version\s+1\.2\.0/);
+	assert.doesNotMatch(dist, /@version\s+1\.1\.0/);
+});
+
+test("el dist usa el protocolo 2 y no migra el estado anterior", () => {
+	assert.ok(dist.includes("const PROTOCOLO = 2"), "el wrapper no declara el protocolo 2");
+	assert.ok(
+		dist.includes("actual.protocolo !== PROTOCOLO"),
+		"el wrapper no descarta el estado de otro protocolo"
+	);
 });

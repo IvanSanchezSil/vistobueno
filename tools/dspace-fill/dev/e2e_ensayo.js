@@ -7,9 +7,13 @@
 //   1. Carga /mock/submit → el userscript auto-rellena el formulario.
 //   2. Verifica los campos clave (título, autor, DNI, "Acceso abierto").
 //   3. Pulsa Depositar → el userscript registra el timestamp.
-//   4. Carga /mock/item con el localStorage de la sesión → el userscript
-//      reporta el handle al buzón.
-//   5. Verifica GET /deposito en la API real (handle + timestamp).
+//   4. Carga /items/<uuid> con el localStorage de la sesión → aparece el
+//      panel de confirmación y el operador pulsa "Confirmar depósito
+//      archivado".
+//   5. Verifica GET /deposito en la API real (handle + timestamp + atestación).
+//
+// Protocolo 2: el depósito NO se reporta solo. Antes de confirmar, el
+// driver comprueba que GET /deposito sigue vacío.
 //
 // Sin Playwright: jsdom + fetch real del driver bastan porque el shim
 // delega el buzón al proxy same-origin del mock.
@@ -66,6 +70,13 @@ async function nuevaPagina(ruta) {
 		runScripts: "dangerously", // el JS vanilla del mock (filas, combobox, Depositar)
 		pretendToBeVisual: true,
 		virtualConsole: consolaVirtual(),
+		// El fetch se inyecta ANTES de que corran los scripts de la
+		// página: jsdom no implementa fetch y el mock lo usa para
+		// publicar el título y los autores del ítem.
+		beforeParse(window) {
+			window.fetch = (url, opciones) =>
+				fetch(new URL(url, MOCK + ruta).href, opciones);
+		},
 	});
 	// El shim usa fetch relativo: se resuelve contra el mock (el proxy
 	// /api-proxy del mock habla con la API real — la invariante sin-CORS
@@ -148,27 +159,43 @@ function migrarLocalStorage(origen, destino) {
 	console.log("  ✅ timestamp del clic en Depositar:", envio.timestamp);
 	console.log("  ✅ trámite del envío en curso:", envio.tramite_id);
 
-	// --- 3. Página del ítem: reporte del handle ---
-	const domItem = await nuevaPagina("/mock/item");
+	// --- 3. Página del ítem: confirmación explícita del operador ---
+	const domItem = await nuevaPagina("/items/mock-uuid-1");
 	migrarLocalStorage(dom.window.localStorage, domItem.window.localStorage);
 	const envioMigrado = domItem.window.localStorage.getItem("vb:vb_envio");
 	if (!envioMigrado) {
 		throw new Error("❌ el envío en curso no migró a la página del ítem (localStorage)");
 	}
 	ejecutarUserscript(domItem);
-	await dormir(1500);
-	const toastItem = domItem.window.document.getElementById("vb-toast");
-	if (toastItem) {
-		console.log("  [diag] toast del ítem:", toastItem.textContent);
+
+	// Protocolo 2: con la página del ítem abierta, el depósito sigue SIN
+	// reportarse hasta que el operador confirma.
+	const antes = await fetch(API + "/deposito");
+	if (antes.status === 200) {
+		throw new Error("❌ el userscript reportó el depósito sin confirmación del operador");
 	}
+
+	await esperar(
+		() => {
+			const boton = domItem.window.document.getElementById("vb-confirmar");
+			return boton && !boton.disabled;
+		},
+		20000,
+		"el panel de confirmación no apareció (o el botón quedó deshabilitado) en la página del ítem"
+	);
+	const panel = domItem.window.document.getElementById("vb-panel");
+	if (!/handle\.net/.test(panel.textContent)) {
+		throw new Error("❌ el panel no muestra el handle del ítem: " + panel.textContent.slice(0, 120));
+	}
+	domItem.window.document.getElementById("vb-confirmar").click();
 
 	await esperar(
 		async () => {
 			const r = await fetch(API + "/deposito");
 			return r.status === 200;
 		},
-		8000,
-		"el handle nunca llegó al buzón (GET /deposito vacío)"
+		10000,
+		"la confirmación del operador no llegó al buzón (GET /deposito vacío)"
 	);
 
 	const respuesta = await fetch(API + "/deposito");
@@ -187,12 +214,22 @@ function migrarLocalStorage(origen, destino) {
 				envio.tramite_id
 		);
 	}
+	const tramite = await (await fetch(API + "/tramite")).json();
+	const tituloCanonico = ((tramite.ficha || {}).extraidos || [])
+		.filter((e) => e.campo === "dc.title")
+		.map((e) => String(e.valor || ""))
+		.join(" ");
 	const tituloObservado = String(deposito.titulo_observado || "");
-	if (!tituloObservado.includes("Estrategias lúdicas")) {
-		throw new Error("❌ el título observado no corresponde a la tesis: " + tituloObservado);
+	if (!tituloObservado || tituloObservado !== tituloCanonico.trim()) {
+		throw new Error(
+			"❌ el título observado no corresponde a la ficha: " +
+				tituloObservado +
+				" ≠ " +
+				tituloCanonico
+		);
 	}
-	console.log("  ✅ handle en el buzón:", deposito.handle);
-	console.log("  ✅ timestamp reportado:", deposito.timestamp);
+	console.log("  ✅ handle confirmado por el operador:", deposito.handle);
+	console.log("  ✅ timestamp (hora del clic en Depositar):", deposito.timestamp);
 	console.log("  ✅ título observado:", tituloObservado);
 
 	// --- 4. Hallazgo 12: el botón flotante debe ser usable en una
@@ -313,11 +350,11 @@ function migrarLocalStorage(origen, destino) {
 	}
 	console.log("  ✅ dos autores: el + agregó la fila y los DNI quedaron alineados");
 
-	// --- 7. El handle se reporta para el TRÁMITE vigente ---
+	// --- 7. El handle se confirma para el TRÁMITE vigente ---
 	// Publicar una ficha nueva invalida el depósito anterior (contrato
-	// v1.13.0). El papeleo necesita un depósito del trámite actual: por
-	// eso el clic en Depositar y el reporte del handle se repiten con la
-	// ficha de dos autores.
+	// v1.14.0). El papeleo necesita un depósito confirmado del trámite
+	// actual: por eso el clic en Depositar y la confirmación se repiten
+	// con la ficha de dos autores.
 	docDos2.getElementById("deposit").click();
 	await dormir(400);
 	const envioDos = JSON.parse(domDos2.window.localStorage.getItem("vb:vb_envio") || "null");
@@ -325,9 +362,18 @@ function migrarLocalStorage(origen, destino) {
 		throw new Error("❌ el clic en Depositar no registró el timestamp del trámite de dos autores");
 	}
 
-	const domItemDos = await nuevaPagina("/mock/item");
+	const domItemDos = await nuevaPagina("/items/mock-uuid-2");
 	migrarLocalStorage(domDos2.window.localStorage, domItemDos.window.localStorage);
 	ejecutarUserscript(domItemDos);
+	await esperar(
+		() => {
+			const boton = domItemDos.window.document.getElementById("vb-confirmar");
+			return boton && !boton.disabled;
+		},
+		20000,
+		"el panel de confirmación no apareció para el trámite de dos autores"
+	);
+	domItemDos.window.document.getElementById("vb-confirmar").click();
 	await esperar(
 		async () => {
 			const r = await fetch(API + "/deposito");
@@ -335,11 +381,11 @@ function migrarLocalStorage(origen, destino) {
 			const d = await r.json();
 			return d.tramite_id === envioDos.tramite_id;
 		},
-		8000,
-		"el handle no llegó al buzón para el trámite vigente (dos autores)"
+		10000,
+		"el depósito no se confirmó para el trámite vigente (dos autores)"
 	);
 	const depositoDos = await (await fetch(API + "/deposito")).json();
-	console.log("  ✅ handle reportado para el trámite vigente:", depositoDos.tramite_id);
+	console.log("  ✅ depósito confirmado para el trámite vigente:", depositoDos.tramite_id);
 
 	console.log("OK");
 	process.exit(0);
