@@ -9,7 +9,7 @@
 (lógica de flujo pura), con cobertura en `frontend/src/ficha.test.js`.
 La integración con la identidad del trámite se revisó el 2026-11-16 en el
 PR #95.
-**Contrato vigente**: `docs/CONTRATO_API.md` (v1.13.0). La SPA envía el token
+**Contrato vigente**: `docs/CONTRATO_API.md` (v1.14.0). La SPA envía el token
 compartido opcional (`VITE_API_TOKEN` → `X-VistoBueno-Token`) cuando está
 configurado; en loopback no hace falta.
 **Limitaciones conocidas del motor** (no de la UI): AUD-24 a AUD-27
@@ -66,30 +66,43 @@ servidor: es un resguardo de cliente.
 
 `POST /ficha-pendiente` con la ficha editada (el mismo objeto
 `extraidos` + `manuales`, tal cual llegó en la respuesta de /validar).
-Respuesta `201` con `{tramite_id, vence_en}`. La SPA conserva ambos
-valores para identificar el trámite en vuelo. Desde ese momento el
+Respuesta `201` con `{tramite_id, revision, autofill_hasta,
+retenido_hasta, vence_en}`. La SPA conserva el `tramite_id` y la
+`revision` para identificar el trámite en vuelo. Desde ese momento el
 userscript (en el navegador del operador, sobre las páginas de DSpace)
 puede leer la ficha del buzón.
 
-Nota operativa: el buzón tiene **una sola ranura con TTL de 1 hora** —
-preparar de nuevo reemplaza la ficha anterior ("última gana"). Si la
-API se reinicia, el buzón se vacía: re-preparar.
+Nota operativa: el buzón tiene **una sola ranura** — preparar de nuevo
+reemplaza la ficha anterior ("última gana"). Tiene dos ventanas: 1 hora
+de **autorrelleno** (`autofill_hasta`) y 24 horas de **retención** del
+trámite (`retenido_hasta`). Vencer la primera no borra la ficha: el
+trámite sigue en `GET /tramite`. Si la API se reinicia, el buzón se
+vacía: re-preparar.
 
 ### 2.3 Panel de espera ("Esperando el depósito…")
 
-Sondear `GET /deposito` cada ~3 s mientras el panel esté abierto:
+Sondear `GET /tramite` (estado canónico) y `GET /deposito` (confirmación)
+cada ~3 s mientras el panel esté abierto:
 
-- **404** = aún no hay nada: seguir esperando, en silencio (no es error).
-- **200** = el userscript reportó el depósito: `{tramite_id, handle,
-  titulo_observado, timestamp}`. Ignorar el reporte si su `tramite_id`
-  no coincide con el trámite actual o si el trámite venció. Cotejar
-  `titulo_observado` contra la ficha preparada por igualdad normalizada
-  (minúsculas, sin acentos y sin espacios extras). La inclusión no
-  identifica una tesis. Si NO coincide: mostrar el recibido con el
-  botón de aceptar/rechazar — nunca usarlo a ciegas.
+- **404** en `GET /deposito` = aún no hay nada: seguir esperando, en
+  silencio (no es error).
+- **200** = el operador confirmó el depósito en la página del ítem:
+  `{tramite_id, handle, titulo_observado, timestamp, revision_confirmada,
+  confirmado_en, confirmado_por, confirmacion_vigente,
+  titulo_verificado, autores_verificados}`. Ignorar la confirmación si su
+  `tramite_id` no coincide con el trámite actual, si `confirmacion_vigente`
+  es `false` o si el trámite venció. Cotejar `titulo_observado` contra la
+  ficha preparada por igualdad normalizada (minúsculas, sin acentos y sin
+  espacios extras). La inclusión no identifica una tesis. Si NO coincide:
+  mostrar el recibido con el botón de aceptar/rechazar — nunca usarlo a
+  ciegas.
 
 Al recibir: mostrar handle, fecha y hora. El timestamp es de solo lectura:
 el servidor conserva el valor reportado por el userscript.
+
+> Con el contrato v1.14.0 el depósito **no lo reporta la SPA**: lo
+> reporta el userscript después de la atestación explícita del operador.
+> La SPA solo lo lee. Ver §7.1.
 
 ### 2.4 Panel de papeleo
 
@@ -159,6 +172,23 @@ El piloto real con el operador (borrador descartable en la instancia,
 checklist firmado) — el ensayo general local ya corre solo con
 `nix run .#test-ficha-deposito`.
 
+## 7.1 Adaptación pendiente de Int2 al contrato v1.14.0 (2026-11-16)
+
+Int1 publicó el contrato v1.14.0. **No se tocaron archivos del frontend**:
+esta lista describe lo que la SPA debe adoptar en su propia entrega.
+
+| Cambio | Qué debe hacer la SPA |
+|--------|------------------------|
+| `POST /deposito` incompatible | La SPA **no** reporta el depósito: lo hace el userscript tras la atestación del operador. La SPA solo lo **lee**. |
+| `GET /tramite` nuevo | Reemplaza a `GET /ficha-pendiente` como fuente del estado: trae `ficha`, `revision`, `inconsistencia`, `deposito`, `confirmacion_vigente`, `autofill_hasta` y `retenido_hasta`. |
+| Dos ventanas | `autofill_hasta` (relleno, 1 h) y `retenido_hasta` (trámite, 24 h). El panel de espera debe distinguir "vencido para rellenar" de "trámite vencido". |
+| Revisión | La SPA guarda la `revision` que publica la ficha y la envía en `revision_esperada` si ofrece acciones de esa clase. Una respuesta `409` obliga a releer `GET /tramite`. |
+| Confirmación vigente | `GET /deposito` trae `confirmacion_vigente`, `revision_confirmada`, `confirmado_en`, `titulo_verificado` y `autores_verificados`. El panel debe mostrar "confirmado por el operador" y **no** "archivado por el servidor". |
+| Autores no verificados | Si `autores_verificados=false`, la pantalla dice "autores no verificados"; nunca "coinciden". |
+| Conciliación | `POST /ficha-pendiente/reconciliar` (con `revision_esperada`, `motivo` y `handle`) es la vía para corregir la ficha. Invalida la confirmación: la SPA debe pedir una reconfirmación. |
+| Inconsistencia | `GET /tramite` trae `inconsistencia`; si existe, el papeleo queda bloqueado (`409`) hasta conciliar. |
+| Papeleo | `POST /fila-registro` y `POST /constancia` exigen ficha exactamente igual a la canónica y un depósito confirmado y vigente. |
+
 ---
 
 ## 8. Verificación de la Actividad 15 (2026-11-04, Integrante 1)
@@ -170,7 +200,7 @@ pantalla se verificó contra la API real, no contra mocks sueltos.
 
 | # | Paso | Resultado |
 |---|------|-----------|
-| 1 | Subir `docs/ejemplos/doc_bueno.docx` | HTTP 200, semáforo **verde**, 43 reglas evaluadas, 0 fallos |
+| 1 | Subir `docs/ejemplos/doc_bueno.docx` | HTTP 200, semáforo **verde**, 0 fallos (43 reglas evaluadas en esa corrida de 2026-11-04; el catálogo actual evalúa 44 de 50) |
 | 2 | La ficha viaja solo con verde | `ficha_deposito` presente en verde y `null` en rojo |
 | 3 | Editar título, autores, asesor, año y palabras clave | Los valores editados llegan tal cual en `POST /ficha-pendiente` |
 | 4 | Completar los campos manuales | Matrícula y DNI del autor se alinean por posición con los autores |

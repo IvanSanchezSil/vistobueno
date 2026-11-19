@@ -31,11 +31,13 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   queda en `error` por decisión del 2026-11-08; las 5 plantillas oficiales
 >   siguen en rojo a propósito. Los criterios de aceptación de AUD-24 a
 >   AUD-27 están en `tests/test_captura_ficha.py`.
-> - **Int3 — correctitud del motor (Semana 12)**: **cerrado** el 2026-11-17.
->   La pila PR #98 a #106 se fusionó en `master` (`ca9a4100`) y cierra
->   VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11). Las cifras
->   medidas y el detalle están en `docs/HANDOVER_AUDITORIA_2026-10-26.md`
->   §2.1 y §11, y en `docs/HANDOVER_CORRECTITUD_INT3_2026-11-12.md`.
+> - **Int3 — correctitud del motor (Semana 12)**: **parcial**. La pila
+>   PR #98 a #106 se fusionó en `master` (`ca9a4100`) y cierra VA-01 a VA-07,
+>   VA-11 (M1a), VA-13 (PR #75), VA-14, VA-15 y VA-17 (M11). Siguen
+>   pendientes VA-12 (M9), VA-16 (M8), VA-18 (M10) y NM-01 a NM-07 (M12).
+>   Las cifras medidas y el detalle están en
+>   `docs/HANDOVER_AUDITORIA_2026-10-26.md` §2.1 y §11, y en
+>   `docs/HANDOVER_CORRECTITUD_INT3_2026-11-12.md`.
 > - **Int1 — API**: **cerrado**. AUD-09, AUD-10, AUD-12, AUD-13, AUD-21,
 >   AUD-22 y el contrato de la ficha (PR #65, #66, #67 y #69); además, en la
 >   rama `fix/api-hardening-b0-b1`: AUD-28 (Host y DNS rebinding), AUD-29
@@ -144,7 +146,7 @@ Módulo de IA (asistente del encargado — opt-in, advisory, NUNCA toca el semá
 | **Tests linter** | `tests/test_t2_linter.py`, `tests/test_f4_ingenieria.py` | Tests del linter DSL: controles en carga (T2) y controles en runtime (F4) |
 | **Escáner de secretos** | `scripts/verificar_secretos.py` | Bloquea credenciales SMTP, DSpace y del buzón en commits (pre-commit + CI); además detecta nombres genéricos en mayúsculas (`*_PASSWORD`, `*_TOKEN`, `*_API_KEY`), URLs con credenciales embebidas y bloques YAML multilínea |
 | **Reglas** | `unt_format_rules_schema.yaml` | 44 reglas, 32 ejecutables (fuente de verdad legacy) |
-| **Reglas DSL (producción)** | `reglas_unt.yaml` | 49 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
+| **Reglas DSL (producción)** | `reglas_unt.yaml` | 50 reglas verificables (F1–F6 + F2 ítems 1-3 y 11-12) |
 | **Reglas DSL pendientes** | `reglas_unt_pendientes.yaml` | 5 estructuras implementadas y sin probar; no lo carga la API |
 | **Reglas ficha depósito** | `reglas_ficha.yaml` | 7 capturas (diseño 17): `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`; `renati.juror` no se captura fiable. |
 | **Buzón de ficha** | `validator/buzon.py` | Módulo buzón de ficha (una ranura, TTL 1h), `publicar_ficha`/`leer_ficha`; forma parte del handover v1.7.0. **Acceso restringido al loopback** (403 desde otros equipos) + token compartido opt-in (`VISTOBUENO_API_TOKEN`, solo para peers remotos; el loopback no lo exige); exige **1 worker** (estado en memoria del proceso). |
@@ -407,7 +409,7 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - **Reglas legacy** en `unt_format_rules_schema.yaml`: 44 definidas; **32 con
   mecanismo verificable** (ejecutables sobre XML del DOCX); **12 sin mecanismo**
   (requieren análisis semántico, fuera del MVP). Fuente de referencia histórica.
-- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **49 reglas verificables**,
+- **Reglas de producción (DSL)** en `reglas_unt.yaml`: **50 reglas verificables**,
   que incluyen las 32 migradas, las 9 mecanizadas a mano (F3), los ítems de la
   Semana 5 (`indice_paginas_separadas`, `encabezado_membrete`,
   `encabezado_formato`, `notas_al_pie_consistencia`, `indice_apunta_secciones`,
@@ -431,13 +433,13 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 - `warning`: no bloquea, pero se muestra en el reporte.
 
 4 reglas ajustadas de `error` a `warning` por desvío documentado entre manual y plantillas oficiales (2 de ellas por nuevas capturas de la ficha de depósito que no aplican al doc bueno estándar).
-> Los conteos declarados aquí (49 reglas, doc bueno 0 fallos) se mantienen
+> Los conteos declarados aquí (50 reglas, doc bueno 0 fallos) se mantienen
 > sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
-> Del doc bueno se evalúan 43 de 49: las 6 reglas de otros tipos de documento
-> (2 de ellas por nuevas capturas de la ficha de depósito que no aplican al doc bueno estándar, diseño 17)
-> más (las 2 estructuras alternativas, los mínimos de referencias/anexos de
-> cualitativo y revisión, y la carátula del Proyecto) no le aplican porque el
-> documento es un plan cuantitativo.
+> Del doc bueno se evalúan 44 de 50: las 6 reglas de otros tipos de documento
+> (`estructura_tinv_cualitativo`, `estructura_tinv_revision_literatura`,
+> `referencias_minimo_cualitativo`, `referencias_minimo_revision`,
+> `anexos_minimos_cualitativo` y `proyecto_caratula_texto`) no le aplican
+> porque el documento es un plan cuantitativo.
 
 ### Cómo agregar una regla nueva al YAML
 
@@ -510,7 +512,7 @@ vistobueno/
 ├── README.md                          # Documentación general del proyecto
 ├── flake.nix                          # Entorno de desarrollo Nix
 ├── unt_format_rules_schema.yaml       # 44 reglas de formato (fuente de verdad legacy)
-├── reglas_unt.yaml                    # Reglas en formato DSL (49 reglas)
+├── reglas_unt.yaml                    # Reglas en formato DSL (50 reglas)
 ├── reglas_unt_pendientes.yaml         # 5 estructuras pendientes, sin probar
 ├── reglas_ficha.yaml                  # 7 capturas de la ficha de depósito (diseño 17)
 ├── reglas_dsl_ejemplo.yaml            # Ejemplo de reglas DSL

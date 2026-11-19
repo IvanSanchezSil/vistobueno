@@ -3,8 +3,9 @@
 #
 # Levanta TODO el flujo de ficha de depósito y lo verifica de punta a punta:
 # validación (doc bueno del factory) → ficha → buzón → userscript contra el
-# mock de DSpace → timestamp de Depositar → handle → constancia y registro
-# en los formatos descargables (hallazgo 11).
+# mock de DSpace → timestamp del clic en Depositar → confirmación explícita
+# del operador en la página del ítem → constancia y registro en los formatos
+# descargables (hallazgo 11).
 #
 # Uso (desde la raíz del repositorio):
 #   nix run .#test-ficha-deposito      # recomendado: entorno completo
@@ -125,7 +126,11 @@ print("  ✅ doc bueno generado")
 PY
 
 paso 3 "API en :${API_PUERTO} (con firma configurada)"
+# --no-proxy-headers: uvicorn habilita proxy_headers por defecto y un
+# X-Forwarded-For podría falsificar el peer y saltar el control de
+# loopback (auditoría 2026-10-26, AUD-09 y AUD-28).
 setsid nohup "$BACKEND_PY" -m uvicorn validator.api:app --host 127.0.0.1 --port "$API_PUERTO" \
+  --no-proxy-headers \
   > "$DIR_TMP/api.log" 2>&1 < /dev/null &
 PID_API=$!
 for i in $(seq 1 20); do
@@ -180,7 +185,7 @@ print("  ✅ verde + ficha capturada + publicada en el buzón (201, trámite " +
 PY
 [ $? -eq 0 ] || fallar "validación/publicación de la ficha" 5
 
-paso 6 "Userscript contra el mock: relleno, Depositar y handle"
+paso 6 "Userscript contra el mock: relleno, Depositar y confirmación del operador"
 cd "$ROOT/tools/dspace-fill"
 node dev/e2e_ensayo.js || fallar "driver del ensayo (ver salida arriba)" 6
 
@@ -198,6 +203,10 @@ assert "hdl.handle.net" in dep["handle"], dep
 assert dep["timestamp"], dep
 assert dep["tramite_id"], dep
 assert dep["titulo_observado"], dep
+assert dep["revision_confirmada"] is not None, dep
+assert dep["confirmado_en"], dep
+assert dep["confirmacion_vigente"] is True, dep
+assert dep["confirmado_por"] == "operador", dep
 
 sobre = httpx.get("$API/ficha-pendiente", timeout=30).json()
 ficha = sobre["ficha"]

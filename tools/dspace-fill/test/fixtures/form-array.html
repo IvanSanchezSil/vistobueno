@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <!-- Fixture con la estructura REAL de los campos repetibles de DSpace
      8.1 (evidencia: captura de "Editar envío"): cada campo repetible
-     vive en un contenedor #N_array con su lista de filas (cdk-drop-list)
-     y su botón "ds-form-add-more".
+     vive en un contenedor #N_array con su lista de filas (cdk-drop-list),
+     cada fila es un grupo `role="group"` con `cdkdrag`, y los controles
+     son los del widget: el botón "+" (ds-form-add-more) SOLO en la última
+     fila y el botón de quitar (etiqueta traducida de `form.remove`)
+     SOLO cuando hay más de una fila (ngIf del bundle capturado).
 
-     El render es ASÍNCRONO, como el de Angular: la fila aparece
-     después del clic, no en el mismo tick (revisión PR #71, M4).
+     El render es ASÍNCRONO, como el de Angular: la fila aparece o se
+     quita DESPUÉS del clic, no en el mismo tick (revisión PR #71, M4).
 
      El combobox de derechos se deja SIN opciones para probar el fallo
      visible (el caso "el listbox no coopera → el operador selecciona a
@@ -14,50 +17,48 @@
 <body>
 	<form id="editSubmissionForm">
 		<div id="10_array" class="ng-untouched ng-pristine ng-valid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<input type="text" name="dc.title" id="10_array-0-dc_title">
 				</div>
 			</div>
 		</div>
 
 		<div id="11_array" class="ng-untouched ng-pristine ng-invalid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<input type="text" name="dc.contributor.author" id="11_array-0-dc_contributor_author">
-					<div><button type="button" class="ds-form-add-more">+ Añadir</button></div>
 				</div>
 			</div>
 		</div>
 
 		<div id="15_array" class="ng-untouched ng-pristine ng-invalid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<input type="text" name="dc.contributor.advisor" id="15_array-0-dc_contributor_advisor">
 				</div>
 			</div>
 		</div>
 
 		<div id="37_array" class="ng-untouched ng-pristine ng-invalid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<textarea name="dc.description.abstract" id="37_array-0-dc_description_abstract"></textarea>
 				</div>
 			</div>
 		</div>
 
 		<div id="43_array" class="ng-untouched ng-pristine ng-invalid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<input type="text" name="dc.subject" id="43_array-0-dc_subject">
-					<div><button type="button" class="ds-form-add-more">+ Añadir</button></div>
 				</div>
 			</div>
 		</div>
 
 		<div id="13_array" class="ng-untouched ng-pristine ng-valid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<select name="renati.author_QUALDROP_METADATA" id="13_array-0-renati_author_QUALDROP_METADATA">
 						<option value=""></option>
 						<option value="0: renati.author.dni">DNI</option>
@@ -66,14 +67,13 @@
 						<option value="3: renati.author.cedula">Cédula de identidad</option>
 					</select>
 					<input type="text" name="renati.author_QUALDROP_VALUE" id="13_array-0-renati_author_QUALDROP_VALUE">
-					<div><button type="button" class="ds-form-add-more">+ Añadir</button></div>
 				</div>
 			</div>
 		</div>
 
 		<div id="17_array" class="ng-untouched ng-pristine ng-valid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<select name="renati.advisor_QUALDROP_METADATA" id="17_array-0-renati_advisor_QUALDROP_METADATA">
 						<option value=""></option>
 						<option value="0: renati.advisor.dni">DNI</option>
@@ -85,8 +85,8 @@
 		</div>
 
 		<div id="19_array" class="ng-untouched ng-pristine ng-valid">
-			<div class="cdk-drop-list">
-				<div class="cdk-drag form-row">
+			<div role="listbox" cdkdroplist class="cdk-drop-list">
+				<div role="group" cdkdrag class="cdk-drag form-row">
 					<input type="text" name="renati.advisor.orcid" id="19_array-0-renati_advisor_orcid">
 				</div>
 			</div>
@@ -102,29 +102,97 @@
 	</form>
 
 	<script>
-		// "Angular" re-renderiza de forma asíncrona: la fila aparece
-		// después del clic, no en el mismo tick.
-		document.querySelectorAll('[id$="_array"]').forEach(function (array) {
-			const lista = array.querySelector(".cdk-drop-list");
-			const boton = array.querySelector("button.ds-form-add-more");
-			if (!lista || !boton) return;
-			boton.addEventListener("click", function () {
-				const filas = lista.querySelectorAll(".cdk-drag.form-row");
-				const indice = filas.length;
-				const clon = filas[filas.length - 1].cloneNode(true);
-				clon.querySelectorAll("[id]").forEach(function (el) {
-					el.id = el.id.replace(/-\d+-/, "-" + indice + "-");
+		// Simulación del render de Angular para los campos repetibles:
+		// - el botón "+" solo existe en la última fila;
+		// - el botón de quitar solo existe cuando hay más de una fila;
+		// - ambos re-renderizan de forma asíncrona.
+		(function () {
+			function botonAgregar() {
+				const boton = document.createElement("button");
+				boton.type = "button";
+				boton.className = "ds-form-add-more";
+				boton.setAttribute("title", "Add more");
+				boton.setAttribute("aria-label", "Add more");
+				boton.textContent = "Add more";
+				return boton;
+			}
+
+			function botonQuitar() {
+				const contenedor = document.createElement("div");
+				const boton = document.createElement("button");
+				boton.type = "button";
+				boton.setAttribute("title", "Remove");
+				boton.setAttribute("aria-label", "Remove");
+				const icono = document.createElement("i");
+				icono.className = "fas fa-times";
+				const span = document.createElement("span");
+				span.appendChild(icono);
+				boton.appendChild(span);
+				contenedor.appendChild(boton);
+				return contenedor;
+			}
+
+			function renderizar(array) {
+				const lista = array.querySelector(".cdk-drop-list");
+				const grupos = Array.from(lista.querySelectorAll(".cdk-drag.form-row"));
+				grupos.forEach(function (grupo, indice) {
+					const esUltima = indice === grupos.length - 1;
+					let agregar = grupo.querySelector("[data-vb-agregar]");
+					if (esUltima && !agregar) {
+						agregar = botonAgregar();
+						agregar.setAttribute("data-vb-agregar", "");
+						grupo.appendChild(agregar);
+					} else if (!esUltima && agregar) {
+						agregar.remove();
+					}
+					let quitar = grupo.querySelector("[data-vb-quitar]");
+					if (grupos.length > 1 && !quitar) {
+						quitar = botonQuitar();
+						quitar.setAttribute("data-vb-quitar", "");
+						grupo.appendChild(quitar);
+					} else if (grupos.length <= 1 && quitar) {
+						quitar.remove();
+					}
 				});
-				const botonClon = clon.querySelector("button.ds-form-add-more");
-				if (botonClon) botonClon.remove();
-				clon.querySelectorAll("input,select,textarea").forEach(function (el) {
-					if (el.type !== "button") el.value = "";
+			}
+
+			document.querySelectorAll('[id$="_array"]').forEach(function (array) {
+				const lista = array.querySelector(".cdk-drop-list");
+				if (!lista) return;
+				renderizar(array);
+				array.addEventListener("click", function (evento) {
+					const boton = evento.target.closest
+						? evento.target.closest("button")
+						: null;
+					if (!boton) return;
+					const grupo = boton.closest(".cdk-drag.form-row");
+					if (!grupo) return;
+					if (boton.classList.contains("ds-form-add-more")) {
+						const clon = grupo.cloneNode(true);
+						clon.querySelectorAll("[data-vb-agregar],[data-vb-quitar]").forEach(function (el) {
+							el.remove();
+						});
+						clon.querySelectorAll("[id]").forEach(function (el) {
+							el.id = el.id.replace(/-\d+-/, "-" + lista.querySelectorAll(".cdk-drag.form-row").length + "-");
+						});
+						clon.querySelectorAll("input,select,textarea").forEach(function (el) {
+							if (el.type !== "button") el.value = "";
+						});
+						setTimeout(function () {
+							lista.appendChild(clon);
+							renderizar(array);
+						}, 50);
+						return;
+					}
+					if (boton.getAttribute("aria-label") === "Remove") {
+						setTimeout(function () {
+							grupo.remove();
+							renderizar(array);
+						}, 50);
+					}
 				});
-				setTimeout(function () {
-					lista.appendChild(clon);
-				}, 50);
 			});
-		});
+		})();
 	</script>
 </body>
 </html>

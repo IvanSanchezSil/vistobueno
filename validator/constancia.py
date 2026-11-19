@@ -196,13 +196,19 @@ def _valor_manual(ficha: dict, campo: str) -> str | list[str] | None:
     return None
 
 
-def _como_lista(valor: str | list[str] | None) -> list[str]:
-    """Normaliza un valor de ficha a lista de textos."""
+def _lista_posicional(valor: str | list[str] | None) -> list[str]:
+    """Normaliza un valor de ficha a lista POSICIONAL.
+
+    Un hueco se conserva como texto vacío. Quitar los huecos movería el
+    dato de una persona a otra: con un solo autor y las matrículas
+    `["", "M2"]`, la matrícula de un segundo autor —inexistente— se
+    usaría para el primero (US-04).
+    """
     if valor is None:
         return []
     if isinstance(valor, list):
-        return [v for v in valor if isinstance(v, str) and v.strip()]
-    return [valor] if valor.strip() else []
+        return [v.strip() if isinstance(v, str) else "" for v in valor]
+    return [valor.strip()] if valor.strip() else []
 
 
 def constancias_por_autor(
@@ -223,17 +229,37 @@ def constancias_por_autor(
             "La ficha no trae el título (dc.title): corríjalo en la pantalla antes de generar la constancia."
         )
 
-    autores = _como_lista(_valor_extraido(ficha, "dc.contributor.author"))
+    autores = _lista_posicional(_valor_extraido(ficha, "dc.contributor.author"))
     if not autores:
         raise ErrorDatosConstancia(
             "La ficha no trae autores (dc.contributor.author): corríjalos en la pantalla antes de generar la constancia."
         )
+    sin_nombre = [indice + 1 for indice, autor in enumerate(autores) if not autor]
+    if sin_nombre:
+        raise ErrorDatosConstancia(
+            "La ficha no trae el nombre del autor "
+            + ", ".join(str(indice) for indice in sin_nombre)
+            + ": corríjalos en la pantalla antes de generar la constancia."
+        )
 
-    matriculas = _como_lista(_valor_manual(ficha, "matricula"))
+    matriculas = _lista_posicional(_valor_manual(ficha, "matricula"))
     if len(matriculas) < len(autores):
         faltan = len(autores) - len(matriculas)
         raise ErrorDatosConstancia(
             f"Faltan {faltan} matrícula(s): la ficha trae {len(autores)} autor(es) "
+            f"y {len(matriculas)} matrícula(s). La constancia necesita una por estudiante."
+        )
+    sin_matricula = [indice + 1 for indice in range(len(autores)) if not matriculas[indice]]
+    if sin_matricula:
+        raise ErrorDatosConstancia(
+            "Falta la matrícula del autor "
+            + ", ".join(str(indice) for indice in sin_matricula)
+            + ": complétala en la pantalla antes de generar la constancia."
+        )
+    if len(matriculas) > len(autores):
+        sobran = len(matriculas) - len(autores)
+        raise ErrorDatosConstancia(
+            f"Sobran {sobran} matrícula(s): la ficha trae {len(autores)} autor(es) "
             f"y {len(matriculas)} matrícula(s). La constancia necesita una por estudiante."
         )
 
