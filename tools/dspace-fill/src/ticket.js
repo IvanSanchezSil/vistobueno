@@ -18,6 +18,9 @@ const VBTicket = (() => {
 
 	return {
 		nuevoTicket: nuevoTicket,
+		ticketActual: function () {
+			return ultimoTicket;
+		},
 	};
 })();
 

@@ -655,7 +655,8 @@ test("el clic en Depositar registra la hora del envío y no del archivo", async 
 });
 
 
-// ---------------------------------------------------------------------------
+
+
 // US-11: plazo de recuperación de conexión
 // ---------------------------------------------------------------------------
 

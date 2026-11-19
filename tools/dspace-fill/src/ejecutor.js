@@ -335,8 +335,7 @@ const VBEjecutor = (() => {
 					if (actual === op.texto) {
 						return { ok: true, detalle: "" };
 					}
-					// Valor no quedó: restablecer y reintentar
-					_ponerTexto(doc, input, previo);
+					// Valor no quedó: reintentar en la siguiente vuelta
 					break;
 				}
 			}

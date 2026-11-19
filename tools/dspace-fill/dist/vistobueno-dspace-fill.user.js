@@ -757,8 +757,7 @@ const VBEjecutor = (() => {
 					if (actual === op.texto) {
 						return { ok: true, detalle: "" };
 					}
-					// Valor no quedó: restablecer y reintentar
-					_ponerTexto(doc, input, previo);
+					// Valor no quedó: reintentar en la siguiente vuelta
 					break;
 				}
 			}
@@ -980,6 +979,9 @@ const VBTicket = (() => {
 
 	return {
 		nuevoTicket: nuevoTicket,
+		ticketActual: function () {
+			return ultimoTicket;
+		},
 	};
 })();
 
@@ -1197,16 +1199,7 @@ if (typeof module !== "undefined" && module.exports) {
 
 	// US-06: ticket de operación para evitar que un callback antiguo
 	// reemplace el estado más nuevo cuando hay varias operaciones en vuelo.
-	let _ticketVigente = 0;
-
-	function _ticketActual() {
-		return _ticketVigente;
-	}
-
-	function _nuevoTicket() {
-		_ticketVigente++;
-		return _ticketVigente;
-	}
+	// Se usa VBTicket (módulo puro, src/ticket.js).
 
 	// US-11: plazo de recuperación de conexión. Tras LIMITE_REINTENTOS
 	// fallos consecutivos se deja de reintentar automáticamente y se le
@@ -1237,11 +1230,7 @@ if (typeof module !== "undefined" && module.exports) {
 		const opciones = {
 			method: metodo,
 			url: BASE + ruta,
-			onload: function (respuesta) {
-				// US-11: conexión recuperada tras fallos previos.
-				_reiniciarIntentos();
-				alResponder(respuesta);
-			},
+			onload: alResponder,
 			onerror: function (error) {
 				// US-11: registro el fallo y, si se agotan los intentos,
 				// muestro un mensaje de recuperación explícito.
@@ -1277,13 +1266,15 @@ if (typeof module !== "undefined" && module.exports) {
 	function obtenerFicha(alRecibir) {
 		// US-06: cada solicitud obtiene su propio ticket. Un callback
 		// antiguo no puede reemplazar el estado de una solicitud nueva.
-		const ticket = _nuevoTicket();
+		const ticket = VBTicket.nuevoTicket();
 		pedir(
 			"/ficha-pendiente",
 			"GET",
 			undefined,
 			function (respuesta) {
-				if (ticket !== _ticketActual()) return;
+				if (ticket !== VBTicket.ticketActual()) return;
+				// US-11: solo resetear el contador si el ticket sigue vigente.
+				_reiniciarIntentos();
 				if (respuesta.status !== 200) {
 					alRecibir(null, "sin_ficha", ticket); // vacía o fuera de la ventana
 					return;
@@ -1298,7 +1289,7 @@ if (typeof module !== "undefined" && module.exports) {
 				alRecibir(sobre, ticket);
 			},
 			function () {
-				if (ticket !== _ticketActual()) return;
+				if (ticket !== VBTicket.ticketActual()) return;
 				alRecibir(null, "sin_conexion", ticket);
 			}
 		);
@@ -1309,13 +1300,15 @@ if (typeof module !== "undefined" && module.exports) {
 		// autorelleno haya vencido: el panel se arma con la revisión
 		// vigente, no con un dato guardado en el navegador.
 		// US-06: ticket para evitar que una respuesta antigua reemplace el estado nuevo.
-		const ticket = _nuevoTicket();
+		const ticket = VBTicket.nuevoTicket();
 		pedir(
 			"/tramite",
 			"GET",
 			undefined,
 			function (respuesta) {
-				if (ticket !== _ticketActual()) return;
+				if (ticket !== VBTicket.ticketActual()) return;
+				// US-11: solo resetear el contador si el ticket sigue vigente.
+				_reiniciarIntentos();
 				if (respuesta.status === 404) {
 					alRecibir(null, "sin_tramite", ticket);
 					return;
@@ -1332,7 +1325,7 @@ if (typeof module !== "undefined" && module.exports) {
 				alRecibir(tramite, ticket);
 			},
 			function () {
-				if (ticket !== _ticketActual()) return;
+				if (ticket !== VBTicket.ticketActual()) return;
 				alRecibir(null, "sin_conexion", ticket);
 			}
 		);
@@ -1451,7 +1444,7 @@ if (typeof module !== "undefined" && module.exports) {
 
 	function llenar(sobre, ticket) {
 		// US-06: si el ticket ya no es vigente, ignorar (callback antiguo).
-		if (ticket !== undefined && ticket !== _ticketActual()) return;
+		if (ticket !== undefined && ticket !== VBTicket.ticketActual()) return;
 		const ficha = sobre.ficha;
 		const tramiteId = sobre.tramite_id;
 		const revision = typeof sobre.revision === "number" ? sobre.revision : 0;
@@ -1464,9 +1457,9 @@ if (typeof module !== "undefined" && module.exports) {
 		// clics en Depositar de otras pestañas.
 		tramiteIdActual = tramiteId;
 
-		// US-05: datos esenciales invalidos (un autor sin nombre, una
-		// lista de DNI que no corresponde a los autores) NO,inician el
-		// plan: el relleno dejaria los datos desalineados. No se registra
+		// US-05: datos esenciales inválidos (un autor sin nombre, una
+		// lista de DNI que no corresponde a los autores) NO inician el
+		// plan: el relleno dejaría los datos desalineados. No se registra
 		// ningun envio: el operador corrige la ficha y vuelve a preparar.
 		if (!VBRelleno.puedeIntentar(plan)) {
 			const problemas = (plan.problemas || [])
@@ -1487,11 +1480,6 @@ if (typeof module !== "undefined" && module.exports) {
 		// mostrando su titulo, NO se vuelve a llenar: el operador ya
 		// corrigio lo que quiso y un segundo relleno pisaria sus
 		// cambios (PR #71, M4).
-		//
-		// US-05: un relleno PARCIAL no bloquea. Solo un relleno
-		// verificado (todos los campos con dato quedaron escritos) cierra
-		// el formulario; un parcial se reintenta solo con los campos que
-		// quedaron pendientes.
 		const previo = _rellenoPrevio(envio, tramiteId, revision);
 		const esParcial = previo && previo.estado === VBRelleno.ESTADOS.PARCIAL;
 		const esVerificado = previo && previo.estado === VBRelleno.ESTADOS.VERIFICADO;
