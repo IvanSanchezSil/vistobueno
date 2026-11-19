@@ -31,11 +31,13 @@ Guía para integrantes del proyecto. Define convenciones, arquitectura y flujo d
 >   queda en `error` por decisión del 2026-11-08; las 5 plantillas oficiales
 >   siguen en rojo a propósito. Los criterios de aceptación de AUD-24 a
 >   AUD-27 están en `tests/test_captura_ficha.py`.
-> - **Int3 — correctitud del motor (Semana 12)**: **cerrado** el 2026-11-17.
->   La pila PR #98 a #106 se fusionó en `master` (`ca9a4100`) y cierra
->   VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11). Las cifras
->   medidas y el detalle están en `docs/HANDOVER_AUDITORIA_2026-10-26.md`
->   §2.1 y §11, y en `docs/HANDOVER_CORRECTITUD_INT3_2026-11-12.md`.
+> - **Int3 — correctitud del motor (Semana 12)**: **parcial**. La pila
+>   PR #98 a #106 se fusionó en `master` (`ca9a4100`) y cierra VA-01 a VA-07,
+>   VA-11 (M1a), VA-13 (PR #75), VA-14, VA-15 y VA-17 (M11). Siguen
+>   pendientes VA-12 (M9), VA-16 (M8), VA-18 (M10) y NM-01 a NM-07 (M12).
+>   Las cifras medidas y el detalle están en
+>   `docs/HANDOVER_AUDITORIA_2026-10-26.md` §2.1 y §11, y en
+>   `docs/HANDOVER_CORRECTITUD_INT3_2026-11-12.md`.
 > - **Int1 — API**: **cerrado**. AUD-09, AUD-10, AUD-12, AUD-13, AUD-21,
 >   AUD-22 y el contrato de la ficha (PR #65, #66, #67 y #69); además, en la
 >   rama `fix/api-hardening-b0-b1`: AUD-28 (Host y DNS rebinding), AUD-29
@@ -434,9 +436,10 @@ menos de 50 caracteres, la rasteriza y aplica Tesseract (spa+eng). Si
 > Los conteos declarados aquí (50 reglas, doc bueno 0 fallos) se mantienen
 > sincronizados con `tests/_mutations.py` y `docs/diseno/00_indice_diseno.md`.
 > Del doc bueno se evalúan 44 de 50: las 6 reglas de otros tipos de documento
-> (las 2 estructuras alternativas, los mínimos de referencias y anexos de
-> cualitativo y revisión, y la carátula del Proyecto) no le aplican porque el
-> documento es un plan cuantitativo.
+> (`estructura_tinv_cualitativo`, `estructura_tinv_revision_literatura`,
+> `referencias_minimo_cualitativo`, `referencias_minimo_revision`,
+> `anexos_minimos_cualitativo` y `proyecto_caratula_texto`) no le aplican
+> porque el documento es un plan cuantitativo.
 
 ### Cómo agregar una regla nueva al YAML
 

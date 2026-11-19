@@ -5,8 +5,9 @@
 (PR #98 a #106) quedó fusionada en `master` el 2026-11-17 (`ca9a4100`) y
 cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11); el PR #75,
 fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Siguen
-pendientes los ítems de Int1, Int2 y el bloque normativo (NM-01 a
-NM-07).
+pendientes VA-08, VA-10, VA-11 (B5), VA-12, VA-16, VA-17 (B6), VA-18 (M10),
+VA-19, VA-20 y VA-21, además del bloque normativo (NM-01 a NM-07). Un PR
+abierto no cierra el hallazgo hasta su integración y verificación.
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
 todavía no ha cerrado.
@@ -36,7 +37,10 @@ Ejecución del motor DSL (`reglas_unt.yaml`, 49 reglas) con las capturas de
 la ficha (`reglas_ficha.yaml`):
 
 > Medición histórica: se hizo con el catálogo de 49 reglas. El catálogo
-> actual tiene 50 reglas y el documento bueno evalúa 44 (§11); la tabla
+> actual tiene 50 reglas y el documento bueno del factory evalúa 44 (6 n/a),
+> según
+> `tests/test_tipo_documento.py::TestDosFases::test_el_documento_bueno_cuenta_44_de_50`
+> y `README.md:253`; la tesis real medida en §2.1 evalúa 42 (8 n/a). La tabla
 > conserva las cifras de la fecha en que se midió.
 
 | Documento | Semáforo | Resultado |
@@ -312,9 +316,10 @@ el motor excluye los placeholders entre paréntesis?
 **Las 4 plantillas no cuantitativas se evalúan contra el esquema
 `tinv_cuantitativo`.** Los programas de segunda especialidad y las
 licenciaturas en tecnología educativa no se detectan como otro tipo: se
-evalúan con el esquema de tesis cuantitativa (43 reglas evaluadas, 6 no
-aplicables). Hoy la app solo soporta el esquema cuantitativo; conviene
-dejarlo dicho en la documentación.
+evalúan con el esquema de tesis cuantitativa (44 reglas evaluadas, 6 no
+aplicables con el catálogo actual de 50). Hoy la app solo soporta el esquema
+cuantitativo; el alcance por tipo queda documentado en esta sección y se
+amplía en M12c (NM-03), que sigue pendiente.
 
 ---
 
@@ -561,10 +566,12 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 > `xfail` de `tests/test_captura_ficha.py` y `tests/test_constancia.py` se
 > retiraron; la suite queda en verde.
 >
-> **Actualizado (2026-11-18, Int3):** el PR #75 quedó fusionado en `master`
+> **Actualizado (2026-11-19, Int3):** el PR #75 quedó fusionado en `master`
 > (`244d377`). AUD-24 a AUD-27 están cerrados y el bloque de aviso sigue en
-> `AGENTS.md` porque aún faltan los ítems de Int1, Int2 y el bloque
-> normativo (NM-01 a NM-07).
+> `AGENTS.md` porque aún faltan VA-08, VA-10, VA-11 (B5), VA-12, VA-16,
+> VA-17 (B6), VA-18 (M10), VA-19, VA-20 y VA-21, además del bloque
+> normativo (NM-01 a NM-07). Los PR abiertos no cierran un hallazgo hasta su
+> integración y verificación.
 
 | ID | Responsable | Estado | PR / commit |
 |----|-------------|--------|-------------|
@@ -595,7 +602,7 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 | AUD-26 | Int3 (criterio: Int1) | **cerrado** (año de portada 2026, no el 2024 del título) | PR #75 |
 | AUD-27 | Int3 (criterio: Int1) | **cerrado** (palabras clave sin puntuación final) | PR #75 |
 | Nuevo: `palabras_clave_minimo` | Int3 | **decidido: se mantiene `error`** (intencional; las 5 plantillas fallan a propósito) | — |
-| Nuevo: plantillas no cuantitativas | Int3 | **documentado** (§5): se evalúan con el esquema cuantitativo; el alcance por tipo se cierra en M12c (NM-03) | — |
+| Nuevo: plantillas no cuantitativas | Int3 | **cerrado** (documentado en §5): se evalúan con el esquema cuantitativo; la ampliación del alcance por tipo se sigue en M12c (NM-03), que queda aparte | — |
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
 | AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
 | AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR #71) |

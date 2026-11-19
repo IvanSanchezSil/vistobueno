@@ -170,7 +170,7 @@ pantalla se verificó contra la API real, no contra mocks sueltos.
 
 | # | Paso | Resultado |
 |---|------|-----------|
-| 1 | Subir `docs/ejemplos/doc_bueno.docx` | HTTP 200, semáforo **verde**, 43 reglas evaluadas, 0 fallos |
+| 1 | Subir `docs/ejemplos/doc_bueno.docx` | HTTP 200, semáforo **verde**, 0 fallos (43 reglas evaluadas en esa corrida de 2026-11-04; el catálogo actual evalúa 44 de 50) |
 | 2 | La ficha viaja solo con verde | `ficha_deposito` presente en verde y `null` en rojo |
 | 3 | Editar título, autores, asesor, año y palabras clave | Los valores editados llegan tal cual en `POST /ficha-pendiente` |
 | 4 | Completar los campos manuales | Matrícula y DNI del autor se alinean por posición con los autores |
