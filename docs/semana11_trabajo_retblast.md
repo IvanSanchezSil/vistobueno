@@ -173,6 +173,56 @@ con «FLUJO COMPLETO OK»; el paso de constancia oficial se omite porque el
 worktree no incluye `recursos/TESIS DIGITAL MODELO B-2026.docx`.
 `nix flake check` termina con «all checks passed».
 
+### 2026-11-16 — Auditoría del userscript: protocolo 2 (confirmación del operador)
+
+Entrega de Int1 sobre `docs/HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md` (17
+hallazgos). Se implementó el lote acordado y se documentó lo que queda.
+
+**Decisión de flujo (US-08).** Rellenar, enviar y archivar son tres estados
+distintos. El clic en «Depositar» solo aporta la hora del papeleo. El
+estado archivado es la **atestación explícita del operador** en la página
+del ítem (`/items/<uuid>`): no es un estado verificado por el servidor. La
+aprobación de la colección sigue sin ratificar y no se codificó en ninguna
+constante. El userscript no añadió escrituras REST a DSpace.
+
+**Contrato v1.14.0 (incompatible).**
+
+- `POST /deposito` exige `atestacion: "operador"` y `revision_esperada`; el
+  payload automático de v1.13.0 recibe `422` y no habilita papeleo.
+- Dos ventanas: 1 h de autorrelleno (`VISTOBUENO_TTL_AUTORRELLENO_SEG`) y
+  24 h de retención del trámite (`VISTOBUENO_TTL_TRAMITE_SEG`). Vencer el
+  autorrelleno no borra ficha, identidad, evidencia ni confirmación.
+- `GET /tramite` publica la ficha canónica, la revisión, la inconsistencia y
+  el depósito confirmado.
+- `POST /ficha-pendiente/reconciliar` y
+  `POST /ficha-pendiente/inconsistencia`, ambos con `revision_esperada`.
+- Los DTO nuevos usan `extra="forbid"`: el alias `titulo` en la entrada
+  recibe `422`.
+
+**Userscript 1.2.0 (protocolo 2).** Panel de confirmación en la página del
+ítem (solo `textContent`), compuertas de ruta y handle institucional
+estricto, autores como evidencia opcional, filas repetibles conciliadas
+con los controles del widget (agregar y quitar, nunca borrar nodos) y
+mapeo que conserva posiciones. El estado de la versión 1.1.0 se descarta:
+no se migra.
+
+**Huecos cerrados de la lista.** US-03 (filas sobrantes), US-04 (desplazamiento
+de autor, DNI y matrícula: se corrigió también el papeleo en
+`validator/constancia.py`, que compactaba la lista de matrículas), US-08,
+US-09, US-10, US-12, US-14, US-15, US-16 y US-17. US-02 y US-11 quedan
+parciales; US-01, US-05, US-06 y US-07 siguen abiertos.
+
+**Documentación.** `docs/CONTRATO_API.md` (v1.14.0), `docs/FLUJO_API.md`,
+`README.md`, `docs/openapi_spec.json`, el handover del frontend con la
+lista de pendientes de Int2 y el estado por hallazgo.
+
+**Verificación.** Suite Python completa en verde, 70 pruebas de node del
+userscript sin drift del `dist/`, `nix run .#test-ficha-deposito` con
+«FLUJO COMPLETO OK» (el driver ahora confirma el depósito con la
+atestación del operador) y `nix flake check`. **La persistencia en Angular
+real sigue sin verificarse**: las pruebas de DOM prueban el núcleo, no el
+modelo de la instancia.
+
 ### 2026-11-12 — B1: medición local y bloqueo declarado
 
 La latencia de 17.99 s de la auditoría no se reproduce en este equipo: la
@@ -199,6 +249,12 @@ validaciones consecutivas sin limpiar el limitador.
 | Paso de CI de la SPA | `.github/workflows/ci.yml` (job `frontend`) |
 | Kit del operador actualizado | `docs/PILOTO_OPERADOR.md` |
 | Contrato v1.13.0 del buzón | `docs/CONTRATO_API.md`, `docs/FLUJO_API.md`, `docs/openapi_spec.json` |
+| Contrato v1.14.0 (confirmación del operador) | `validator/buzon.py`, `validator/api_models.py`, `validator/api.py`, `docs/CONTRATO_API.md`, `docs/FLUJO_API.md`, `docs/openapi_spec.json` |
+| Conciliación e inconsistencia | `validator/buzon.py`, `validator/api.py`, `tests/test_api_buzon.py` |
+| Userscript 1.2.0 (protocolo 2) | `tools/dspace-fill/src/wrapper.js`, `src/panel.js`, `src/compuertas.js`, `src/mapeador.js`, `src/ejecutor.js` |
+| Mock y ensayo con la página de ítem real | `tools/dspace-fill/dev/mock-dspace/`, `tools/dspace-fill/dev/e2e_ensayo.js`, `scripts/e2e_ficha_deposito.sh` |
+| Alineación posicional en el papeleo | `validator/constancia.py`, `tests/test_constancia.py` |
+| Estado por hallazgo de la auditoría | `docs/HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md` §3 y §10, `docs/auditoria_userscript_2026-11-16/estado.csv` |
 | Identidad de trámite del buzón | `validator/buzon.py`, `validator/api_models.py`, `validator/api.py` |
 | Instantánea canónica del papeleo | `validator/buzon.py`, `validator/api.py`, `tests/test_api_buzon.py`, `tests/test_constancia.py` |
 | Userscript con trámite y título observado | `tools/dspace-fill/src/wrapper.js`, `tools/dspace-fill/src/compuertas.js` |

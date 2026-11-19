@@ -1,11 +1,11 @@
 # Flujo del endpoint POST /validar
 
-**Versión del contrato**: 1.13.0<br>
+**Versión del contrato**: 1.14.0<br>
 **Fecha**: 2026-11-16
 
 > Este documento describe el flujo de `POST /validar` y el buzón de la ficha.
 > El contrato completo, incluidos constancia y registro, está en
-> `docs/CONTRATO_API.md` (v1.13.0).
+> `docs/CONTRATO_API.md` (v1.14.0).
 
 ---
 
@@ -184,32 +184,46 @@ return _validate_legacy(rules_data, extracted)
 
 ---
 
-## Buzón de una ranura (ficha de depósito, desde v1.7.0, v1.13.0)
+## Buzón del trámite de depósito (ficha de depósito, desde v1.7.0, v1.14.0)
 
 Comunicación entre la SPA y el userscript que corre sobre las páginas de
 DSpace en el navegador del operador. Sin archivos, sin pegar, sin
-sesiones: una ranura en memoria del proceso, TTL de 1 hora, "última
-gana". La app nunca escribe a la API de DSpace; el formulario oficial
-construye todas las peticiones.
+sesiones: una ranura en memoria del proceso, "última gana". La app nunca
+escribe a la API de DSpace; el formulario oficial construye todas las
+peticiones.
 
 ```
 SPA                        buzón (api.py)              userscript (DSpace)
 ────                       ───────────────            ────────────────────
 [Preparar depósito] ──► POST /ficha-pendiente ──►
-                                                      GET /ficha-pendiente
-                                                        → rellena el formulario
-(panel en espera) ◄──── GET /deposito ◄────────────  POST /deposito
-                            (sondeo)                   (handle del ítem)
+                                                       GET /ficha-pendiente
+                                                         → rellena el formulario
+[Operador adjunta el .docx y pulsa Depositar]
+                                                       POST /deposito no: aún no
+(panel en espera) ◄──── GET /tramite ◄──────────── GET /tramite (revisión)
+                                                        → panel de confirmación
+[Operador confirma]  ──────────────────────────► POST /deposito
+                                                        (atestación del operador)
+(panel en espera) ◄──── GET /deposito ◄──────────── (estado confirmado)
 ```
 
 - La ficha solo existe con semáforo verde (invariante con test).
-- `POST /ficha-pendiente` responde **201** con
-  `{tramite_id, vence_en}`. Cada publicación crea un trámite nuevo y
-  descarta el depósito anterior, aunque el título sea el mismo.
-- `GET /ficha-pendiente` devuelve `{ficha, tramite_id, vence_en}`.
-- `POST /deposito` viaja con `{tramite_id, handle, titulo_observado,
-  timestamp}`. El trámite debe coincidir con la ficha vigente.
-- `GET /deposito` devuelve `{tramite_id, handle, titulo_observado,
-  timestamp, titulo}` (el alias `titulo` es deprecado).
+- `POST /ficha-pendiente` responde **201** con `{tramite_id, revision,
+  autofill_hasta, retenido_hasta, vence_en}`. Cada publicación crea un
+  trámite nuevo y descarta el depósito anterior, aunque el título sea el
+  mismo.
+- `GET /ficha-pendiente` devuelve la ficha y su identidad; `404` cuando
+  la ventana de autorrelleno (1 h) venció. El trámite completo sigue en
+  `GET /tramite` (retención de 24 h).
+- El clic en "Depositar" solo aporta la `timestamp` (hora del papeleo).
+- `POST /deposito` es un contrato incompatible con v1.13.0: exige
+  `atestacion: "operador"` y `revision_esperada`. El payload automático
+  anterior recibe **422** y no habilita papeleo.
+- `GET /deposito` devuelve la confirmación con `revision_confirmada`,
+  `confirmado_en`, `confirmacion_vigente`, `titulo_verificado` y
+  `autores_verificados`.
+- `POST /ficha-pendiente/reconciliar` reemplaza la ficha canónica e
+  invalida la confirmación; `POST /ficha-pendiente/inconsistencia` marca
+  una divergencia y bloquea el papeleo.
 - El buzón no emite CORS: una página web cualquiera del navegador no
   puede leer la ficha (datos personales del estudiante).

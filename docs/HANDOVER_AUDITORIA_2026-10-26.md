@@ -673,22 +673,27 @@ Todos pertenecen a Int1. Esta inspección no cierra defectos ni revierte B2/B7.
 | ID | Responsable | Estado | Trabajo |
 |---|---|---|---|
 | US-01 | Int1 | pendiente | Evento del dropdown |
-| US-02 | Int1 | pendiente | Verificación efectiva de controles |
-| US-03 | Int1 | pendiente | Filas sobrantes y modificación parcial |
-| US-04 | Int1 | pendiente | Pares autor/DNI |
+| US-02 | Int1 | parcial | Verificación efectiva de controles: texto, filas y QUALDROP releen el valor; falta el estado efectivo del combobox |
+| US-03 | Int1 | **cerrado** | Filas sobrantes y modificación parcial: se quitan con el control del widget y los valores se releen |
+| US-04 | Int1 | **cerrado** | Pares autor/DNI: las posiciones se conservan en el mapeo y en el papeleo |
 | US-05 | Int1 | pendiente | Reparar relleno parcial |
 | US-06 | Int1 | pendiente | Concurrencia y cancelación |
 | US-07 | Int1 | pendiente | Workspace y pestaña |
-| US-08 | Int1 | pendiente | Envío frente a archivo / MyDSpace |
-| US-09 | Int1 | pendiente | Handle canónico del ítem |
-| US-10 | Int1 | pendiente | Reporte tardío de metas y estado |
-| US-11 | Int1 | pendiente | Recuperación de conexión |
-| US-12 | Int1 | pendiente | Invariantes API |
-| US-13 | Int1 | pendiente | Fidelidad del mock y suite |
-| US-14 | Int1 | pendiente | Versión del instalable |
-| US-15 | Int1 | pendiente | Diagnóstico por campo |
-| US-16 | Int1 | pendiente | HTML no confiable en mock |
-| US-17 | Int1 | pendiente de política de correcciones | Conciliar DSpace y ficha canónica antes del papeleo |
+| US-08 | Int1 | **cerrado** | Envío frente a archivo / MyDSpace: rellenar, enviar y archivar son estados distintos; el archivo lo confirma el operador |
+| US-09 | Int1 | **cerrado** | Handle canónico del ítem: forma institucional estricta y fila Handle o Identificador |
+| US-10 | Int1 | **cerrado** | Reporte tardío de metas y estado: el observador sigue los cambios del atributo `content` |
+| US-11 | Int1 | parcial | Recuperación de conexión: el botón reintenta y las ventanas son explícitas; falta el plazo de recuperación |
+| US-12 | Int1 | **cerrado** | Invariantes API: atestación, revisión, título, autores y handle estricto |
+| US-13 | Int1 | parcial | Fidelidad del mock y suite: fixture y mock con la estructura real; falta el laboratorio Angular |
+| US-14 | Int1 | **cerrado** | Versión del instalable: 1.2.0 con protocolo 2; el estado anterior se descarta |
+| US-15 | Int1 | **cerrado** | Diagnóstico por campo: cada operación nombra el campo en el resumen |
+| US-16 | Int1 | **cerrado** | HTML no confiable en mock: solo `textContent` |
+| US-17 | Int1 | **cerrado** | Conciliar DSpace y ficha canónica antes del papeleo: conciliación con revisión que invalida la confirmación |
+
+Entrega de Int1: rama `api-flujo-deposito-confirmado` (commits `29621f0`,
+`14a83a8` y `5769334`). Contrato v1.14.0. El detalle y los límites están en
+`HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md` §10. La persistencia en Angular
+real sigue sin verificarse.
 
 ## 12. Propuestas de Int1 para el área de Int3
 

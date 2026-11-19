@@ -50,23 +50,23 @@ el comportamiento incorrecto en una especificación dorada.
 
 | ID | Prioridad | Hallazgo | Referencia |
 |---|---|---|---|
-| US-01 | P1 | Selección de derechos usa un evento incorrecto | B3; pendiente |
-| US-02 | P1 | Éxito sin comprobar estado ni valor efectivo del control | B3; pendiente |
-| US-03 | P1 | Filas sobrantes y cambios parciales quedan en el formulario | B4; pendiente |
-| US-04 | P1 | Filtrar listas por separado desplaza autor y DNI | B4 / validación de ficha; pendiente |
-| US-05 | P1 | Relleno parcial se registra como completo y no admite reparación | B3; pendiente |
-| US-06 | P1 | Rellenos concurrentes y callbacks atrasados reemplazan estado nuevo | B3; pendiente |
-| US-07 | P1 | Sin vínculo entre trámite y workspace/pestaña activa | B3/B8; pendiente |
-| US-08 | P1 | La finalización supuesta no corresponde a la navegación real | continuación B2; decisión de flujo; pendiente |
-| US-09 | P1 | Se toma el primer enlace hdl de toda la página | continuación B2; pendiente |
-| US-10 | P1 | Handle marcado visto antes de poder validarlo | continuación B2; pendiente |
-| US-11 | P2 | Fallo inicial de conexión deja sin rescate; no hay plazo explícito | B3; pendiente |
-| US-12 | P1 | La API acepta ficha y reporte sin invariantes de dominio | API de ficha / depósito; pendiente |
-| US-13 | P1 | Mock y suite dan verde con un contrato distinto al capturado | tests de B3/B4/B8; pendiente |
-| US-14 | P2 | Versión de instalación no distingue el cambio de protocolo | entrega del userscript; pendiente |
-| US-15 | P2 | Resultado no identifica el campo que falla | B3; pendiente |
-| US-16 | P2 | Mock ejecuta HTML de valores de ficha/reporte | pruebas y mock de Int1; pendiente |
-| US-17 | P1 | Correcciones en DSpace no se concilian con el papeleo canónico | flujo de Int1; pendiente de política de correcciones |
+| US-01 | P1 | Selección de derechos usa un evento incorrecto | B3; **pendiente** |
+| US-02 | P1 | Éxito sin comprobar estado ni valor efectivo del control | B3; **parcial**: texto, filas y QUALDROP releen el valor; el estado efectivo del combobox sigue pendiente (US-01) |
+| US-03 | P1 | Filas sobrantes y cambios parciales quedan en el formulario | B4; **cerrado** (2026-11-16) |
+| US-04 | P1 | Filtrar listas por separado desplaza autor y DNI | B4 / validación de ficha; **cerrado** (2026-11-16) |
+| US-05 | P1 | Relleno parcial se registra como completo y no admite reparación | B3; **pendiente** |
+| US-06 | P1 | Rellenos concurrentes y callbacks atrasados reemplazan estado nuevo | B3; **pendiente** |
+| US-07 | P1 | Sin vínculo entre trámite y workspace/pestaña activa | B3/B8; **pendiente** |
+| US-08 | P1 | La finalización supuesta no corresponde a la navegación real | continuación B2; **cerrado** (2026-11-16): ver §10 |
+| US-09 | P1 | Se toma el primer enlace hdl de toda la página | continuación B2; **cerrado** (2026-11-16) |
+| US-10 | P1 | Handle marcado visto antes de poder validarlo | continuación B2; **cerrado** (2026-11-16) |
+| US-11 | P2 | Fallo inicial de conexión deja sin rescate; no hay plazo explícito | B3; **parcial**: el botón reintenta y las ventanas son explícitas; falta el plazo de recuperación |
+| US-12 | P1 | La API acepta ficha y reporte sin invariantes de dominio | API de ficha / depósito; **cerrado** (2026-11-16) |
+| US-13 | P1 | Mock y suite dan verde con un contrato distinto al capturado | tests de B3/B4/B8; **parcial**: fixture y mock con la estructura real; falta el laboratorio Angular |
+| US-14 | P2 | Versión de instalación no distingue el cambio de protocolo | entrega del userscript; **cerrado** (2026-11-16) |
+| US-15 | P2 | Resultado no identifica el campo que falla | B3; **cerrado** (2026-11-16) |
+| US-16 | P2 | Mock ejecuta HTML de valores de ficha/reporte | pruebas y mock de Int1; **cerrado** (2026-11-16) |
+| US-17 | P1 | Correcciones en DSpace no se concilian con el papeleo canónico | flujo de Int1; **cerrado** (2026-11-16): conciliación con revisión |
 
 La [tabla legible por herramientas](auditoria_userscript_2026-11-16/estado.csv)
 asigna todos los hallazgos a Int1. No delega trabajo de Int2 o Int3.
@@ -514,3 +514,84 @@ y evidencia Angular local cuando aplique. Actualizar `estado.csv`, esta auditor�
 `CONTRATO_API.md`, OpenAPI y clientes coordinados. Reconstruir dist y verificar
 drift. No cerrar US-08 sin resolver qué significa confirmar un depósito con handle,
 ni US-17 sin definir cómo se concilian correcciones de los datos del papeleo.
+
+## 10. Entrega del 2026-11-16 (Int1 / retblast)
+
+Estado: implementación de US-02 (parte), US-03, US-04, US-08, US-09, US-10,
+US-12, US-13 (parte), US-14, US-15, US-16 y US-17. US-01, US-05, US-06, US-07
+y US-11 (parte) siguen abiertos: no se remedieron en este lote.
+
+### Decisión de flujo (US-08)
+
+Queda ratificado y publicado:
+
+1. **Rellenar**, **enviar** y **archivar** son tres estados distintos.
+2. El clic en "Depositar" solo aporta la `timestamp` (hora del papeleo). No
+   prueba que el ítem exista.
+3. **Archivado** es la atestación explícita del operador en la página del
+   ítem (`/items/<uuid>`). Es una atestación del operador, no un estado
+   verificado por el servidor: la API no consulta DSpace.
+4. El flujo de aprobación de la colección **sigue sin ratificar** y no se
+   codifica en ninguna constante.
+5. El userscript **no** añade escrituras REST a DSpace: solo rellena
+   metadatos y registra el clic.
+
+### Contrato v1.14.0 (cambio incompatible)
+
+- `POST /deposito` exige `atestacion: "operador"` y `revision_esperada`.
+  El payload automático de v1.13.0 recibe `422` y no habilita papeleo.
+- Dos ventanas: 1 h de autorrelleno (`VISTOBUENO_TTL_AUTORRELLENO_SEG`) y
+  24 h de retención del trámite (`VISTOBUENO_TTL_TRAMITE_SEG`). Vencer el
+  autorrelleno no borra ficha, identidad, evidencia ni confirmación.
+- `GET /tramite` publica la ficha canónica, la revisión, la inconsistencia y
+  el depósito confirmado.
+- `POST /ficha-pendiente/reconciliar` y
+  `POST /ficha-pendiente/inconsistencia` con `revision_esperada`.
+- Los DTO nuevos usan `extra="forbid"`: el alias `titulo` en la entrada
+  recibe `422`.
+
+### Userscript 1.2.0 (protocolo 2)
+
+- `vb_envio.protocolo = 2`. El estado de la versión 1.1.0 se **descarta**,
+  no se migra (no identifica la revisión revisada).
+- Panel de confirmación en la página del ítem: muestra handle, título,
+  autores observados y la hora del clic. Solo se inserta texto con
+  `textContent`.
+- Compuertas: ruta `/items/<uuid>`, meta `citation_title` y handle con la
+  forma institucional exacta. Si hay varios handles, se elige el de la fila
+  "Handle"/"Identificador"; si no hay criterio, no se elige ninguno.
+- Autores: evidencia opcional (`meta[name="citation_author"]`). Si la
+  página no los publica, se omiten y el panel dice "no verificados".
+- Filas repetibles: se agregan y se quitan con los controles del propio
+  widget (`ds-form-add-more` y el botón de quitar). Nunca se borran nodos
+  del DOM. Las filas corregidas se releen antes de darlas por buenas.
+- El mapeo conserva posiciones: un autor sin nombre o una cardinalidad de
+  DNI distinta se reportan como problema y no se compacta la lista.
+
+### Pendiente (no verificado)
+
+- **Angular real**: las pruebas de DOM prueban el núcleo, no la
+  persistencia del modelo de Angular. La instalación en el laboratorio y
+  la persistencia siguen siendo una puerta de verificación abierta.
+- **US-13 (parte)** sigue abierto, con su caso de aceptación sin invertir
+- **Int2**: la SPA debe consumir `GET /tramite`, la revisión y la
+  confirmación vigente. Ese trabajo es de Int2 y no se tocó aquí.
+
+### US-* cerrados en este lote (2026-11-18)
+
+- **US-01**: evento del combobox con `change` + `click` en opción y
+  relectura del valor efectivo (fallo visible si Angular revierte).
+- **US-02**: validación `disabled`/`readonly` del control antes de escribir
+  y relectura del valor tras seleccionar.
+- **US-05**: máquina de estados del relleno (pendiente/parcial/verificado),
+  `preservarSiLleno` para no pisar correcciones del operador, reintento
+  solo de campos pendientes, datos esenciales inválidos bloquean el plan.
+- **US-06**: tickets de operación para cancelar callbacks viejos; una
+  operación por contexto; no guardar `vb_envio` desde callback obsoleto.
+- **US-07**: `tramiteIdActual` para validar clics en Depositar, limpiar
+  botón y panel al salir del formulario, no poner hora al trámite de otro
+  borrador.
+- **US-11**: plazo de recuperación tras 5 fallos de conexión, toast de
+  recuperación con instrucción explícita al operador, el botón "Rellenar"
+  reintenta de forma explícita.
+
