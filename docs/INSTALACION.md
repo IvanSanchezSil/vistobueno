@@ -75,19 +75,11 @@ instantáneas.
 nix run .#test -- tests/ -q
 ```
 
-Resultado esperado. El conteo depende de las carpetas locales `recursos/` y
-`frontend/dist`:
-
-| `recursos/` | `frontend/dist` | Resultado |
-|---|---|---|
-| sí | sí | `749 passed, 6 xfailed` |
-| sí | no | `748 passed, 1 skipped, 6 xfailed` |
-| no | sí | `746 passed, 3 skipped, 6 xfailed` |
-| no | no | `745 passed, 4 skipped, 6 xfailed` |
-
-Los `xfail` son criterios de aceptación abiertos de Int3 (AUD-24 a AUD-27).
-No son fallos de la instalación. Los `skipped` dependen de carpetas que no
-están versionadas.
+Resultado esperado: **la suite termina en verde**. El conteo exacto depende
+de las carpetas locales `recursos/` y `frontend/dist`; los tests que las
+necesitan se marcan como `skipped` cuando faltan, y eso **no es un fallo de
+la instalación**. Referencia medida en un clon sin esas carpetas:
+`983 passed, 9 skipped` (sin `xfail`).
 
 Levanta la API:
 
@@ -206,8 +198,8 @@ nix develop
 nix run .#test -- tests/ -q
 ```
 
-Esperado: ver la tabla de conteos de la sección 2.3. En un clon limpio
-sin `recursos/` ni `frontend/dist`: `745 passed, 4 skipped, 6 xfailed`.
+Esperado: la suite en verde. En un clon limpio sin `recursos/` ni
+`frontend/dist`: `983 passed, 9 skipped` (sin `xfail`); ver §2.3.
 
 ### 3.5 Levantar la API y la SPA
 
@@ -408,9 +400,9 @@ Usa esta lista para el hito de instalación de la actividad 4.
 - [ ] `nix develop` entra sin errores (o el venv nativo arranca).
 - [ ] `cd frontend && npm ci && npm run build && npm test` → build y tests
       en verde. Esto deja `frontend/dist`, que la suite usa.
-- [ ] `nix run .#test -- tests/ -q` → `749 passed, 6 xfailed` con
-      `recursos/` y `frontend/dist`; sin `recursos/`: `746 passed,
-      3 skipped, 6 xfailed`. Ver la tabla de la sección 2.3.
+- [ ] `nix run .#test -- tests/ -q` → verde. Referencia en un clon sin
+      `recursos/` ni `frontend/dist`: `983 passed, 9 skipped` (sin `xfail`);
+      con esas carpetas los `skipped` se reducen (ver §2.3).
 - [ ] `nix run .#serve -- validator.api:app` → `/docs` responde `200` en
       `127.0.0.1:8000`.
 - [ ] `Host: atacante.example` → `400`.
@@ -430,8 +422,7 @@ Usa esta lista para el hito de instalación de la actividad 4.
 | `Address already in use` | Otro proceso en el puerto | Cerrar el proceso o cambiar el puerto (`--port` en uvicorn, `--puerto` en el lanzador) |
 | `400` por `Host` | `Host` ajeno (por ejemplo, la IP de WSL) | Usar `localhost` o `127.0.0.1`; si es un dominio propio, agregarlo a `VISTOBUENO_HOSTS` |
 | `403` desde el navegador en WSL | El peer no se ve como loopback | Usar `localhost` (no la IP de WSL) y verificar el forwarding; si persiste, usar §4 |
-| `xfail` en la suite | Criterios abiertos de Int3 | Es esperado; no tocar |
-| `skipped` en la suite | Faltan `recursos/` y/o `frontend/dist` | Es esperado; ver la tabla de conteos de la sección 2.3 |
+| `skipped` en la suite | Faltan `recursos/` y/o `frontend/dist` | Es esperado; ver §2.3 |
 | El acceso directo no abre la SPA | Falta `frontend/dist/index.html` | Construir la SPA (ver §3.7) |
 | El acceso directo no inicia | La distro por defecto no tiene Nix o el repo no está en `~/vistobueno` | Revisar el `cd` y la distro de `VistoBueno.bat` |
 | PDF falla en Windows | Falta Pango/GTK3 | Ver §4.4 |

@@ -12,7 +12,7 @@
     "extraidos": [
       {
         "campo": "dc.title",
-        "valor": "Título del trabajo de investigación: Estrategias lúdicas para el desarrollo de la motricidad fina.",
+        "valor": "Estrategias lúdicas para el desarrollo de la motricidad fina.",
         "pagina": 1,
         "detectado": true
       },
@@ -85,8 +85,8 @@
     ]
   },
   "resumen": {
-    "total": 49,
-    "total_evaluadas": 43,
+    "total": 50,
+    "total_evaluadas": 44,
     "reglas_no_aplicables": 6,
     "fallidos_error": 0,
     "fallidos_warning": 0
@@ -180,7 +180,7 @@
       "rule_id": "caratula_optar_grado_tamano",
       "paso": true,
       "severidad": "warning",
-      "mensaje": "Tamaño de letra de la línea \"Trabajo de Investigación para optar el grado de Bachiller en...\"",
+      "mensaje": "Tamaño de letra de la línea \"Trabajo de Investigación para optar el grado o título profesional\"",
       "esperado": "13pt",
       "encontrado": "cumple",
       "ubicacion": "Carátula, especificaciones (párr. 178)",
@@ -205,7 +205,7 @@
       "paso": true,
       "severidad": "warning",
       "mensaje": "Tamaño del logotipo de la Universidad en carátula",
-      "esperado": "4.84 cm alto x 6.73 cm ancho",
+      "esperado": "4.84 cm alto x 6.73 cm ancho (± 0.1 cm)",
       "encontrado": "cumple",
       "ubicacion": "Carátula, especificaciones (párr. 176)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
@@ -492,8 +492,8 @@
       "rule_id": "resumen_longitud",
       "paso": true,
       "severidad": "warning",
-      "mensaje": "El Resumen debe tener una extensión mínima de 159 palabras",
-      "esperado": ">= 159 palabras",
+      "mensaje": "El Resumen debe tener entre 159 y 220 palabras, sin contar la línea de palabras clave",
+      "esperado": "159–220 palabras",
       "encontrado": "cumple",
       "ubicacion": "Sección Resumen (párr. 201)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
@@ -504,12 +504,24 @@
       "rule_id": "palabras_clave_minimo",
       "paso": true,
       "severidad": "error",
-      "mensaje": "Resumen y Abstract deben incluir mínimo 3 palabras clave",
-      "esperado": ">= 3 palabras clave",
+      "mensaje": "Resumen y Abstract deben incluir entre 3 y 5 palabras clave",
+      "esperado": "3–5 palabras clave en Resumen y Abstract",
       "encontrado": "cumple",
       "ubicacion": "Plantilla Resumen (párr. 86 de la plantilla Educación Inicial)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
       "cita": "\"Palabras clave: (mínimo 03 palabras clave)\"",
+      "aplicable": true
+    },
+    {
+      "rule_id": "abstract_contenido",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "El Abstract debe tener contenido además de su título",
+      "esperado": ">= 1 palabra de contenido",
+      "encontrado": "cumple",
+      "ubicacion": "Sección Abstract (párr. 203)",
+      "fuente": "docs/MATRIZ_REQUISITOS_2026-11-12.csv (REQ-35, p203)",
+      "cita": "REQ-35: \"Abstract es traducción del Resumen por especialista\"; la acción de auditoría pide exigir contenido no vacío. Severidad ratificada: warning (2026-11-16).",
       "aplicable": true
     },
     {
@@ -553,7 +565,7 @@
       "paso": true,
       "severidad": "warning",
       "mensaje": "Anexos obligatorios para Trabajo de Investigación Cuantitativo",
-      "esperado": "Matriz de consistencia; Instrumento(s) de recolección de datos; Ficha técnica del instrumento; Consentimiento informado; Base de datos cuantitativa; Reporte de similitud; Carta de autorización institucional; Declaración jurada; Carta de autorización de publicación",
+      "esperado": "Matriz de consistencia; Instrumento(s) de recolección de datos; Ficha técnica del instrumento; Consentimiento informado; Base de datos; Reporte de similitud; Carta de autorización institucional; Declaración jurada; Carta de autorización de publicación",
       "encontrado": "cumple",
       "ubicacion": "Esquema del Trabajo Cuantitativo (párr. 311-319)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
@@ -684,9 +696,9 @@
   "como_preguntar_a_una_ia": [],
   "metadatos": {
     "archivo_nombre": "doc_bueno.docx",
-    "archivo_tamano_bytes": 4506,
-    "reglas_evaluadas": 43,
-    "reglas_totales": 49,
+    "archivo_tamano_bytes": 5811,
+    "reglas_evaluadas": 44,
+    "reglas_totales": 50,
     "version_esquema": "2026-09-01",
     "tipo_documento_declarado": null,
     "tipo_documento_inferido": "tinv_cuantitativo",

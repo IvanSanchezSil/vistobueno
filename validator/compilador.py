@@ -10,6 +10,7 @@ declara como **lista**, cada elemento es una comprobación distinta que
 también debe cumplirse):
 
     atributo_xml / presencia_xml -> AnalizadorXML
+    formato_efectivo            -> AnalizadorFormato (formato heredado, M1)
     patron_texto                -> AnalizadorRegex
     lista_texto                 -> AnalizadorLista
     imagen                      -> AnalizadorImagen
@@ -43,6 +44,7 @@ from .analizadores import (
     AnalizadorCantidadPatron,
     AnalizadorConteoNodos,
     AnalizadorExtraccion,
+    AnalizadorFormato,
     AnalizadorHipervinculo,
     AnalizadorImagen,
     AnalizadorLista,
@@ -57,7 +59,13 @@ from .analizadores import (
 )
 from .automata import DFA, PDA, GramaticaEstructura, Transicion, TransicionPDA
 from .dsl_check import linter_o_alzar
-from .extractor import NS, ExtractedDocx, text_of
+from .extractor import (
+    NS,
+    PAGINA_DESCONOCIDA,
+    PAGINA_ESTIMADA,
+    ExtractedDocx,
+    text_of,
+)
 from .models import RuleResult, Severity
 from .tokenizer import TITULO, solo, tokenizar
 
@@ -65,6 +73,7 @@ from .tokenizer import TITULO, solo, tokenizar
 SECCIONES_ANALIZADOR = (
     "atributo_xml",
     "presencia_xml",
+    "formato_efectivo",
     "patron_texto",
     "lista_texto",
     "imagen",
@@ -425,6 +434,7 @@ class AutomataPila(Analizador):
 _FABRICAS: dict[str, Callable[[dict], Analizador]] = {
     "atributo_xml": AnalizadorXML,
     "presencia_xml": AnalizadorXML,
+    "formato_efectivo": AnalizadorFormato,
     "patron_texto": AnalizadorRegex,
     "lista_texto": AnalizadorLista,
     "imagen": AnalizadorImagen,
@@ -587,6 +597,7 @@ class ReglaCompilada:
     def ejecutar(self, extracted: ExtractedDocx) -> RuleResult:
         fallos: list[str] = []
         pagina: int | None = None
+        certeza_pagina: str | None = None
         detalles: list[tuple[Analizador, str]] = []
         for an in self.analizadores:
             try:
@@ -600,6 +611,7 @@ class ReglaCompilada:
                 # se usa el nodo objetivo del primer analizador que falló.
                 if pagina is None and getattr(an, "ultimo_nodo", None) is not None:
                     pagina = extracted.pagina_de(an.ultimo_nodo)
+                    certeza_pagina = extracted.certeza_pagina_de(an.ultimo_nodo)
 
         # Una regla cuyos analizadores declararon "no aplica" no se evaluó:
         # debe salir con `aplicable=False` y `found="no aplica a este
@@ -613,8 +625,14 @@ class ReglaCompilada:
             esperados = "; ".join(map(str, esperados))
 
         ubicacion = self.rule.get("ubicacion") or ""
-        if fallos and pagina is not None and ubicacion:
-            ubicacion = f"{ubicacion}; página {pagina}"
+        # M3/VA-04: no se inventa precisión. Si la página es desconocida
+        # (sin marcadores), se omite el sufijo; si solo está estimada por la
+        # caché de render de Word, se declara como tal.
+        if fallos and pagina is not None and ubicacion and certeza_pagina != PAGINA_DESCONOCIDA:
+            sufijo = f"página {pagina}"
+            if certeza_pagina == PAGINA_ESTIMADA:
+                sufijo += " (estimada)"
+            ubicacion = f"{ubicacion}; {sufijo}"
 
         return RuleResult(
             rule_id=self.rule["id"],
@@ -642,15 +660,41 @@ class ReglaCompilada:
         for an in self.analizadores:
             for item in getattr(an, "ficha", []):
                 nodo = item.get("nodo")
+                valor = item.get("valor")
+                utilizable = self._valor_utilizable(valor)
                 capturado.append(
                     {
                         "campo": item.get("campo", ""),
-                        "valor": item.get("valor"),
-                        "pagina": extracted.pagina_de(nodo) if nodo is not None else None,
-                        "detectado": True,
+                        "valor": valor if utilizable else None,
+                        "pagina": (
+                            extracted.pagina_de(nodo) if utilizable and nodo is not None else None
+                        ),
+                        "detectado": utilizable,
                     }
                 )
         return capturado
+
+    @staticmethod
+    def _valor_utilizable(valor) -> bool:
+        """¿El valor capturado sirve para pre-llenar la ficha?
+
+        Una cadena vacía o solo espacios no sirve; una lista vacía tampoco
+        (AUD-24: sin autores no se publica `detectado=True` con `[]`). Para
+        un valor inservible el contrato exige `valor=None` y `pagina=None`.
+        """
+        if valor is None:
+            return False
+        if isinstance(valor, str):
+            return bool(valor.strip())
+        if isinstance(valor, (list, tuple)):
+            # Alineado con la API: una lista con solo cadenas vacías (`[""]`)
+            # no es un valor utilizable, aunque su longitud sea > 0. Si el
+            # motor publicara `detectado=True`, la API lo degradaría después
+            # y el contrato mentiría en el reporte del motor.
+            return any(isinstance(item, str) and item.strip() for item in valor)
+        if isinstance(valor, (dict, set)):
+            return len(valor) > 0
+        return True
 
 
 # Los dos estados en que la detección NO pudo clasificar el documento. Son

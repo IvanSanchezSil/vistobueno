@@ -101,7 +101,7 @@ Verifica atributos de nodos o su presencia vía XPath.
 ```yaml
 atributo_xml:
   parte: document | footer | header     # defecto: document
-  contexto: todos | cuerpo | seccion_cuerpo | caratula  # defecto: todos
+  contexto: todos | cuerpo | cuerpo_prosa | seccion_cuerpo | caratula  # defecto: todos
   xpath: //w:sectPr[1]/w:pgSz
   atributo: "@w:w"                      # solo para comparaciones de valor
   comparacion: eq | all_eq | contains | exists | not_exists
@@ -110,7 +110,10 @@ atributo_xml:
   ignore_case: false                    # opcional (contains)
 ```
 
-- `exists` / `not_exists` operan solo sobre la cantidad de nodos.
+- `exists` / `not_exists` operan solo sobre la cantidad de nodos. Cuando
+  `not_exists` incumple, el detalle nombra los nodos culpable por su
+  posición (`not_exists 1 nodos; incumplen: #1`) y la ubicación de la regla
+  apunta al primero.
 - `eq` compara el primer valor del atributo; `all_eq` todos; `contains`
   subcadena (con `ignore_case`).
 - `tolerancia` (entero, opcional) permite `eq`/`all_eq` numéricos con un
@@ -118,6 +121,32 @@ atributo_xml:
   Se usa p. ej. en `sangria_parrafo` (esperado 720 twips, tolerancia 12) para
   aceptar los 708/709 twips (~1.25 cm) de las plantillas oficiales. Si el
   valor o el esperado no son numéricos, se compara por igualdad exacta.
+- `contexto: cuerpo` restringe la consulta al cuerpo real (entre el heading
+  "Introducción" y el de "Referencias"/"Bibliografía"/"Anexos") y excluye
+  títulos, párrafos vacíos y líneas de caption `Nota.`/`Fuente.`.
+- `contexto: cuerpo_prosa` es un subconjunto de `cuerpo` que además excluye
+  ítems de lista (`w:numPr` directo o estilo cuyo `w:name` sea
+  `List Paragraph`), títulos de tabla y figura (estilo cuyo `w:name` contenga
+  `caption`) y líneas de leyenda (`---: ...`). El filtro es por nombre de
+  estilo, no por identificador, para que funcione igual en Word en español e
+  inglés. Se usa en `alineacion_cuerpo`: el manual justifica la prosa, no las
+  listas ni los títulos de tabla.
+- En `w:pgSz` (tamaño de papel), `@w:w` compara el **lado corto** y `@w:h`
+  el **lado largo**, sin importar la orientación: un A4 horizontal
+  (`16838 x 11906`) cumple igual que uno vertical, con o sin
+  `w:orient="landscape"`. `papel_tamano` valida **todas** las secciones
+  (carátula y anexos incluidos) con `all_eq`; la sección culpable se
+  identifica por su posición `#N` en el detalle. Límite: se compara el
+  valor OOXML exacto, así que una conversión que redondee el papel
+  (p. ej. `11910 x 16840`) sigue fallando hasta que se decida una
+  tolerancia.
+- `w:pgSz` es **opcional** en OOXML: una sección que no lo declara no
+  puede compararse. Por eso `papel_tamano` añade una comprobación
+  `presencia_xml` con `xpath: '//w:sectPr[not(w:pgSz)]'` y
+  `comparacion: not_exists`, y así ninguna sección queda sin revisar. El
+  detalle de `not_exists` incumplido nombra los nodos por posición
+  (`not_exists 1 nodos; incumplen: #1`) y la ubicación de la regla apunta
+  al primero.
 - `contexto: caratula` restringe la consulta a los párrafos de la carátula:
   los `w:p` de nivel superior anteriores al primer `w:pPr/w:sectPr` del cuerpo
   (el salto que cierra la portada). Si el documento no declara ese salto, se
@@ -163,16 +192,32 @@ lista_texto:
 ### 4. `imagen` → `AnalizadorImagen`
 
 Cuenta imágenes (blips) en los nodos que matchean el XPath y verifica
-cantidades mínima y/o máxima.
+cantidades mínima y/o máxima. Opcionalmente mide el dibujo que contiene
+cada blip (M7/VA-15):
 
 ```yaml
 imagen:
   parte: document
+  contexto: caratula    # opcional: todos | cuerpo | caratula | ...
   xpath: //w:drawing//a:blip
   formato: png
   cantidad_minima: 1
   cantidad_maxima: 4     # opcional
+  ancho_cm: 6.73         # opcional, junto con alto_cm
+  alto_cm: 4.84
+  tolerancia_cm: 0.1     # opcional; por defecto 0.1
 ```
+
+- Sin `ancho_cm`/`alto_cm` solo se comprueba la presencia y la cantidad.
+- Con ambos, se lee el `wp:extent` del `wp:inline`/`wp:anchor` que contiene
+  el blip: **ancho = `cx`**, **alto = `cy`** (360000 EMU por cm). Una
+  imagen sin `wp:extent` no se puede medir y la regla falla
+  (`tamanos=sin_dimensiones`); no se da por buena en silencio.
+- `contexto: caratula` limita la búsqueda a la primera sección, así que una
+  imagen solo en el cuerpo o en el encabezado no satisface la carátula.
+- La tolerancia absorbe el redondeo cm↔EMU y el ajuste manual. El manual
+  no fija una; la regla del logo usa 0,1 cm (1 mm) y queda anotada como
+  decisión a ratificar.
 
 ### 5. `automata_secuencia` → DFA (secuencia ordenada de títulos)
 
@@ -256,24 +301,37 @@ Reglas de reconocimiento (compartidas con el DFA):
 ### 8. `patron_cantidad` → `AnalizadorCantidadPatron` (F3)
 
 Cuenta palabras, matches de regex o entradas estructuradas y verifica un
-valor mínimo:
+rango (`cantidad_minima`/`cantidad_maxima`):
 
 ```yaml
 patron_cantidad:
-  seccion: { inicio: resumen }        # opcional: acota el texto contado
+  seccion: { inicio: resumen }        # una sola sección
+  # — o, para contar cada idioma por separado —
+  secciones:
+    - { nombre: resumen, inicio: resumen }
+    - { nombre: abstract, inicio: abstract }
   operacion: count_words | count_matches | count_entries
   patron: "..."                       # solo count_matches
   filtro: "^palabras clave"           # opcional: párrafos que cuentan
+  excluir: "^(palabras clave|keywords)\b"  # opcional: párrafos que NO cuentan
   ignore_case: true
   cantidad_minima: 159
+  cantidad_maxima: 220
 ```
 
 - `count_words`: palabras (`\w+`) del texto contado (regla *resumen
-  ≥ 159 palabras*).
+  159–220 palabras*). `excluir` permite separar la prosa de la línea de
+  palabras clave.
 - `count_matches`: matches de `patron` en el texto.
 - `count_entries`: entradas separadas por `,` o `;` del texto posterior al
-  primer `:` (p. ej. `Palabras clave: a, b, c` → 3). Útil con `filtro`
-  sobre el párrafo de etiqueta.
+  primer `:` de **cada párrafo** (p. ej. `Palabras clave: a, b, c` → 3).
+  Útil con `filtro` sobre el párrafo de etiqueta.
+- `secciones`: lista de secciones; cada una se cuenta y evalúa por separado
+  y el detalle las nombra (`resumen=3 abstract=2`). No se puede combinar con
+  `seccion`.
+- `excluir` y `filtro` se aplican por párrafo antes de contar; primero se
+  descartan los párrafos que matchean `excluir` y luego se conservan los que
+  matchean `filtro`.
 
 ### 9. `conteo_nodos` → `AnalizadorConteoNodos` (F3)
 
@@ -312,7 +370,11 @@ lista_obligatoria:
 ```
 
 - Cada ítem se busca como subcadena (normalizada a minúsculas) en el texto
-  de la sección. Usado por las reglas de *anexos mínimos*.
+  de la sección. Usado por las reglas de *anexos mínimos*. Por ser
+  subcadena, un ítem corto como «Base de datos» también satisface títulos
+  más largos («Base de datos cuantitativa»).
+- Solo se lee el texto del DOCX: un anexo escaneado como imagen no se
+  detecta y su ausencia reportada exige revisión manual.
 - `hasta_final: true` es necesario en anexos: sin él, `seccion()` cortaría
   en el primer `TITULO` posterior (el siguiente "Anexo N.") y solo se
   revisaría el primero. Con él, el slice llega al final del documento.
@@ -336,27 +398,70 @@ hipervinculo_texto:
 Usado por la regla *caratula_orcid* (el código ORCID debe ser un
 hipervínculo de 16 dígitos, normalizado a minúsculas y entre paréntesis).
 
-### 12. `paginacion` → `AnalizadorPaginacion` (F2 ítem 1)
+### 12. `paginacion` → `AnalizadorPaginacion` (F2 ítem 1, M3/VA-04)
 
-Correlaciona los párrafos con su **página física** (mapa construido a
-partir de `w:lastRenderedPageBreak` y `w:br w:type="page"`) y compara las
-páginas de los nodos que matchean cada XPath:
+Correlaciona los párrafos con su **página física** y compara las páginas de
+los nodos que matchean cada XPath. El mapa se construye procesando los
+saltos en orden de documento:
+
+- `w:br w:type="page"`: salto explícito (estructural).
+- `w:pPr/w:pageBreakBefore`: el **propio párrafo** arranca en página nueva;
+  `w:val="0"`, `false` u `off` lo desactivan.
+- `w:pPr/w:sectPr` con tipo distinto de `continuous`/`nextColumn`: la
+  sección siguiente empieza en otra página.
+- `w:lastRenderedPageBreak`: caché del render de Word.
+
+Varios saltos dentro del mismo párrafo cuentan todos. Un párrafo que cruza
+página conserva la página donde empieza. Cada página lleva un grado de
+certeza: **comprobada** (salto estructural), **estimada** (caché de render)
+o **desconocida** (sin marcadores).
 
 ```yaml
 paginacion:
   comparacion: paginas_distintas
   xpaths:
-    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE CONTENIDOS')]]"
-    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE TABLAS')]]"
-    - "//w:p[w:pPr/w:pStyle/@w:val='Ttulo1'][w:r/w:t[contains(.,'INDICE DE FIGURAS')]]  "
+    # «Índice de contenidos»; si no existe, el título genérico «Índice».
+    - >-
+      (//w:p[normalize-space(translate(translate(normalize-space(.),
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'áéíóúüñ', 'aeiouun')) = 'indice de contenidos']
+      | //w:p[normalize-space(translate(translate(normalize-space(.),
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'áéíóúüñ', 'aeiouun')) = 'indice']
+      [not(//w:p[normalize-space(translate(translate(normalize-space(.),
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'áéíóúüñ', 'aeiouun')) = 'indice de contenidos'])])[1]
+    - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de tablas']"
+    - "//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de figuras']"
 ```
 
 - `paginas_distintas`: los títulos deben quedar en páginas separadas
-  (`paginas_repetidas` si hay dos en la misma; `no_encontrado` si algún
-  XPath no coincide).
+  (`paginas_repetidas` si hay dos en la misma; `indices_no_verificables`
+  si algún XPath no coincide).
+- El XPath de la regla *indice_paginas_separadas* **pliega tildes** (para
+  que "ÍNDICE" se encuentre) y compara el **texto completo** del párrafo
+  (para que la línea `PAGEREF` de la tabla de contenido no se confunda con
+  el título de la sección). Con un XPath tolerante (`contains`) la regla
+  daba un falso positivo `paginas_repetidas` sobre la tesis aprobada. El
+  primer XPath acepta «Índice de contenidos» y, si no existe, el título
+  genérico «Índice» (la tesis aprobada titula así esa sección); cuando
+  existe el título específico, el genérico se descarta para que un título
+  paraguas no le gane a la subdivisión. Se toma la primera coincidencia de
+  cada XPath en orden de documento.
+- Si algún XPath no coincide, la regla es **NO APLICABLE**
+  (`aplicable=False`, `found="no aplica a este documento"`), no "cumple":
+  la presencia de las secciones la cubren otras reglas.
+- Si la página de algún objetivo es **desconocida** (el DOCX no trae
+  marcadores ni caché de render), la regla pasa como n/a con
+  `paginas_no_verificables`: no se inventa una página para fallar por
+  `paginas_repetidas`. Si la página solo está **estimada** (caché de render
+  de Word), el detalle declara `(estimadas)`. Este caso también es **NO
+  APLICABLE**.
 - A efectos del *enriquecimiento de `ubicacion`*, el analizador expone el
   último nodo analizado (`ultimo_nodo`); cuando una regla FALLA con página
-  conocida, el compilador anexa `; página N` a la ubicación.
+  conocida, el compilador anexa `; página N` (o `; página N (estimada)` si
+  la página viene de la caché de render). Si la página es desconocida, el
+  sufijo se omite.
 - Los párrafos de `header*`/`footer*` **no** están en el mapa de página
   → nunca reciben el sufijo.
 
@@ -462,7 +567,10 @@ Detecta en **dos niveles**, y el primero que llegue a su umbral gana:
    incluida una tabla (`w:tbl`) o un bloque `w:sdt`. Si el Anexo 10 es una
    tabla, la etiqueta se busca en la **misma fila** que la casilla (suelen ir
    en celdas distintas). La comparación es por subcadena, así que las
-   etiquetas cortas ceden ante las más específicas.
+   etiquetas cortas ceden ante las más específicas. Se recogen **todas** las
+   casillas marcadas, no solo la primera: si dos declaran tipos distintos, el
+   resultado es `contradictorio`; marcar dos veces el mismo tipo (o dos de sus
+   etiquetas) no cambia la decisión.
 2. **`firmas`** — conjuntos de secciones que solo tiene un tipo. `minimo: 2`
    significa "al menos 2 de las 3 evidencias". Las firmas se cotejan **solo
    contra párrafos con estilo de título** (los mismos que consume el DFA de
@@ -523,6 +631,75 @@ Usado por `estructura_tinv_cuantitativo`, `estructura_tinv_cualitativo`,
 `estructura_tinv_revision_literatura` y por las 5 estructuras de
 `reglas_unt_pendientes.yaml`.
 
+### 17. `formato_efectivo` → `AnalizadorFormato` (M1)
+
+Resuelve el formato **efectivo** de los runs o párrafos sujetos a la regla,
+en vez de leer solo el primer run y solo el formato directo. Es la sección
+que usan las reglas de fuente, tamaño, interlineado, alineación y negrita
+del cuerpo y de la carátula.
+
+```yaml
+formato_efectivo:
+  parte: document
+  contexto: cuerpo | cuerpo_prosa | caratula | todos | seccion_cuerpo   # defecto: todos
+  sujeto: run | parrafo                                  # defecto: run
+  parrafo_xpath: //w:body//w:p
+  propiedad: w:rFonts/@w:ascii    # o un toggle: w:b
+  comparacion: eq | all_eq | contains                    # defecto: all_eq
+  esperado: Times New Roman
+  tolerancia: 12                  # opcional, igual que atributo_xml
+  n_a_si_sin_nodos: true          # opcional
+  n_a_si_ausente: true            # opcional
+```
+
+- `parrafo_xpath` selecciona **primero** los párrafos candidatos (respetando
+  `parte` y `contexto`); después se resuelve el valor efectivo de cada sujeto.
+  No se ignora una propiedad ausente ni se supone que cumple.
+- `sujeto: run` evalúa **todos los runs con texto** de cada párrafo,
+  incluidos los que viven dentro de un `w:hyperlink`. Un run sin texto no
+  aporta valor y no exime al párrafo. `sujeto: parrafo` evalúa las
+  propiedades de `w:pPr` (p. ej. `w:jc` o `w:spacing`).
+- `propiedad` es `w:elemento/@w:atributo` para una propiedad con valor, o
+  `w:elemento` para un toggle OOXML (`w:b`, `w:i`, `w:u`). Un toggle
+  ausente en todas las capas devuelve `"0"` (Word lo considera apagado);
+  el resto de propiedades ausentes devuelve `(ausente)`.
+- `comparacion: all_eq` es la recomendada: `eq` solo miraría el primer
+  sujeto y repetiría el defecto de VA-01.
+- `n_a_si_sin_nodos`: si el `parrafo_xpath` no selecciona párrafos, la
+  regla se marca n/a. `n_a_si_ausente`: si la parte XML no existe, la regla
+  se marca n/a en vez de fallar.
+
+**Precedencia de resolución** (de mayor a menor), igual que Word:
+
+1. formato directo: `w:rPr` del run o `w:pPr` del párrafo;
+2. estilo de carácter (`w:rStyle`) y su cadena `basedOn`;
+3. estilo de párrafo (`w:pStyle`, o el estilo de párrafo por defecto
+   `w:default="1"`) y su cadena `basedOn` (sus `w:rPr`/`w:pPr`);
+4. `w:docDefaults` (`w:rPrDefault`/`w:pPrDefault`).
+
+Un ciclo en la cadena `basedOn` no tumba la validación: el analizador lo
+reporta como incumplimiento (`ciclo de estilos: A -> B -> A`), porque un
+documento con estilos cíclicos no permite conocer el formato efectivo.
+
+**Límites declarados** (M1/VA-02): no se resuelven temas (`w:asciiTheme`),
+numeración (`w:numPr`), formato condicional de tablas, estilos de tabla ni
+cambios de formato con seguimiento (`w:rPrChange`/`w:pPrChange`). Leer
+`basedOn` no promete soporte completo de estilos. Un `word/styles.xml`
+ausente o mal formado se trata como ausente: las reglas afectadas fallan
+con `(ausente)` en vez de tumbar la validación.
+
+El alcance de los títulos es explícito: `contexto: cuerpo` excluye los
+párrafos con estilo de título (los títulos tienen su propio formato en el
+manual). Si una regla necesita evaluar títulos, debe seleccionarlos con su
+propio `parrafo_xpath`; el analizador no los exime por sí mismo.
+
+`contexto: cuerpo_prosa` es el subconjunto de prosa de `cuerpo`: además de
+los títulos, excluye listas (`w:numPr` o estilo `List Paragraph`), captions
+de tabla y figura (estilo `Caption`) y leyendas (`---: ...`). Se usa en
+`alineacion_cuerpo`, porque el manual solo justifica el texto continuo;
+`fuente_principal`, `tamano_cuerpo` e `interlineado` siguen con
+`contexto: cuerpo` para revisar también listas y títulos.
+
 ---
 
 ## Componentes de código
@@ -535,7 +712,7 @@ Usado por `estructura_tinv_cuantitativo`, `estructura_tinv_cualitativo`,
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |
-| `reglas_unt.yaml` | — | 49 reglas de producción, incluidas `deteccion_tipo_documento` y `track_changes_sin_resolver` |
+| `reglas_unt.yaml` | — | 50 reglas de producción, incluidas `deteccion_tipo_documento` y `track_changes_sin_resolver` |
 | `reglas_unt_pendientes.yaml` | — | 5 estructuras implementadas y **sin** probar contra documentos reales (no hay plantillas de esos tipos); no lo carga la API |
 
 ---
@@ -587,7 +764,7 @@ tiempo de carga. Detecta:
   también la sintaxis inválida (p. ej. `//wp:ind` o `//w:p[`). Evita que la
   regla reviente con `XPathEvalError` en tiempo de ejecución.
 - **Claves desconocidas a nivel de regla**: el conjunto de claves válidas es
-  **cerrado** (29 en total: las 18 secciones de analizador más los 11 campos
+  **cerrado** (30 en total: las 19 secciones de analizador más los 11 campos
   de regla). Cualquier otra clave —una sección mal escrita (`atributo_xmls`) o
   un truncamiento (`conteo`)— se reporta; antes la regla desaparecía del
   reporte en silencio. La similitud difusa solo se usa para sugerir la sección

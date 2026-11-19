@@ -55,7 +55,7 @@ de RCU-220 y la p26 de RCU-274 para confirmar catálogo y ámbito del artículo.
   Cada fila conserva el criterio completo y su localizador. Todos requieren
   revisión humana del criterio completo. Algunos permiten subcontroles mecánicos;
   una coincidencia de encabezado no acredita su calidad metodológica.
-- [49 reglas activas y su fuente declarada](INVENTARIO_REGLAS_2026-11-12.csv).
+- [50 reglas activas y su fuente declarada](INVENTARIO_REGLAS_2026-11-12.csv).
   Es inventario inverso, no certificado de que las citas sean correctas.
 
 `INCORRECTO`: contraejemplo ejecutado o requisito estructural explícito omitido.

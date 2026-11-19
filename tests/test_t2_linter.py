@@ -5,7 +5,7 @@ y que solo se manifestaban en runtime (o, peor, en silencio):
 
 1. Sección mal escrita (`atributo_xmls`): la regla desaparecía del reporte
    sin ningún aviso, porque el compilador no la reconocía.
-2. XPath con prefijo de namespace desconocido (`//wp:ind`): reventaba al
+2. XPath con prefijo de namespace desconocido (`//zz:ind`): reventaba al
    EVALUAR contra el documento, con un `XPathEvalError` que la API
    mostraba al estudiante como si fuera un defecto de su tesis.
 3. Severidad inventada (`aviso`): `Severity(...)` reventaba en runtime.
@@ -171,9 +171,9 @@ def test_configuracion_de_seccion_no_dict_se_detecta():
 
 
 def test_prefijo_xpath_desconocido_se_detecta():
-    hallazgos = _hallazgos(_regla("r1", atributo_xml={"parte": "document", "xpath": "//wp:ind"}))
+    hallazgos = _hallazgos(_regla("r1", atributo_xml={"parte": "document", "xpath": "//zz:ind"}))
     assert hallazgos
-    assert any("wp" in h for h in hallazgos)
+    assert any("zz" in h for h in hallazgos)
 
 
 def test_prefijo_xpath_desconocido_antes_fallaba_en_runtime():
@@ -185,7 +185,7 @@ def test_prefijo_xpath_desconocido_antes_fallaba_en_runtime():
     from validator.compilador import CompilerDSL
     from validator.extractor import extract
 
-    dsl = _dsl(_regla("r1", atributo_xml={"parte": "document", "xpath": "//wp:ind"}))
+    dsl = _dsl(_regla("r1", atributo_xml={"parte": "document", "xpath": "//zz:ind"}))
     regla = CompilerDSL().compilar(dsl, linter=False)[0]
     path = compilar_docx(configuracion_base())
     try:
@@ -220,10 +220,10 @@ def test_prefijo_xpath_tambien_se_valida_en_paginacion():
     hallazgos = _hallazgos(
         _regla(
             "r1",
-            paginacion={"xpaths": ["//wp:p", "//w:tbl"], "parrafo": "//w:p"},
+            paginacion={"xpaths": ["//zz:p", "//w:tbl"], "parrafo": "//w:p"},
         )
     )
-    assert any("wp" in h for h in hallazgos)
+    assert any("zz" in h for h in hallazgos)
 
 
 @pytest.mark.parametrize(
@@ -243,6 +243,36 @@ def test_xpath_con_sintaxis_invalida_se_detecta():
     """lxml también detecta la expresión mal formada, no solo el prefijo."""
     hallazgos = _hallazgos(_regla("r1", atributo_xml={"parte": "document", "xpath": "//w:p["}))
     assert any("sintaxis" in h for h in hallazgos)
+
+
+def _regla_formato(**extra) -> dict:
+    regla = {
+        "id": "r1",
+        "tipo": "formato_efectivo",
+        "severidad": "error",
+        "descripcion": "formato efectivo",
+        "formato_efectivo": {
+            "parte": "document",
+            "parrafo_xpath": "//w:body//w:p",
+            "propiedad": "w:sz/@w:val",
+            "comparacion": "all_eq",
+            "esperado": "24",
+        },
+    }
+    regla["formato_efectivo"].update(extra)
+    return regla
+
+
+def test_parrafo_xpath_invalido_en_formato_efectivo_se_detecta():
+    """El XPath de selección también se valida al cargar (M1)."""
+    hallazgos = _hallazgos(_regla_formato(parrafo_xpath="//zz:p"))
+    assert any("formato_efectivo" in h and "XPath inválido" in h for h in hallazgos), hallazgos
+
+
+def test_propiedad_de_formato_invalida_se_detecta():
+    """Una propiedad que el resolvedor no entiende falla al cargar, no en runtime."""
+    hallazgos = _hallazgos(_regla_formato(propiedad="rFonts"))
+    assert any("propiedad" in h and "inválida" in h for h in hallazgos), hallazgos
 
 
 # ---------------------------------------------------------------------------
@@ -630,3 +660,87 @@ def test_secciones_del_linter_sincronizadas_con_el_compilador():
     from validator import compilador, dsl_check
 
     assert set(dsl_check._SECCIONES) == set(compilador.SECCIONES_ANALIZADOR)
+
+
+# ---------------------------------------------------------------------------
+# Revisión del PR #75: regex de `extraccion` y `seleccion`
+# ---------------------------------------------------------------------------
+
+
+def _regla_extraccion(**config) -> dict:
+    """Regla mínima de captura (`extraccion`) para probar el linter."""
+    return {
+        "id": "ficha_x",
+        "tipo": "estructura",
+        "severidad": "warning",
+        "descripcion": "captura de prueba",
+        "extraccion": {"campo": "dc.title", **config},
+    }
+
+
+@pytest.mark.parametrize("campo", ["quitar_prefijo", "quitar_sufijo"])
+def test_regex_de_extraccion_invalida_se_detecta(campo):
+    """Una regex rota en `extraccion` ya no falla solo en runtime."""
+    hallazgos = _hallazgos(_regla_extraccion(**{campo: "["}))
+    assert any(campo in h for h in hallazgos)
+
+
+@pytest.mark.parametrize("campo", ["quitar_prefijo", "quitar_sufijo"])
+def test_regex_de_extraccion_valida_no_produce_hallazgo(campo):
+    hallazgos = _hallazgos(_regla_extraccion(**{campo: r"^\s*asesor\s*:?\s*"}))
+    assert not hallazgos
+
+
+@pytest.mark.parametrize("seleccion", ["primero", "ultimo", "primero_no_vacio"])
+def test_seleccion_valida_no_produce_hallazgo(seleccion):
+    hallazgos = _hallazgos(_regla_extraccion(seleccion=seleccion))
+    assert not hallazgos
+
+
+def test_seleccion_invalida_se_detecta():
+    """Un typo en `seleccion` desactivaba la selección en silencio."""
+    hallazgos = _hallazgos(_regla_extraccion(seleccion="ultima"))
+    assert any("seleccion" in h and "ultima" in h for h in hallazgos)
+
+
+# M7/VA-15: medición del dibujo en `imagen`
+# ---------------------------------------------------------------------------
+
+
+def _regla_imagen(**config) -> dict:
+    """Regla mínima de imagen para probar el linter."""
+    return {
+        "id": "logo_x",
+        "tipo": "imagen",
+        "severidad": "warning",
+        "descripcion": "logo de prueba",
+        "imagen": {"parte": "document", "xpath": "//w:drawing//a:blip", **config},
+    }
+
+
+def test_imagen_con_medicion_valida_no_produce_hallazgo():
+    hallazgos = _hallazgos(_regla_imagen(ancho_cm=6.73, alto_cm=4.84, tolerancia_cm=0.1))
+    assert not hallazgos
+
+
+def test_imagen_con_solo_ancho_se_detecta():
+    """Declarar una sola dimensión dejaría la comparación a medias."""
+    hallazgos = _hallazgos(_regla_imagen(ancho_cm=6.73))
+    assert any("ancho_cm" in h and "alto_cm" in h for h in hallazgos)
+
+
+@pytest.mark.parametrize("valor", [0, -1, "6.73", True])
+def test_imagen_con_dimension_invalida_se_detecta(valor):
+    hallazgos = _hallazgos(_regla_imagen(ancho_cm=valor, alto_cm=4.84))
+    assert any("ancho_cm" in h for h in hallazgos)
+
+
+def test_imagen_con_tolerancia_no_positiva_se_detecta():
+    hallazgos = _hallazgos(_regla_imagen(ancho_cm=6.73, alto_cm=4.84, tolerancia_cm=0))
+    assert any("tolerancia_cm" in h for h in hallazgos)
+
+
+def test_imagen_con_clave_desconocida_se_detecta():
+    """Un typo (`tolerancia`) desactivaría la tolerancia en silencio."""
+    hallazgos = _hallazgos(_regla_imagen(ancho_cm=6.73, alto_cm=4.84, tolerancia=0.1))
+    assert any("tolerancia" in h for h in hallazgos)

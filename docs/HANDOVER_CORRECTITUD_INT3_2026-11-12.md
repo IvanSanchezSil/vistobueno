@@ -1,6 +1,10 @@
 # Handover Integrante 3 — motor — 2026-11-12
 
-**Estado:** tareas pendientes. Implementar solo los archivos asignados a este integrante.
+**Estado:** M1 a M7 implementados y fusionados en `master` el 2026-11-17.
+Merges: M1 `f6428d1` (#100), M1a `7d90502` (#99), M2 `2286886` (#101), M3
+`0a6d78b` (#102), M4 `32a3c13` (#103), M5 `4a1ae60` (#104), M6 `a666778`
+(#105) y M7 `de0ca8b` (#106). Quedan pendientes M8 (VA-16), M9 (VA-12),
+M10 (VA-18) y M12 (NM-01 a NM-07).
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
 Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
@@ -32,6 +36,11 @@ Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
   `except Exception` que convierta defectos del servidor en entradas inválidas.
 - **Aceptación:** XML truncado, raíz ajena y cuerpo ausente fallan de forma
   controlada; documentos admitidos y fixtures válidos siguen extrayéndose.
+- **Decisión (2026-11-15):** una parte opcional presente pero mal formada
+  (encabezado, pie o notas al pie) también invalida el documento completo
+  (`422`). Es defendible porque Word tampoco abriría ese archivo y evita
+  validar un documento con partes corruptas; queda declarado aquí, no solo
+  en el docstring del extractor.
 
 ### M1. Resolver formato efectivo y revisar todo el texto — VA-01, VA-02
 
@@ -82,6 +91,12 @@ producen contradicción; repetir el mismo tipo no cambia la decisión.
 **Aceptación:** cuantitativo + cualitativo marcados no dan verde; invertir el
 orden conserva el resultado; comprobar casillas en párrafos, tablas y controles.
 
+- **Estado 2026-11-14:** corregido en `5fb2344`. `_tipo_declarado` devuelve
+  todas las declaraciones; dos tipos distintos publican `TIPO_CONTRADICTORIO`
+  y el centinela `tipo_documento_contradictorio`, y repetir el mismo tipo no
+  cambia la decisión. Evidencia: `924 passed, 4 skipped`; ruff, ruff format,
+  mypy y linter limpios.
+
 ### M5. Resumen, Abstract y palabras clave — VA-06, VA-07
 
 **Archivos:** `reglas_unt.yaml`, analizadores de cantidad/sección, tests/factory.
@@ -98,6 +113,22 @@ orden conserva el resultado; comprobar casillas en párrafos, tablas y controles
 - Mantener `palabras_clave_minimo` en error. Si se agregan reglas, actualizar
   mutaciones, conteos, ejemplos y contrato. No debilitar las guardias existentes.
 
+- **Estado 2026-11-15:** corregido en `feeab66`. `resumen_longitud` exige
+  159–220 palabras y excluye del conteo la línea de palabras clave;
+  `palabras_clave_minimo` exige 3–5 claves y cuenta Resumen y Abstract por
+  separado, admitiendo `Palabras clave` y `Keywords`; `abstract_contenido`
+  detecta un Abstract sin cuerpo. `patron_cantidad` admite `secciones`,
+  `excluir`, `cantidad_maxima` y `count_entries` por párrafo. Evidencia:
+  `935 passed, 4 skipped`; ruff, ruff format, mypy y linter limpios; 50 reglas
+  (44 evaluadas en el documento base).
+- **Decisiones ratificadas (2026-11-16):** la tokenización del Resumen es
+  `\w+`; `abstract_contenido` se queda en `warning`; **Resumen y Abstract son
+  obligatorios los dos** (3–5 palabras clave en cada uno) y se aceptan **las
+  dos** etiquetas, `Palabras clave` y `Keywords`. Son las que ya estaban
+  implementadas: la ratificación confirma el comportamiento, no lo cambia.
+  La equivalencia Resumen/Abstract y la autoría de la traducción siguen
+  siendo revisión humana.
+
 ### M6. Aplicar el nombre de anexo decidido — VA-14
 
 **Archivos:** `reglas_unt.yaml`, pruebas de anexos.
@@ -105,6 +136,20 @@ Cambiar el ítem acordado a «Base de datos» y añadir nota `EVALUADO` con la
 decisión de 2026-11-08. Mantener warning. **Aceptación:** el título real se
 reconoce y su ausencia se informa. Un anexo como imagen requiere revisión
 manual; texto XML no encontrado no demuestra ausencia del contenido escaneado.
+
+- **Estado 2026-11-15:** corregido en `c2eb680`. El ítem 5 de
+  `anexos_minimos_cuantitativo` es «Base de datos» y conserva `warning`. La
+  nota `EVALUADO` documenta la decisión y el límite: la comparación es por
+  subcadena y un anexo escaneado como imagen no se ve en el texto XML, así
+  que la ausencia reportada exige revisión manual. Evidencia:
+  `937 passed, 4 skipped`; regresión `test_m6_*` (título real reconocido y
+  ausencia informada); ruff, ruff format, mypy y linter limpios; ejemplos
+  regenerados.
+- **Decisión ratificada (2026-11-16):** la comparación por **subcadena** se
+  mantiene: un anexo «Base de datos cualitativa» también satisface el ítem
+  cuantitativo. No se exige coincidencia de título completo. Sigue en pie el
+  otro límite, que no es una decisión: un anexo escaneado como imagen no se
+  ve en el texto XML, así que la ausencia reportada exige revisión manual.
 
 ### M7. Comprobar lo que anuncia la regla del logo — VA-15
 
@@ -114,6 +159,22 @@ No identificar visualmente el logo si no existe ese mecanismo.
 **Aceptación:** imagen solo en el cuerpo no satisface carátula; dimensiones
 incorrectas generan warning. Si solo se implementa presencia, renombrar la
 descripción y dejar la medición expresamente pendiente, no «cerrada».
+
+- **Estado 2026-11-15:** corregido en `b92f7f3`. `AnalizadorImagen`
+  mide el `wp:extent` del `wp:inline`/`wp:anchor` que contiene cada blip
+  (ancho = `cx`, alto = `cy`, 360000 EMU por cm). La regla declara
+  `contexto: caratula` (primera sección), `ancho_cm: 6.73`, `alto_cm: 4.84`
+  y `tolerancia_cm: 0.1`, con nota `EVALUADO`. Una imagen solo en el cuerpo
+  no satisface la carátula y un tamaño fuera de tolerancia da `warning`.
+  Evidencia: `948 passed, 4 skipped`; regresión `test_m7_*` (3 casos);
+  el linter valida la forma de `imagen` (5 pruebas, 8 casos); ruff,
+  ruff format, mypy y linter limpios; ejemplos regenerados.
+- **Decisión ratificada (2026-11-16):** la tolerancia de medición es de
+  **0,1 cm** (1 mm), la que ya se implementaba. El manual fija el tamaño del
+  logo pero no da tolerancia.
+- **Límite conocido:** no se identifica visualmente el logo. La regla mide
+  el primer dibujo de la carátula; si hay varias imágenes, todas deben
+  medir lo esperado.
 
 ### M8. ORCID por persona y destino — VA-16
 
@@ -136,7 +197,7 @@ a archivos sensibles ni hacer peticiones reales para demostrarlo.
 
 **Archivos:** `validator/cli.py`, `exportador.py`, pruebas de CLI/exportación.
 Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
-**Aceptación:** 49 totales, 41 evaluadas no se presentan como 49 evaluadas.
+**Aceptación:** 50 totales, 42 evaluadas no se presentan como 50 evaluadas.
 
 ### M11. Reparar el paquete OPC del factory — VA-17
 
@@ -150,6 +211,13 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
   de relaciones internas existen; mutaciones y reglas mantienen su intención.
 - Entregar el PR/commit y el comando de regeneración a Int1. B6 continúa
   después de esta entrega. No encargar a retblast el arreglo del builder.
+- **Dependencia declarada (2026-11-16):** `docs/ejemplos/doc_bueno.docx` y
+  `docs/ejemplos/doc_malo.docx` siguen siendo los paquetes rotos de antes
+  (`KeyError: "There is no item named 'media/logo.png' in the archive"`).
+  No bloquea M11 —el factory es lo que se arregla aquí— pero su regeneración
+  y el refuerzo de la guardia de ejemplos son **B6 de Int1**, con el comando
+  `python scripts/ejemplo_bueno_malo.py`. Hasta que B6 los regenere, la
+  evaluación contra los ejemplos versionados no es reproducible.
 
 ### M12. Cerrar brechas normativas — NM-01 a NM-07
 

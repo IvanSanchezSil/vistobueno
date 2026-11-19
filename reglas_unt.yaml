@@ -135,57 +135,75 @@ reglas:
     idéntico en párr. 443-444, 593-594 para otros tipos)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Tamaño A4/papel (210x297 cm)"'
+  # M2 (VA-03): se validan TODAS las secciones, no solo la primera. El
+  # alcance incluye carátula y anexos: A4 es el tamaño físico del papel y no
+  # depende del contenido de la sección. La orientación se normaliza (lado
+  # corto 11906 / lado largo 16838), así que una sección A4 horizontal
+  # legítima pasa y una Letter falla en cualquier orientación. La sección
+  # culpable se identifica por su posición (#N) en el detalle.
+  # Límite: se compara el valor OOXML exacto; una conversión que redondee el
+  # papel (p. ej. 11910 x 16840) sigue fallando y requiere una decisión
+  # aparte sobre tolerancia.
+  # `w:pgSz` es opcional en OOXML: una sección que no lo declara no puede
+  # compararse, así que se exige que TODAS las secciones lo declaren
+  # (revisión PR #101).
   atributo_xml:
   - parte: document
     contexto: todos
-    xpath: //w:sectPr[1]/w:pgSz
+    xpath: (//w:sectPr)/w:pgSz
     atributo: '@w:w'
-    comparacion: eq
+    comparacion: all_eq
     esperado: '11906'
   - parte: document
     contexto: todos
-    xpath: //w:sectPr[1]/w:pgSz
+    xpath: (//w:sectPr)/w:pgSz
     atributo: '@w:h'
-    comparacion: eq
+    comparacion: all_eq
     esperado: '16838'
+  presencia_xml:
+    parte: document
+    contexto: todos
+    xpath: '//w:sectPr[not(w:pgSz)]'
+    comparacion: not_exists
 - id: fuente_principal
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: La fuente del cuerpo del texto debe ser Times New Roman
   valor_esperado: Times New Roman
   severidad: error
   ubicacion: Sección "Formato general" (párr. 126-127)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Times New Roman: 12 puntos"'
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: cuerpo
-    xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:rFonts
-    atributo: '@w:ascii'
+    sujeto: run
+    parrafo_xpath: //w:body//w:p
+    propiedad: w:rFonts/@w:ascii
     comparacion: all_eq
     esperado: Times New Roman
 - id: tamano_cuerpo
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: El tamaño de letra del cuerpo del texto debe ser 12 puntos
   valor_esperado: 12pt
   severidad: error
   ubicacion: Sección "Formato general" (párr. 126-127)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Times New Roman: 12 puntos"'
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: cuerpo
-    xpath: //w:body//w:p[w:r]/w:r[1]/w:rPr/w:sz
-    atributo: '@w:val'
+    sujeto: run
+    parrafo_xpath: //w:body//w:p
+    propiedad: w:sz/@w:val
     comparacion: all_eq
     esperado: '24'
-# EVALUADO (AUD-05): las reglas de carátula usan `w:r[1]` y
-# `following-sibling::w:p[1]`, asumiendo que el texto relevante está en el
-# primer run y en el párrafo inmediatamente siguiente. Word puede partir el
-# texto en varios runs o intercalar párrafos vacíos, así que la regla podría
-# leer otro run/párrafo. Se documenta la limitación y se difiere el
-# endurecimiento hasta contar con documentos reales que la manifiesten.
+# M1 (VA-01/VA-02): las reglas de formato de carátula ya no leen `w:r[1]`.
+# Seleccionan el párrafo (o el bloque de párrafos) y evalúan todos sus runs
+# con texto, resolviendo el formato efectivo. Los selectores que acotan el
+# bloque con `[1]` o `following-sibling::w:p[1]` (p. ej. autores/asesor)
+# siguen siendo una limitación de selección estructural, no de formato.
 - id: caratula_universidad_tamano
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: Tamaño de letra del nombre de la Universidad en carátula
   valor_esperado: 18pt
   severidad: error
@@ -193,16 +211,17 @@ reglas:
     18 puntos/13 puntos/13 puntos)"'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'universidad')][1]/w:r[1]/w:rPr/w:sz
-    atributo: '@w:val'
-    comparacion: eq
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'universidad')][1]
+    propiedad: w:sz/@w:val
+    comparacion: all_eq
     esperado: '36'
 - id: caratula_facultad_escuela_tamano
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: Tamaño de letra de Facultad y Escuela Profesional en carátula
   valor_esperado: 13pt
   severidad: error
@@ -210,15 +229,16 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13
     puntos)."'
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'escuela'))][1]/w:r[1]/w:rPr/w:sz
-    atributo: '@w:val'
-    comparacion: eq
+      'escuela'))][1]
+    propiedad: w:sz/@w:val
+    comparacion: all_eq
     esperado: '26'
 # Título del trabajo (handover issue #4): el XPath buscaba el placeholder
 # "título del trabajo" de las plantillas, que una tesis real no contiene
@@ -227,7 +247,7 @@ reglas:
 # escuela/optar/tesis (perfil fijo del manual: Univ→Facultad/Escuela→Título).
 # Se valida solo en la carátula (`contexto: caratula`).
 - id: caratula_titulo_trabajo_tamano
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: Tamaño de letra del título del trabajo en carátula
   valor_esperado: 14pt
   severidad: warning
@@ -239,15 +259,16 @@ reglas:
   # oficial de EDUCACIÓN INICIAL usa 13 pt (sz 26). Se mantiene el valor del
   # manual como warning: no bloquea la entrega y deja documentado el desvío
   # (AUD-04).
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]/w:r[1]/w:rPr/w:sz
-    atributo: '@w:val'
-    comparacion: eq
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]
+    propiedad: w:sz/@w:val
+    comparacion: all_eq
     esperado: '28'
 - id: caratula_optar_grado_tamano
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: Tamaño de letra de la línea "Trabajo de Investigación para optar el grado o título
     profesional"
   valor_esperado: 13pt
@@ -263,17 +284,18 @@ reglas:
   # mantiene amplio ("para optar", sin acotar a "bachiller") y el desvío se
   # reporta como warning; no cambia el semáforo. `n_a_si_sin_nodos` solo
   # cubre los documentos que no tienen esa línea (AUD-07; ver también AUD-04).
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'para optar')][1]/w:r[1]/w:rPr/w:sz
-    atributo: '@w:val'
-    comparacion: eq
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'para optar')][1]
+    propiedad: w:sz/@w:val
+    comparacion: all_eq
     esperado: '26'
     n_a_si_sin_nodos: true
 - id: caratula_autores_tamano
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula
   valor_esperado: 12pt
   severidad: error
@@ -286,66 +308,97 @@ reglas:
   # del bloque de autores (desde «AUTORES:» hasta antes de «ASESOR(A):»,
   # incluidas las líneas ORCID) y comparación `all_eq`. Antes se leía solo el
   # primer run del primer párrafo: un run vacío, un ORCID intercalado o un
-  # segundo autor con otro tamaño pasaban inadvertidos. Las reglas `warning`
-  # de carátula conservan su selector (decisión §8 del handover).
-  atributo_xml:
+  # segundo autor con otro tamaño pasaban inadvertidos. Las demás reglas de
+  # carátula migraron a `formato_efectivo` en M1; su selector de párrafos se
+  # conserva (decisión §8 del handover).
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]/w:r[normalize-space(.) != '']/w:rPr/w:sz
-    atributo: '@w:val'
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
+    propiedad: w:sz/@w:val
     comparacion: all_eq
     esperado: '24'
 - id: caratula_logotipo_tamano
   tipo: imagen
   descripcion: Tamaño del logotipo de la Universidad en carátula
-  valor_esperado: 4.84 cm alto x 6.73 cm ancho
+  # EVALUADO (M7/VA-15): el manual fija 4,84 cm de alto x 6,73 cm de ancho
+  # (párr. 176) pero no da tolerancia. Se usa 0,1 cm (1 mm): absorbe el
+  # redondeo cm↔EMU y el ajuste manual del dibujo sin admitir un logo de
+  # otro tamaño. Tolerancia ratificada el 2026-11-16.
+  # Desvío conocido: la plantilla oficial que se entrega al estudiante trae
+  # el logo a 6,10 x 4,88 cm, fuera de la tolerancia. El manual es la fuente
+  # de verdad y la plantilla es solo una guía, así que el aviso se mantiene
+  # como `warning` y se lee como «la plantilla oficial se aparta del
+  # manual», no como defecto del estudiante.
+  # La comparación se aplica a todas las imágenes de la carátula: con
+  # `cantidad_minima: 1`, una carátula con el logo correcto y cualquier otra
+  # imagen no cumple. La descripción de la regla habla en singular, así que
+  # el aviso no debe leerse como «una imagen con el tamaño esperado».
+  # El ancho es el `cx` y el alto el `cy` del `wp:extent`; `contexto:
+  # caratula` limita la búsqueda a la primera sección, así que una imagen
+  # solo en el cuerpo o en el encabezado no satisface la carátula.
+  valor_esperado: 4.84 cm alto x 6.73 cm ancho (± 0.1 cm)
   severidad: warning
   ubicacion: Carátula, especificaciones (párr. 176)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Logotipo de la Universidad: Centrado, tamaño: 4.84 cm de alto x 6.73 cm de ancho."'
   imagen:
     parte: document
+    contexto: caratula
     xpath: //w:drawing//a:blip
     formato: png
     cantidad_minima: 1
+    ancho_cm: 6.73
+    alto_cm: 4.84
+    tolerancia_cm: 0.1
 - id: interlineado
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: El interlineado del cuerpo del texto debe ser 1.5 (1.5 líneas)
   valor_esperado: 1.5 (ONE_POINT_FIVE)
   severidad: error
   ubicacion: Sección "Formato general" (párr. 128-129)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Interlineado: 1.5 puntos"'
-  atributo_xml:
+  formato_efectivo:
   - parte: document
     contexto: cuerpo
-    xpath: //w:body//w:p[w:pPr/w:spacing]/w:pPr/w:spacing
-    atributo: '@w:line'
+    sujeto: parrafo
+    parrafo_xpath: //w:body//w:p
+    propiedad: w:spacing/@w:line
     comparacion: all_eq
     esperado: '360'
   - parte: document
     contexto: cuerpo
-    xpath: //w:body//w:p[w:pPr/w:spacing]/w:pPr/w:spacing
-    atributo: '@w:lineRule'
+    sujeto: parrafo
+    parrafo_xpath: //w:body//w:p
+    propiedad: w:spacing/@w:lineRule
     comparacion: all_eq
     esperado: auto
 - id: alineacion_cuerpo
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: El cuerpo del texto debe estar justificado
   valor_esperado: justificada
   severidad: error
   ubicacion: Sección "Formato general" (párr. 130-131)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Alineación: Justificada"'
-  atributo_xml:
+  formato_efectivo:
     parte: document
-    contexto: cuerpo
-    xpath: //w:body//w:p[w:pPr/w:jc]/w:pPr/w:jc
-    atributo: '@w:val'
+    contexto: cuerpo_prosa
+    sujeto: parrafo
+    parrafo_xpath: //w:body//w:p
+    propiedad: w:jc/@w:val
     comparacion: all_eq
     esperado: both
+    # Revisión PR #100: un documento cuyo cuerpo no tiene prosa (las cinco
+    # plantillas oficiales: solo listas, títulos y leyendas) no puede
+    # incumplir la alineación. Sin este flag, `all_eq` sobre 0 nodos daba
+    # "sin valores que comparar" y un error que el estudiante no podía
+    # corregir. Con prosa presente la regla sigue evaluando y exigiendo.
+    n_a_si_sin_nodos: true
 - id: alineacion_caratula_todos_elementos
-  tipo: atributo_xml
+  tipo: formato_efectivo
   descripcion: Todos los elementos de la carátula deben estar centrados
   valor_esperado: centrado
   severidad: error
@@ -353,20 +406,22 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Nombre de la Universidad: Centrado...", "Facultad y Escuela Profesional: Centrado...", "Título
     del Trabajo...: Centrado...", etc.'
-  atributo_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+    sujeto: parrafo
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'universidad') or (contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'escuela')) or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'para optar') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor:') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autores:') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'mención') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')]/w:pPr/w:jc
-    atributo: '@w:val'
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')]
+    propiedad: w:jc/@w:val
     comparacion: all_eq
     esperado: center
 # Márgenes del cuerpo: se validan SOLO las secciones que rigen el cuerpo real
@@ -527,19 +582,22 @@ reglas:
     xpath: //w:sectPr[1]/w:titlePg
     comparacion: exists
 - id: caratula_universidad_negrita_mayusculas
-  tipo: presencia_xml
+  tipo: formato_efectivo
   descripcion: El nombre de la Universidad en carátula debe ser con negrita y mayúsculas
   valor_esperado: negrita + MAYÚSCULAS
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 174)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Nombre de la Universidad: Centrado, con negrita y con mayúsculas (tamaño de letra, 18 puntos)."'
-  presencia_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'universidad')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
-    comparacion: exists
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'universidad')][1]
+    propiedad: w:b
+    comparacion: all_eq
+    esperado: '1'
   patron_texto:
     parte: document
     contexto: caratula
@@ -549,7 +607,7 @@ reglas:
     comparacion: fullmatch
     coincidencia: todos
 - id: caratula_facultad_negrita_mayusculas
-  tipo: presencia_xml
+  tipo: formato_efectivo
   descripcion: 'Facultad y Escuela en carátula: negrita y mayúsculas'
   valor_esperado: negrita + MAYÚSCULAS
   severidad: error
@@ -557,14 +615,17 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13
     puntos)."'
-  presencia_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'escuela'))][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
-    comparacion: exists
+      'escuela'))][1]
+    propiedad: w:b
+    comparacion: all_eq
+    esperado: '1'
   patron_texto:
     parte: document
     contexto: caratula
@@ -576,7 +637,7 @@ reglas:
     comparacion: fullmatch
     coincidencia: todos
 - id: caratula_titulo_negrita_mixta
-  tipo: presencia_xml
+  tipo: formato_efectivo
   descripcion: 'El título del trabajo en carátula: negrita con mayúsculas y minúsculas (no todo mayúsculas)'
   valor_esperado: negrita + Mayúsculas y minúsculas
   severidad: error
@@ -584,11 +645,14 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Título del Trabajo de Investigación: Centrado, con negrita y con letras mayúsculas y minúsculas
     (tamaño de letra, 14 puntos)."'
-  presencia_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
-    comparacion: exists
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'para optar')][1]/preceding-sibling::w:p[normalize-space(.)][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'universidad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'facultad'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'escuela'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'programa'))][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'tesis') and string-length(normalize-space(.)) < 40)][1]
+    propiedad: w:b
+    comparacion: all_eq
+    esperado: '1'
   patron_texto:
     parte: document
     contexto: caratula
@@ -597,7 +661,7 @@ reglas:
     comparacion: fullmatch
     coincidencia: alguno
 - id: caratula_autores_mayusculas_sin_negrita
-  tipo: presencia_xml
+  tipo: formato_efectivo
   # EVALUADO: el manual pide "letras mayúsculas" (párr. 179) pero se valida
   # "no todo en mayúsculas" (altas y bajas): se rechaza el nombre escrito TODO
   # en mayúsculas, que es lo que usan las tesis reales aprobadas y el
@@ -608,12 +672,15 @@ reglas:
   ubicacion: Carátula, especificaciones (párr. 179)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
-  presencia_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
-    comparacion: not_exists
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]
+    propiedad: w:b
+    comparacion: all_eq
+    esperado: '0'
   patron_texto:
     parte: document
     contexto: caratula
@@ -623,33 +690,39 @@ reglas:
     comparacion: fullmatch
     coincidencia: todos
 - id: caratula_asesor_negrita
-  tipo: presencia_xml
+  tipo: formato_efectivo
   descripcion: 'El asesor en carátula: con negrita'
   valor_esperado: negrita
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 180)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas..."'
-  presencia_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'asesor')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
-    comparacion: exists
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'asesor')][1]
+    propiedad: w:b
+    comparacion: all_eq
+    esperado: '1'
 - id: caratula_ciudad_pais_negrita
-  tipo: presencia_xml
+  tipo: formato_efectivo
   descripcion: 'Ciudad y país en carátula: centrado, con negrita, mayúsculas y minúsculas'
   valor_esperado: negrita + Mayúsculas y minúsculas
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 182)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos)."'
-  presencia_xml:
+  formato_efectivo:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'trujillo')][1]/w:r[1]/w:rPr/w:b[not(@w:val='0')]
-    comparacion: exists
+    sujeto: run
+    parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'trujillo')][1]
+    propiedad: w:b
+    comparacion: all_eq
+    esperado: '1'
   patron_texto:
     parte: document
     contexto: caratula
@@ -1079,11 +1152,17 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas
     separadas)."'
+  # Revisión PR #102: el primer ítem comparaba `contains(..., 'contenidos')`,
+  # que también coincide con prosa del cuerpo ("los contenidos de…"), así que
+  # la regla pasaba sin comprobar que existiera el índice de contenidos. Ahora
+  # exige el TEXTO COMPLETO del título: "Índice" (tesis aprobada) o "Índice de
+  # contenidos". Los ítems de tablas y figuras conservan `contains` (límite
+  # conocido: una mención en prosa también los satisface); no se endurecen sin
+  # plantillas reales para contrastar.
   presencia_xml:
   - parte: document
     contexto: todos
-    xpath: //w:body//w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'contenidos')]
+    xpath: //w:body//w:p[normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice de contenidos' or normalize-space(translate(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'áéíóúüñ', 'aeiouun')) = 'indice']
     comparacion: exists
   - parte: document
     contexto: todos
@@ -1109,33 +1188,70 @@ reglas:
 
 - id: resumen_longitud
   tipo: estructura
-  descripcion: El Resumen debe tener una extensión mínima de 159 palabras
-  valor_esperado: '>= 159 palabras'
+  descripcion: El Resumen debe tener entre 159 y 220 palabras, sin contar la línea de palabras clave
+  valor_esperado: '159–220 palabras'
   severidad: warning
   ubicacion: 'Sección Resumen (párr. 201)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Su extensión mínima 159 y su extensión máxima..."'
+  # EVALUADO (M5): el máximo 220 consta en REQ-31 (p201) de
+  # docs/MATRIZ_REQUISITOS_2026-11-12.csv; el manual local no está en el
+  # repo. La línea de palabras clave se excluye del conteo de prosa.
+  # Tokenización ratificada el 2026-11-16: se cuentan las palabras con
+  # `\w+` (Unicode), de modo que «educación» es una palabra y «no-ción» dos.
   patron_cantidad:
     seccion:
       inicio: resumen
     operacion: count_words
+    excluir: '^(palabras clave|keywords)\b'
+    ignore_case: true
     cantidad_minima: 159
+    cantidad_maxima: 220
 
 - id: palabras_clave_minimo
   tipo: estructura
-  descripcion: Resumen y Abstract deben incluir mínimo 3 palabras clave
-  valor_esperado: '>= 3 palabras clave'
+  descripcion: Resumen y Abstract deben incluir entre 3 y 5 palabras clave
+  valor_esperado: '3–5 palabras clave en Resumen y Abstract'
   severidad: error
   ubicacion: 'Plantilla Resumen (párr. 86 de la plantilla Educación Inicial)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Palabras clave: (mínimo 03 palabras clave)"'
+  # EVALUADO (M5): el máximo 5 consta en REQ-32 (p201) de la matriz; el
+  # manual local no está en el repo. Cada idioma se cuenta por separado y
+  # se admiten las etiquetas documentadas "Palabras clave" y "Keywords".
+  # Ratificado el 2026-11-16: Resumen y Abstract son obligatorios los dos,
+  # y se aceptan las dos etiquetas.
   patron_cantidad:
-    seccion:
-      inicio: resumen
+    secciones:
+      - nombre: resumen
+        inicio: resumen
+      - nombre: abstract
+        inicio: abstract
     operacion: count_entries
-    filtro: '^palabras clave'
+    filtro: '^(palabras clave|keywords)\b'
     ignore_case: true
     cantidad_minima: 3
+    cantidad_maxima: 5
+
+- id: abstract_contenido
+  tipo: estructura
+  descripcion: El Abstract debe tener contenido además de su título
+  valor_esperado: '>= 1 palabra de contenido'
+  severidad: warning
+  ubicacion: 'Sección Abstract (párr. 203)'
+  fuente: 'docs/MATRIZ_REQUISITOS_2026-11-12.csv (REQ-35, p203)'
+  cita: 'REQ-35: "Abstract es traducción del Resumen por especialista"; la acción de auditoría pide exigir contenido no vacío. Severidad ratificada: warning (2026-11-16).'
+  # EVALUADO (M5): un título ABSTRACT sin cuerpo no prueba que exista la
+  # traducción. El conteo excluye la línea de palabras clave; la equivalencia
+  # con el Resumen y la autoría de la traducción siguen siendo revisión humana.
+  # Severidad ratificada el 2026-11-16: warning, informa sin bloquear.
+  patron_cantidad:
+    seccion:
+      inicio: abstract
+    operacion: count_words
+    excluir: '^(palabras clave|keywords)\b'
+    ignore_case: true
+    cantidad_minima: 1
 
 # ─── REFERENCIAS MÍNIMAS SEGÚN TIPO DE INVESTIGACIÓN ────────
 # EVALUADO: el MVP no detecta tipo de investigación. Se aplican las
@@ -1194,12 +1310,19 @@ reglas:
   aplicar_si:
     tipo_documento: tinv_cuantitativo
   descripcion: Anexos obligatorios para Trabajo de Investigación Cuantitativo
+  # EVALUADO (M6/VA-14): decisión de 2026-11-08. El manual dice «Base de
+  # datos cuantitativo» y la tesis real titula «Base de datos»; el ítem 5 se
+  # fija como «Base de datos». La comparación es por subcadena, así que
+  # también satisface el título largo. Un anexo escaneado como imagen no se
+  # ve en el texto XML: la ausencia reportada exige revisión manual.
+  # Comparación por subcadena ratificada el 2026-11-16: se mantiene, sin
+  # exigir coincidencia de título completo.
   valor_esperado:
   - Matriz de consistencia
   - Instrumento(s) de recolección de datos
   - Ficha técnica del instrumento
   - Consentimiento informado
-  - Base de datos cuantitativa
+  - Base de datos
   - Reporte de similitud
   - Carta de autorización institucional
   - Declaración jurada
@@ -1218,7 +1341,7 @@ reglas:
     - Instrumento(s) de recolección de datos
     - Ficha técnica del instrumento
     - Consentimiento informado
-    - Base de datos cuantitativa
+    - Base de datos
     - Reporte de similitud
     - Carta de autorización institucional
     - Declaración jurada
@@ -1315,12 +1438,23 @@ reglas:
   ubicacion: "Sección Índice (párr. 193, 1066, 2600, 3495)"
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Se subdivide: índice de contenidos, tablas y figuras (cada índice debe presentarse en páginas separadas)." — Manual, párrafo 193.'
+  # M3 (VA-04): el texto real es "ÍNDICE DE CONTENIDOS/TABLAS/FIGURAS", pero la
+  # tesis aprobada titula la primera sección solo "Índice" (párr. 62). El
+  # XPath pliega tildes (translate) y compara el TEXTO COMPLETO del párrafo
+  # para que la línea PAGEREF de la tabla de contenido no se confunda con el
+  # título de la sección (revisión PR #102). Con `contains` y solo tildes
+  # plegadas la regla daba un falso positivo `paginas_repetidas` sobre la
+  # tesis aprobada (10, 11, 11); con el texto completo exacto pasa (10, 12,
+  # 14). El primer XPath prefiere "indice de contenidos" y solo cae al título
+  # genérico "indice" cuando aquel no existe, para que un título paraguas
+  # "ÍNDICE" no le gane a la subdivisión. Límite: se toma la primera
+  # coincidencia de cada XPath en orden de documento.
   paginacion:
     comparacion: paginas_distintas
     xpaths:
-      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "indice")]'
-      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "tablas")]'
-      - '//w:body//w:p[contains(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "figuras")]'
+      - '(//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"] | //w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice"][not(//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de contenidos"])])[1]'
+      - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de tablas"]'
+      - '//w:body//w:p[normalize-space(translate(translate(normalize-space(.), "ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ", "abcdefghijklmnopqrstuvwxyzáéíóúñü"), "áéíóúüñ", "aeiouun")) = "indice de figuras"]'
 
 # ─── F2 ítem 2: ENCABEZADOS Y PIES DE PÁGINA (2026-09-21) ──────
 # EVALUADO: el manual no define el membrete del encabezado (solo la posición

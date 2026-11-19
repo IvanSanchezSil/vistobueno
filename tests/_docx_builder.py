@@ -9,7 +9,21 @@ DOCX puro, sin lógica de mutaciones (ver `_mutations`).
 import tempfile
 import zipfile
 
-from _xml_constants import ANS, CONTENT_TYPES, PNS, RELS, RNS, WNS, WPN
+from _xml_constants import (
+    ANS,
+    CONTENT_TYPES,
+    DOCUMENT_RELS,
+    FOOTNOTES_CONTENT_TYPE,
+    FOOTNOTES_REL,
+    HEADER_RELS,
+    PNG_LOGO,
+    PNS,
+    RELS,
+    RNS,
+    STYLES_CONTENT_TYPE,
+    WNS,
+    WPN,
+)
 
 ANEXOS_BASE = [
     "Matriz de consistencia",
@@ -119,18 +133,41 @@ def _run(texto: str, rpr_inner: str = "") -> str:
 
 
 def _run_portada(spec: dict) -> str:
+    """Run de portada; permite probar herencia y runs vacíos (M1).
+
+    - `run_vacio`: antepone un run sin texto (no debe eximir al párrafo).
+    - `sin_rpr`: no declara formato directo (lo aportan estilo/docDefaults).
+    - `estilo_caracter`: usa `w:rStyle` en vez de `w:b`/`w:sz` directos.
+    """
+    if spec.get("sin_rpr"):
+        run = _run(spec["texto"])
+        if spec.get("run_vacio"):
+            run = "<w:r/>" + run
+        return run
     rpr = ""
-    if spec.get("negrita"):
-        rpr += "<w:b/>"
-    if spec.get("sz"):
-        rpr += f'<w:sz w:val="{spec["sz"]}"/>'
-    return _run(spec["texto"], rpr)
+    if spec.get("estilo_caracter"):
+        rpr += f'<w:rStyle w:val="{spec["estilo_caracter"]}"/>'
+    else:
+        if spec.get("negrita"):
+            rpr += "<w:b/>"
+        if spec.get("sz"):
+            rpr += f'<w:sz w:val="{spec["sz"]}"/>'
+    if spec.get("rpr"):
+        rpr += spec["rpr"]
+    run = _run(spec["texto"], rpr)
+    if spec.get("run_vacio"):
+        run = "<w:r/>" + run
+    return run
 
 
 def _cover_para(spec: dict) -> str:
-    """Párrafo de la portada con alineación controlada."""
+    """Párrafo de la portada con alineación controlada.
+
+    `estilo_parrafo` usa un estilo de párrafo y omite el `w:jc` directo
+    (`sin_jc`), para probar que la alineación se hereda del estilo (M1).
+    """
     if spec.get("logo"):
-        return f"<w:p>{_logo()}</w:p>"
+        return f"<w:p>{_logo(spec.get('ancho_cm', 6.73), spec.get('alto_cm', 4.84))}</w:p>"
     if spec.get("orcid"):
         return (
             f'<w:p><w:pPr><w:jc w:val="{spec.get("jc", "center")}"/></w:pPr>'
@@ -139,25 +176,88 @@ def _cover_para(spec: dict) -> str:
             f"</w:hyperlink></w:p>"
         )
     jc = spec.get("jc", "center")
-    return f'<w:p><w:pPr><w:jc w:val="{jc}"/></w:pPr>{_run_portada(spec)}</w:p>'
+    ppr = ""
+    if spec.get("estilo_parrafo"):
+        ppr += f'<w:pStyle w:val="{spec["estilo_parrafo"]}"/>'
+    if not spec.get("sin_jc"):
+        ppr += f'<w:jc w:val="{jc}"/>'
+    ppr_xml = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
+    return f"<w:p>{ppr_xml}{_run_portada(spec)}</w:p>"
 
 
 def _body_para(texto: str) -> str:
     return f"<w:p>{_run(texto)}</w:p>"
 
 
+def _cuerpo_runs(texto: str, rpr: str, cfg: dict) -> str:
+    """Runs del cuerpo con las variantes de herencia/hipervínculo de M1.
+
+    - `cuerpo_run_vacio`: antepone un run vacío.
+    - `cuerpo_hipervinculo`: mete el texto (con `rpr` propio opcional) en un
+      `w:hyperlink`; el analizador debe evaluarlo igual que un run normal.
+    - `cuerpo_runs_extra`: añade runs adicionales (texto y `rpr` propios).
+    """
+    runs = []
+    if cfg.get("cuerpo_run_vacio"):
+        runs.append("<w:r/>")
+    hiper = cfg.get("cuerpo_hipervinculo")
+    if hiper:
+        hiper = hiper if isinstance(hiper, dict) else {}
+        runs.append(
+            f'<w:hyperlink r:id="rIdOrc" xmlns:r="{RNS}">'
+            f"{_run(hiper.get('texto', texto), hiper.get('rpr', rpr))}"
+            f"</w:hyperlink>"
+        )
+    else:
+        runs.append(_run(texto, rpr))
+    for extra in cfg.get("cuerpo_runs_extra", []):
+        runs.append(_run(extra["texto"], extra.get("rpr", rpr)))
+    return "".join(runs)
+
+
 def _cuerpo_para(texto: str, cfg: dict) -> str:
-    """Párrafo de la última sección (contenido del cuerpo, estilos del manual)."""
-    pPr = (
-        f'<w:pPr><w:spacing w:line="{cfg["interlineado"]}" w:lineRule="auto"/>'
-        f'<w:jc w:val="{cfg["jc_cuerpo"]}"/>'
-        f'<w:ind w:firstLine="{cfg["sangria"]}"/></w:pPr>'
-    )
-    rpr = (
-        f'<w:rFonts w:ascii="{cfg["fuente"]}" w:hAnsi="{cfg["fuente"]}"/>'
-        f'<w:sz w:val="{cfg["sz_cuerpo"]}"/><w:szCs w:val="{cfg["sz_cuerpo"]}"/>'
-    )
-    return f"<w:p>{pPr}{_run(texto, rpr)}</w:p>"
+    """Párrafo de la última sección (contenido del cuerpo, estilos del manual).
+
+    Los knobs `cuerpo_sin_formato`, `cuerpo_estilo`, `cuerpo_sin_pPr` y
+    `cuerpo_estilo_caracter` permiten generar el equivalente con formato
+    heredado de `word/styles.xml` (M1 / VA-02).
+    """
+    ppr = ""
+    if cfg.get("cuerpo_estilo"):
+        ppr += f'<w:pStyle w:val="{cfg["cuerpo_estilo"]}"/>'
+    if not cfg.get("cuerpo_sin_formato") and not cfg.get("cuerpo_sin_pPr"):
+        ppr += (
+            f'<w:spacing w:line="{cfg["interlineado"]}" w:lineRule="auto"/>'
+            f'<w:jc w:val="{cfg["jc_cuerpo"]}"/>'
+            f'<w:ind w:firstLine="{cfg["sangria"]}"/>'
+        )
+    ppr_xml = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
+
+    rpr = ""
+    if not cfg.get("cuerpo_sin_formato"):
+        if cfg.get("cuerpo_estilo_caracter"):
+            rpr = f'<w:rStyle w:val="{cfg["cuerpo_estilo_caracter"]}"/>'
+        elif not cfg.get("cuerpo_estilo"):
+            rpr = (
+                f'<w:rFonts w:ascii="{cfg["fuente"]}" w:hAnsi="{cfg["fuente"]}"/>'
+                f'<w:sz w:val="{cfg["sz_cuerpo"]}"/><w:szCs w:val="{cfg["sz_cuerpo"]}"/>'
+            )
+    return f"<w:p>{ppr_xml}{_cuerpo_runs(texto, rpr, cfg)}</w:p>"
+
+
+def _cuerpo_parrafo_extra(spec: dict) -> str:
+    """Párrafo adicional del cuerpo con `pPr`/`rPr` propios (M1).
+
+    Sirve para los casos de alcance de `alineacion_cuerpo`: listas
+    (`w:numPr`), captions y leyendas, que no declaran `w:jc` y no deben
+    evaluarse como prosa.
+    """
+    ppr = ""
+    if spec.get("estilo"):
+        ppr += f'<w:pStyle w:val="{spec["estilo"]}"/>'
+    ppr += spec.get("ppr", "")
+    ppr_xml = f"<w:pPr>{ppr}</w:pPr>" if ppr else ""
+    return f"<w:p>{ppr_xml}{_run(spec['texto'], spec.get('rpr', ''))}</w:p>"
 
 
 def _track_change_para(cfg: dict) -> str:
@@ -227,9 +327,17 @@ def _tdc_para(entrada: tuple) -> str:
     return f'<w:p><w:pPr><w:pStyle w:val="TDC{nivel}"/></w:pPr>{_run_tabs(texto)}</w:p>'
 
 
-def _logo() -> str:
+def _logo(ancho_cm: float = 6.73, alto_cm: float = 4.84) -> str:
+    """Logotipo con extensión real (`wp:extent`), en EMU (360000 por cm).
+
+    M7/VA-15 mide la imagen; el PNG de 1×1 es solo un marcador.
+    """
+    cx = round(ancho_cm * 360000)
+    cy = round(alto_cm * 360000)
     return (
-        "<w:r><w:drawing><wp:inline><a:graphic><a:graphicData "
+        "<w:r><w:drawing><wp:inline>"
+        f'<wp:extent cx="{cx}" cy="{cy}"/>'
+        "<a:graphic><a:graphicData "
         'uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<pic:pic><pic:blipFill><a:blip r:embed="rIdImg"/></pic:blipFill>'
         "<pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline>"
@@ -282,7 +390,7 @@ def configuracion_base() -> dict:
     """Devuelve la configuración del DOCX que pasa 45/47 reglas."""
     portada = {
         "univ": {"texto": "UNIVERSIDAD NACIONAL DE TRUJILLO", "negrita": True, "sz": 36},
-        "logo": {"logo": True},
+        "logo": {"logo": True, "ancho_cm": 6.73, "alto_cm": 4.84},
         "facultad": {
             "texto": "FACULTAD DE EDUCACIÓN Y CIENCIAS DE LA COMUNICACIÓN",
             "negrita": True,
@@ -333,6 +441,8 @@ def configuracion_base() -> dict:
         "footer_jc": "right",
         "resumen_palabras": 175,
         "palabras_clave_n": 3,
+        "abstract_palabras": 175,
+        "palabras_clave_abstract_n": 3,
         "referencias_n": 30,
         "anexos_items": list(ANEXOS_BASE),
         "anexos_como_titulos": False,
@@ -448,15 +558,22 @@ def _document_xml(cfg: dict) -> str:
             # Párrafos de prosa del cuerpo: viven entre Introducción y
             # Referencias (el extractor define el cuerpo por ese rango
             # semántico, no por la última sección del documento).
-            paras.append(
-                _cuerpo_para(
-                    "La motricidad fina se desarrolla a través de estrategias lúdicas.", cfg
+            # `cuerpo_prosa_base=False` permite construir un documento cuyo
+            # cuerpo solo tenga listas, títulos y leyendas, como las
+            # plantillas oficiales (revisión PR #100).
+            if cfg.get("cuerpo_prosa_base", True):
+                paras.append(
+                    _cuerpo_para(
+                        "La motricidad fina se desarrolla a través de estrategias lúdicas.", cfg
+                    )
                 )
+                paras.append(
+                    _cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg)
+                )
+                paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
+            paras.extend(
+                _cuerpo_parrafo_extra(spec) for spec in cfg.get("cuerpo_parrafos_extra", [])
             )
-            paras.append(
-                _cuerpo_para("Se aplicó un estudio cuantitativo con diseño experimental.", cfg)
-            )
-            paras.append(_cuerpo_para("Los resultados muestran una mejora significativa.", cfg))
             if cfg.get("cambios_seguimiento"):
                 paras.append(_track_change_para(cfg))
         if h == "INDICE DE CONTENIDOS":
@@ -467,6 +584,12 @@ def _document_xml(cfg: dict) -> str:
             )
             claves = ", ".join(f"clave{i}" for i in range(cfg["palabras_clave_n"]))
             paras.append(_body_para(f"Palabras clave: {claves}"))
+        if h == "ABSTRACT":
+            paras.append(
+                _body_para(" ".join(f"abstract{i}" for i in range(cfg["abstract_palabras"])))
+            )
+            claves = ", ".join(f"keyword{i}" for i in range(cfg["palabras_clave_abstract_n"]))
+            paras.append(_body_para(f"Keywords: {claves}"))
         if h == "REFERENCIAS":
             paras.extend(
                 _body_para(f"Autor, A. ({1990 + i}). Fuente bibliográfica {i}.")
@@ -489,6 +612,12 @@ def _document_xml(cfg: dict) -> str:
     # insertó tras el heading "INTRODUCCIÓN". Los párrafos que siguen al
     # marcador no son cuerpo (anexos finales y notas), solo cierran el doc.
     paras.append(_sect_marker(cfg))
+    # Caché de render al final: la usan las mutaciones que necesitan que el
+    # documento se comporte como uno ya guardado por Word (M3/VA-04). Sin
+    # este marcador, la ausencia de saltos deja las páginas como
+    # desconocidas y la regla de paginación pasa como n/a.
+    if cfg.get("marcador_render_final"):
+        paras.append(_page_break_para())
     nota_pie = _notas_pie_para(cfg)
     if nota_pie:
         paras.append(nota_pie)
@@ -559,17 +688,96 @@ def _sect_final(cfg: dict) -> str:
     )
 
 
+def _document_rels(con_notas: bool) -> str:
+    """Relaciones de `word/document.xml`, con notas al pie si existen."""
+    if not con_notas:
+        return DOCUMENT_RELS
+    return DOCUMENT_RELS.replace("</Relationships>", f"{FOOTNOTES_REL}</Relationships>")
+
+
+def _content_types(con_notas: bool, con_estilos: bool) -> str:
+    """`[Content_Types].xml` con un `Override` solo por cada parte existente.
+
+    Los `Override` de notas al pie y de estilos se agregan únicamente cuando
+    la parte se escribe: el OPC no admite un tipo de contenido que apunte a
+    una parte ausente (mismo criterio que el arreglo de M11 para las notas).
+    """
+    extra = ""
+    if con_notas:
+        extra += FOOTNOTES_CONTENT_TYPE
+    if con_estilos:
+        extra += STYLES_CONTENT_TYPE
+    if not extra:
+        return CONTENT_TYPES
+    return CONTENT_TYPES.replace("</Types>", f"{extra}</Types>")
+
+
+def _styles_xml(cfg: dict) -> str | None:
+    """Parte `word/styles.xml` a partir de `cfg["styles"]` (M1).
+
+    `styles` es un mapa con:
+
+    - `doc_defaults`: `{"rpr": <xml interior>, "ppr": <xml interior>}`.
+    - `estilos`: mapa `styleId -> {"type", "basedOn", "default", "rpr", "ppr"}`.
+
+    Si `styles` no está en la config, el paquete no lleva `styles.xml` (el
+    documento base conserva el formato directo). `styles_xml_malo` escribe
+    una parte truncada para probar que el extractor la trata como ausente.
+    """
+    if cfg.get("styles_xml_malo"):
+        return '<?xml version="1.0" encoding="UTF-8"?><w:styles xmlns:w="' + WNS + '"><w:style'
+    styles = cfg.get("styles")
+    if styles is None:
+        return None
+    partes = []
+    defaults = styles.get("doc_defaults")
+    if defaults:
+        rpr = defaults.get("rpr")
+        ppr = defaults.get("ppr")
+        inner = ""
+        if rpr is not None:
+            inner += f"<w:rPr>{rpr}</w:rPr>"
+        if ppr is not None:
+            inner += f"<w:pPr>{ppr}</w:pPr>"
+        partes.append(f"<w:docDefaults>{inner}</w:docDefaults>")
+    for sid, spec in styles.get("estilos", {}).items():
+        tipo = spec.get("type", "paragraph")
+        attrs = f'w:styleId="{sid}" w:type="{tipo}"'
+        if spec.get("default"):
+            attrs += ' w:default="1"'
+        inner = ""
+        if spec.get("name"):
+            inner += f'<w:name w:val="{spec["name"]}"/>'
+        if spec.get("basedOn"):
+            inner += f'<w:basedOn w:val="{spec["basedOn"]}"/>'
+        if spec.get("rpr") is not None:
+            inner += f"<w:rPr>{spec['rpr']}</w:rPr>"
+        if spec.get("ppr") is not None:
+            inner += f"<w:pPr>{spec['ppr']}</w:pPr>"
+        partes.append(f"<w:style {attrs}>{inner}</w:style>")
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:styles xmlns:w="{WNS}">{"".join(partes)}</w:styles>'
+    )
+
+
 def compilar_docx(cfg: dict) -> str:
     """Compila la configuración a un DOCX temporal y devuelve la ruta."""
     with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as f:
         path = f.name
+    notas = cfg.get("notas_pie_ids", [])
+    estilos = _styles_xml(cfg)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", CONTENT_TYPES)
+        z.writestr("[Content_Types].xml", _content_types(bool(notas), estilos is not None))
         z.writestr("_rels/.rels", RELS)
         z.writestr("word/document.xml", _document_xml(cfg))
+        z.writestr("word/_rels/document.xml.rels", _document_rels(bool(notas)))
         z.writestr("word/header1.xml", _header_xml(cfg))
+        z.writestr("word/_rels/header1.xml.rels", HEADER_RELS)
         z.writestr("word/footer1.xml", _footer_xml(cfg["footer_jc"]))
-        notas = cfg.get("notas_pie_ids", [])
+        z.writestr("word/media/logo.png", PNG_LOGO)
+        if estilos is not None:
+            z.writestr("word/styles.xml", estilos)
         if notas:
             z.writestr("word/footnotes.xml", _footnotes_xml(notas))
     return path
