@@ -757,7 +757,9 @@ const VBEjecutor = (() => {
 					if (actual === op.texto) {
 						return { ok: true, detalle: "" };
 					}
-					// Valor no quedó: reintentar en la siguiente vuelta
+					// Valor no quedó: reescribir y reintentar en la
+					// siguiente vuelta del bucle exterior.
+					_ponerTexto(doc, input, op.texto);
 					break;
 				}
 			}
@@ -1286,7 +1288,7 @@ if (typeof module !== "undefined" && module.exports) {
 					alRecibir(null, "contrato_desactualizado", ticket);
 					return;
 				}
-				alRecibir(sobre, ticket);
+				alRecibir(sobre, null, ticket);
 			},
 			function () {
 				if (ticket !== VBTicket.ticketActual()) return;
@@ -1322,7 +1324,7 @@ if (typeof module !== "undefined" && module.exports) {
 					alRecibir(null, "contrato_desactualizado", ticket);
 					return;
 				}
-				alRecibir(tramite, ticket);
+				alRecibir(tramite, null, ticket);
 			},
 			function () {
 				if (ticket !== VBTicket.ticketActual()) return;

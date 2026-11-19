@@ -335,7 +335,9 @@ const VBEjecutor = (() => {
 					if (actual === op.texto) {
 						return { ok: true, detalle: "" };
 					}
-					// Valor no quedó: reintentar en la siguiente vuelta
+					// Valor no quedó: reescribir y reintentar en la
+					// siguiente vuelta del bucle exterior.
+					_ponerTexto(doc, input, op.texto);
 					break;
 				}
 			}

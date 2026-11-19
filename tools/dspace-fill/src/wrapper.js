@@ -116,7 +116,7 @@
 					alRecibir(null, "contrato_desactualizado", ticket);
 					return;
 				}
-				alRecibir(sobre, ticket);
+				alRecibir(sobre, null, ticket);
 			},
 			function () {
 				if (ticket !== VBTicket.ticketActual()) return;
@@ -152,7 +152,7 @@
 					alRecibir(null, "contrato_desactualizado", ticket);
 					return;
 				}
-				alRecibir(tramite, ticket);
+				alRecibir(tramite, null, ticket);
 			},
 			function () {
 				if (ticket !== VBTicket.ticketActual()) return;
