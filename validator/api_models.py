@@ -9,8 +9,13 @@ del modelo interno `RuleResult` (dataclass) para:
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# Handle institucional del Repositorio UNT. Un enlace a otro repositorio
+# no identifica un ítem de esta institución y no puede confirmar un depósito.
+PATRON_HANDLE = r"^https://hdl\.handle\.net/20\.500\.14414/\d+/?$"
 
 
 class SeveridadAPI(StrEnum):
@@ -254,60 +259,283 @@ class FichaDeposito(BaseModel):
 
 
 class FichaPendientePublicada(BaseModel):
-    """Respuesta de POST /ficha-pendiente (v1.13.0).
+    """Respuesta de POST /ficha-pendiente (v1.14.0).
 
     El trámite identifica esta ficha concreta. La SPA lo conserva y lo
-    envía en cada solicitud de papeleo. Publicar una ficha nueva crea un
-    trámite nuevo, aunque el título sea el mismo.
+    envía en cada solicitud de papeleo y de conciliación. Publicar una
+    ficha nueva crea un trámite nuevo, aunque el título sea el mismo.
+
+    `vence_en` se conserva como alias deprecado de `autofill_hasta` para
+    los clientes v1.13.0. La retención del trámite (`retenido_hasta`) es
+    independiente y más larga: vencer el autorelleno no borra la ficha.
     """
 
     tramite_id: str = Field(..., description="Identificador efímero de la ficha publicada")
-    vence_en: datetime = Field(..., description="Instante en que expira la ficha (UTC)")
+    revision: int = Field(..., ge=0, description="Revisión de la ficha canónica")
+    autofill_hasta: datetime = Field(..., description="Fin de la ventana de autorelleno (UTC)")
+    retenido_hasta: datetime = Field(
+        ..., description="Fin de la retención del trámite completo (UTC)"
+    )
+    vence_en: datetime | None = Field(
+        default=None,
+        description="DEPRECADO: alias de autofill_hasta; se retirará en una próxima versión",
+    )
 
 
 class FichaPendienteLeida(BaseModel):
-    """Respuesta de GET /ficha-pendiente (v1.13.0).
+    """Respuesta de GET /ficha-pendiente (v1.14.0).
 
-    El userscript lee la ficha y su trámite juntos. El `tramite_id` debe
-    viajar de vuelta en POST /deposito: evita reportar un ítem de una
-    ficha anterior.
+    El userscript lee la ficha y su trámite juntos. El `tramite_id` y la
+    `revision` deben viajar de vuelta en POST /deposito: evitan confirmar
+    un ítem o una revisión que ya cambiaron.
     """
 
     ficha: FichaDeposito = Field(..., description="Ficha completada por el operador")
     tramite_id: str = Field(..., description="Identificador efímero de esta ficha")
-    vence_en: datetime = Field(..., description="Instante en que expira la ficha (UTC)")
+    revision: int = Field(..., ge=0, description="Revisión de la ficha canónica")
+    autofill_hasta: datetime = Field(..., description="Fin de la ventana de autorelleno (UTC)")
+    retenido_hasta: datetime = Field(..., description="Fin de la retención del trámite (UTC)")
+    vence_en: datetime | None = Field(
+        default=None,
+        description="DEPRECADO: alias de autofill_hasta; se retirará en una próxima versión",
+    )
+
+
+class InconsistenciaAPI(BaseModel):
+    """Inconsistencia detectada entre el ítem y la ficha canónica."""
+
+    motivos: list[str] = Field(..., description="Motivos legibles reportados")
+    revision: int = Field(..., ge=0, description="Revisión sobre la que se reportó")
+    reportada_en: datetime = Field(..., description="Momento del reporte (UTC)")
 
 
 class DepositoReportado(BaseModel):
-    """Cuerpo de POST /deposito (v1.13.0).
+    """Cuerpo de POST /deposito (v1.14.0): confirmación explícita.
 
-    El userscript reporta lo que leyó en la página del ítem. `tramite_id`
-    ata el reporte a la ficha vigente y `titulo_observado` conserva el
-    título real del ítem, no el título esperado de la ficha.
+    Este endpoint ya no acepta un "reporte automático". `atestacion` y
+    `revision_esperada` son obligatorios: un payload de la versión anterior
+    no confirma nada (422). El servidor genera `confirmado_en`; `timestamp`
+    se conserva como el momento del clic en Depositar, que alimenta la HORA
+    del registro y de la constancia.
+
+    `autores_observados` es evidencia OPCIONAL: null significa que la
+    página no exponía autores. En ese caso el servidor registra
+    `autores_verificados=false`, nunca "coinciden".
     """
 
     tramite_id: str = Field(..., min_length=1, description="Trámite de la ficha en vuelo")
-    handle: str = Field(..., min_length=1, description="URI del ítem (https://hdl.handle.net/…)")
+    handle: str = Field(
+        ...,
+        pattern=PATRON_HANDLE,
+        description="URI del ítem archivado (https://hdl.handle.net/20.500.14414/…)",
+    )
     titulo_observado: str = Field(
         ..., min_length=1, description="Título leído en la página del ítem archivado"
+    )
+    autores_observados: list[str] | None = Field(
+        default=None,
+        description=(
+            "Autores leídos de la página del ítem, o null si la página no los "
+            "expone. Si vienen y no coinciden con la ficha, la confirmación falla."
+        ),
     )
     timestamp: str = Field(
         ..., min_length=1, description="Momento del clic en Depositar (ISO 8601), hora de Perú"
     )
+    revision_esperada: int = Field(
+        ...,
+        ge=0,
+        description="Revisión de la ficha que el operador revisó en el panel",
+    )
+    atestacion: Literal["operador"] = Field(
+        ...,
+        description=(
+            "Atestación explícita del operador. Sin este campo no hay "
+            "confirmación: los reportes automáticos de versiones anteriores "
+            "reciben 422."
+        ),
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "examples": [
+                {
+                    "tramite_id": "a1b2c3",
+                    "handle": "https://hdl.handle.net/20.500.14414/27871",
+                    "titulo_observado": "Taller de dramatización de títeres",
+                    "autores_observados": ["Cerna Vidal Kassiel"],
+                    "timestamp": "2026-11-16T09:30:00-05:00",
+                    "revision_esperada": 0,
+                    "atestacion": "operador",
+                }
+            ]
+        },
+    )
+
+    @field_validator("autores_observados")
+    @classmethod
+    def _normalizar_autores(cls, valor: list[str] | None) -> list[str] | None:
+        """Una lista vacía equivale a "no disponible"; nunca a "coinciden"."""
+        if valor is None:
+            return None
+        limpios = [a.strip() for a in valor if isinstance(a, str) and a.strip()]
+        return limpios or None
 
 
-class DepositoRecibido(DepositoReportado):
-    """Respuesta de GET /deposito (v1.13.0).
+class DepositoRecibido(BaseModel):
+    """Respuesta de GET /deposito y del bloque `deposito` de GET /tramite.
 
-    Conserva el alias `titulo` por una versión, marcado como deprecado.
-    Es el mismo valor que `titulo_observado`; la SPA debe usar el campo
-    nuevo. El alias nunca se acepta como entrada.
+    Describe una **confirmación del operador**, no un estado verificado
+    por el servidor de DSpace. `confirmado_en` es solo auditoría: la HORA
+    del papeleo sale de `timestamp` (clic en Depositar).
     """
 
+    tramite_id: str = Field(..., description="Trámite al que pertenece la confirmación")
+    handle: str = Field(..., description="URI del ítem confirmado")
+    titulo_observado: str = Field(..., description="Título leído en la página del ítem")
+    titulo_verificado: bool = Field(
+        default=False,
+        description=(
+            "True si el título canónico existe y coincide con el observado. "
+            "False significa que no se pudo comparar, no que difieran."
+        ),
+    )
+    autores_observados: list[str] | None = Field(
+        default=None, description="Autores leídos del ítem, o null si no estaban disponibles"
+    )
+    autores_verificados: bool = Field(
+        default=False,
+        description=(
+            "True solo si la página exponía autores y coincidían con la ficha. "
+            "False no significa que no coincidan: significa que no se verificaron."
+        ),
+    )
+    timestamp: str = Field(
+        ..., description="Momento del clic en Depositar (fuente de la HORA del papeleo)"
+    )
+    revision_confirmada: int = Field(
+        ..., ge=0, description="Revisión exacta que el operador confirmó"
+    )
+    confirmado_en: datetime = Field(
+        ..., description="Momento en que se aceptó la confirmación (UTC)"
+    )
+    confirmado_por: Literal["operador"] = Field(
+        default="operador", description="Autor de la atestación"
+    )
+    confirmacion_vigente: bool = Field(
+        default=True,
+        description="False si una conciliación posterior cambió la revisión",
+    )
     titulo: str | None = Field(
         default=None,
-        description="DEPRECADO: alias de titulo_observado; se retirará en la próxima versión",
+        description="DEPRECADO: alias de titulo_observado; se retirará en una próxima versión",
     )
+
+
+class TramiteLeido(BaseModel):
+    """Respuesta de GET /tramite (v1.14.0).
+
+    Es la vista canónica del trámite retenido. La SPA la usa después de
+    vencer el autorelleno y antes de cada solicitud de papeleo. El
+    userscript la usa para construir el panel de confirmación con la
+    revisión vigente, no con un valor guardado.
+    """
+
+    ficha: FichaDeposito = Field(..., description="Ficha canónica vigente")
+    tramite_id: str = Field(..., description="Identificador del trámite")
+    revision: int = Field(..., ge=0, description="Revisión vigente de la ficha")
+    inconsistencia: InconsistenciaAPI | None = Field(
+        default=None, description="Inconsistencia pendiente de conciliación"
+    )
+    deposito: DepositoRecibido | None = Field(
+        default=None, description="Confirmación de depósito, si existe"
+    )
+    publicada_en: datetime = Field(..., description="Publicación original (UTC)")
+    autofill_hasta: datetime = Field(..., description="Fin de la ventana de autorelleno (UTC)")
+    retenido_hasta: datetime = Field(..., description="Fin de la retención del trámite (UTC)")
+    autofill_habil: bool = Field(
+        ..., description="True si la ficha todavía se puede servir para rellenar"
+    )
+    confirmacion_vigente: bool = Field(
+        ...,
+        description=(
+            "True si hay depósito confirmado y su revisión es la vigente. "
+            "Una conciliación posterior exige reconfirmar."
+        ),
+    )
+
+
+class ReconciliarRequest(BaseModel):
+    """Cuerpo de POST /ficha-pendiente/reconciliar (v1.14.0).
+
+    Reemplaza la ficha canónica con una corrección revisada por el
+    operador. Funciona antes de la confirmación (no fabrica evidencia de
+    depósito) y después (conserva el depósito, pero invalida la
+    confirmación hasta reconfirmar la revisión nueva).
+    """
+
+    tramite_id: str = Field(..., min_length=1, description="Trámite a corregir")
+    handle: str = Field(
+        ...,
+        pattern=PATRON_HANDLE,
+        description="Handle del ítem que el operador está mirando",
+    )
+    ficha: FichaDeposito = Field(..., description="Ficha corregida")
+    motivo: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Motivo de la corrección, revisado por el operador",
+    )
+    revision_esperada: int = Field(
+        ..., ge=0, description="Revisión sobre la que se preparó la corrección"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ReconciliacionResponse(BaseModel):
+    """Respuesta de POST /ficha-pendiente/reconciliar (v1.14.0)."""
+
+    tramite_id: str = Field(..., description="Trámite corregido")
+    revision: int = Field(..., ge=0, description="Revisión nueva")
+    handle: str = Field(..., description="Handle revisado")
+    confirmacion_vigente: bool = Field(
+        ..., description="False si la corrección invalidó una confirmación previa"
+    )
+    deposito: DepositoRecibido | None = Field(
+        default=None, description="Evidencia conservada, si ya existía un depósito"
+    )
+
+
+class InconsistenciaRequest(BaseModel):
+    """Cuerpo de POST /ficha-pendiente/inconsistencia (v1.14.0)."""
+
+    tramite_id: str = Field(..., min_length=1, description="Trámite con la divergencia")
+    handle: str = Field(
+        ...,
+        pattern=PATRON_HANDLE,
+        description="Handle del ítem donde se observó la divergencia",
+    )
+    motivos: list[str] = Field(
+        ...,
+        min_length=1,
+        description="Motivos legibles; al menos uno",
+    )
+    revision_esperada: int = Field(
+        ..., ge=0, description="Revisión sobre la que se observó la divergencia"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("motivos")
+    @classmethod
+    def _motivos_no_vacios(cls, valor: list[str]) -> list[str]:
+        limpios = [m.strip() for m in valor if isinstance(m, str) and m.strip()]
+        if not limpios:
+            raise ValueError("se exige al menos un motivo no vacío")
+        return limpios
 
 
 class FilaRegistroRequest(BaseModel):
