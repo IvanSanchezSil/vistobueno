@@ -567,11 +567,13 @@ reglas:
     comparacion: not_exists
   - parte: document
     contexto: todos
-    # Las secciones siguientes continúan la numeración sin reiniciarla:
-    # cualquier `w:start` explícito es un reinicio. El valor correcto
-    # depende del número de páginas y no se puede verificar sin
-    # renderizar (límite documentado en el handover).
-    xpath: (//w:sectPr)[position() < last()][position() > 1]/w:pgNumType[@w:start]
+    # Las secciones siguientes continúan la numeración: solo se rechaza
+    # un `w:start` menor que 2, que la reinicia (por ejemplo en 1).
+    # Declarar `w:start="2"` es legítimo cuando la carátula ocupa su
+    # propia sección (carátula = i, dedicatoria = ii). El valor correcto
+    # de un correlativo más largo depende del total de páginas y no se
+    # puede verificar sin renderizar (límite documentado en el handover).
+    xpath: (//w:sectPr)[position() < last()][position() > 1]/w:pgNumType[number(@w:start) < 2]
     comparacion: not_exists
 - id: numeracion_cuerpo_arabigo
   tipo: presencia_xml
@@ -615,7 +617,10 @@ reglas:
     # `w:titlePg` solo vale si no está apagado. Antes bastaba con que el
     # nodo existiera, así que `w:val="0"` (primera página igual al resto,
     # con número visible) pasaba (NM-01, cover_titlepg_false).
-    xpath: //w:sectPr[1]/w:titlePg[not(@w:val='0') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'false') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'off')]
+    # El paréntesis es imprescindible: `//w:sectPr[1]` tomaría el primer
+    # hijo de CADA padre, así que un `titlePg` vivo en el cuerpo salvaba
+    # una carátula con `w:val="0"`. Solo rige el de la primera sección.
+    xpath: (//w:sectPr)[1]/w:titlePg[not(@w:val='0') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'false') and not(translate(@w:val, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz') = 'off')]
     comparacion: exists
 - id: caratula_universidad_negrita_mayusculas
   tipo: formato_efectivo

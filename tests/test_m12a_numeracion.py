@@ -99,6 +99,16 @@ def _titlepg_true(doc) -> None:
     doc.xpath("//w:sectPr[1]/w:titlePg", namespaces=NS)[0].set(f"{{{W}}}val", "true")
 
 
+def _titlepg_vivo_en_otra_seccion(doc) -> None:
+    """Apaga `titlePg` en la carátula y lo deja vivo en el cuerpo."""
+    _titlepg_false(doc)
+    sect = _sectprs(doc)[-1]
+    titlepg = sect.find(f"{{{W}}}titlePg")
+    if titlepg is None:
+        titlepg = etree.SubElement(sect, f"{{{W}}}titlePg")
+    titlepg.set(f"{{{W}}}val", "true")
+
+
 def _formato_cuerpo_incorrecto(doc) -> None:
     _pg_num(_sectprs(doc)[-1]).set(f"{{{W}}}fmt", "lowerRoman")
 
@@ -111,13 +121,13 @@ def _preliminares_inicio_1(doc) -> None:
     _pg_num(_sectprs(doc)[0]).set(f"{{{W}}}start", "1")
 
 
-def _preliminares_reinicia_despues(doc) -> None:
-    """Duplica el salto de sección y reinicia la numeración en el segundo."""
+def _preliminares_reinicia_despues(doc, inicio: str = "1") -> None:
+    """Duplica el salto de sección y declara `start` en el segundo."""
     marcador = doc.xpath("//w:p[w:pPr/w:sectPr]", namespaces=NS)[0]
     copia = copy.deepcopy(marcador)
     marcador.addnext(copia)
     pg = copia.find(f"{{{W}}}pPr/{{{W}}}sectPr/{{{W}}}pgNumType")
-    pg.set(f"{{{W}}}start", "1")
+    pg.set(f"{{{W}}}start", inicio)
 
 
 def _parrafos_pie(footer) -> list:
@@ -247,3 +257,23 @@ def test_reinicio_explicito_en_una_seccion_posterior_falla(docx_base, tmp_path):
     _mutar(docx_base, destino, {"word/document.xml": _preliminares_reinicia_despues})
     _, res = _por_regla(str(destino))
     assert not res["numeracion_preliminares_romano"]["passed"]
+
+
+def test_inicio_2_en_seccion_posterior_no_es_reinicio(docx_base, tmp_path):
+    """Carátula en su sección (i) y dedicatoria declarada en ii es válido."""
+    destino = tmp_path / "preliminar-inicio-2.docx"
+    _mutar(
+        docx_base,
+        destino,
+        {"word/document.xml": lambda doc: _preliminares_reinicia_despues(doc, "2")},
+    )
+    _, res = _por_regla(str(destino))
+    assert res["numeracion_preliminares_romano"]["passed"]
+
+
+def test_titlepg_apagado_en_caratula_no_salva_el_de_otra_seccion(docx_base, tmp_path):
+    """`//w:sectPr[1]` miraba cada padre; solo rige la primera sección."""
+    destino = tmp_path / "titlepg-otra-seccion.docx"
+    _mutar(docx_base, destino, {"word/document.xml": _titlepg_vivo_en_otra_seccion})
+    _, res = _por_regla(str(destino))
+    assert not res["caratula_no_se_enumera"]["passed"]
