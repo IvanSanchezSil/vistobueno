@@ -25,7 +25,7 @@ con `VISTOBUENO_API_PUERTO` (por defecto 8000). El del mock, con
 (`nix run .#test-ficha-deposito`) los usa para correr su propia API sin
 chocar con otra instancia:
 
-## Checklist (11 pasos)
+## Checklist (12 pasos)
 
 1. Abre `http://127.0.0.1:8080/` — debe mostrar el índice con el flujo.
 2. Entra a `http://127.0.0.1:8080/mock/submit` — el botón verde flotante
@@ -46,15 +46,29 @@ chocar con otra instancia:
 8. Pulsa otra vez **"Rellenar"**: el formulario NO debe volver a
    llenarse (conserva lo que corregiste a mano) ni se pierde el
    timestamp del clic en Depositar.
-9. Marca **"Confirmo la licencia"** y pulsa **Depositar** → navega al
-   ítem del mock → el toast dice "Handle enviado a VistoBueno ✓" y el
-   indicador persistente abajo muestra el handle y el timestamp.
-10. Verifica el buzón: el indicador del ítem ya lo hace (verde = OK);
-    por terminal: `curl -s http://127.0.0.1:8000/deposito`.
-11. Genera el papeleo con esa respuesta: `POST /fila-registro` (json,
+9. Marca **"Confirmo la licencia"** y pulsa **Depositar** → navega a la
+   página del ítem (`/items/mock-uuid-1`). **Todavía no hay depósito**:
+   el clic solo registró la hora.
+10. En la página del ítem aparece el panel del userscript con el handle,
+    el título y los autores observados. Pulsa **"Confirmar depósito
+    archivado"**. Solo entonces el indicador persistente de abajo muestra
+    el handle y la hora del clic.
+11. Verifica el buzón: el indicador del ítem ya lo hace (verde = OK);
+    por terminal: `curl -s http://127.0.0.1:8000/deposito` debe traer
+    `confirmado_en`, `revision_confirmada` y `confirmacion_vigente`.
+12. Genera el papeleo con esa respuesta: `POST /fila-registro` (json,
     tsv, csv o xlsx) y `POST /constancia` (una descarga por autor; con
     `?formato=zip` incluye el registro del autor) con la ficha + handle
     + timestamp.
+
+## Rutas del mock
+
+| Ruta | Qué sirve |
+|------|-----------|
+| `/mock/submit` | formulario de envío (mismos `name`/`id` del real) |
+| `/items/<uuid>` | página del ítem: aquí aparece el panel de confirmación |
+| `/mock/item` | alias de la página del ítem |
+| `/mydspace` | ruta que **no** es un ítem: el panel no debe aparecer |
 
 ## Notas
 
