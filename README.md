@@ -243,8 +243,8 @@ pytest tests/ --cov=validator --cov-report=term-missing
 nix flake check
 ```
 
-La suite termina **en verde** (referencia en un clon sin `recursos/` ni
-`frontend/dist`: `1020 passed, 9 skipped`; los `skipped` son tests que
+La suite termina **en verde** (referencia en CI sobre `5dda06d`, sin
+`recursos/`: `1083 passed, 9 skipped`; los `skipped` son tests que
 necesitan esas carpetas, no fallos; ya no quedan `xfail` de la ficha) e
 incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en

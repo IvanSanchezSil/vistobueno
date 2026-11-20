@@ -80,9 +80,11 @@ de todas las obligaciones atómicas: varios tienen más de una propiedad.
 | NM-07 | P2 | Reglas de calidad presentadas con citas no localizadas en el manual | Int3 / M12, origen de reglas |
 | NM-08 | Decidido | Acceso abierto fijo reproduce la instrucción del jefe, confirmada por el usuario | Int1 / B3: verificar persistencia, sin nueva selección |
 
-Los NM no reemplazan VA ni AUD. Todos salvo NM-08 quedan pendientes. Int1
-no implementa los arreglos de motor. El encargado decide diferencias normativas;
-Int3 escribe sus reglas y pruebas. Int2 presenta los límites reales.
+Los NM no reemplazan VA ni AUD. NM-01 quedó cerrado en #114 (`448df55`); NM-02
+está corregido en código en el PR #118 (pendiente de fusión); NM-03 a NM-07
+siguen pendientes y NM-08 quedó decidido por el usuario. Int1 no implementa
+los arreglos de motor. El encargado decide diferencias normativas; Int3 escribe
+sus reglas y pruebas. Int2 presenta los límites reales.
 
 ### NM-01 y NM-02: contraejemplos ejecutados
 
