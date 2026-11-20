@@ -11,8 +11,8 @@ partir de un diccionario de configuración, de modo que los tests de
 propiedad puedan pedir:
 
 - `configuracion_base()`: el documento "bueno", que cumple TODAS las reglas
-  aplicables. Las 6 reglas de otros tipos de documento no le aplican (el
-  documento es un plan cuantitativo). Resultado: 0 fallos sobre 50 reglas.
+  aplicables. Las 10 reglas de otros tipos de documento no le aplican (el
+  documento es un plan cuantitativo). Resultado: 0 fallos sobre 54 reglas.
 - `aplicar_mutacion(rule_id, config)`: aplica un desvío MÍNIMO (una sola
   propiedad) contra el documento bueno, de forma que solo la regla
   `rule_id` cambie su resultado.

@@ -66,7 +66,7 @@ Cada regla es una función pura: recibe el documento normalizado y el parámetro
 
 - Si todos los `RuleResult` con `severity="error"` pasan → luz verde.
 - Si no → reporte agrupado por categoría (márgenes, tipografía, estructura, citas, etc.), con opción de vista simple (cartel) o detallada.
-- Por cada `RuleResult` fallido, genera un bloque "cómo preguntar a la IA" con el prompt armado y referencia textual a la directiva del reglamento correspondiente.
+- Por cada `RuleResult` fallido, genera un bloque "cómo preguntar a la IA" con el prompt armado y la referencia a la directiva aplicable. La etiqueta distingue la procedencia declarada (cita literal, paráfrasis, localizador, plantilla institucional, calidad técnica, matriz interna o norma institucional); el origen es interno del motor y no se expone en la API.
 
 ## Generación del esquema de reglas a partir del reglamento oficial (tiempo de diseño)
 
@@ -111,7 +111,7 @@ Ambos reglamentos en PDF escaneado estaban pendientes de OCR (ver README anterio
 > - `unt_format_rules_schema.yaml` — formato **legacy** (checks con
 >   `mecanismo_verificable`). Es la fuente histórica (Semana 2); la API ya no lo
 >   carga.
-> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **50 reglas**:
+> - `reglas_unt.yaml` — formato **DSL** (autómatas/analizadores), **54 reglas**:
 >   las 32 legacy migradas (F1) + 9 reglas antes no-deterministas mecanizadas
 >   a mano en la F3 (tokenizer + analizadores de conteo/lista/hipervínculo)
 >   + `indice_paginas_separadas` (paginación real por `w:lastRenderedPageBreak`)
@@ -173,7 +173,7 @@ scripts/
   migrar_legacy_a_dsl.py          # Migra YAML legacy → DSL
   ocr_pdfs.py                     # OCR de reglamentos escaneados
 
-reglas_unt.yaml            # Reglas en formato DSL (50 reglas) - lo carga la API
+reglas_unt.yaml            # Reglas en formato DSL (54 reglas) - lo carga la API
 reglas_unt_pendientes.yaml # 5 estructuras implementadas y sin probar (no lo carga la API)
 reglas_dsl_ejemplo.yaml    # Ejemplo de reglas DSL
 ```
@@ -250,7 +250,7 @@ incluye los **tests de propiedad** (F6): un factory
 determinista de DOCX (`tests/docx_factory.py`, descompuesto en
 `tests/_xml_constants.py`, `tests/_docx_builder.py` y `tests/_mutations.py`;
 este último **sincroniza sus mutaciones con `reglas_unt.yaml` al importar`)
-genera un documento "bueno" (44 de 50 evaluadas; las 6 reglas de otros tipos
+genera un documento "bueno" (44 de 54 evaluadas; las 10 reglas de otros tipos
 —las 2 estructuras alternativas, los mínimos de referencias/anexos de
 cualitativo y revisión, y la carátula del Proyecto— no le aplican, porque el
 documento es un plan cuantitativo) y 49

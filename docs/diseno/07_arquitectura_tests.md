@@ -140,7 +140,7 @@ Explicación del comparador `_compare`:
 ```
 a = estado(base)      # rule_id → (passed, found)
 b = estado(mutado)    # idem
-assert set(a) == set(b) == set(REGLAS)          # 50 reglas presentes
+assert set(a) == set(b) == set(REGLAS)          # 54 reglas presentes
 diffs = { rid | a[rid] != b[rid] }
 assert diffs == esperado                          # solo el par esperado
 ```

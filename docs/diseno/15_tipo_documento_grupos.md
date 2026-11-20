@@ -173,7 +173,7 @@ específicas, por lo que se evalúan **antes** y ganan.
    ```
 
 5. **Los conteos del reporte son dinámicos.** En una tesis cuantitativa se
-   evalúan 44 de 50 reglas. Un total fijo haría creer al estudiante que 6 reglas
+   evalúan 44 de 54 reglas. Un total fijo haría creer al estudiante que 10 reglas
    se cumplieron cuando en realidad no se miraron. Consecuencia: `resumen` cambia
    de semántica y requiere regenerar `openapi_spec.json` (el CI verifica el
    drift).
@@ -533,7 +533,7 @@ volverían a introducir el hueco.
 - El módulo de IA (explicación y priorización del diagnóstico) es **Fase C**,
   posterior a este trabajo.
 - Reglas por programa de estudio. Nota para el futuro: `caratula_linea_investigacion`
-  ya embebe un catálogo de 46 líneas, y el catálogo del RCU-274 es por programa.
+  ya embebe un catálogo de 50 líneas, y el catálogo del RCU-274 es por programa.
   `aplicar_si` admite un discriminador `programa` con el mismo mecanismo, pero
   **es un eje distinto al tipo de documento** y no debe mezclarse.
 - OCR, correo y notificación: fuera de alcance.

@@ -7,7 +7,7 @@ Cubre los analizadores nuevos del DSL:
 - `hipervinculo_texto`: ORCID en carátula.
 - `proyecto_caratula_texto` (patron_texto + atributo_xml, 13pt).
 - Helper `seccion()` del tokenizer (acotar secciones por títulos).
-- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (50 reglas).
+- Smoke: `reglas_unt.yaml` completa compila y valida sin excepción (54 reglas).
 
 Uso:
     pytest tests/test_f3_mecanizacion.py -v
@@ -663,18 +663,18 @@ class TestImagenRefactor:
 
 
 class TestReglasUntCompletas:
-    """Smoke: las 50 reglas de reglas_unt.yaml validan sin excepción."""
+    """Smoke: las 54 reglas de reglas_unt.yaml validan sin excepción."""
 
-    def test_50_reglas_validan(self):
+    def test_54_reglas_validan(self):
         rules = load_rules("reglas_unt.yaml")
-        assert len(rules["reglas"]) == 50
+        assert len(rules["reglas"]) == 54
         path = _make_docx([_para("RESUMEN", "Ttulo1"), _para("cuerpo breve")])
         try:
             resultados = validate_docx(path, rules)
-            # 50 del YAML + 1 centinela: este docx mínimo no se puede
+            # 54 del YAML + 1 centinela: este docx mínimo no se puede
             # clasificar (ni Anexo 10 ni firmas), y el paso 6 agrega el error
-            # `tipo_documento_no_determinado` como 51º resultado.
-            assert len(resultados) == 51
+            # `tipo_documento_no_determinado` como resultado adicional.
+            assert len(resultados) == 55
             assert all(isinstance(r, RuleResult) for r in resultados)
         finally:
             Path(path).unlink(missing_ok=True)

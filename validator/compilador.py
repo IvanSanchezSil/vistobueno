@@ -550,6 +550,7 @@ class ReglaCompilada:
             location=self.rule.get("ubicacion") or None,
             fuente=self.rule.get("fuente", ""),
             cita=self.rule.get("cita", ""),
+            origen_cita=self.rule.get("origen_cita", "literal"),
         )
 
     @staticmethod
@@ -644,6 +645,7 @@ class ReglaCompilada:
             location=ubicacion or None,
             fuente=self.rule.get("fuente", ""),
             cita=self.rule.get("cita", ""),
+            origen_cita=self.rule.get("origen_cita", "literal"),
             ficha=self._ficha(extracted),
             captura=isinstance(self.rule.get("extraccion"), dict),
         )
@@ -836,6 +838,8 @@ def _con_sentinel(resultados: list[RuleResult | None], contexto: dict) -> list[R
         location="Capítulo II — esquemas formales por tipo de título (párr. 75-90)",
         fuente="MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
         cita="Cada título profesional exige un esquema formal distinto",
+        # Es un resumen del capítulo, no una frase literal del manual (NM-07).
+        origen_cita="parafasis",
     )
     salida: list[RuleResult | None] = list(resultados)
     for i, r in enumerate(resultados):

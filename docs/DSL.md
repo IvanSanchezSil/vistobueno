@@ -26,6 +26,7 @@ reglas:
     fuente: <string>
     ubicacion: <string>
     cita: <string>
+    origen_cita: literal | parafasis | localizador | plantilla | calidad_tecnica | matriz_interna | norma_institucional  # opcional; default: literal
     # luego, UNA o VARIAS secciones de analizador (todas deben cumplirse):
     atributo_xml: { ... }
     patron_texto: { ... }
@@ -47,6 +48,14 @@ reglas:
 
 El `engine` detecta el formato por la clave `reglas` (DSL) vs `rules`
 (legacy). Ambos formatos pueden coexistir en el repositorio.
+
+`origen_cita` (NM-07) declara qué es `cita`. `literal` conserva la etiqueta
+histórica «Cita del reglamento»; los demás valores producen etiquetas propias
+en los prompts («Paráfrasis del reglamento», «Localizador en el reglamento»,
+«plantilla institucional», «calidad técnica», «matriz de auditoría interna» o
+«Norma institucional»). Es un campo **interno**: no se serializa en
+`RuleResult.to_dict()` ni se expone en la API. El linter rechaza valores
+desconocidos y una cita literal recortada con elipsis o «etc.».
 
 ---
 
@@ -335,25 +344,32 @@ patron_cantidad:
 
 ### 9. `conteo_nodos` → `AnalizadorConteoNodos` (F3)
 
-Cuenta nodos XPath **o** párrafos no vacíos de una sección y verifica
-cantidad mínima:
+Cuenta nodos XPath, párrafos no vacíos o entradas de una sección y verifica
+cantidad mínima/máxima:
 
 ```yaml
 conteo_nodos:
-  seccion: { inicio: referencias }    # modo "sección": cuenta PARRAFOs
+  seccion: { inicio: referencias }    # modo "sección"
+  unidad: entrada                     # parrafo (default) | entrada (NM-05)
+  label: referencias                  # etiqueta del detalle (default: nodos)
   # — o en su lugar —
   parte: document
   xpath: //w:body//w:p                # modo "nodos"
   cantidad_minima: 20
+  cantidad_maxima: 30                 # opcional: rango
   cantidades_multiples: [20, 30, 20]  # opcional: cualquier valor cumple
 ```
 
 - Sin `xpath` pero con `seccion:`, cuenta los párrafos no vacíos
-  (`PARRAFO`) del slice — usado por las reglas de *referencias mínimas*
-  según tipo de investigación.
+  (`PARRAFO`) del slice. Con `unidad: entrada` cuenta solo las entradas
+  con patrón autor-año: una continuación sin año no suma y el texto ajeno
+  se ignora. Es el modo que usan las reglas de referencias (NM-05). No
+  comprueba APA, sangría francesa ni la relación cita-referencia (REQ-50).
 - `cantidades_multiples` permite aceptar cualquiera de varios mínimos
   (cuando el mínimo depende del tipo de investigación). Si se declara,
   **no** se usa `cantidad_minima`.
+- Un `unidad` desconocido o una clave mal escrita los rechaza el linter al
+  cargar el DSL, en vez de dejar la regla contando párrafos en silencio.
 
 ### 10. `lista_obligatoria` → `AnalizadorListaObligatoria` (F3)
 
@@ -752,7 +768,7 @@ de tabla y figura (estilo `Caption`) y leyendas (`---: ...`). Se usa en
 | `validator/compilador.py` | `CompilerDSL`, `ReglaCompilada`, `AutomataSecuencia`, `GramaticaEstructuraAnalizador`, `AutomataPila` | Compila el YAML DSL → analizadores y produce `List[RuleResult]` |
 | `validator/engine.py` | `validate_docx` (modificado) | Detecta el formato (DSL vs legacy) y delega |
 | `reglas_dsl_ejemplo.yaml` | — | Archivo de ejemplo completo del formato DSL |
-| `reglas_unt.yaml` | — | 50 reglas de producción, incluidas `deteccion_tipo_documento` y `track_changes_sin_resolver` |
+| `reglas_unt.yaml` | — | 54 reglas de producción, incluidas `deteccion_tipo_documento` y `track_changes_sin_resolver` |
 | `reglas_unt_pendientes.yaml` | — | 5 estructuras implementadas y **sin** probar contra documentos reales (no hay plantillas de esos tipos); no lo carga la API |
 
 ---

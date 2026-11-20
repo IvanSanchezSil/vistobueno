@@ -138,8 +138,8 @@ Para que no te mezcle en el mensaje: nada de esto requiere nada tuyo.
 - `scripts/eval_contra_plantillas.py`: solo soporta el YAML legacy (con
   `reglas_unt.yaml` lanza `KeyError: 'rules'`) y el shellHook del flake lo
   invoca sin el argumento del YAML. Lo arreglo de mi lado.
-- AGENTS.md dice 46 líneas de investigación y el YAML tiene 50. Propongo
-  la corrección con aprobación del equipo, como pide la guía.
+- La guía de trabajo afirma 46 líneas de investigación y el YAML tiene 50.
+  Su corrección sigue pendiente de autorización explícita, como pide la guía.
 - Tests: si me confirmas el scope de los puntos 2-8, armo los tests de
   regresión y las mutaciones sincronizadas (`tests/_mutations.py`) con el
   XML real de esta tesis (run vacío, runs partidos, multisección).
