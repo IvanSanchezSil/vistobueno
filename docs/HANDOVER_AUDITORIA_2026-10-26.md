@@ -162,6 +162,19 @@ Los casos correctos siguen en verde, incluido el formato heredado de
 `tests/test_m12b_caratula_bloques.py`; ruff, ruff format y mypy limpios.
 Las reglas existentes se ampliaron (50 siguen siendo 50), sin mutaciones nuevas.
 
+**Ajuste tras la revisión del PR #118 (2026-11-20):** el patrón de
+mayúsculas/minúsculas del asesor se aplica al párrafo del nombre cuando la
+etiqueta (`ASESORA:`) no trae texto tras los dos puntos; si etiqueta y nombre
+comparten párrafo se conserva el selector original. La negrita sigue midiéndose
+en el párrafo de la etiqueta, que es el comportamiento verificado por el
+encargado con la tesis aprobada. La regresión nueva es
+`test_nombre_del_asesor_en_parrafo_separado` (18 regresiones en total).
+Verificación local, sin copiar documentos reales al repositorio: la tesis
+aprobada queda con 0 errores y la no aprobada sigue en rojo por
+`tamano_cuerpo`, `interlineado`, `alineacion_cuerpo` y
+`estructura_tinv_cuantitativo`. Las 5 plantillas oficiales quedan con 2 errores
+la de Educación Inicial y 4 las otras, sin `caratula_asesor_negrita` espurio.
+
 ---
 
 ## 3. Estructura real de la carátula
@@ -710,7 +723,7 @@ No se cerraron defectos con esta documentación. Los detalles están en M12 de I
 | ID | Responsable | Estado | Trabajo |
 |---|---|---|---|
 | NM-01 | Int3 | **corregido en código** (PR #114, abierto; pendiente de fusión y verificación final): 6 veredictos corregidos con 15 regresiones en `tests/test_m12a_numeracion.py`; continuidad exacta declarada como límite sin render | M12a: numeración y pies |
-| NM-02 | Int3 | **corregido en código** (rama `semana12-m12b-caratula-bloques`; pendiente de PR y fusión): escuela obligatoria aunque esté la facultad, y 12 pt en todo el párrafo del asesor; 16 regresiones en `tests/test_m12b_caratula_bloques.py` | M12b: bloques de carátula |
+| NM-02 | Int3 | **corregido en código** (PR #118, abierto; pendiente de fusión): escuela obligatoria aunque esté la facultad, 12 pt en todo el párrafo del asesor y patrón de mayúsculas/minúsculas aplicado al párrafo del nombre cuando va tras la etiqueta; 18 regresiones en `tests/test_m12b_caratula_bloques.py` | M12b: bloques de carátula |
 | NM-03 | Int3; Int2 comunica límites | pendiente | M12c y F3: esquemas y alcance |
 | NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |
 | NM-05 | Int3 | pendiente | M12e: referencias por ámbito |

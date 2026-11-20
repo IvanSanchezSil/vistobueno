@@ -300,10 +300,14 @@ subtarea. Retblast no implementa estas reglas ni sus fixtures.
 presencia, 13 pt, negrita, mayúsculas y centrado de FACULTAD (o PROGRAMA) y
 ESCUELA; 12 pt, negrita, centrado y mayúsculas/minúsculas del asesor; con
 formato directo, estilos de `styles.xml` y texto partido en varios runs.
-Evidencia: `16 passed` en `tests/test_m12b_caratula_bloques.py`, ruff, ruff
-format y mypy limpios. Límite: los bloques se localizan por texto, no se
+Evidencia: `18 passed` en `tests/test_m12b_caratula_bloques.py`, ruff, ruff
+format y mypy limpios. Tras la revisión de PR #118 se añadió el caso en que
+`ASESORA:` y el nombre están en párrafos distintos: la tesis aprobada queda en
+0 errores y la no aprobada sigue en rojo; las 5 plantillas oficiales no añaden
+el error espurio del asesor. Límite: los bloques se localizan por texto, no se
 identifican visualmente ni se renderizan; no se comprueba la identidad real
-del asesor. Sin documento real con PII en este clon: la medición es sintética.
+del asesor. La verificación con documentos reales es local y no se versionan
+copias con PII en el repositorio.
 
 En cada PR: agregar regresiones antes del arreglo, sincronizar mutaciones,
 verificar documentos reales aplicables y actualizar matriz REQ con prueba y
