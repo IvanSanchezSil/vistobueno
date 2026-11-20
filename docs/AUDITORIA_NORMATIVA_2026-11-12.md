@@ -55,7 +55,7 @@ de RCU-220 y la p26 de RCU-274 para confirmar catálogo y ámbito del artículo.
   Cada fila conserva el criterio completo y su localizador. Todos requieren
   revisión humana del criterio completo. Algunos permiten subcontroles mecánicos;
   una coincidencia de encabezado no acredita su calidad metodológica.
-- [50 reglas activas y su fuente declarada](INVENTARIO_REGLAS_2026-11-12.csv).
+- [54 reglas activas y su fuente declarada](INVENTARIO_REGLAS_2026-11-12.csv).
   Es inventario inverso, no certificado de que las citas sean correctas.
 
 `INCORRECTO`: contraejemplo ejecutado o requisito estructural explícito omitido.
@@ -75,7 +75,7 @@ de todas las obligaciones atómicas: varios tienen más de una propiedad.
 | NM-02 | P1 | Carátula verde sin escuela y con asesor a 36 pt | Int3 / M12, ampliar M1 |
 | NM-03 | P1 | Cobertura de tipos no corresponde al manual ni queda demostrada por cinco programas | Int3 / M12; Int2 comunica alcance en F3 |
 | NM-04 | P2 | No hay control de longitud del título ni orden de autores; límite inferior del título requiere decisión | Int3 / M12; encargado ratifica |
-| NM-05 | P2 | Referencias: mínimos por ámbito incompletos; contar párrafos no cuenta fuentes | Int3 / M12 |
+| NM-05 | P2 | Referencias: mínimos por ámbito incompletos; contar párrafos no cuenta fuentes. Corrección parcial en código en el PR de M12e (pendiente de fusión); falta ratificación con plantilla real | Int3 / M12e |
 | NM-06 | P2 | Anexos incompletos y contradicciones entre prosa y esquemas | Int3 / M12, ampliar M6 |
 | NM-07 | P2 | Reglas de calidad presentadas con citas no localizadas en el manual | Int3 / M12, origen de reglas |
 | NM-08 | Decidido | Acceso abierto fijo reproduce la instrucción del jefe, confirmada por el usuario | Int1 / B3: verificar persistencia, sin nueva selección |
@@ -111,6 +111,32 @@ los ID fallidos, no solo el semáforo. Repetir con un fixture OPC válido cuando
 Int3 entregue M11, y con documento real autorizado. Guardar pruebas con datos
 ficticios en la suite de Int3. No fijar estos verdes incorrectos como golden.
 
+### NM-05: contraejemplos ejecutados
+
+Evidencia de M12e: 15 regresiones en `tests/test_m12e_referencias.py`
+(`15 passed`). Se usa el factory para los casos por tipo y un DOCX sintético
+mínimo para los casos de conteo; ningún dato es real. Antes del arreglo las
+regresiones fallaban. El catálogo pasó de 50 a 54 reglas y el documento bueno
+sigue evaluando 44 (10 no aplicables).
+
+| Caso | Cambio único | Antes | Con M12e |
+|---|---|---|---|
+| 19 entradas + continuación sin año | Un párrafo ajeno después de 19 entradas autor-año | Verde: 20 párrafos | Rojo: `referencias=19 minimo=20` |
+| 19 entradas partidas en 21 párrafos | Segunda y tercera línea sin año de una entrada | Verde: 21 párrafos | Rojo: `referencias=19 minimo=20` |
+| TINV cuantitativo 20/19 | `referencias_n` del factory | 20 verde / 19 rojo | Igual, pero contando entradas |
+| TINV cualitativo 30/29 y revisión 20/19 | Tipo detectado por el factory | Igual, contando párrafos | Verde en el mínimo; rojo con `referencias=29 minimo=30` y `referencias=19 minimo=20` |
+| Proyecto 30/29 e informe 30/29 | Firmas que cambian el tipo detectado | Sin regla activa para esos tipos | Verde en 30; rojo con `referencias=29 minimo=30` |
+| TSP informe 20/19 | 20 entradas en «Referencias del informe» | Sin regla separada | Verde en 20; rojo con `referencias=19 minimo=20` |
+| TSP sesión 10/11 | 11 entradas en «Referencias de la sesión de aprendizaje» | Sin regla separada | Verde en 10; rojo con `referencias=11 minimo=0 maximo=10` |
+
+Repetir con `PYTHONPATH=/home/ivan/pylibs:.:tests python3 -m pytest
+tests/test_m12e_referencias.py -q`. Los mínimos de proyecto, informe y TSP se
+apoyan en localizadores del manual (párrs. 800/936, 1155/1259, 1445 y 1458),
+no en citas literales disponibles en este clon. Su evidencia es sintética:
+sin plantilla real, REQ-47 a REQ-49 permanecen `PARCIAL`. El conteo no
+comprueba APA, sangría francesa ni que cada referencia corresponda a una cita
+(REQ-50); eso sigue siendo revisión humana.
+
 ### NM-03: estructura y aplicabilidad
 
 El manual distingue TINV cuantitativo, TINV cualitativo, revisión de literatura,
@@ -134,8 +160,12 @@ antes de imponerlo se debe confirmar vigencia, modalidad y modificaciones.
 
 Los mínimos de referencias son 20/30/20 para los tres TINV. Los proyectos e
 informes piden 30. TSP pide mínimo 20 en el informe y máximo 10 en su sesión
-de aprendizaje: son ámbitos distintos. Contar párrafos no verifica entradas,
-APA, sangría francesa ni la relación cita–referencia.
+de aprendizaje: son ámbitos distintos. M12e sustituye el conteo de párrafos
+por `unidad: entrada` (patrón autor-año): una continuación sin año no suma y
+el texto ajeno se ignora. Proyectos, informes y TSP tienen regla activa, pero
+su evidencia es sintética: siguen pendientes de ratificación con plantilla
+real. El conteo NO verifica APA, sangría francesa ni la relación
+cita–referencia (REQ-50).
 
 Las listas de anexos difieren en algunos puntos del propio manual. Ejemplos:
 la prosa cualitativa pide reporte de similitud y su esquema no lo enumera;

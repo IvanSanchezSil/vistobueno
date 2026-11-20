@@ -57,7 +57,7 @@ las brechas que quedan después de esos PR. No se implementaron arreglos.
 ## Ampliación normativa
 
 La [auditoría del manual y plantillas](AUDITORIA_NORMATIVA_2026-11-12.md)
-incluye 66 grupos de requisitos, 226 criterios de rúbricas y 50 reglas activas.
+incluye 66 grupos de requisitos, 226 criterios de rúbricas y 54 reglas activas.
 NM-01 a NM-07 son trabajo de Int3 / M12. Int2 amplía F3 para comunicar alcance.
 NM-08 registra la política confirmada: emular siempre acceso abierto en el
 piloto. Int1 verifica su persistencia en B3. Su lista propia sigue siendo B1–B8.
