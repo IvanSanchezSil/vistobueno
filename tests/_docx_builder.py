@@ -463,6 +463,8 @@ def configuracion_base() -> dict:
         "abstract_palabras": 175,
         "palabras_clave_abstract_n": 3,
         "referencias_n": 30,
+        "referencias_informe_n": 20,
+        "referencias_sesion_n": 10,
         "anexos_items": list(ANEXOS_BASE),
         "anexos_como_titulos": False,
         "indices_paginas_separadas": True,
@@ -618,6 +620,16 @@ def _document_xml(cfg: dict) -> str:
             paras.extend(
                 _body_para(f"Autor, A. ({1990 + i}). Fuente bibliográfica {i}.")
                 for i in range(cfg["referencias_n"])
+            )
+        if h == "REFERENCIAS DEL INFORME":
+            paras.extend(
+                _body_para(f"Autor, A. ({1990 + i}). Fuente del informe {i}.")
+                for i in range(cfg.get("referencias_informe_n", 20))
+            )
+        if h == "REFERENCIAS DE LA SESIÓN DE APRENDIZAJE":
+            paras.extend(
+                _body_para(f"Autor, A. ({2010 + i}). Fuente de la sesión {i}.")
+                for i in range(cfg.get("referencias_sesion_n", 10))
             )
         if h == "ANEXOS":
             if cfg.get("anexos_como_titulos"):

@@ -62,6 +62,10 @@ REGLAS = [
     "referencias_minimo_cuantitativo",
     "referencias_minimo_cualitativo",
     "referencias_minimo_revision",
+    "referencias_minimo_proyecto",
+    "referencias_minimo_informe",
+    "referencias_minimo_tsp_informe",
+    "referencias_maximo_tsp_sesion",
     "anexos_minimos_cuantitativo",
     "anexos_minimos_cualitativo",
     "caratula_orcid",
@@ -139,10 +143,40 @@ REGLAS_ACOPLADAS = {
         "referencias_minimo_cuantitativo",
         "anexos_minimos_cuantitativo",
     },
+    # NM-05: voltear el tipo para que aplique la regla de proyecto/informe/TSP
+    # también mueve la detección y las reglas cuantitativas del documento base.
+    "referencias_minimo_proyecto": {
+        "deteccion_tipo_documento",
+        "estructura_tinv_cuantitativo",
+        "referencias_minimo_cuantitativo",
+        "anexos_minimos_cuantitativo",
+        "proyecto_caratula_texto",
+    },
+    "referencias_minimo_informe": {
+        "deteccion_tipo_documento",
+        "estructura_tinv_cuantitativo",
+        "referencias_minimo_cuantitativo",
+        "anexos_minimos_cuantitativo",
+    },
+    "referencias_minimo_tsp_informe": {
+        "deteccion_tipo_documento",
+        "estructura_tinv_cuantitativo",
+        "referencias_minimo_cuantitativo",
+        "referencias_maximo_tsp_sesion",
+        "anexos_minimos_cuantitativo",
+    },
+    "referencias_maximo_tsp_sesion": {
+        "deteccion_tipo_documento",
+        "estructura_tinv_cuantitativo",
+        "referencias_minimo_cuantitativo",
+        "referencias_minimo_tsp_informe",
+        "anexos_minimos_cuantitativo",
+    },
     "proyecto_caratula_texto": {
         "deteccion_tipo_documento",
         "estructura_tinv_cuantitativo",
         "referencias_minimo_cuantitativo",
+        "referencias_minimo_proyecto",
         "anexos_minimos_cuantitativo",
     },
     "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
@@ -190,6 +224,10 @@ NO_APLICABLES_BASE = {
     "estructura_tinv_revision_literatura",
     "referencias_minimo_cualitativo",
     "referencias_minimo_revision",
+    "referencias_minimo_proyecto",
+    "referencias_minimo_informe",
+    "referencias_minimo_tsp_informe",
+    "referencias_maximo_tsp_sesion",
     "anexos_minimos_cualitativo",
     "proyecto_caratula_texto",
 }
@@ -307,6 +345,29 @@ def _voltear_proyecto(c: dict) -> None:
     ]
 
 
+def _voltear_informe(c: dict) -> None:
+    """Dos firmas de informe cuantitativo: gana antes que los TINV."""
+    c["headings"] = list(c["headings"]) + [
+        "SITUACIÓN PROBLEMATIZADA",
+        "DISEÑO DE CONTRASTACIÓN",
+        "OPERACIONALIZACIÓN DE LAS VARIABLES",
+    ]
+
+
+def _voltear_tsp(c: dict) -> None:
+    """Dos firmas de TSP y los dos bloques de referencias (NM-05).
+
+    El mínimo del informe y el máximo de la sesión se leen de secciones
+    distintas; por eso el factory genera ambas con sus propias cantidades.
+    """
+    c["headings"] = list(c["headings"]) + [
+        "SECUENCIA DIDÁCTICA",
+        "SUSTENTO PSICOPEDAGÓGICO",
+        "REFERENCIAS DEL INFORME",
+        "REFERENCIAS DE LA SESIÓN DE APRENDIZAJE",
+    ]
+
+
 def _mut_referencias_cualitativo(c: dict) -> None:
     _voltear_cualitativo(c)
     c["referencias_n"] = 29
@@ -315,6 +376,26 @@ def _mut_referencias_cualitativo(c: dict) -> None:
 def _mut_referencias_revision(c: dict) -> None:
     _voltear_revision(c)
     c["referencias_n"] = 19
+
+
+def _mut_referencias_proyecto(c: dict) -> None:
+    _voltear_proyecto(c)
+    c["referencias_n"] = 29
+
+
+def _mut_referencias_informe(c: dict) -> None:
+    _voltear_informe(c)
+    c["referencias_n"] = 29
+
+
+def _mut_referencias_tsp_informe(c: dict) -> None:
+    _voltear_tsp(c)
+    c["referencias_informe_n"] = 19
+
+
+def _mut_referencias_tsp_sesion(c: dict) -> None:
+    _voltear_tsp(c)
+    c["referencias_sesion_n"] = 11
 
 
 def _mut_anexos_cualitativo(c: dict) -> None:
@@ -388,6 +469,10 @@ _MUTACIONES = {
     "referencias_minimo_cuantitativo": lambda c: c.update(referencias_n=19),
     "referencias_minimo_cualitativo": _mut_referencias_cualitativo,
     "referencias_minimo_revision": _mut_referencias_revision,
+    "referencias_minimo_proyecto": _mut_referencias_proyecto,
+    "referencias_minimo_informe": _mut_referencias_informe,
+    "referencias_minimo_tsp_informe": _mut_referencias_tsp_informe,
+    "referencias_maximo_tsp_sesion": _mut_referencias_tsp_sesion,
     "anexos_minimos_cuantitativo": lambda c: c["anexos_items"].remove("Reporte de similitud"),
     "anexos_minimos_cualitativo": _mut_anexos_cualitativo,
     "caratula_orcid": _mut_caratula_orcid,
@@ -433,7 +518,7 @@ RUTA_REGLAS_YAML = Path(__file__).resolve().parent.parent / "reglas_unt.yaml"
 
 
 def _validar_sincronizacion() -> None:
-    """Falla el import si `_MUTACIONES` no cubre exactamente las 50 reglas.
+    """Falla el import si `_MUTACIONES` no cubre exactamente las reglas del YAML.
 
     Evita la desincronización silenciosa factory↔YAML: el error ocurre en la
     recolecta de tests (cuando se importa el factory), no cuando un test
@@ -456,8 +541,8 @@ _validar_sincronizacion()
 
 
 # Conveniencia: exposición del resultado esperado del documento base.
-# Desde el paso 4 el documento base pasa las 50 reglas: no hay desvíos, solo
-# 2 esquemas que no le aplican.
+# El documento base pasa todas las reglas que le aplican: no hay desvíos,
+# solo los esquemas y mínimos de otros tipos de documento.
 DESVIOS_BASE = 0
 TOTAL_REGLAS = len(REGLAS)
 REGLAS_OK_BASE = TOTAL_REGLAS - DESVIOS_BASE

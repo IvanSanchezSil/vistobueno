@@ -186,7 +186,7 @@ class TestContadorDeEntradas:
 
     def test_una_entrada_partida_no_cuenta_como_varias(self):
         """El mínimo 20 no se alcanza partiendo una entrada en 3 párrafos."""
-        paras = _referencias(19)
+        paras = _referencias(18)
         paras += _entradas(1)[:1]
         paras += [
             _para("Segunda línea de la misma entrada."),

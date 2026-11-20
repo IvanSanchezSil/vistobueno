@@ -10,9 +10,9 @@
   },
   "ficha_deposito": null,
   "resumen": {
-    "total": 50,
+    "total": 54,
     "total_evaluadas": 44,
-    "reglas_no_aplicables": 6,
+    "reglas_no_aplicables": 10,
     "fallidos_error": 4,
     "fallidos_warning": 1
   },
@@ -486,6 +486,54 @@
       "aplicable": false
     },
     {
+      "rule_id": "referencias_minimo_proyecto",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Mínimo de referencias bibliográficas para Proyectos de investigación",
+      "esperado": ">= 30 referencias",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Sección Referencias del Proyecto (párrs. 800, 936)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Localizador párrs. 800 y 936; texto literal no disponible en este clon",
+      "aplicable": false
+    },
+    {
+      "rule_id": "referencias_minimo_informe",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Mínimo de referencias bibliográficas para Informes de proyecto",
+      "esperado": ">= 30 referencias",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Sección Referencias del Informe (párrs. 1155, 1259)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Localizador párrs. 1155 y 1259; texto literal no disponible en este clon",
+      "aplicable": false
+    },
+    {
+      "rule_id": "referencias_minimo_tsp_informe",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Mínimo de referencias del informe del Trabajo de Suficiencia Profesional",
+      "esperado": ">= 20 referencias",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Informe del Trabajo de Suficiencia Profesional (párr. 1445)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Localizador párr. 1445; texto literal no disponible en este clon",
+      "aplicable": false
+    },
+    {
+      "rule_id": "referencias_maximo_tsp_sesion",
+      "paso": true,
+      "severidad": "warning",
+      "mensaje": "Máximo de referencias de la sesión de aprendizaje del Trabajo de Suficiencia Profesional",
+      "esperado": "<= 10 referencias",
+      "encontrado": "no aplica a este documento",
+      "ubicacion": "Sesión de aprendizaje del Trabajo de Suficiencia Profesional (párr. 1458)",
+      "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
+      "cita": "Localizador párr. 1458; texto literal no disponible en este clon",
+      "aplicable": false
+    },
+    {
       "rule_id": "anexos_minimos_cuantitativo",
       "paso": true,
       "severidad": "warning",
@@ -513,7 +561,7 @@
       "rule_id": "caratula_orcid",
       "paso": true,
       "severidad": "warning",
-      "mensaje": "El código ORCID del autor y asesor se muestra como hipervínculo, entre paréntesis, debajo del nombre",
+      "mensaje": "Cada autor y el asesor muestran su ORCID como hipervínculo, entre paréntesis, debajo del nombre",
       "esperado": "https://orcid.org/XXXXXXXXXXXX",
       "encontrado": "cumple",
       "ubicacion": "Carátula, especificaciones (párr. 179-180)",
@@ -642,9 +690,9 @@
   ],
   "metadatos": {
     "archivo_nombre": "doc_malo.docx",
-    "archivo_tamano_bytes": 5816,
+    "archivo_tamano_bytes": 5839,
     "reglas_evaluadas": 44,
-    "reglas_totales": 50,
+    "reglas_totales": 54,
     "version_esquema": "2026-09-01",
     "tipo_documento_declarado": null,
     "tipo_documento_inferido": "tinv_cuantitativo",
