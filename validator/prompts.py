@@ -7,6 +7,21 @@ consistente y no dependa de que un modelo "recuerde" bien qué falló
 
 from .models import RULES_CENTINELA, RuleResult
 
+# NM-07: una paráfrasis, un localizador o un derivado de plantilla no son una
+# cita literal del reglamento. La etiqueta debe decir de dónde viene la
+# referencia para no atribuir al manual texto que no aparece palabra por
+# palabra en él. El valor por defecto (`literal`) conserva la etiqueta
+# histórica; los demás valores los declara cada regla en el YAML.
+_ETIQUETAS_ORIGEN = {
+    "literal": "Cita del reglamento",
+    "parafasis": "Paráfrasis del reglamento",
+    "localizador": "Localizador en el reglamento",
+    "plantilla": "plantilla institucional",
+    "calidad_tecnica": "calidad técnica",
+    "matriz_interna": "matriz de auditoría interna",
+    "norma_institucional": "Norma institucional",
+}
+
 TEMPLATE = """Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:
 
 - Regla incumplida: {message}
@@ -17,7 +32,11 @@ TEMPLATE = """Tengo un documento de tesis en Word (Universidad Nacional de Truji
 
 
 def build_prompt(result: RuleResult) -> str:
-    cita_line = f"- Cita del reglamento: {result.cita}\n" if result.cita else ""
+    if result.cita:
+        etiqueta = _ETIQUETAS_ORIGEN.get(result.origen_cita, "Referencia")
+        cita_line = f"- {etiqueta}: {result.cita}\n"
+    else:
+        cita_line = ""
     return TEMPLATE.format(
         message=result.message,
         expected=result.expected,

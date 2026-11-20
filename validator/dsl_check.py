@@ -19,7 +19,8 @@ Detecta:
 - claves de regla desconocidas (sección mal escrita o campo inválido): la
   regla desaparecería del reporte en silencio;
 - XPath no evaluables: prefijos de namespace desconocidos o sintaxis inválida;
-- `severidad` fuera del catálogo y `id` de regla duplicado.
+- `severidad` fuera del catálogo, `id` de regla duplicado y `origen_cita`
+  inválido o con elipsis en una cita declarada literal (NM-07).
 
 El compilador invoca `linter_o_alzar` al principio de `compilar()`.
 """
@@ -85,6 +86,7 @@ _CLAVES_REGLA = frozenset(
         "ubicacion",
         "fuente",
         "cita",
+        "origen_cita",
         "expone",
         "aplicar_si",
         "mecanismo_verificable",
@@ -98,6 +100,21 @@ _CLAVES_VALIDAS = frozenset(_SECCIONES) | _CLAVES_REGLA
 # Severidades válidas: se derivan de `validator.models.Severity` para que no
 # puedan divergir del catálogo que usa el motor.
 _SEVERIDADES = frozenset(s.value for s in Severity)
+
+# NM-07: naturaleza de la referencia declarada en `cita`. `literal` exige que
+# el texto aparezca palabra por palabra en la fuente; los demás valores son
+# formas honestas de presentar una paráfrasis, localizador o derivado.
+_ORIGENES_CITA = frozenset(
+    {
+        "literal",
+        "parafasis",
+        "localizador",
+        "plantilla",
+        "calidad_tecnica",
+        "matriz_interna",
+        "norma_institucional",
+    }
+)
 
 # Valores que publica `DeteccionTipo` cuando no hay tipo o hay contradicción
 # (docs/DSL.md, sección 16). Se admiten siempre en `aplicar_si`, además de los
@@ -924,6 +941,29 @@ def _lint_severidad(config: dict, hallazgos: list[str], rule_id: str) -> None:
         )
 
 
+def _lint_origen_cita(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    """Valida `origen_cita` y prohíbe elipsis en citas declaradas literales.
+
+    Recortar una cita con «...» o «etc.» y seguir llamándola «Cita del
+    reglamento» atribuye al manual un texto que no dice. Si la referencia no
+    es literal, la regla debe declarar su origen (NM-07).
+    """
+    origen = config.get("origen_cita", "literal")
+    if not isinstance(origen, str) or origen not in _ORIGENES_CITA:
+        hallazgos.append(
+            f"[{rule_id}] origen_cita: '{origen}' no es válido "
+            f"(valores admitidos: {sorted(_ORIGENES_CITA)})"
+        )
+        return
+    cita = config.get("cita", "")
+    if origen == "literal" and isinstance(cita, str):
+        if "..." in cita or "…" in cita or re.search(r"\betc\.", cita, re.IGNORECASE):
+            hallazgos.append(
+                f"[{rule_id}] cita literal con elipsis o 'etc.': declara otro "
+                "origen_cita o copia el texto completo de la fuente"
+            )
+
+
 def _lint_secciones_desconocidas(rules: list[dict], hallazgos: list[str]) -> None:
     """Detecta claves de nivel de regla que el compilador ignoraría.
 
@@ -984,6 +1024,7 @@ def linter(rules_data: dict) -> list[str]:
     for rule in rules:
         rule_id = rule.get("id", "<sin id>")
         _lint_severidad(rule, hallazgos, rule_id)
+        _lint_origen_cita(rule, hallazgos, rule_id)
         for seccion in _SECCIONES:
             cfg = rule.get(seccion)
             if cfg is None:

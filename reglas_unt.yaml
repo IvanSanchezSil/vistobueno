@@ -30,6 +30,7 @@ reglas:
   ubicacion: 'Capítulo II — esquemas formales por tipo de título (párr. 75-90)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: 'Cada título profesional exige un esquema formal distinto'
+  origen_cita: parafasis
   deteccion_tipo:
     expone: tipo_documento
     declaracion:
@@ -406,6 +407,7 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Nombre de la Universidad: Centrado...", "Facultad y Escuela Profesional: Centrado...", "Título
     del Trabajo...: Centrado...", etc.'
+  origen_cita: parafasis
   formato_efectivo:
     parte: document
     contexto: caratula
@@ -550,6 +552,7 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula
     no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos ("ii") en romano..."'
+  origen_cita: parafasis
   atributo_xml:
     parte: document
     contexto: todos
@@ -741,6 +744,7 @@ reglas:
   ubicacion: Carátula, especificaciones (párr. 180)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas..."'
+  origen_cita: parafasis
   formato_efectivo:
     parte: document
     contexto: caratula
@@ -785,6 +789,7 @@ reglas:
   fuente: RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf
   cita: '"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por
     RCU-N°220-2022/UNT)"'
+  origen_cita: norma_institucional
   lista_texto:
     parte: document
     contexto: todos
@@ -901,6 +906,7 @@ reglas:
   ubicacion: Esquema del Trabajo de Investigación Cuantitativo (párr. 275-319)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Esquema enumerado en párr. 276-319 del manual
+  origen_cita: localizador
   automata_secuencia:
     normalizacion:
     - mayusculas
@@ -1030,6 +1036,7 @@ reglas:
   ubicacion: Esquema del Trabajo de Investigación Cualitativo (párr. 380-420)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Esquema enumerado en párr. 381-420 del manual
+  origen_cita: localizador
   automata_secuencia:
     normalizacion:
     - mayusculas
@@ -1136,6 +1143,7 @@ reglas:
   ubicacion: Esquema del Trabajo de Revisión de la Literatura (párr. 536-559)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Esquema enumerado en párr. 537-559 del manual
+  origen_cita: localizador
   automata_secuencia:
     normalizacion:
     - mayusculas
@@ -1243,6 +1251,7 @@ reglas:
   # repo. La línea de palabras clave se excluye del conteo de prosa.
   # Tokenización ratificada el 2026-11-16: se cuentan las palabras con
   # `\w+` (Unicode), de modo que «educación» es una palabra y «no-ción» dos.
+  origen_cita: parafasis
   patron_cantidad:
     seccion:
       inicio: resumen
@@ -1289,6 +1298,7 @@ reglas:
   # traducción. El conteo excluye la línea de palabras clave; la equivalencia
   # con el Resumen y la autoría de la traducción siguen siendo revisión humana.
   # Severidad ratificada el 2026-11-16: warning, informa sin bloquear.
+  origen_cita: matriz_interna
   patron_cantidad:
     seccion:
       inicio: abstract
@@ -1375,6 +1385,7 @@ reglas:
   ubicacion: 'Esquema del Trabajo Cuantitativo (párr. 311-319)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Lista de anexos en párr. 311-319
+  origen_cita: localizador
   lista_obligatoria:
     seccion:
       inicio: anexo
@@ -1409,6 +1420,7 @@ reglas:
   ubicacion: 'Esquema del Trabajo Cualitativo (párr. 413-420)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Lista de anexos en párr. 413-420
+  origen_cita: localizador
   lista_obligatoria:
     seccion:
       inicio: anexo
@@ -1442,6 +1454,7 @@ reglas:
   # Con `validar_orcid` se revisa todo hipervínculo con ORCID visible, no
   # solo los que encajan con `patron`: el manual pide el código entre
   # paréntesis (revisión #115). `checksum` y `destino` valen true si se omiten.
+  origen_cita: parafasis
   hipervinculo_texto:
     parte: document
     contexto: caratula
@@ -1505,6 +1518,7 @@ reglas:
   # genérico "indice" cuando aquel no existe, para que un título paraguas
   # "ÍNDICE" no le gane a la subdivisión. Límite: se toma la primera
   # coincidencia de cada XPath en orden de documento.
+  origen_cita: localizador
   paginacion:
     comparacion: paginas_distintas
     xpaths:
@@ -1528,6 +1542,7 @@ reglas:
   ubicacion: Encabezado de página (estándar institucional UNT)
   fuente: Formato institucional UNT (plantillas oficiales)
   cita: '"Membrete institucional: logotipo de la UNT repetido en el encabezado de página."'
+  origen_cita: plantilla
   presencia_xml:
     n_a_si_ausente: true
     parte: header
@@ -1542,6 +1557,7 @@ reglas:
   ubicacion: Encabezado de página (estándar institucional UNT)
   fuente: Formato institucional UNT (plantillas oficiales)
   cita: '"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman)."'
+  origen_cita: plantilla
   atributo_xml:
     n_a_si_ausente: true
     parte: header
@@ -1564,6 +1580,7 @@ reglas:
   ubicacion: Notas al pie (pies de página del cuerpo)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Práctica estándar Word: las notas al pie se numeran correlativamente (1, 2, 3...)."'
+  origen_cita: calidad_tecnica
   nota_pie:
     operacion: numeracion_consistente
 
@@ -1578,6 +1595,7 @@ reglas:
   ubicacion: Todo el documento (función "Control de cambios" de Word)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"El documento debe entregarse con los cambios aceptados (sin control de cambios pendiente)."'
+  origen_cita: calidad_tecnica
   conteo_nodos:
     label: cambios
     xpath: '//w:ins | //w:del'

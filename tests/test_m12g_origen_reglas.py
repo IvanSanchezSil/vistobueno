@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from validator.compilador import CompilerDSL
 from validator.dsl_check import linter
 from validator.models import RuleResult, Severity
 from validator.prompts import build_prompt
@@ -146,6 +147,17 @@ class TestPresentacionDelOrigen:
     def test_prompt_por_defecto_sigue_siendo_literal(self):
         prompt = build_prompt(_resultado())
         assert "- Cita del reglamento: Texto de referencia" in prompt
+
+    def test_el_origen_no_se_expone_en_la_api(self):
+        serializado = _resultado(origen_cita="plantilla").to_dict()
+        assert "origen_cita" not in serializado
+
+    def test_el_compilador_propaga_el_origen_declarado(self):
+        compiladas = {r.rule["id"]: r for r in CompilerDSL().compilar(_yaml())}
+        assert (
+            compiladas["notas_al_pie_consistencia"].no_aplicable().origen_cita == "calidad_tecnica"
+        )
+        assert compiladas["fuente_principal"].no_aplicable().origen_cita == "literal"
 
 
 class TestConteoDocumental:
