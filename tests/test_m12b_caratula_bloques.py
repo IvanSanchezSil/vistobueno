@@ -126,6 +126,31 @@ def _separar_etiqueta_asesor(parrafo):
     return nuevo
 
 
+def _separar_asesor_en_dos_parrafos(doc, nombre: str) -> None:
+    """Deja `ASESORA:` en un párrafo y el nombre en el siguiente.
+
+    Es la estructura observada en la tesis aprobada por el encargado: el
+    selector del patrón de mayúsculas/minúsculas no puede quedarse en el
+    párrafo de la etiqueta.
+    """
+    parrafo = _parrafo(doc, "asesor")
+    run = _runs_con_texto(parrafo)[0]
+    t = run.find(f"{{{W}}}t")
+    t.text = "ASESORA:"
+    t.set(XML_SPACE, "preserve")
+
+    nombre_parrafo = copy.deepcopy(parrafo)
+    for hijo in list(nombre_parrafo):
+        if hijo.tag != f"{{{W}}}pPr":
+            nombre_parrafo.remove(hijo)
+    nombre_run = copy.deepcopy(run)
+    t_nombre = nombre_run.find(f"{{{W}}}t")
+    t_nombre.text = nombre
+    t_nombre.set(XML_SPACE, "preserve")
+    nombre_parrafo.append(nombre_run)
+    parrafo.addnext(nombre_parrafo)
+
+
 def _cambiar_sz_run(run, valor: str) -> None:
     sz = _rpr(run).find(f"{{{W}}}sz")
     if sz is None:
@@ -281,6 +306,25 @@ def test_nombre_del_asesor_en_mayusculas_falla(docx_base: str, tmp_path: Path):
 
     resultado = _validar_mutacion(docx_base, tmp_path, mutar)
     assert not resultado["caratula_asesor_negrita"].passed
+
+
+@pytest.mark.parametrize(
+    ("nombre", "esperado"),
+    [
+        ("Dra. Lucía Elena Mendoza Ruiz", True),
+        ("DRA. LUCÍA ELENA MENDOZA RUIZ", False),
+    ],
+)
+def test_nombre_del_asesor_en_parrafo_separado(
+    docx_base: str, tmp_path: Path, nombre: str, esperado: bool
+):
+    """La tesis aprobada separa `ASESORA:` del nombre en el párrafo siguiente."""
+
+    def mutar(doc):
+        _separar_asesor_en_dos_parrafos(doc, nombre)
+
+    resultado = _validar_mutacion(docx_base, tmp_path, mutar)
+    assert resultado["caratula_asesor_negrita"].passed is esperado
 
 
 # ---------------------------------------------------------------------------
