@@ -292,6 +292,19 @@ subtarea. Retblast no implementa estas reglas ni sus fixtures.
 | M12f — P2 | Reglas de anexos; ampliar M6 | Encargado ratifica contradicciones REQ-51 a REQ-55. Eliminar cada anexo requerido falla en el tipo correcto. No acreditar firma ni porcentaje real por título del anexo. |
 | M12g — P2 | `fuente`, `cita`, `ubicacion` en YAML y mensajes/prompts | Cada cita literal existe en la fuente. Paráfrasis marcada como tal. Seguimiento y notas se presentan como calidad técnica; encabezados como derivados de plantilla. Corregir conteo documental 46→50 sin alterar catálogo válido. |
 
+**M12b (NM-02), 2026-11-19:** ampliación de `caratula_facultad_escuela_tamano`,
+`caratula_facultad_negrita_mayusculas`, `caratula_autores_tamano` y
+`caratula_asesor_negrita` (50 reglas, sin mutaciones nuevas). Antes del arreglo,
+`missing_school` y `advisor_36pt` estaban en verde; después fallan con
+`caratula_facultad_escuela_tamano` y `caratula_autores_tamano`. Se prueban
+presencia, 13 pt, negrita, mayúsculas y centrado de FACULTAD (o PROGRAMA) y
+ESCUELA; 12 pt, negrita, centrado y mayúsculas/minúsculas del asesor; con
+formato directo, estilos de `styles.xml` y texto partido en varios runs.
+Evidencia: `16 passed` en `tests/test_m12b_caratula_bloques.py`, ruff, ruff
+format y mypy limpios. Límite: los bloques se localizan por texto, no se
+identifican visualmente ni se renderizan; no se comprueba la identidad real
+del asesor. Sin documento real con PII en este clon: la medición es sintética.
+
 En cada PR: agregar regresiones antes del arreglo, sincronizar mutaciones,
 verificar documentos reales aplicables y actualizar matriz REQ con prueba y
 límite. Si una decisión falta, registrar el requisito como pendiente; no elegir
