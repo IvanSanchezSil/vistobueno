@@ -808,8 +808,14 @@ reglas:
   patron_texto:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'asesor')][1]//w:t
+    # M12b/NM-02: en la tesis aprobada `ASESORA:` va en un párrafo y el
+    # nombre en el siguiente. Si la etiqueta no tiene texto tras los dos
+    # puntos, el patrón debe evaluar el párrafo del nombre; si comparten
+    # párrafo, se conserva el selector original.
+    xpath: >-
+      //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1]//w:t
+      |
+      //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1][string-length(substring-after(normalize-space(.), ':')) = 0]/following-sibling::w:p[1]//w:t
     patron: '^(?:[^:]*:[^:]*[a-záéíóúñ].*|[^:]*[a-záéíóúñ][^:]*)$'
     comparacion: fullmatch
     coincidencia: alguno
