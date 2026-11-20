@@ -318,7 +318,7 @@ otros):
 |---|---|---|
 | `AnalizadorXML` | `atributo_xml`, `presencia_xml` | Resuelve el XPath con los namespaces del DOCX, opcionalmente filtra por `contexto: cuerpo`, y compara: `exists`/`not_exists` (cantidad de nodos), o un atributo con `eq` (primer valor), `all_eq` (todos) o `contains` (subcadena, con `ignore_case`) |
 | `AnalizadorRegex` | `patron_texto` | Extrae todo el texto `<w:t>` de los nodos y aplica la regex con `coincidencia: todos / alguno / ninguno` (¿todos deben cumplir, al menos uno, o ninguno?) y `comparacion: regex` (search) / `fullmatch` (coincidencia exacta completa) |
-| `AnalizadorLista` | `lista_texto` | Extrae el texto de los nodos, lo normaliza (colapsa espacios, opcional lower), y comprueba que esté en la lista permitida (por ejemplo, el catálogo de 46 líneas de investigación) |
+| `AnalizadorLista` | `lista_texto` | Extrae el texto de los nodos, lo normaliza (colapsa espacios, opcional lower), y comprueba que esté en la lista permitida (por ejemplo, el catálogo de 50 líneas de investigación) |
 | `AnalizadorImagen` | `imagen` | Cuenta los nodos (blips/drawings) del XPath y valida `cantidad_minima` y `cantidad_maxima` |
 
 ¿Por qué importa el `fullmatch`? Porque 5 reglas legacy de la carátula

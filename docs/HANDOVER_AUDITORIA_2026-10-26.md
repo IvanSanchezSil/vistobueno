@@ -695,7 +695,7 @@ No se cerraron defectos con esta documentación. Los detalles están en M12 de I
 | NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |
 | NM-05 | Int3 | pendiente | M12e: referencias por ámbito |
 | NM-06 | Int3 + decisión del encargado | pendiente | M12f: anexos |
-| NM-07 | Int3 | pendiente | M12g: origen de las reglas |
+| NM-07 | Int3 | **corregido en código** (rama `semana12-m12g-citas-origen`, PR pendiente de fusión): `origen_cita` interno en 18 reglas, etiquetas por procedencia en prompts y linter que rechaza orígenes inválidos y citas literales recortadas; sin manual ni copias reales, la literalidad del resto de citas queda como límite declarado | M12g: origen de las reglas |
 | NM-08 | Int1 | decidido por usuario 2026-11-12 | Emular acceso abierto; B3 comprueba persistencia |
 
 ---

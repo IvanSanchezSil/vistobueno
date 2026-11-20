@@ -154,6 +154,23 @@ como tales y no usar una cita institucional inventada en el reporte al estudiant
 `encabezado_membrete` y `encabezado_formato` provienen de plantillas. Registrar
 ese origen. Revisar también cada cita resumida: paráfrasis y cita literal son distintas.
 
+**Cierre en M12g.** Las 18 referencias dudosas ya declaran su procedencia en
+`reglas_unt.yaml` mediante `origen_cita`: paráfrasis, localizador, plantilla
+institucional, calidad técnica, matriz de auditoría interna o norma
+institucional, según corresponda. El campo es interno de `RuleResult`: no se
+expone en `to_dict()` ni en la API. Los prompts sustituyen la etiqueta única
+«Cita del reglamento» por la etiqueta del origen declarado, así que una
+paráfrasis o un control de calidad deja de presentarse como cita literal. El
+linter rechaza un origen desconocido y una cita literal recortada con elipsis
+o «etc.». Regresiones: `tests/test_m12g_origen_reglas.py`.
+
+**Límite verificado.** En este clon no está el DOCX del manual y no hay copias
+reales con datos personales: no se pudo comprobar palabra por palabra que el
+resto de las citas literales existan en la fuente. Por eso las referencias
+dudosas se reclasifican como paráfrasis o localizador en lugar de afirmar su
+literalidad. La etiqueta describe la procedencia declarada; no certifica el
+contenido normativo ni sustituye la revisión del encargado.
+
 ### NM-08: acceso abierto confirmado; sin trabajo funcional nuevo
 
 El Anexo 11 del manual permite abierto, restringido o no autorizar. El usuario
@@ -184,9 +201,10 @@ a decidir la política antes de modificar los clientes.
   espacio no es una regla universal de tesis. Sus esquemas de proyecto no
   coinciden en todos los componentes con el manual posterior.
 - El catálogo YAML tiene **50** entradas: 19 áreas estratégicas, 7 áreas
-  transversales y 24 específicas, como las tablas de RCU-220. El texto antiguo
-  que dice 46 debe corregirse al actualizar la documentación del motor. Esta
-  cuenta no valida el selector ni la línea específica de cada documento.
+  transversales y 24 específicas, como las tablas de RCU-220. La documentación
+  del motor ya quedó corregida; `AGENTS.md` sigue pendiente de autorización
+  explícita para su edición. Esta cuenta no valida el selector ni la línea
+  específica de cada documento.
 
 ## Cierre exigido
 
