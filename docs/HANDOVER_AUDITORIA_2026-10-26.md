@@ -42,7 +42,7 @@ Ejecución del motor DSL (`reglas_unt.yaml`, 49 reglas) con las capturas de
 la ficha (`reglas_ficha.yaml`):
 
 > Medición histórica: se hizo con el catálogo de 49 reglas. El catálogo
-> actual tiene 50 reglas y el documento bueno del factory evalúa 44 (6 n/a),
+> actual tiene 54 reglas y el documento bueno del factory evalúa 44 (10 n/a),
 > según
 > `tests/test_tipo_documento.py::TestDosFases::test_el_documento_bueno_cuenta_44_de_50`
 > y `README.md:253`; la tesis real medida en §2.1 evalúa 42 (8 n/a). La tabla
@@ -75,7 +75,7 @@ la cifra se verificó de forma local contra las cinco plantillas.
 
 ### 2.1 Evidencia medida (2026-11-17, tras la pila #98–#106)
 
-Ejecución del motor DSL con `reglas_unt.yaml` (50 reglas) sobre el mismo
+Ejecución del motor DSL con `reglas_unt.yaml` (54 reglas) sobre el mismo
 corpus:
 
 | Documento | Semáforo | Resultado |
@@ -348,8 +348,8 @@ el motor excluye los placeholders entre paréntesis?
 **Las 4 plantillas no cuantitativas se evalúan contra el esquema
 `tinv_cuantitativo`.** Los programas de segunda especialidad y las
 licenciaturas en tecnología educativa no se detectan como otro tipo: se
-evalúan con el esquema de tesis cuantitativa (44 reglas evaluadas, 6 no
-aplicables con el catálogo actual de 50). Hoy la app solo soporta el esquema
+evalúan con el esquema de tesis cuantitativa (44 reglas evaluadas, 10 no
+aplicables con el catálogo actual de 54). Hoy la app solo soporta el esquema
 cuantitativo; el alcance por tipo queda documentado en esta sección y se
 amplía en M12c (NM-03), que sigue pendiente.
 

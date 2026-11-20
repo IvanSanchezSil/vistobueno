@@ -146,7 +146,7 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 ```
 
 > **Nota sobre los conteos**: el ejemplo muestra un plan cuantitativo conforme,
-> donde las 6 reglas de otros tipos de documento no aplican. Por eso
+> donde las 10 reglas de otros tipos de documento no aplican. Por eso
 > `total` (50) ≠ `total_evaluadas` (44) y `reglas_no_aplicables` = 6.
 
 ### Descripción de campos de respuesta
