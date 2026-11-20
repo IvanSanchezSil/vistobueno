@@ -38,6 +38,10 @@ class RuleResult:
     location: str | None = None
     fuente: str = ""
     cita: str = ""
+    # Procedencia de `cita` (NM-07). No se expone en `to_dict()`: el contrato
+    # de la API no cambia; solo sirve para etiquetar la referencia en prompts
+    # y mensajes. Por defecto se mantiene el comportamiento histórico.
+    origen_cita: str = "literal"
     # Datos capturados para la ficha de depósito (diseño 17). Cada entrada es
     # `{"campo": str, "valor": str | list[str], "pagina": int | None,
     # "detectado": bool}`. Es un canal de LECTURA: no participa del semáforo ni

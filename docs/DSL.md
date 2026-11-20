@@ -26,6 +26,7 @@ reglas:
     fuente: <string>
     ubicacion: <string>
     cita: <string>
+    origen_cita: literal | parafasis | localizador | plantilla | calidad_tecnica | matriz_interna | norma_institucional  # opcional; default: literal
     # luego, UNA o VARIAS secciones de analizador (todas deben cumplirse):
     atributo_xml: { ... }
     patron_texto: { ... }
@@ -47,6 +48,14 @@ reglas:
 
 El `engine` detecta el formato por la clave `reglas` (DSL) vs `rules`
 (legacy). Ambos formatos pueden coexistir en el repositorio.
+
+`origen_cita` (NM-07) declara qué es `cita`. `literal` conserva la etiqueta
+histórica «Cita del reglamento»; los demás valores producen etiquetas propias
+en los prompts («Paráfrasis del reglamento», «Localizador en el reglamento»,
+«plantilla institucional», «calidad técnica», «matriz de auditoría interna» o
+«Norma institucional»). Es un campo **interno**: no se serializa en
+`RuleResult.to_dict()` ni se expone en la API. El linter rechaza valores
+desconocidos y una cita literal recortada con elipsis o «etc.».
 
 ---
 

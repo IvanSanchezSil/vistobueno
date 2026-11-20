@@ -533,7 +533,7 @@ volverían a introducir el hueco.
 - El módulo de IA (explicación y priorización del diagnóstico) es **Fase C**,
   posterior a este trabajo.
 - Reglas por programa de estudio. Nota para el futuro: `caratula_linea_investigacion`
-  ya embebe un catálogo de 46 líneas, y el catálogo del RCU-274 es por programa.
+  ya embebe un catálogo de 50 líneas, y el catálogo del RCU-274 es por programa.
   `aplicar_si` admite un discriminador `programa` con el mismo mecanismo, pero
   **es un eje distinto al tipo de documento** y no debe mezclarse.
 - OCR, correo y notificación: fuera de alcance.
