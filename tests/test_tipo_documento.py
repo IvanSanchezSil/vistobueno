@@ -36,7 +36,8 @@ from test_dsl import WNS, _make_docx, _para  # noqa: E402
 
 RUTA_REGLAS = Path(__file__).resolve().parents[1] / "reglas_unt.yaml"
 
-# Las 3 reglas de estructura, que son las unicas condicionadas al tipo.
+# Los 3 esquemas de estructura condicionados al tipo (TIPO_ESPECIFICAS
+# añade después los mínimos de referencias/anexos y la carátula de Proyecto).
 ESTRUCTURA = {
     "estructura_tinv_cuantitativo",
     "estructura_tinv_cualitativo",
@@ -52,6 +53,10 @@ TIPO_ESPECIFICAS = ESTRUCTURA | {
     "referencias_minimo_cuantitativo",
     "referencias_minimo_cualitativo",
     "referencias_minimo_revision",
+    "referencias_minimo_proyecto",
+    "referencias_minimo_informe",
+    "referencias_minimo_tsp_informe",
+    "referencias_maximo_tsp_sesion",
     "anexos_minimos_cuantitativo",
     "anexos_minimos_cualitativo",
     "proyecto_caratula_texto",
@@ -384,9 +389,9 @@ class TestDosFases:
         assert resumen["total_evaluadas"] == 2
         assert resumen["reglas_no_aplicables"] == 1
 
-    def test_el_documento_bueno_cuenta_44_de_50(self):
+    def test_el_documento_bueno_cuenta_44_de_54(self):
         """Guarda sobre el YAML real: el documento bueno es un plan
-        cuantitativo, así que no se evalúan las 6 reglas de otros tipos (los
+        cuantitativo, así que no se evalúan las 10 reglas de otros tipos (los
         2 esquemas alternativos, los mínimos de referencias/anexos de
         cualitativo y revisión, y la carátula del Proyecto)."""
         from docx_factory import compilar_docx, configuracion_base  # noqa: E402
@@ -398,7 +403,7 @@ class TestDosFases:
             Path(path).unlink(missing_ok=True)
         rep = build_report(res)
         assert rep["resumen"]["total_evaluadas"] == 44
-        assert rep["resumen"]["reglas_no_aplicables"] == 6
+        assert rep["resumen"]["reglas_no_aplicables"] == 10
         assert len(rep["resultados"]) == 44
         assert rep["semaforo"] == "verde"
 
@@ -441,7 +446,7 @@ class TestSinCambioDeComportamiento:
     """Con el YAML real, la regla nueva informa y las 3 estructuras se
     condicionan a ella sin romper nada más.
 
-    Lo que este bloque fijaba en el paso 3 (50 reglas, todas aplicables) lo
+    Lo que este bloque fijaba en el paso 3 (todas las reglas aplicables) lo
     invalida el paso 4 a propósito: ahora 2 reglas son no aplicables en un
     documento cuantitativo. Lo que se conserva es la garantía de que el
     semáforo solo lo mueven las reglas que de verdad aplican.
@@ -479,7 +484,7 @@ class TestSinCambioDeComportamiento:
             res = validate_docx(path, load_rules(str(RUTA_REGLAS)))
         finally:
             Path(path).unlink(missing_ok=True)
-        assert len(res) == 50
+        assert len(res) == 54
         assert {r.rule_id for r in res if not r.aplicable} == TIPO_ESPECIFICAS - {
             "estructura_tinv_cuantitativo",
             "referencias_minimo_cuantitativo",
@@ -502,7 +507,7 @@ class TestSinCambioDeComportamiento:
         if not base.exists():
             pytest.skip("las plantillas de recursos/ no están disponibles en este entorno")
         res = validate_docx(str(base), load_rules(str(RUTA_REGLAS)))
-        assert len(res) == 50
+        assert len(res) == 54
         fallidos = {r.rule_id for r in res if not r.passed and r.severity.value == "error"}
         assert not fallidos & TIPO_ESPECIFICAS
         assert fallidos == {"palabras_clave_minimo", "caratula_titulo_negrita_mixta"}
@@ -1353,7 +1358,7 @@ class TestReglaDeteccionEnElYaml:
         assert reglas["reglas"][0]["id"] == "deteccion_tipo_documento"
 
     def test_total_de_reglas(self):
-        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 50
+        assert len(load_rules(str(RUTA_REGLAS))["reglas"]) == 54
 
     def test_severidad_warning(self):
         assert _regla_deteccion()["severidad"] == "warning"

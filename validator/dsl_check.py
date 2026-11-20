@@ -284,6 +284,39 @@ _CLAVES_IMAGEN = frozenset(
 )
 
 
+# Claves que entiende `conteo_nodos`. `unidad=entrada` activa el conteo de
+# entradas autor-año de NM-05; un typo dejaría contando párrafos en silencio.
+_CLAVES_CONTEO_NODOS = frozenset(
+    {
+        "seccion",
+        "parte",
+        "contexto",
+        "xpath",
+        "label",
+        "cantidad_minima",
+        "cantidad_maxima",
+        "cantidades_multiples",
+        "unidad",
+    }
+)
+_UNIDADES_CONTEO = frozenset({"parrafo", "entrada"})
+
+
+def _lint_conteo_nodos(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    desconocidas = set(config) - _CLAVES_CONTEO_NODOS
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] conteo_nodos: claves desconocidas {sorted(desconocidas)} "
+            f"(admitidas: {sorted(_CLAVES_CONTEO_NODOS)})"
+        )
+    unidad = config.get("unidad", "parrafo")
+    if unidad not in _UNIDADES_CONTEO:
+        hallazgos.append(
+            f"[{rule_id}] conteo_nodos: 'unidad' inválida '{unidad}' "
+            f"(admitidas: {sorted(_UNIDADES_CONTEO)})"
+        )
+
+
 # Claves que entiende `validar_orcid` dentro de `hipervinculo_texto`. Un typo
 # desactivaría una comprobación en silencio (p. ej. `por_persona` mal escrito
 # deja el ORCID por persona sin validar), así que se revisa al cargar el DSL.
@@ -1056,6 +1089,8 @@ def linter(rules_data: dict) -> list[str]:
                     _lint_lista_obligatoria(c, hallazgos, rule_id)
                 elif seccion == "patron_cantidad":
                     _lint_patron_cantidad(c, hallazgos, rule_id)
+                elif seccion == "conteo_nodos":
+                    _lint_conteo_nodos(c, hallazgos, rule_id)
                 elif seccion == "paginacion":
                     _lint_paginacion(c, hallazgos, rule_id)
                 elif seccion == "extraccion":

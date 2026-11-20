@@ -439,21 +439,43 @@ class AnalizadorLista(Analizador):
 
 
 class AnalizadorConteoNodos(Analizador):
-    """Cuenta nodos (XPath) o párrafos de una sección y compara min/máx.
+    """Cuenta nodos (XPath), párrafos o entradas de una sección.
 
     Es el contador genérico para `conteo_nodos` (F3). Si la config lleva
-    `seccion`, cuenta los PÁRRAFOS no vacíos de esa sección vía el
-    tokenizer en lugar de XPath (p. ej. referencias mínimas).
+    `seccion`, cuenta por defecto los PÁRRAFOS no vacíos de esa sección
+    vía el tokenizer en lugar de XPath. Con `unidad: entrada` cuenta solo
+    las entradas con patrón autor-año (NM-05): una continuación sin año
+    no suma y el texto ajeno se ignora. No verifica APA ni la relación
+    cita-referencia (REQ-50).
     """
+
+    # Entrada bibliográfica reconocible por su patrón autor-año. Se exige
+    # que el año entre paréntesis siga a una o varias palabras que empiezan
+    # con mayúscula, para que la prosa con un año ("La revisión (2020) …")
+    # no se cuente como referencia. Es una heurística de CONTEO, no un
+    # validador de formato APA: se documenta como límite en la matriz REQ.
+    _RE_ENTRADA = re.compile(
+        r"^\s*(?:[A-ZÁÉÍÓÚÑ][\wáéíóúñÁÉÍÓÚÑ'’\-]*\.?[,\s]*){1,6}"
+        r"\(\s*(?:1[6-9]|20)\d{2}[a-z]?\s*\)"
+    )
+    _UNIDADES = ("parrafo", "entrada")
 
     def _etiqueta(self) -> str:
         return self.config.get("label", "nodos")
 
     def _cuenta(self, extracted: ExtractedDocx) -> int:
+        unidad = self.config.get("unidad", "parrafo")
+        if unidad not in self._UNIDADES:
+            raise ConfigurationError(
+                f"conteo_nodos: 'unidad' inválida '{unidad}' (admitidas: {self._UNIDADES})"
+            )
         sec = self.config.get("seccion")
         if sec:
             corte = seccion(tokenizar(extracted), sec["inicio"], sec.get("fin"))
-            return sum(1 for t in corte if t.tipo == PARRAFO and t.texto.strip())
+            parrafos = [t.texto for t in corte if t.tipo == PARRAFO and t.texto.strip()]
+            if unidad == "entrada":
+                return sum(1 for p in parrafos if self._RE_ENTRADA.match(p))
+            return len(parrafos)
         nodos = self._nodos(
             extracted,
             self.config.get("parte", "document"),
@@ -472,11 +494,14 @@ class AnalizadorConteoNodos(Analizador):
             # (p. ej. mínimo según tipo de investigación: [20, 30, 20]).
             ok = any(n >= m for m in multiples)
             return ok, f"{etq}={n} minimos={multiples}"
+        rango = f"minimo={minimo}"
+        if maximo is not None:
+            rango += f" maximo={maximo}"
         if n < minimo:
-            return False, f"{etq}={n} minimo={minimo}"
+            return False, f"{etq}={n} {rango}"
         if maximo is not None and n > maximo:
-            return False, f"{etq}={n} maximo={maximo}"
-        return True, f"{etq}={n} minimo={minimo}"
+            return False, f"{etq}={n} {rango}"
+        return True, f"{etq}={n} {rango}"
 
 
 class AnalizadorImagen(AnalizadorConteoNodos):

@@ -4,15 +4,15 @@
 **Estado:** abierto. La pila de correctitud del motor de la Semana 12
 (PR #98 a #106) quedó fusionada en `master` el 2026-11-17 (`ca9a4100`) y
 cierra VA-01 a VA-07, VA-11 (M1a), VA-14, VA-15 y VA-17 (M11); el PR #75,
-fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). El PR #113 (abierto)
-corrige VA-12 en código (M9), pendiente de fusión; el PR #115 (abierto) corrige
-VA-16 en código (M8), pendiente de fusión y de la validación contra las
-plantillas oficiales y la tesis real. Siguen pendientes VA-10, VA-11 (B5),
-VA-17 (B6), VA-18 (M10), VA-19 y
+fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Los PR #112 (M10),
+#113 (M9), #114 (M12a) y #117 (integra #115, M8) quedaron fusionados el
+2026-11-19 y cierran VA-18, VA-12, NM-01 y VA-16; la medición de M8 contra
+plantillas oficiales y tesis real está registrada en el handover de Int3.
+Siguen pendientes VA-10, VA-11 (B5), VA-17 (B6), VA-19 y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
-PR #116), además del bloque normativo (NM-01 a NM-07, NM-01 con código en
-el PR #114). Un PR abierto no cierra
-el hallazgo hasta su integración y verificación.
+PR #116), además del bloque normativo: NM-01 cerrado, NM-02 en código en el
+PR #118 (pendiente de fusión) y NM-03 a NM-07 pendientes. Un PR abierto no
+cierra el hallazgo hasta su integración y verificación.
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
 todavía no ha cerrado.
@@ -42,7 +42,7 @@ Ejecución del motor DSL (`reglas_unt.yaml`, 49 reglas) con las capturas de
 la ficha (`reglas_ficha.yaml`):
 
 > Medición histórica: se hizo con el catálogo de 49 reglas. El catálogo
-> actual tiene 50 reglas y el documento bueno del factory evalúa 44 (6 n/a),
+> actual tiene 54 reglas y el documento bueno del factory evalúa 44 (10 n/a),
 > según
 > `tests/test_tipo_documento.py::TestDosFases::test_el_documento_bueno_cuenta_44_de_50`
 > y `README.md:253`; la tesis real medida en §2.1 evalúa 42 (8 n/a). La tabla
@@ -75,7 +75,7 @@ la cifra se verificó de forma local contra las cinco plantillas.
 
 ### 2.1 Evidencia medida (2026-11-17, tras la pila #98–#106)
 
-Ejecución del motor DSL con `reglas_unt.yaml` (50 reglas) sobre el mismo
+Ejecución del motor DSL con `reglas_unt.yaml` (54 reglas) sobre el mismo
 corpus:
 
 | Documento | Semáforo | Resultado |
@@ -348,8 +348,8 @@ el motor excluye los placeholders entre paréntesis?
 **Las 4 plantillas no cuantitativas se evalúan contra el esquema
 `tinv_cuantitativo`.** Los programas de segunda especialidad y las
 licenciaturas en tecnología educativa no se detectan como otro tipo: se
-evalúan con el esquema de tesis cuantitativa (44 reglas evaluadas, 6 no
-aplicables con el catálogo actual de 50). Hoy la app solo soporta el esquema
+evalúan con el esquema de tesis cuantitativa (44 reglas evaluadas, 10 no
+aplicables con el catálogo actual de 54). Hoy la app solo soporta el esquema
 cuantitativo; el alcance por tipo queda documentado en esta sección y se
 amplía en M12c (NM-03), que sigue pendiente.
 
@@ -600,12 +600,12 @@ Actualizar esta tabla al cerrar cada parte (y el bloque de aviso de
 >
 > **Actualizado (2026-11-19, Int3):** el PR #75 quedó fusionado en `master`
 > (`244d377`). AUD-24 a AUD-27 están cerrados y el bloque de aviso sigue en
-`AGENTS.md` porque aún faltan VA-10, VA-11 (B5), VA-17 (B6), VA-18 (M10),
-VA-19 y la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales
-tras el PR #116), además del bloque normativo (NM-01 a NM-07). VA-12 quedó
-**corregido en código** en el PR #113 (abierto) y VA-16 quedó **corregido en
-código** en el PR #115 (abierto): siguen sin cerrarse hasta su fusión y
-verificación. Los PR abiertos no cierran un hallazgo hasta su integración y
+`AGENTS.md` porque aún faltan VA-10, VA-11 (B5), VA-17 (B6), VA-19 y la
+verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
+PR #116), además de NM-02 a NM-07. VA-12, VA-16, VA-18 y NM-01 quedaron
+**fusionados y verificados** el 2026-11-19 (#113, #117, #112 y #114). NM-02
+está **corregido en código** en el PR #118 (abierto): no se cierra hasta su
+integración. Los PR abiertos no cierran un hallazgo hasta su integración y
 verificación.
 
 | ID | Responsable | Estado | PR / commit |
@@ -671,13 +671,13 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-09 | Int1 + Int2 | **cerrado** (PR #95, merge `0469983`): B2 y F2 implementados; contrato v1.13.0 | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
 | VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 pendiente | M1a + B5: documento inválido |
-| VA-12 | Int3 | **corregido en código** (PR #113, abierto; pendiente de fusión): el texto del documento se escapa para Markdown, la cerca del prompt no se puede cerrar y el fetcher del PDF solo acepta `data:` | M9: PDF sin recursos no permitidos |
+| VA-12 | Int3 | **cerrado** (PR #113 fusionado, `efbf565`; corrección `1c617f1`): el texto del documento se escapa para Markdown, la cerca del prompt no se puede cerrar y el fetcher del PDF solo acepta `data:` | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | **cerrado** (PR #75 fusionado): AUD-24 a AUD-27 y las etiquetas de las plantillas oficiales cubiertas | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | **cerrado** (PR #105, merge `a666778`; implementación `c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
 | VA-15 | Int3 | **cerrado** (PR #106, merge `de0ca8bb`; implementación `b92f7f3`, `ad78342`): el tamaño del logo se mide y se avisa; la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) | M7: alcance de la regla del logo |
-| VA-16 | Int3 | **corregido en código** (PR #115, abierto; pendiente de fusión y de la medición con plantillas y tesis real): ORCID por autor/asesor con checksum ISO 7064 MOD 11-2, destino del vínculo y texto entre paréntesis del manual | M8: ORCID |
+| VA-16 | Int3 | **cerrado** (PR #115 integrado por #117, `5dda06d`; correcciones `4e40973`, `0f91f54`): ORCID por autor/asesor con checksum ISO 7064 MOD 11-2, destino del vínculo y texto entre paréntesis; medición con plantillas y tesis real en el handover de Int3 | M8: ORCID |
 | VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
-| VA-18 | Int1 + Int3 | B7 **cerrado** (PR #93, merge `a6c8d4e`); M10 pendiente | B7 + M10: conteos |
+| VA-18 | Int1 + Int3 | **cerrado** (B7 en PR #93, `a6c8d4e`; M10 en PR #112, `94df0e4`; correcciones `3e75289`, `0762716`): CLI y exportador distinguen evaluadas de no aplicables | B7 + M10: conteos |
 | VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
 | VA-20 | Int1 | **parcial** (PR #116, merge `d576b09`; US-02): los valores escritos se releen y las filas se concilian con los controles del widget; falta la puerta de Angular | B3 y puerta Angular de Int1: antes del piloto |
 | VA-21 | Int1 + Int2 | **parcial** (PR #116, merge `d576b09`; US-08 y US-11): rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador; falta F5 (Int2) y la verificación en navegador real | B8 + F5: autofill y restauración |
@@ -689,7 +689,7 @@ No se cerraron defectos con esta documentación. Los detalles están en M12 de I
 
 | ID | Responsable | Estado | Trabajo |
 |---|---|---|---|
-| NM-01 | Int3 | **corregido en código** (PR #114, abierto; pendiente de fusión y verificación final): 6 veredictos corregidos con 15 regresiones en `tests/test_m12a_numeracion.py`; continuidad exacta declarada como límite sin render | M12a: numeración y pies |
+| NM-01 | Int3 | **cerrado** (PR #114 fusionado, `448df55`; corrección `e18b381`): 6 veredictos corregidos con 15 regresiones en `tests/test_m12a_numeracion.py`; continuidad exacta declarada como límite sin render | M12a: numeración y pies |
 | NM-02 | Int3 | pendiente | M12b: bloques de carátula |
 | NM-03 | Int3; Int2 comunica límites | pendiente | M12c y F3: esquemas y alcance |
 | NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |

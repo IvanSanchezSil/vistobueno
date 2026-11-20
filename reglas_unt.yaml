@@ -1307,10 +1307,13 @@ reglas:
     ignore_case: true
     cantidad_minima: 1
 
-# ─── REFERENCIAS MÍNIMAS SEGÚN TIPO DE INVESTIGACIÓN ────────
-# EVALUADO: el MVP no detecta tipo de investigación. Se aplican las
-# 3 reglas con su severidad warning (no bloquean), exactamente como
-# se definen en el reporte legacy. Ver docs/PLAN_DSL.md decisión F3.
+# ─── REFERENCIAS MÍNIMAS SEGÚN TIPO DE DOCUMENTO ────────────
+# NM-05: `unidad: entrada` cuenta entradas con patrón autor-año, no párrafos.
+# Una continuación sin año no suma y el texto ajeno se ignora. APA, sangría
+# francesa y la relación cita-referencia NO se comprueban con este conteo
+# (REQ-50). Los mínimos están decididos en AUDITORIA_NORMATIVA_2026-11-12;
+# los localizadores de proyecto/informe/TSP no tienen cita literal en este
+# clon, así que se registra el párr. sin inventar una cita.
 
 - id: referencias_minimo_cuantitativo
   tipo: estructura
@@ -1325,6 +1328,8 @@ reglas:
   conteo_nodos:
     seccion:
       inicio: referencias
+    unidad: entrada
+    label: referencias
     cantidad_minima: 20
 
 - id: referencias_minimo_cualitativo
@@ -1340,6 +1345,8 @@ reglas:
   conteo_nodos:
     seccion:
       inicio: referencias
+    unidad: entrada
+    label: referencias
     cantidad_minima: 30
 
 - id: referencias_minimo_revision
@@ -1355,7 +1362,78 @@ reglas:
   conteo_nodos:
     seccion:
       inicio: referencias
+    unidad: entrada
+    label: referencias
     cantidad_minima: 20
+
+- id: referencias_minimo_proyecto
+  tipo: estructura
+  aplicar_si:
+    tipo_documento: [proyecto_cuantitativo, proyecto_cualitativo]
+  descripcion: Mínimo de referencias bibliográficas para Proyectos de investigación
+  valor_esperado: '>= 30 referencias'
+  severidad: warning
+  ubicacion: 'Sección Referencias del Proyecto (párrs. 800, 936)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: 'Localizador párrs. 800 y 936; texto literal no disponible en este clon'
+  conteo_nodos:
+    seccion:
+      inicio: referencias
+    unidad: entrada
+    label: referencias
+    cantidad_minima: 30
+
+- id: referencias_minimo_informe
+  tipo: estructura
+  aplicar_si:
+    tipo_documento: [informe_cuantitativo, informe_cualitativo]
+  descripcion: Mínimo de referencias bibliográficas para Informes de proyecto
+  valor_esperado: '>= 30 referencias'
+  severidad: warning
+  ubicacion: 'Sección Referencias del Informe (párrs. 1155, 1259)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: 'Localizador párrs. 1155 y 1259; texto literal no disponible en este clon'
+  conteo_nodos:
+    seccion:
+      inicio: referencias
+    unidad: entrada
+    label: referencias
+    cantidad_minima: 30
+
+- id: referencias_minimo_tsp_informe
+  tipo: estructura
+  aplicar_si:
+    tipo_documento: tsp
+  descripcion: Mínimo de referencias del informe del Trabajo de Suficiencia Profesional
+  valor_esperado: '>= 20 referencias'
+  severidad: warning
+  ubicacion: 'Informe del Trabajo de Suficiencia Profesional (párr. 1445)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: 'Localizador párr. 1445; texto literal no disponible en este clon'
+  conteo_nodos:
+    seccion:
+      inicio: referencias del informe
+    unidad: entrada
+    label: referencias
+    cantidad_minima: 20
+
+- id: referencias_maximo_tsp_sesion
+  tipo: estructura
+  aplicar_si:
+    tipo_documento: tsp
+  descripcion: Máximo de referencias de la sesión de aprendizaje del Trabajo de Suficiencia Profesional
+  valor_esperado: '<= 10 referencias'
+  severidad: warning
+  ubicacion: 'Sesión de aprendizaje del Trabajo de Suficiencia Profesional (párr. 1458)'
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  cita: 'Localizador párr. 1458; texto literal no disponible en este clon'
+  conteo_nodos:
+    seccion:
+      inicio: referencias de la sesi[oó]n
+    unidad: entrada
+    label: referencias
+    cantidad_minima: 0
+    cantidad_maxima: 10
 
 # ─── ANEXOS OBLIGATORIOS ────────────────────────────────────
 

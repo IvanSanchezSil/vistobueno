@@ -1,12 +1,13 @@
 # Handover Integrante 3 — motor — 2026-11-12
 
-**Estado:** M1 a M7 implementados y fusionados en `master` el 2026-11-17.
+**Estado:** M1 a M10 y M12a implementados y fusionados en `master`.
 Merges: M1 `f6428d1` (#100), M1a `7d90502` (#99), M2 `2286886` (#101), M3
 `0a6d78b` (#102), M4 `32a3c13` (#103), M5 `4a1ae60` (#104), M6 `a666778`
-(#105) y M7 `de0ca8b` (#106). M8 (VA-16) está **corregido en código** en el
-PR #115 (abierto, pendiente de fusión y de la medición con plantillas y
-tesis real); M9 (VA-12) está corregido en código en el PR #113 (abierto,
-pendiente de fusión). Quedan pendientes M10 (VA-18) y M12 (NM-01 a NM-07).
+(#105), M7 `de0ca8b` (#106), M10 `94df0e4` (#112), M9 `efbf565` (#113),
+M12a `448df55` (#114) y M8 `5dda06d` (#117, integra #115). Referencia de
+suite tras esas fusiones: `1083 passed, 9 skipped` en CI sobre `5dda06d`.
+Quedan pendientes la regeneración de ejemplos de B6 (Int1) y M12b a M12g
+(NM-02 a NM-07); M12c, M12d y M12f requieren ratificación del encargado.
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
 Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
@@ -180,7 +181,9 @@ descripción y dejar la medición expresamente pendiente, no «cerrada».
 
 ### M8. ORCID por persona y destino — VA-16
 
-**Estado:** corregido en código en el PR #115 (abierto, pendiente de fusión).
+**Estado:** fusionado: PR #115 integrado en `master` por #117 (`5dda06d`),
+con las correcciones `4e40973` y `0f91f54`. Medición con plantillas y tesis
+real registrada más abajo.
 
 **Archivos:** `reglas_unt.yaml`, `AnalizadorHipervinculo`, extractor de relaciones.
 **Hecho:** asociación por persona en la carátula (`AUTORES:`/`ASESOR(A):` con
@@ -238,6 +241,7 @@ a archivos sensibles ni hacer peticiones reales para demostrarlo.
   renderizaba con barra invertida literal), con la regresión
   `test_markdown_no_escapa_la_virgulilla`. Evidencia: `989 passed,
   9 skipped`; ruff, ruff format y mypy limpios.
+- **Fusión 2026-11-19:** PR #113 mergeado como `efbf565`; VA-12 cerrado.
 
 ### M10. Contadores de CLI y exportación — VA-18
 
@@ -254,6 +258,8 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
   `test_markdown_no_presenta_las_omitidas_como_evaluadas` y
   `test_markdown_acepta_reportes_antiguos_sin_total_evaluadas`; ruff, ruff
   format y mypy limpios.
+- **Fusión 2026-11-19:** PR #112 mergeado como `94df0e4` (correcciones
+  `3e75289` y `0762716`); VA-18 cerrado en la parte de Int3.
 
 ### M11. Reparar el paquete OPC del factory — VA-17
 
@@ -282,13 +288,17 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
 Esta tarea amplía M1, M3, M5 y M6. No duplica sus arreglos. Dividir en PR por
 subtarea. Retblast no implementa estas reglas ni sus fixtures.
 
+**Estado (2026-11-19):** M12a fusionado en #114 (`448df55`, corrección
+`e18b381`); M12b corregido en código en el PR #118 (pendiente de fusión);
+M12c a M12g pendientes, con ratificación del encargado donde se indica.
+
 | Orden | Archivos / tarea | Aceptación concreta |
 |---|---|---|
 | M12a — P1 | `reglas_unt.yaml`, `analizadores.py`, `extractor.py` si requiere contexto; ampliar M3 | Decimal explícito correcto no falla por existir. Reinicio romano 99 falla. PAGE a la izquierda no cumple por otro párrafo derecho. `titlePg=0` no significa primera página diferente. Probar continuidad y pie activo; declarar límites de página sin render. |
 | M12b — P1 | `reglas_unt.yaml`, selectores de carátula; ampliar M1 | Eliminar escuela falla aunque exista facultad. Asesor 36 pt falla aunque la etiqueta esté correcta. Probar cada bloque y cada propiedad exigida, con estilos y múltiples runs. |
 | M12c — P1 | Reglas de detección y estructura; `reglas_unt_pendientes.yaml`; `tests/test_tipo_documento.py` | Encargado ratifica tesis/informe/TINV. No afirmar soporte de ocho tipos. Para cualitativo, eliminar cada apartado obligatorio produce fallo. Tipos ambiguos y no soportados quedan explícitos. No activar pendientes sin documento real. |
 | M12d — P2 | Reglas y pruebas de carátula | Ratificar límite inferior del título por tipo; probar 14/15/20/21 palabras según decisión. Probar dos autores en orden e invertidos. Confirmar vigencia de máximo de autores antes de bloquear. Mantener autores en mixtas: confirmado por el usuario con la tesis aprobada por el jefe el 2026-11-12. |
-| M12e — P2 | Reglas de referencias y analizador de cantidad | Probar mínimos 20/30/20 TINV; 30 por proyecto/informe cuando se soporten. TSP separa mínimo 20 del informe y máximo 10 de sesión. Una entrada partida no cuenta como varias referencias; texto ajeno no suma. APA y correspondencia semántica no se declaran comprobados por conteo. |
+| M12e — P2 | Reglas de referencias y analizador de cantidad | **Corregido en código** en la rama `semana12-m12e-referencias` (PR pendiente de fusión): `conteo_nodos.unidad=entrada` y 4 reglas nuevas; 15 regresiones en `tests/test_m12e_referencias.py`. Mínimos 20/30/20 TINV y 30 proyecto/informe; TSP separa mínimo 20 del informe y máximo 10 de la sesión. Entrada partida y texto ajeno no suman. Proyecto, informe y TSP quedan `PARCIAL` sin plantilla real; APA, francesa y correspondencia cita-referencia siguen fuera del conteo (REQ-50). |
 | M12f — P2 | Reglas de anexos; ampliar M6 | Encargado ratifica contradicciones REQ-51 a REQ-55. Eliminar cada anexo requerido falla en el tipo correcto. No acreditar firma ni porcentaje real por título del anexo. |
 | M12g — P2 | `fuente`, `cita`, `ubicacion` en YAML y mensajes/prompts | **Corregido en código** en la rama `semana12-m12g-citas-origen` (PR pendiente): 18 reglas declaran `origen_cita` interno y los prompts usan etiquetas por procedencia; el linter rechaza orígenes inválidos y citas literales recortadas. Regresiones en `tests/test_m12g_origen_reglas.py`. Conteo documental 46→50 corregido sin tocar el catálogo válido ni `AGENTS.md`. Límite: sin el DOCX del manual ni copias reales no se verifica la existencia literal del resto de citas; las dudosas se reclasifican como paráfrasis o localizador. |
 
