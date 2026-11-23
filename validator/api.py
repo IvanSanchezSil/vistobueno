@@ -1131,6 +1131,28 @@ async def validar(
 
         rules_data = _get_rules()
 
+        # `validate_docx` combina la extracción del paquete y la ejecución de
+        # reglas en una sola llamada. La parte OPC obligatoria se comprueba
+        # aquí: si falta, la respuesta es 422; un KeyError posterior de las
+        # reglas es un fallo interno de configuración y llega al 500 exterior.
+        try:
+            with zipfile.ZipFile(tmp_path) as paquete:
+                if "word/document.xml" not in paquete.namelist():
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            "El archivo no contiene un documento Word válido: "
+                            "archivo interno faltante ('word/document.xml')."
+                        ),
+                    )
+        except zipfile.BadZipFile as e:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+                ),
+            ) from e
+
         # El escaneo del DOCX es lo ÚNICO cuyos errores significan "el
         # archivo del usuario está mal". El 422 se acota a esta llamada
         # (hallazgo B6): pydantic.ValidationError es subclase de ValueError,
@@ -1169,16 +1191,6 @@ async def validar(
                 status_code=422,
                 detail=(
                     "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
-                ),
-            ) from e
-        except KeyError as e:
-            # El ZIP es válido pero falta word/document.xml (u otra parte
-            # esencial del formato DOCX). El extractor lanza KeyError al
-            # intentar leer el archivo interno del paquete OPC.
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    f"El archivo no contiene un documento Word válido: archivo interno faltante ({e})."
                 ),
             ) from e
         finally:

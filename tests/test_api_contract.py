@@ -308,11 +308,19 @@ class TestErrores:
         assert "configuración de reglas inválida" in detalle
         assert "Traceback" not in detalle
 
-    def test_value_error_de_configuracion_no_se_presenta_como_422(self, monkeypatch):
-        """Un ValueError de reglas tampoco puede culpar al DOCX."""
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ValueError("configuración de reglas inválida"),
+            KeyError("configuración de reglas inválida: regla_invalida"),
+        ],
+        ids=["value-error", "key-error"],
+    )
+    def test_error_de_configuracion_no_se_presenta_como_422(self, monkeypatch, error):
+        """Un error de reglas no puede culpar al DOCX."""
 
         def validar_con_configuracion_rota(*_args, **_kwargs):
-            raise ValueError("configuración de reglas inválida")
+            raise error
 
         monkeypatch.setattr(validator.api, "validate_docx", validar_con_configuracion_rota)
 
@@ -320,7 +328,7 @@ class TestErrores:
 
         assert respuesta.status_code == 500
         detalle = respuesta.json()["detail"]
-        assert "ValueError" in detalle
+        assert type(error).__name__ in detalle
         assert "configuración de reglas inválida" in detalle
         assert "Traceback" not in detalle
 

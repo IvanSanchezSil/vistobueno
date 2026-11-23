@@ -272,8 +272,8 @@ El archivo no comienza con la firma `PK\x03\x04` (no es un ZIP/DOCX):
 
 ### 422 Unprocessable Entity — ZIP válido pero sin `word/document.xml`
 
-El archivo es un ZIP pero no contiene la parte esencial `word/document.xml`
-(el extractor lanza `KeyError`):
+El archivo es un ZIP pero no contiene la parte esencial `word/document.xml`.
+La API lo comprueba antes de ejecutar las reglas:
 
 ```json
 {
