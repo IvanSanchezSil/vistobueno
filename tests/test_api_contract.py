@@ -338,6 +338,26 @@ class TestErrores:
         assert respuesta.status_code == 200
         assert respuesta.json()["semaforo"] in ("verde", "rojo")
 
+    def test_docx_sin_partes_opcionales_responde_200(self):
+        """Las partes OPC opcionales no convierten un DOCX válido en un 500."""
+        documento_xml = (
+            f'<w:document xmlns:w="{W_NS}"><w:body><w:p><w:r>'
+            "<w:t>Documento mínimo</w:t></w:r></w:p></w:body></w:document>"
+        )
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={
+                "archivo": (
+                    "minimo.docx",
+                    _zip_con_documento_xml(documento_xml),
+                    MIME_DOCX,
+                )
+            },
+        )
+
+        assert respuesta.status_code == 200
+        assert respuesta.json()["semaforo"] in ("verde", "rojo")
+
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""
         contenido = build_large_docx(target_bytes=11 * 1024 * 1024)
