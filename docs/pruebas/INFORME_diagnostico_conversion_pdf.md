@@ -191,7 +191,8 @@ Clasificación de los crónicos:
 ### 7.2 Catálogo de líneas de investigación (RCU-N°220-2022/UNT)
 
 - `reglas_unt.yaml` declara 50 líneas en `caratula_linea_investigacion`.
-  AGENTS.md dice "46 líneas" — inconsistencia de documentación (real: 50).
+  La guía de trabajo todavía afirma 46 líneas; su corrección requiere
+  autorización explícita del usuario. La cifra vigente es 50.
 - Verificación contra el PDF oficial (texto nativo/OCR): 49/50 coinciden
   textualmente; la restante ("Educación y Ciencias de la Comunicación y
   desarrollo sostenible") está presente pero partida en dos renglones por

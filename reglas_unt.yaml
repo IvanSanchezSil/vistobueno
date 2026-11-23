@@ -30,6 +30,7 @@ reglas:
   ubicacion: 'Capítulo II — esquemas formales por tipo de título (párr. 75-90)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: 'Cada título profesional exige un esquema formal distinto'
+  origen_cita: parafasis
   deteccion_tipo:
     expone: tipo_documento
     declaracion:
@@ -222,24 +223,47 @@ reglas:
     esperado: '36'
 - id: caratula_facultad_escuela_tamano
   tipo: formato_efectivo
-  descripcion: Tamaño de letra de Facultad y Escuela Profesional en carátula
-  valor_esperado: 13pt
+  # M12b/NM-02: el manual pide AMBOS bloques. Antes el `[1]` del XPath
+  # caía siempre en FACULTAD, así que borrar ESCUELA PROFESIONAL y dejar
+  # FACULTAD seguía en verde. Ahora se exige la presencia de cada bloque y
+  # se mide el tamaño de los dos, sin `[1]`.
+  descripcion: Facultad (o Programa) y Escuela Profesional presentes y a 13 pt en carátula
+  valor_esperado: 13pt en ambos bloques
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 175)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13
     puntos)."'
+  presencia_xml:
+    - parte: document
+      contexto: caratula
+      xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'programa'))]
+      comparacion: exists
+    - parte: document
+      contexto: caratula
+      xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'escuela')]
+      comparacion: exists
   formato_efectivo:
-    parte: document
-    contexto: caratula
-    sujeto: run
-    parrafo_xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'escuela'))][1]
-    propiedad: w:sz/@w:val
-    comparacion: all_eq
-    esperado: '26'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'programa'))]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '26'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'escuela')]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '26'
 # Título del trabajo (handover issue #4): el XPath buscaba el placeholder
 # "título del trabajo" de las plantillas, que una tesis real no contiene
 # (→ 0 nodos). Ahora se localiza el título como el primer párrafo no vacío
@@ -312,13 +336,24 @@ reglas:
   # carátula migraron a `formato_efectivo` en M1; su selector de párrafos se
   # conserva (decisión §8 del handover).
   formato_efectivo:
-    parte: document
-    contexto: caratula
-    sujeto: run
-    parrafo_xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
-    propiedad: w:sz/@w:val
-    comparacion: all_eq
-    esperado: '24'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '24'
+    # M12b/NM-02: el bloque de autores terminaba antes de ASESOR(A), así
+    # que 36 pt en el nombre del asesor pasaban aunque la etiqueta estuviera
+    # a 12 pt. Se mide también todo ese párrafo, no solo su primer run.
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'asesor')]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '24'
 - id: caratula_logotipo_tamano
   tipo: imagen
   descripcion: Tamaño del logotipo de la Universidad en carátula
@@ -406,6 +441,7 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Nombre de la Universidad: Centrado...", "Facultad y Escuela Profesional: Centrado...", "Título
     del Trabajo...: Centrado...", etc.'
+  origen_cita: parafasis
   formato_efectivo:
     parte: document
     contexto: caratula
@@ -550,6 +586,7 @@ reglas:
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Las páginas preliminares son numeradas en romanos minúscula en orden correlativo; la carátula
     no se enumera, pero se cuenta y se inicia enumerando la página de Dedicatoria con dos ("ii") en romano..."'
+  origen_cita: parafasis
   atributo_xml:
     parte: document
     contexto: todos
@@ -652,34 +689,49 @@ reglas:
     coincidencia: todos
 - id: caratula_facultad_negrita_mayusculas
   tipo: formato_efectivo
-  descripcion: 'Facultad y Escuela en carátula: negrita y mayúsculas'
-  valor_esperado: negrita + MAYÚSCULAS
+  # M12b/NM-02: antes el `[1]` evaluaba solo FACULTAD; ahora se comprueban
+  # los dos bloques que pide el manual, con todos sus runs con texto.
+  descripcion: 'Facultad (o Programa) y Escuela en carátula: negrita y mayúsculas'
+  valor_esperado: negrita + MAYÚSCULAS en ambos bloques
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 175)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Facultad y Escuela Profesional: Centrado, con negrita y con mayúsculas (tamaño de letra, 13
     puntos)."'
   formato_efectivo:
-    parte: document
-    contexto: caratula
-    sujeto: run
-    parrafo_xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'escuela'))][1]
-    propiedad: w:b
-    comparacion: all_eq
-    esperado: '1'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'programa'))]
+      propiedad: w:b
+      comparacion: all_eq
+      esperado: '1'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'escuela')]
+      propiedad: w:b
+      comparacion: all_eq
+      esperado: '1'
   patron_texto:
-    parte: document
-    contexto: caratula
-    xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'programa') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'escuela'))][1]//w:t
-    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
-    comparacion: fullmatch
-    coincidencia: todos
+    - parte: document
+      contexto: caratula
+      xpath: //w:body/w:p[(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'programa'))]//w:t
+      patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+      comparacion: fullmatch
+      coincidencia: todos
+    - parte: document
+      contexto: caratula
+      xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+        'escuela')]//w:t
+      patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+      comparacion: fullmatch
+      coincidencia: todos
 - id: caratula_titulo_negrita_mixta
   tipo: formato_efectivo
   descripcion: 'El título del trabajo en carátula: negrita con mayúsculas y minúsculas (no todo mayúsculas)'
@@ -735,12 +787,19 @@ reglas:
     coincidencia: todos
 - id: caratula_asesor_negrita
   tipo: formato_efectivo
-  descripcion: 'El asesor en carátula: con negrita'
-  valor_esperado: negrita
+  # M12b/NM-02: el manual pide el nombre con mayúsculas y minúsculas. La
+  # etiqueta "Asesor(a):" tiene minúsculas propias, así que un `.*[a-z].*`
+  # simple daría verde aunque el nombre estuviera TODO en mayúsculas. La
+  # alternancia acepta tanto la etiqueta y el nombre en el mismo w:t como
+  # el nombre partido en varios runs: basta que el texto del nombre (tras
+  # los dos puntos, o sin ellos si ya se separó) tenga alguna minúscula.
+  descripcion: 'El asesor en carátula: con negrita y el nombre con mayúsculas y minúsculas'
+  valor_esperado: negrita + Mayúsculas y minúsculas
   severidad: error
   ubicacion: Carátula, especificaciones (párr. 180)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas..."'
+  origen_cita: parafasis
   formato_efectivo:
     parte: document
     contexto: caratula
@@ -750,6 +809,20 @@ reglas:
     propiedad: w:b
     comparacion: all_eq
     esperado: '1'
+  patron_texto:
+    parte: document
+    contexto: caratula
+    # M12b/NM-02: en la tesis aprobada `ASESORA:` va en un párrafo y el
+    # nombre en el siguiente. Si la etiqueta no tiene texto tras los dos
+    # puntos, el patrón debe evaluar el párrafo del nombre; si comparten
+    # párrafo, se conserva el selector original.
+    xpath: >-
+      //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1]//w:t
+      |
+      //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')][1][string-length(substring-after(normalize-space(.), ':')) = 0]/following-sibling::w:p[1]//w:t
+    patron: '^(?:[^:]*:[^:]*[a-záéíóúñ].*|[^:]*[a-záéíóúñ][^:]*)$'
+    comparacion: fullmatch
+    coincidencia: alguno
 - id: caratula_ciudad_pais_negrita
   tipo: formato_efectivo
   descripcion: 'Ciudad y país en carátula: centrado, con negrita, mayúsculas y minúsculas'
@@ -785,6 +858,7 @@ reglas:
   fuente: RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf
   cita: '"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por
     RCU-N°220-2022/UNT)"'
+  origen_cita: norma_institucional
   lista_texto:
     parte: document
     contexto: todos
@@ -901,6 +975,7 @@ reglas:
   ubicacion: Esquema del Trabajo de Investigación Cuantitativo (párr. 275-319)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Esquema enumerado en párr. 276-319 del manual
+  origen_cita: localizador
   automata_secuencia:
     normalizacion:
     - mayusculas
@@ -1030,6 +1105,7 @@ reglas:
   ubicacion: Esquema del Trabajo de Investigación Cualitativo (párr. 380-420)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Esquema enumerado en párr. 381-420 del manual
+  origen_cita: localizador
   automata_secuencia:
     normalizacion:
     - mayusculas
@@ -1136,6 +1212,7 @@ reglas:
   ubicacion: Esquema del Trabajo de Revisión de la Literatura (párr. 536-559)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Esquema enumerado en párr. 537-559 del manual
+  origen_cita: localizador
   automata_secuencia:
     normalizacion:
     - mayusculas
@@ -1243,6 +1320,7 @@ reglas:
   # repo. La línea de palabras clave se excluye del conteo de prosa.
   # Tokenización ratificada el 2026-11-16: se cuentan las palabras con
   # `\w+` (Unicode), de modo que «educación» es una palabra y «no-ción» dos.
+  origen_cita: parafasis
   patron_cantidad:
     seccion:
       inicio: resumen
@@ -1289,6 +1367,7 @@ reglas:
   # traducción. El conteo excluye la línea de palabras clave; la equivalencia
   # con el Resumen y la autoría de la traducción siguen siendo revisión humana.
   # Severidad ratificada el 2026-11-16: warning, informa sin bloquear.
+  origen_cita: matriz_interna
   patron_cantidad:
     seccion:
       inicio: abstract
@@ -1453,6 +1532,7 @@ reglas:
   ubicacion: 'Esquema del Trabajo Cuantitativo (párr. 311-319)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Lista de anexos en párr. 311-319
+  origen_cita: localizador
   lista_obligatoria:
     seccion:
       inicio: anexo
@@ -1487,6 +1567,7 @@ reglas:
   ubicacion: 'Esquema del Trabajo Cualitativo (párr. 413-420)'
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: Lista de anexos en párr. 413-420
+  origen_cita: localizador
   lista_obligatoria:
     seccion:
       inicio: anexo
@@ -1520,6 +1601,7 @@ reglas:
   # Con `validar_orcid` se revisa todo hipervínculo con ORCID visible, no
   # solo los que encajan con `patron`: el manual pide el código entre
   # paréntesis (revisión #115). `checksum` y `destino` valen true si se omiten.
+  origen_cita: parafasis
   hipervinculo_texto:
     parte: document
     contexto: caratula
@@ -1583,6 +1665,7 @@ reglas:
   # genérico "indice" cuando aquel no existe, para que un título paraguas
   # "ÍNDICE" no le gane a la subdivisión. Límite: se toma la primera
   # coincidencia de cada XPath en orden de documento.
+  origen_cita: localizador
   paginacion:
     comparacion: paginas_distintas
     xpaths:
@@ -1606,6 +1689,7 @@ reglas:
   ubicacion: Encabezado de página (estándar institucional UNT)
   fuente: Formato institucional UNT (plantillas oficiales)
   cita: '"Membrete institucional: logotipo de la UNT repetido en el encabezado de página."'
+  origen_cita: plantilla
   presencia_xml:
     n_a_si_ausente: true
     parte: header
@@ -1620,6 +1704,7 @@ reglas:
   ubicacion: Encabezado de página (estándar institucional UNT)
   fuente: Formato institucional UNT (plantillas oficiales)
   cita: '"Formato del encabezado: misma familia tipográfica del cuerpo (Times New Roman)."'
+  origen_cita: plantilla
   atributo_xml:
     n_a_si_ausente: true
     parte: header
@@ -1642,6 +1727,7 @@ reglas:
   ubicacion: Notas al pie (pies de página del cuerpo)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Práctica estándar Word: las notas al pie se numeran correlativamente (1, 2, 3...)."'
+  origen_cita: calidad_tecnica
   nota_pie:
     operacion: numeracion_consistente
 
@@ -1656,6 +1742,7 @@ reglas:
   ubicacion: Todo el documento (función "Control de cambios" de Word)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"El documento debe entregarse con los cambios aceptados (sin control de cambios pendiente)."'
+  origen_cita: calidad_tecnica
   conteo_nodos:
     label: cambios
     xpath: '//w:ins | //w:del'

@@ -66,7 +66,7 @@ Cada regla es una función pura: recibe el documento normalizado y el parámetro
 
 - Si todos los `RuleResult` con `severity="error"` pasan → luz verde.
 - Si no → reporte agrupado por categoría (márgenes, tipografía, estructura, citas, etc.), con opción de vista simple (cartel) o detallada.
-- Por cada `RuleResult` fallido, genera un bloque "cómo preguntar a la IA" con el prompt armado y referencia textual a la directiva del reglamento correspondiente.
+- Por cada `RuleResult` fallido, genera un bloque "cómo preguntar a la IA" con el prompt armado y la referencia a la directiva aplicable. La etiqueta distingue la procedencia declarada (cita literal, paráfrasis, localizador, plantilla institucional, calidad técnica, matriz interna o norma institucional); el origen es interno del motor y no se expone en la API.
 
 ## Generación del esquema de reglas a partir del reglamento oficial (tiempo de diseño)
 

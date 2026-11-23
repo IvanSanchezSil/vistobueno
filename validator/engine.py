@@ -133,6 +133,7 @@ def _validate_legacy(rules_data: dict, extracted) -> list[RuleResult]:
                 location=rule.get("ubicacion"),
                 fuente=rule.get("fuente", ""),
                 cita=rule.get("cita", ""),
+                origen_cita=rule.get("origen_cita", "literal"),
             )
         )
 
