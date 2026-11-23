@@ -13,7 +13,9 @@ año en la última línea de la portada.
 
 Los criterios de aceptación quedaron cubiertos por el arreglo de Int3
 (semana 11): las capturas se contrastan aquí contra la estructura real,
-no contra el factory idealizado (AUD-20).
+no contra el factory idealizado (AUD-20). Los casos del ORCID del asesor
+los agrega Int3 en el PR 1 del reparto de 2026-11-23 con autorización de
+retblast, para que ese PR sea integrable por sí solo.
 
 Uso:
     pytest tests/test_captura_ficha.py -v
@@ -256,6 +258,120 @@ def test_estructura_de_los_templates_oficiales():
     assert valor(ficha, "dc.title") == "Título de la investigación"
     assert valor(ficha, "dc.contributor.author") is None
     assert ficha["dc.contributor.author"]["detectado"] is False
+
+
+# ---------------------------------------------------------------------------
+# ORCID del asesor — decisión 2026-11-23 (PR 1 del reparto con Int1 e Int2)
+# ---------------------------------------------------------------------------
+
+
+def _detectado(ficha: dict, campo: str) -> bool:
+    """Estado publicado por el motor; un campo ausente cuenta como no detectado."""
+    return bool((ficha.get(campo) or {}).get("detectado", False))
+
+
+def test_orcid_asesor_en_parrafo_propio_bajo_la_etiqueta(ficha):
+    """La línea de ORCID que sigue al nombre del asesor se captura aparte."""
+    assert valor(ficha, "renati.advisor.orcid") == "0000-0000-0000-0002"
+    assert _detectado(ficha, "renati.advisor.orcid") is True
+    assert valor(ficha, "dc.contributor.advisor") == "Dra. Apellido, Nombre"
+
+
+def test_orcid_asesor_en_el_mismo_parrafo_que_el_nombre():
+    """«ASESORA: Nombre ORCID» captura nombre y ORCID sin pegarlos."""
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "ASESORA: Dra. Apellido, Nombre https://orcid.org/0000-0000-0000-0002",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.advisor") == "Dra. Apellido, Nombre"
+    assert valor(ficha, "renati.advisor.orcid") == "0000-0000-0000-0002"
+
+
+def test_asesor_sin_nombre_solo_orcid_no_publica_el_orcid_como_nombre():
+    """Sin nombre, el asesor queda no detectado y el ORCID sí se publica."""
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "ASESORA:",
+            "https://orcid.org/0000-0000-0000-0002",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.advisor") is None
+    assert _detectado(ficha, "dc.contributor.advisor") is False
+    assert valor(ficha, "renati.advisor.orcid") == "0000-0000-0000-0002"
+
+
+def test_autor_y_orcid_en_el_mismo_parrafo_se_captura_sin_el_orcid():
+    """El autor no desaparece por llevar su ORCID en el mismo párrafo."""
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre https://orcid.org/0000-0000-0000-0000",
+            "ASESORA:",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.author") == ["Br. Apellido, Nombre"]
+
+
+def test_linea_de_orcid_pura_no_es_autor_ni_asesor(ficha):
+    """Las líneas de ORCID intercaladas no se publican como personas."""
+    autores = valor(ficha, "dc.contributor.author")
+    assert autores == ["Br. Apellido, Nombre", "Br. Apellido2, Nombre2"]
+    assert all("orcid" not in autor.lower() for autor in autores)
+    assert "orcid" not in valor(ficha, "dc.contributor.advisor").lower()
+
+
+def test_documento_sin_orcid_no_detecta_el_campo():
+    """Sin ORCID en la carátula el campo no se publica como detectado."""
+    ficha = _ficha_de(
+        _portada(
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "ASESORA:",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "renati.advisor.orcid") is None
+    assert _detectado(ficha, "renati.advisor.orcid") is False
+
+
+def test_la_etiqueta_del_asesor_no_toma_una_frase_que_mentione_asesoria():
+    """`starts-with` evita confundir «Sobre la asesoría…» con la etiqueta."""
+    ficha = _ficha_de(
+        _portada(
+            "Sobre la asesoría académica de esta facultad",
+            "AUTORES:",
+            "Br. Apellido, Nombre",
+            "ASESORA:",
+            "Dra. Apellido, Nombre",
+            "Línea de Investigación:",
+            "Educación",
+            "Trujillo – Perú",
+            "2026",
+        )
+    )
+    assert valor(ficha, "dc.contributor.advisor") == "Dra. Apellido, Nombre"
 
 
 # ---------------------------------------------------------------------------
