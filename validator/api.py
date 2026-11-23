@@ -1153,12 +1153,10 @@ async def validar(
                 ),
             ) from e
 
-        # El escaneo del DOCX es lo ÚNICO cuyos errores significan "el
-        # archivo del usuario está mal". El 422 se acota a esta llamada
-        # (hallazgo B6): pydantic.ValidationError es subclase de ValueError,
-        # así que un bug interno del mapeo a DTO o del motor respondía 422
-        # culpando al documento del estudiante. Ahora esos caen al 500
-        # genérico del bloque exterior.
+        # El 422 se acota a excepciones explícitas del archivo. Un ValueError
+        # o KeyError de las reglas es un fallo interno de configuración y debe
+        # llegar al 500 exterior. Los errores del mapeo a DTO también quedan
+        # fuera de este bloque y siguen la misma ruta de 500.
         # El motor es síncrono y CPU-intenso (recompila el DSL en cada
         # request): se despacha al threadpool para no congelar el event
         # loop mientras dura la validación. Se pasa el ruleset de captura
