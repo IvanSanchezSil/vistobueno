@@ -1,6 +1,8 @@
 # Handover Integrante 1 — retblast: API y userscript — 2026-11-12
 
-**Estado:** B2 y B7 entregados; otras tareas pendientes. Implementar solo los archivos asignados a este integrante.
+**Estado:** B2 y B7 están fusionados; B5 y B6 están entregados en código en
+la rama `fix/api-b5-b6-ejemplos`; otras tareas pendientes. Implementar solo
+los archivos asignados a este integrante.
 La [auditoría del userscript de 2026-11-16](HANDOVER_USERSCRIPT_DSPACE_2026-11-16.md)
 precisa B3/B4/B8 y las limitaciones observadas del flujo después de B2.
 Ver [índice y estado común](HANDOVER_CORRECTITUD_2026-11-12.md).
@@ -8,7 +10,8 @@ Las dependencias de [Int1](HANDOVER_CORRECTITUD_INT1_2026-11-12.md),
 [Int2](HANDOVER_CORRECTITUD_INT2_2026-11-12.md) e
 [Int3](HANDOVER_CORRECTITUD_INT3_2026-11-12.md) no autorizan a editar sus archivos.
 
-**Lista de retblast:** B1–B8. B5 espera M1a de Int3; B6 espera M11 de Int3.
+**Lista de retblast:** B1–B8. M1a y M11 ya están fusionados; B5 y B6 están
+implementados en la rama `fix/api-b5-b6-ejemplos` y esperan integración.
 No implementar tareas F ni M.
 
 ## 1. Tareas propias
@@ -121,6 +124,10 @@ Usar el lockfile propio del userscript al ejecutar sus pruebas.
 
 ### B5. Traducir entradas inválidas a 422 — VA-11
 
+**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commit `d900f11`.
+La API captura `InvalidDocumentError` y devuelve 422. Un `ValueError` de
+configuración ya no se presenta como un defecto del DOCX.
+
 **Archivos:** `validator/api.py`, `tests/test_api_contract.py`.
 **Dependencia:** M1a, que implementa Int3. Int1 no modifica el extractor.
 
@@ -130,6 +137,10 @@ Usar el lockfile propio del userscript al ejecutar sus pruebas.
   configuración de reglas inválida → 500; DOCX admitido → respuesta normal.
 
 ### B6. Reparar ejemplos y guardias — VA-17
+
+**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commit `9149583`.
+Ambos DOCX se regeneraron desde el factory actual. La guarda usa los bytes
+versionados, valida el paquete OPC y compara la respuesta API completa.
 
 **Archivos de Int1:** `docs/ejemplos/`, `tests/test_ejemplos_versionados.py`,
 `scripts/ejemplo_bueno_malo.py`. **Dependencia:** M11 de Int3.
