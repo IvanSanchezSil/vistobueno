@@ -124,8 +124,8 @@ Usar el lockfile propio del userscript al ejecutar sus pruebas.
 
 ### B5. Traducir entradas inválidas a 422 — VA-11
 
-**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commit `d900f11`.
-La API captura `InvalidDocumentError` y devuelve 422. Un `ValueError` de
+**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commits `d900f11` y
+`bc63e9e`. La API captura `InvalidDocumentError` y devuelve 422. Un error de
 configuración ya no se presenta como un defecto del DOCX.
 
 **Archivos:** `validator/api.py`, `tests/test_api_contract.py`.

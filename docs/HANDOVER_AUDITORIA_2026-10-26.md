@@ -8,8 +8,8 @@ fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Los PR #112 (M10),
 #113 (M9), #114 (M12a) y #117 (integra #115, M8) quedaron fusionados el
 2026-11-19 y cierran VA-18, VA-12, NM-01 y VA-16; la medición de M8 contra
 plantillas oficiales y tesis real está registrada en el handover de Int3.
-La entrega local de Int1 del 2026-11-22 (`d900f11` y `9149583`) implementa
-B5 y B6, pero aún requiere integración. Siguen pendientes VA-10,
+La entrega local de Int1 del 2026-11-22 (`d900f11`, `bc63e9e` y `9149583`)
+implementa B5 y B6, pero aún requiere integración. Siguen pendientes VA-10,
 VA-11 (B5), VA-17 (B6), VA-19 y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
 PR #116), además del bloque normativo: NM-01 cerrado, NM-02 en código en el
@@ -672,7 +672,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-08 | Int1 | **cerrado en código** (PR #116, merge `d576b09`; US-03 y US-04): se quitan las filas sobrantes con el control del widget y los pares autor/DNI conservan la posición; falta la evidencia en navegador real | B4: filas sobrantes |
 | VA-09 | Int1 + Int2 | **cerrado** (PR #95, merge `0469983`): B2 y F2 implementados; contrato v1.13.0 | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
-| VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 **cerrado en código** (rama `fix/api-b5-b6-ejemplos`, commit `d900f11`): XML mal formado, raíz ajena y cuerpo ausente devuelven 422; las reglas inválidas devuelven 500; falta integración | M1a + B5: documento inválido |
+| VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 **cerrado en código** (rama `fix/api-b5-b6-ejemplos`, commits `d900f11` y `bc63e9e`): XML mal formado, raíz ajena y cuerpo ausente devuelven 422; las reglas inválidas devuelven 500; falta integración | M1a + B5: documento inválido |
 | VA-12 | Int3 | **cerrado** (PR #113 fusionado, `efbf565`; corrección `1c617f1`): el texto del documento se escapa para Markdown, la cerca del prompt no se puede cerrar y el fetcher del PDF solo acepta `data:` | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | **cerrado** (PR #75 fusionado): AUD-24 a AUD-27 y las etiquetas de las plantillas oficiales cubiertas | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | **cerrado** (PR #105, merge `a666778`; implementación `c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
