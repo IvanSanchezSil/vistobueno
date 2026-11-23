@@ -283,13 +283,18 @@ El archivo es un ZIP pero no contiene la parte esencial `word/document.xml`
 
 ### 422 Unprocessable Entity — Estructura DOCX inválida
 
-El extractor no encontró una parte esperada del DOCX (lanza `ValueError`):
+El paquete ZIP contiene `word/document.xml`, pero el extractor no puede
+procesarlo como documento Word. La causa puede ser XML mal formado, una raíz
+distinta de `w:document` o la ausencia de `w:body`. El extractor lanza
+`InvalidDocumentError` y la API devuelve:
 
 ```json
 {
   "detail": "El archivo no contiene un documento Word válido: <detalle del extractor>."
 }
 ```
+
+La respuesta no incluye una traza de la excepción.
 
 ### 422 Unprocessable Entity — Correo electrónico inválido
 
@@ -316,6 +321,10 @@ Si el campo `correo` se envía pero no tiene formato válido:
   "detail": "Error interno del validador: ExceptionType: mensaje de error"
 }
 ```
+
+Una configuración de reglas inválida también devuelve `500`. La API distingue
+el error del servidor mediante `DSLValidationError`; no lo presenta como un
+documento inválido del estudiante.
 
 > **Nota**: El detalle incluye el tipo de excepción y el mensaje para facilitar
 > el diagnóstico en desarrollo. En producción podría omitirse por seguridad.

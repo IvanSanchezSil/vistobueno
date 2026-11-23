@@ -100,6 +100,7 @@ from .constancia import (
 )
 from .dsl_check import DSLValidationError
 from .engine import build_report, load_ficha_rules, load_rules, validate_docx
+from .extractor import InvalidDocumentError
 from .models import RuleResult
 from .notificacion import ConfigSMTP, enviar_notificacion
 from .prompts import build_ai_help_section
@@ -1153,6 +1154,15 @@ async def validar(
                 status_code=500,
                 detail=f"Error interno del validador: configuración de reglas inválida: {e}",
             ) from e
+        except InvalidDocumentError as e:
+            # El paquete es un ZIP, pero su XML no representa un documento
+            # Word procesable. Esta excepción es explícita: otros ValueError
+            # pueden venir de una configuración defectuosa y deben quedar en
+            # el 500 exterior, no culpar al archivo del estudiante.
+            raise HTTPException(
+                status_code=422,
+                detail=f"El archivo no contiene un documento Word válido: {e}.",
+            ) from e
         except zipfile.BadZipFile as e:
             # Archivo no es un ZIP válido (truncado, corrupto, etc.)
             raise HTTPException(
@@ -1170,14 +1180,6 @@ async def validar(
                 detail=(
                     f"El archivo no contiene un documento Word válido: archivo interno faltante ({e})."
                 ),
-            ) from e
-        except ValueError as e:
-            # El extractor no encontró una parte esperada del DOCX
-            # (lanzado por ExtractedDocx.xpath cuando una parte no está
-            # disponible).
-            raise HTTPException(
-                status_code=422,
-                detail=(f"El archivo no contiene un documento Word válido: {e}."),
             ) from e
         finally:
             # El cupo adaptativo descuenta el TRABAJO real (CPU del hilo
