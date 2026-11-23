@@ -23,7 +23,7 @@ datos de estudiantes reales.
 | `doc_bueno.docx` | **verde** | 44 de 54 | 0 | 0 |
 | `doc_malo.docx` | **rojo** | 44 de 54 | 4 | 1 |
 
-Las 6 reglas restantes no aplican al tipo de documento (plan cuantitativo).
+Las 10 reglas restantes no aplican al tipo de documento (plan cuantitativo).
 La respuesta del documento bueno incluye la ficha de depósito, porque la API
 solo la materializa con semáforo verde.
 
@@ -44,9 +44,10 @@ demostración.
 
 Las dos respuestas están versionadas tal cual. Si el motor cambia el
 formato del detalle, hay que regenerarlas (`python
-scripts/ejemplo_bueno_malo.py`) y revisar el diff: el test
-`tests/test_ejemplos_versionados.py` compara las respuestas versionadas con
-las que produce el motor, así que un desfase no pasa inadvertido.
+scripts/ejemplo_bueno_malo.py`) y revisar el diff. El test
+`tests/test_ejemplos_versionados.py` envía los bytes de cada DOCX versionado,
+comprueba el paquete OPC y compara la respuesta completa de la API con el
+JSON golden. Así, un desfase no pasa inadvertido.
 
 ## Cómo se generó
 

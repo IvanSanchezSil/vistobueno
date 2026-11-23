@@ -274,12 +274,15 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
 - Entregar el PR/commit y el comando de regeneración a Int1. B6 continúa
   después de esta entrega. No encargar a retblast el arreglo del builder.
 - **Dependencia declarada (2026-11-16):** `docs/ejemplos/doc_bueno.docx` y
-  `docs/ejemplos/doc_malo.docx` siguen siendo los paquetes rotos de antes
+  `docs/ejemplos/doc_malo.docx` seguían siendo los paquetes rotos de antes
   (`KeyError: "There is no item named 'media/logo.png' in the archive"`).
-  No bloquea M11 —el factory es lo que se arregla aquí— pero su regeneración
-  y el refuerzo de la guardia de ejemplos son **B6 de Int1**, con el comando
-  `python scripts/ejemplo_bueno_malo.py`. Hasta que B6 los regenere, la
-  evaluación contra los ejemplos versionados no es reproducible.
+  No bloqueaba M11 —el factory era lo que se arreglaba ahí— pero su
+  regeneración y el refuerzo de la guardia de ejemplos eran **B6 de Int1**.
+- **Estado B6 (2026-11-23):** cerrado en código en la rama
+  `fix/api-b5-b6-ejemplos` (`9149583`, `ac2aeea`). Los dos DOCX se
+  regeneraron desde el factory reparado. La guarda usa los bytes versionados,
+  valida las relaciones OPC y compara la respuesta completa de la API con los
+  JSON golden. Falta integrar la rama.
 
 ### M12. Cerrar brechas normativas — NM-01 a NM-07
 

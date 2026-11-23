@@ -124,9 +124,10 @@ Usar el lockfile propio del userscript al ejecutar sus pruebas.
 
 ### B5. Traducir entradas inválidas a 422 — VA-11
 
-**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commits `d900f11` y
-`bc63e9e`. La API captura `InvalidDocumentError` y devuelve 422. Un error de
-configuración ya no se presenta como un defecto del DOCX.
+**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commits `d900f11`,
+`bc63e9e`, `d7916de` y `ac2aeea`. La API captura `InvalidDocumentError` y
+devuelve 422. Un error de configuración ya no se presenta como un defecto
+del DOCX.
 
 **Archivos:** `validator/api.py`, `tests/test_api_contract.py`.
 **Dependencia:** M1a, que implementa Int3. Int1 no modifica el extractor.
@@ -138,18 +139,19 @@ configuración ya no se presenta como un defecto del DOCX.
 
 ### B6. Reparar ejemplos y guardias — VA-17
 
-**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commit `9149583`.
-Ambos DOCX se regeneraron desde el factory actual. La guarda usa los bytes
-versionados, valida el paquete OPC y compara la respuesta API completa.
+**Entregado en código:** rama `fix/api-b5-b6-ejemplos`, commits `9149583` y
+`ac2aeea`. Ambos DOCX se regeneraron desde el factory actual. La guarda usa
+los bytes versionados, valida el paquete OPC y compara la respuesta API
+completa.
 
 **Archivos de Int1:** `docs/ejemplos/`, `tests/test_ejemplos_versionados.py`,
 `scripts/ejemplo_bueno_malo.py`. **Dependencia:** M11 de Int3.
 Int1 no modifica `tests/_xml_constants.py` ni el builder del motor.
 
-- Ambos DOCX versionados referencian `media/logo.png`, que falta. Int3 repara
-  el factory en M11; después Int1 regenera los ejemplos y verifica el paquete.
-- Enviar a la API los bytes de los archivos versionados. Hoy la guardia
-  regenera otros documentos y no detecta el daño del archivo entregado.
+- Int3 reparó el factory en M11. Int1 regeneró los ejemplos y verifica que
+  `media/logo.png` exista dentro de cada paquete.
+- La guarda envía a la API los bytes de los archivos versionados. Así detecta
+  el daño del archivo entregado.
 - Comparar también `ficha_deposito`, listas completas de reglas y prompts.
 - **Aceptación:** ambos archivos abren con `python-docx`; destinos de relaciones
   internas existen; respuestas coinciden con los JSON actualizados. Un archivo

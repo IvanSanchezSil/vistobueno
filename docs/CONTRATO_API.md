@@ -322,9 +322,10 @@ Si el campo `correo` se envía pero no tiene formato válido:
 }
 ```
 
-Una configuración de reglas inválida también devuelve `500`. La API distingue
-el error del servidor mediante `DSLValidationError`; no lo presenta como un
-documento inválido del estudiante.
+Una configuración de reglas inválida también devuelve `500`. La API da un
+mensaje específico para `DSLValidationError`. Otros errores internos del
+motor, como `ValueError` o `KeyError`, también llegan al `500` exterior; no
+se presentan como un documento inválido del estudiante.
 
 > **Nota**: El detalle incluye el tipo de excepción y el mensaje para facilitar
 > el diagnóstico en desarrollo. En producción podría omitirse por seguridad.

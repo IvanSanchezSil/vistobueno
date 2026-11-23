@@ -233,25 +233,28 @@ valores por defecto: falta medir en la máquina del operador y acordar el
 presupuesto y la ventana. Queda pendiente también la prueba de dos
 validaciones consecutivas sin limpiar el limitador.
 
-### 2026-11-22 — B5 y B6: entradas inválidas y ejemplos versionados
+### 2026-11-22 a 2026-11-23 — B5 y B6: entradas inválidas y ejemplos versionados
 
 - **B5 (VA-11):** la API traduce `InvalidDocumentError` a 422. Las pruebas
   cubren XML mal formado, raíz ajena y ausencia de `w:body`. Un error de
   configuración sigue devolviendo 500 y no culpa al documento del estudiante.
   La revisión final separó la comprobación de `word/document.xml` de la
   ejecución de reglas: un `KeyError` de configuración ya no se presenta como
-  un DOCX dañado.
+  un DOCX dañado. También se cubrió un paquete admitido sin partes OPC
+  opcionales.
 - **B6 (VA-17):** se regeneraron los dos DOCX de `docs/ejemplos/` desde el
-  factory actual. La respuesta golden no cambió de contenido. La nueva
-  guarda envía los bytes del archivo versionado, valida sus relaciones OPC,
-  comprueba que abre con `python-docx` y compara la respuesta completa de la
-  API, incluida la ficha, las reglas y los prompts.
-- **Verificación:** 82 pruebas del contrato de API y 6 de la guarda de
+  factory actual. La regeneración fue idéntica byte a byte y la respuesta
+  golden no cambió de contenido. La nueva guarda envía los bytes del archivo
+  versionado, valida sus relaciones OPC, comprueba que abre con `python-docx`
+  y compara la respuesta completa de la API, incluida la ficha, las reglas y
+  los prompts. La revisión final cubre destinos OPC relativos, absolutos,
+  codificados y con fragmento.
+- **Verificación:** 83 pruebas del contrato de API y 13 de la guarda de
   ejemplos pasan. `ruff check`, `ruff format --check`, `mypy`, la
   comprobación de OpenAPI y `nix flake check` pasan. La prueba manual con
   uvicorn devolvió 200 para el DOCX bueno, 422 para un XML mal formado y 422
   para un paquete sin `word/document.xml`.
-- **Suite completa:** 1117 pruebas pasan y 5 fallan en el baseline de las
+- **Suite completa:** 1125 pruebas pasan y 5 fallan en el baseline de las
   cinco plantillas oficiales. El test espera 8 warnings, mientras el catálogo
   vigente de NM-05 produce 9. B5 y B6 no modifican el motor, las reglas ni
   esos fixtures; la actualización queda fuera de este lote.
@@ -284,8 +287,8 @@ validaciones consecutivas sin limpiar el limitador.
 | Integración de la SPA con la identidad del trámite | `frontend/src/ficha.js`, `frontend/src/components/FichaDeposito.jsx` |
 | Pruebas del buzón, del wrapper y del frontend | `tests/test_api_buzon.py`, `tests/test_constancia.py`, `tools/dspace-fill/test/wrapper.test.js`, `frontend/src/ficha.test.js`, `frontend/src/components/FichaDeposito.test.jsx` |
 | Registro de ejecución de la auditoría | `docs/HANDOVER_CORRECTITUD_2026-11-12.md` §2.1 |
-| Traducción de documentos inválidos a 422 | `validator/api.py`, `tests/test_api_contract.py`, commits `d900f11` y `bc63e9e` |
-| Guarda integral de ejemplos versionados | `tests/test_ejemplos_versionados.py`, `docs/ejemplos/`, commit `9149583` |
+| Traducción de documentos inválidos a 422 | `validator/api.py`, `tests/test_api_contract.py`, commits `d900f11`, `bc63e9e`, `d7916de` y `ac2aeea` |
+| Guarda integral de ejemplos versionados | `tests/test_ejemplos_versionados.py`, `docs/ejemplos/`, commits `9149583` y `ac2aeea` |
 | Bitácora | este archivo |
 
 - Commits de la semana: `1f94571` (guía de instalación), `a548e41`
@@ -293,9 +296,10 @@ validaciones consecutivas sin limpiar el limitador.
   (B2), más los commits de documentación. La revisión final de B2 quedó
   en `ee73a5e` (límite canónico del papeleo), `78d0b00` (reporte fail-closed
   del userscript) y `46efcc5` (identidad del trámite en la SPA). El cierre
-  local de B5 y B6 usa `d900f11`, `bc63e9e` y `9149583`.
-- Suite al cierre local de B5 y B6: **1122 tests**. En la verificación local,
-  **1117 pasan y 5 fallan** en el baseline de las cinco plantillas oficiales.
+  local de B5 y B6 usa `d900f11`, `bc63e9e`, `d7916de`, `9149583` y
+  `ac2aeea`.
+- Suite al cierre local de B5 y B6: **1130 tests**. En la verificación local,
+  **1125 pasan y 5 fallan** en el baseline de las cinco plantillas oficiales.
   El test espera 8 warnings, mientras el catálogo vigente de NM-05 produce 9.
   B5 y B6 no cambian el motor, las reglas ni esos fixtures.
 - Verificación del flujo de Windows: el `.bat` y el `.ps1` se revisaron y
