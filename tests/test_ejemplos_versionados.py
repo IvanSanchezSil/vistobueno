@@ -76,6 +76,36 @@ def _destino_de_relacion(parte_rels: str, objetivo: str) -> str | None:
     return posixpath.normpath(posixpath.join(_directorio_base(parte_rels), ruta))
 
 
+@pytest.mark.parametrize(
+    ("parte_rels", "objetivo", "esperado"),
+    [
+        ("_rels/.rels", "word/document.xml", "word/document.xml"),
+        ("word/_rels/document.xml.rels", "media/logo.png", "word/media/logo.png"),
+        ("word/_rels/document.xml.rels", "/word/document.xml", "word/document.xml"),
+        ("word/_rels/document.xml.rels", "../media/logo.png", "media/logo.png"),
+        ("word/_rels/document.xml.rels", "media%20logo.png", "word/media logo.png"),
+        ("word/_rels/document.xml.rels", "document.xml#bookmark", "word/document.xml"),
+        ("word/_rels/document.xml.rels", "https://example.test/relacion", None),
+    ],
+    ids=[
+        "raiz-del-paquete",
+        "relativo",
+        "absoluto",
+        "relativo-con-padre",
+        "codificado",
+        "con-fragmento",
+        "externo",
+    ],
+)
+def test_resolucion_de_destinos_opc(
+    parte_rels: str,
+    objetivo: str,
+    esperado: str | None,
+) -> None:
+    """La resolución OPC conserva la base, decodifica y descarta el fragmento."""
+    assert _destino_de_relacion(parte_rels, objetivo) == esperado
+
+
 @pytest.mark.parametrize("nombre", ["doc_bueno", "doc_malo"])
 def test_docx_versionado_abre_con_python_docx(nombre: str) -> None:
     """El paquete entregado debe abrir como documento de Word."""

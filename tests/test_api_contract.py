@@ -251,11 +251,11 @@ class TestErrores:
             "/validar",
             files={"archivo": ("falso.docx", contenido, MIME_DOCX)},
         )
-        # El KeyError por document.xml faltante se captura y devuelve
-        # 422 con un mensaje descriptivo.
+        # La API comprueba la parte principal antes de ejecutar las reglas.
         assert respuesta.status_code == 422
-        assert "detail" in respuesta.json()
-        assert "Word válido" in respuesta.json()["detail"]
+        detalle = respuesta.json()["detail"]
+        assert "Word válido" in detalle
+        assert "word/document.xml" in detalle
 
     @pytest.mark.parametrize(
         ("documento_xml", "detalle_esperado"),
