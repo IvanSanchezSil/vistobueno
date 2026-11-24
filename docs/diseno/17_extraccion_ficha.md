@@ -215,10 +215,31 @@ actualizarse este mecanismo. `tests/test_caratula_xpath.py` compara, para
 `reglas_ficha.yaml`, el resultado reducido contra el filtro anterior; esa
 regresión avisa si el supuesto deja de valer.
 
-**Medición local (sintética, no sustituye el corpus real).** Con 250 párrafos
-de cuerpo y una pasada por consulta: `caratula_autores_tamano` 0,204 s →
-0,001 s (×227) y `ficha_autores` 1,493 s → 0,002 s (×792). Con 1500 párrafos,
-la primera consulta pasó de 6,254 s a 0,001 s. Falta repetir las dos cargas
-con las dos versiones de la tesis y las cinco plantillas de retblast para
-confirmar el semáforo y el tiempo real de la API.
+**Medición sintética.** Con 250 párrafos de cuerpo y una pasada por consulta:
+`caratula_autores_tamano` 0,204 s → 0,001 s (×227) y `ficha_autores`
+1,493 s → 0,002 s (×792). Con 1500 párrafos, la primera pasó de 6,254 s a
+0,001 s.
+
+**Medición con el corpus real (2026-11-24).** Se usaron las dos versiones de
+la tesis (la que lleva `(1)` es la aprobada) y las cinco plantillas oficiales
+que aportó retblast, sin copiar ningún documento al repo. Herramienta
+reproducible: `python scripts/medir_caratula.py <docx...>` (ejecuta la
+validación con el motor actual y con la implementación previa a RI-07,
+compara el reporte completo e imprime los tiempos).
+
+| Documento | Antes | Después | Resultado |
+|---|---|---|---|
+| Tesis aprobada `(1)` | 37,65 s | 2,63 s | verde, 0 errores, 5 advertencias, 42/54 |
+| Tesis no aprobada | 37,20 s | 2,22 s | rojo, 4 errores, 5 advertencias, 42/54 |
+| Educación Inicial | 0,26 s | 0,14 s | rojo, 2 errores, 9 advertencias |
+| Otras cuatro plantillas | 0,26–0,27 s | 0,11–0,17 s | rojo, 4 errores, 9 advertencias |
+
+Las dos consultas críticas, medidas por separado en la tesis no aprobada,
+pasaron de 10,30 s a 0,007 s (`caratula_autores_tamano`) y de 16,60 s a
+0,010 s (`ficha_autores`). En los siete documentos el reporte completo
+—semáforo, resumen, IDs/estados/severidades de las reglas y las 8 claves de
+la ficha— fue **idéntico** antes y después. Los cuatro errores de la tesis no
+aprobada siguen siendo `tamano_cuerpo`, `interlineado`, `alineacion_cuerpo` y
+`estructura_tinv_cuantitativo`; la aprobada mantiene las siete capturas
+esperadas (incluidos los dos autores) más `renati.advisor.orcid`.
 

@@ -215,9 +215,19 @@ expresiones del catálogo contra el comportamiento anterior y verifica que el
 reporte completo —semáforo, resumen, resultados y ficha— sea idéntico con un
 cuerpo de 200 párrafos que incluye etiquetas engañosas de asesor y línea.
 
-**Falta para cerrar:** las dos versiones de la tesis y las cinco plantillas
-oficiales que sí tiene retblast. Sin ese corpus no se pueden repetir las dos
-cargas consecutivas ni confirmar el tiempo de la API en Firefox.
+**Verificación con el corpus real (2026-11-24):** las dos versiones de la
+tesis y las cinco plantillas oficiales están disponibles localmente. Con
+`python scripts/medir_caratula.py <docx...>` se comparó el motor actual contra
+la implementación anterior: 37,65 s → 2,63 s en la tesis aprobada y 37,20 s →
+2,22 s en la no aprobada; 0,26 s → 0,11–0,17 s en las plantillas. En los
+siete documentos el reporte completo fue idéntico: verde 0/5 y rojo 4/5 con
+42/54 reglas evaluadas en las tesis; 2 y 4 errores con 9 advertencias en las
+plantillas. Las capturas de la ficha y los cuatro errores de la tesis no
+aprobada no cambiaron. Detalle y tabla en `docs/diseno/17_extraccion_ficha.md` §9.
+
+**Falta para cerrar RI-07:** solo la repetición de las dos cargas
+consecutivas en la API de retblast y la comprobación en Firefox del límite
+de 30 s (acá se midió el motor, no el navegador).
 
 ### RI-08 — alcance de `caratula_autores_tamano` (sin cambio de código)
 

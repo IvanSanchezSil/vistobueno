@@ -346,8 +346,16 @@ externa; RI-09 se entrega en el PR #125 y RI-07 en su propio PR.
   cortes por asesor/línea y el ORCID separado del nombre.
 - **Medición sintética local:** 0,204 s → 0,001 s en
   `caratula_autores_tamano` (×227) y 1,493 s → 0,002 s en `ficha_autores`
-  (×792) con 250 párrafos de cuerpo. No sustituye la medición con la tesis
-  real: ese corpus no está en este worktree.
+  (×792) con 250 párrafos de cuerpo.
+- **Corpus real (mismo día, tras el mensaje del usuario):** aparecieron las
+  dos tesis y las cinco plantillas en `proyectos/vistobueno_src/vistobueno/`.
+  Se agregó `scripts/medir_caratula.py` para repetir la medición y se
+  comparó el reporte antes/después en los siete documentos: 37,65 s → 2,63 s
+  (aprobada, verde 0 errores/5 advertencias) y 37,20 s → 2,22 s (no
+  aprobada, rojo 4 errores/5 advertencias), con 42/54 reglas evaluadas y
+  ficha idéntica. Las plantillas dieron 2 y 4 errores con 9 advertencias,
+  también sin cambios. Consultas críticas: 10,30 s → 0,007 s y 16,60 s →
+  0,010 s. Falta solo la carga consecutiva en la API/Firefox de retblast.
 - **RI-08:** se documenta la discrepancia (descripción anuncia línea, ciudad
   y año; selectores cubren autores y asesor; REQ-24/26 parciales y REQ-27 en
   conflicto) y se deja la regla sin cambio hasta cotejar el manual y recibir
@@ -378,7 +386,7 @@ externa; RI-09 se entrega en el PR #125 y RI-07 en su propio PR.
 | Reglas de captura | `reglas_ficha.yaml`: `ficha_orcid_asesor`, `ficha_asesor`, `ficha_autores` |
 | Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed (37 tras la revisión del 2026-11-24) |
 | Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
-| RI-07 | `tests/test_caratula_xpath.py`, diseño 17 §9 y handover de ficha §9 |
+| RI-07 | `tests/test_caratula_xpath.py`, `scripts/medir_caratula.py`, diseño 17 §9 y handover de ficha §9 |
 | RI-08 | Handover de ficha §9 (diseño y decisión pendiente; sin cambio de regla) |
 
 ---
