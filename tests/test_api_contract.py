@@ -33,6 +33,17 @@ from validator.api import CAMPOS_EXTRAIDOS_FICHA, CAMPOS_MANUALES_FICHA, REGLAS_
 from validator.api_models import ResultadoReglaAPI
 from validator.engine import build_report, load_rules, validate_docx
 
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+
+
+def _zip_con_documento_xml(documento_xml: str) -> bytes:
+    """Construye un ZIP mínimo cuyo ``word/document.xml`` tiene el XML dado."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("word/document.xml", documento_xml)
+    return buffer.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # Tests: respuesta exitosa (200)
 # ---------------------------------------------------------------------------
@@ -240,11 +251,112 @@ class TestErrores:
             "/validar",
             files={"archivo": ("falso.docx", contenido, MIME_DOCX)},
         )
-        # El KeyError por document.xml faltante se captura y devuelve
-        # 422 con un mensaje descriptivo.
+        # La API comprueba la parte principal antes de ejecutar las reglas.
         assert respuesta.status_code == 422
-        assert "detail" in respuesta.json()
-        assert "Word válido" in respuesta.json()["detail"]
+        detalle = respuesta.json()["detail"]
+        assert "Word válido" in detalle
+        assert "word/document.xml" in detalle
+
+    @pytest.mark.parametrize(
+        ("documento_xml", "detalle_esperado"),
+        [
+            ("<broken", "XML inválido"),
+            ('<documento xmlns="urn:otro"/>', "raíz"),
+            (f'<w:document xmlns:w="{W_NS}"/>', "w:body"),
+        ],
+        ids=["xml-mal-formado", "raiz-ajena", "cuerpo-ausente"],
+    )
+    def test_documento_word_invalido_responde_422(
+        self,
+        documento_xml: str,
+        detalle_esperado: str,
+    ):
+        """XML, raíz o cuerpo inválidos se atribuyen al archivo, con 422."""
+        contenido = _zip_con_documento_xml(documento_xml)
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={"archivo": ("invalido.docx", contenido, MIME_DOCX)},
+        )
+
+        assert respuesta.status_code == 422
+        detalle = respuesta.json()["detail"]
+        assert detalle_esperado in detalle
+        assert "Traceback" not in detalle
+        assert "InvalidDocumentError" not in detalle
+
+    def test_configuracion_de_reglas_invalida_responde_500(self, monkeypatch):
+        """Una configuración rota es un error del servidor, no del DOCX."""
+        reglas_invalidas = {
+            "reglas": [
+                {
+                    "id": "configuracion_invalida",
+                    "atributo_xml": {
+                        "parte": "document",
+                        "xpath": "//w:body",
+                        "atributo": "@w:val",
+                        "comparacion": "eq",
+                    },
+                }
+            ]
+        }
+        monkeypatch.setattr(validator.api, "_get_rules", lambda: reglas_invalidas)
+
+        respuesta = subir_plantilla()
+
+        assert respuesta.status_code == 500
+        detalle = respuesta.json()["detail"]
+        assert "configuración de reglas inválida" in detalle
+        assert "Traceback" not in detalle
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ValueError("configuración de reglas inválida"),
+            KeyError("configuración de reglas inválida: regla_invalida"),
+        ],
+        ids=["value-error", "key-error"],
+    )
+    def test_error_de_configuracion_no_se_presenta_como_422(self, monkeypatch, error):
+        """Un error de reglas no puede culpar al DOCX."""
+
+        def validar_con_configuracion_rota(*_args, **_kwargs):
+            raise error
+
+        monkeypatch.setattr(validator.api, "validate_docx", validar_con_configuracion_rota)
+
+        respuesta = subir_plantilla()
+
+        assert respuesta.status_code == 500
+        detalle = respuesta.json()["detail"]
+        assert type(error).__name__ in detalle
+        assert "configuración de reglas inválida" in detalle
+        assert "Traceback" not in detalle
+
+    def test_docx_admitido_responde_200(self):
+        """Un DOCX válido conserva la respuesta normal del endpoint."""
+        respuesta = subir_plantilla()
+        assert respuesta.status_code == 200
+        assert respuesta.json()["semaforo"] in ("verde", "rojo")
+
+    def test_docx_sin_partes_opcionales_responde_200(self):
+        """Las partes OPC opcionales no convierten un DOCX válido en un 500."""
+        documento_xml = (
+            f'<w:document xmlns:w="{W_NS}"><w:body><w:p><w:r>'
+            "<w:t>Documento mínimo</w:t></w:r></w:p></w:body></w:document>"
+        )
+        respuesta = CLIENTE.post(
+            "/validar",
+            files={
+                "archivo": (
+                    "minimo.docx",
+                    _zip_con_documento_xml(documento_xml),
+                    MIME_DOCX,
+                )
+            },
+        )
+
+        assert respuesta.status_code == 200
+        assert respuesta.json()["semaforo"] in ("verde", "rojo")
 
     def test_archivo_demasiado_grande(self):
         """Archivo >10 MB → 413."""

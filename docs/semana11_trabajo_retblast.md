@@ -2,7 +2,7 @@
 
 - **Integrante**: retblast (Integrante 1 — Backend / API)
 - **Semana**: 11
-- **Fechas**: 2026-11-08 → 2026-11-16 (semana en curso)
+- **Fechas**: 2026-11-08 → 2026-11-23 (actualización de cierre)
 - **Rol**: Backend / API (FastAPI, contrato de la API, despliegue en la
   máquina del operador, documentación de instalación y verificación)
 - **Ramas**: `docs/instalacion-windows-11` (PR #87),
@@ -233,6 +233,32 @@ valores por defecto: falta medir en la máquina del operador y acordar el
 presupuesto y la ventana. Queda pendiente también la prueba de dos
 validaciones consecutivas sin limpiar el limitador.
 
+### 2026-11-22 a 2026-11-23 — B5 y B6: entradas inválidas y ejemplos versionados
+
+- **B5 (VA-11):** la API traduce `InvalidDocumentError` a 422. Las pruebas
+  cubren XML mal formado, raíz ajena y ausencia de `w:body`. Un error de
+  configuración sigue devolviendo 500 y no culpa al documento del estudiante.
+  La revisión final separó la comprobación de `word/document.xml` de la
+  ejecución de reglas: un `KeyError` de configuración ya no se presenta como
+  un DOCX dañado. También se cubrió un paquete admitido sin partes OPC
+  opcionales.
+- **B6 (VA-17):** se regeneraron los dos DOCX de `docs/ejemplos/` desde el
+  factory actual. La regeneración fue idéntica byte a byte. Los JSON golden
+  cambiaron solo en tres campos descriptivos por respuesta, por los cambios
+  de carátula integrados en `master`. La nueva guarda envía los bytes del
+  archivo versionado, valida sus relaciones OPC, comprueba que abre con
+  `python-docx` y compara la respuesta completa de la API, incluida la ficha,
+  las reglas y los prompts. La revisión final cubre destinos OPC relativos,
+  absolutos, codificados y con fragmento.
+- **Verificación:** 83 pruebas del contrato de API y 13 de la guarda de
+  ejemplos pasan. `ruff check`, `ruff format --check`, `mypy`, la
+  comprobación de OpenAPI y `nix flake check` pasan. La prueba manual con
+  uvicorn devolvió 200 para el DOCX bueno, 422 para un XML mal formado y 422
+  para un paquete sin `word/document.xml`.
+- **Suite completa:** `nix run .#test -- tests/ -q` termina con **1170 pruebas
+  superadas**. La base actual ya incluye la actualización del baseline de
+  plantillas, por lo que no quedan fallos locales ajenos a este lote.
+
 ---
 
 ## Evidencias producidas
@@ -261,17 +287,20 @@ validaciones consecutivas sin limpiar el limitador.
 | Integración de la SPA con la identidad del trámite | `frontend/src/ficha.js`, `frontend/src/components/FichaDeposito.jsx` |
 | Pruebas del buzón, del wrapper y del frontend | `tests/test_api_buzon.py`, `tests/test_constancia.py`, `tools/dspace-fill/test/wrapper.test.js`, `frontend/src/ficha.test.js`, `frontend/src/components/FichaDeposito.test.jsx` |
 | Registro de ejecución de la auditoría | `docs/HANDOVER_CORRECTITUD_2026-11-12.md` §2.1 |
+| Traducción de documentos inválidos a 422 | `validator/api.py`, `tests/test_api_contract.py`, commits `d900f11`, `bc63e9e`, `d7916de` y `ac2aeea`; PR #123 |
+| Guarda integral de ejemplos versionados | `tests/test_ejemplos_versionados.py`, `docs/ejemplos/`, commits `9149583` y `ac2aeea`; PR #123 |
 | Bitácora | este archivo |
 
 - Commits de la semana: `1f94571` (guía de instalación), `a548e41`
   (redacción), `7f4f683` (acceso directo), `38868b9` (B7) y `d9b7e1d`
   (B2), más los commits de documentación. La revisión final de B2 quedó
   en `ee73a5e` (límite canónico del papeleo), `78d0b00` (reporte fail-closed
-  del userscript) y `46efcc5` (identidad del trámite en la SPA).
-- Suite actual: **854 tests**. En la verificación local, **845 pasan, 3 se
-  omiten y 6 quedan como `xfail(strict=True)`** (los criterios de aceptación
-  de AUD-24 a AUD-27 del motor). Los tests omitidos dependen de recursos
-  locales que no están versionados.
+  del userscript) y `46efcc5` (identidad del trámite en la SPA). El cierre
+  local de B5 y B6 usa `d900f11`, `bc63e9e`, `d7916de`, `9149583` y
+  `ac2aeea`, entregado en el PR #123 abierto.
+- Suite al cierre local de B5 y B6: **1170 tests**. En la verificación local,
+  **1170 pasan** después de integrar el `master` actual y regenerar los JSON
+  golden. No quedan fallos locales.
 - Verificación del flujo de Windows: el `.bat` y el `.ps1` se revisaron y
   se fijó el fin de línea CRLF, pero el flujo no se ejecutó en un Windows
   real desde este entorno. Queda pendiente probarlo en la máquina del
@@ -335,7 +364,9 @@ validaciones consecutivas sin limpiar el limitador.
    - **B8**: detección de autofill y de formularios restaurados.
    - **B1**: medir en la máquina del operador y acordar el cupo, más la
      prueba de dos validaciones consecutivas.
-8. B5 y B6 quedan bloqueados hasta que Int3 entregue M1a y M11.
+8. B5 y B6 están implementados en el PR #123 abierto, rama
+   `fix/api-b5-b6-ejemplos`; falta integrarlos. B1 y la verificación de
+   navegador siguen fuera de este lote.
 
 ## Actualización 2026-11-12 — Handover de correctitud
 
