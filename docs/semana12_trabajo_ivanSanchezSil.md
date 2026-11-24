@@ -360,6 +360,27 @@ externa; RI-09 se entrega en el PR #125 y RI-07 en su propio PR.
   y año; selectores cubren autores y asesor; REQ-24/26 parciales y REQ-27 en
   conflicto) y se deja la regla sin cambio hasta cotejar el manual y recibir
   la decisión de retblast sobre tamaño y severidad.
+### 2026-11-24 — RI-09: ejemplos, conteos y documentación
+
+Retblast fusionó el PR #124 y mandó aparte los hallazgos RI-07, RI-08 y RI-09.
+Como no respondió a las preguntas del comentario del PR, se avanza con lo que
+no depende de evidencia externa. Para esto el usuario autorizó explícitamente
+tocar `AGENTS.md`.
+
+- README: los ejemplos principales de CLI usan ahora `reglas_unt.yaml`, el
+  mismo YAML que carga la API; el esquema legacy queda marcado como comparación
+  histórica (con ese esquema la tesis aprobada daba rojo).
+- `scripts/reglas_activas.py`: toma los conteos de `build_report()["resumen"]`
+  y filtra no aplicables y capturas para el detalle. Antes contaba `resultados`
+  directamente y mezclaba categorías.
+- `AGENTS.md`: 50 → 54 reglas en las cuatro referencias, lista correcta de las
+  10 reglas no aplicables al doc bueno y nota que distingue catálogo de filas
+  del reporte (54 reglas, 44 evaluadas, 10 no aplicables en el doc bueno).
+- Se incorpora `docs/PLAN_SEMANA12_MOTOR_CORRECTITUD.md`, que faltaba en esta
+  rama y dejaba roto el enlace de la bitácora.
+
+**Verificación:** `tests/test_reglas_activas.py` compara los cinco conteos del
+script con el resumen del motor.
 
 ---
 
@@ -388,6 +409,7 @@ externa; RI-09 se entrega en el PR #125 y RI-07 en su propio PR.
 | Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
 | RI-07 | `tests/test_caratula_xpath.py`, `scripts/medir_caratula.py`, diseño 17 §9 y handover de ficha §9 |
 | RI-08 | Handover de ficha §9 (diseño y decisión pendiente; sin cambio de regla) |
+| RI-09 | `tests/test_reglas_activas.py`, README (CLI con `reglas_unt.yaml`), `AGENTS.md` (54 reglas) y plan de Semana 12 restaurado |
 
 ---
 

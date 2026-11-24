@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Script utility: lista las reglas que aplican a un DOCX y resume sus fallos.
 
-Usa el motor de validación para el análisis, sin modificar el validador.
+Usa el motor de validación para el análisis, sin modificar el validador. Los
+conteos salen del mismo `resumen` que produce `build_report()` (RI-09): las
+reglas no aplicables no se cuentan entre las evaluadas y las reglas de
+captura de la ficha no se cuentan como reglas que se cumplen.
 
 Uso:
     python scripts/reglas_activas.py /ruta/al/documento.docx
@@ -11,7 +14,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from validator.engine import load_rules, validate_docx
+from validator.engine import build_report, load_rules, validate_docx
 from validator.models import Severity
 
 REGLAS_YAML_PATH = "reglas_unt.yaml"
@@ -36,16 +39,22 @@ def main() -> int:
 
     reglas_data = load_rules(str(args.reglas))
     resultados = validate_docx(str(args.docx), reglas_data)
+    resumen = build_report(resultados)["resumen"]
 
-    errores = [r for r in resultados if not r.passed and r.severity is Severity.ERROR]
-    advertencias = [r for r in resultados if not r.passed and r.severity is Severity.WARNING]
-    aprobadas = [r for r in resultados if r.passed]
+    # El resumen del motor ya excluye las capturas; para el detalle se
+    # filtran también las reglas no aplicables (no se miraron, no pasaron).
+    visibles = [r for r in resultados if r.aplicable and not r.captura]
+    errores = [r for r in visibles if not r.passed and r.severity is Severity.ERROR]
+    advertencias = [r for r in visibles if not r.passed and r.severity is Severity.WARNING]
+    aprobadas = [r for r in visibles if r.passed]
 
     print(f"=== Reporte de reglas activas para: {args.docx.name} ===")
     print()
-    print(f"Reglas evaluadas: {len(resultados)}")
-    print(f"  - Errores: {len(errores)}")
-    print(f"  - Advertencias: {len(advertencias)}")
+    print(f"Reglas del catálogo (captura excluida): {resumen['total']}")
+    print(f"  - Evaluadas: {resumen['total_evaluadas']}")
+    print(f"  - No aplicables: {resumen['reglas_no_aplicables']}")
+    print(f"  - Errores: {resumen['fallidos_error']}")
+    print(f"  - Advertencias: {resumen['fallidos_warning']}")
     print(f"  - Aprobadas: {len(aprobadas)}")
 
     if errores:
