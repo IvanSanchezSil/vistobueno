@@ -2,7 +2,7 @@
 
 - **Integrante**: retblast (Integrante 1 — Backend / API)
 - **Semana**: 11
-- **Fechas**: 2026-11-08 → 2026-11-22 (actualización de cierre)
+- **Fechas**: 2026-11-08 → 2026-11-23 (actualización de cierre)
 - **Rol**: Backend / API (FastAPI, contrato de la API, despliegue en la
   máquina del operador, documentación de instalación y verificación)
 - **Ramas**: `docs/instalacion-windows-11` (PR #87),
@@ -243,21 +243,21 @@ validaciones consecutivas sin limpiar el limitador.
   un DOCX dañado. También se cubrió un paquete admitido sin partes OPC
   opcionales.
 - **B6 (VA-17):** se regeneraron los dos DOCX de `docs/ejemplos/` desde el
-  factory actual. La regeneración fue idéntica byte a byte y la respuesta
-  golden no cambió de contenido. La nueva guarda envía los bytes del archivo
-  versionado, valida sus relaciones OPC, comprueba que abre con `python-docx`
-  y compara la respuesta completa de la API, incluida la ficha, las reglas y
-  los prompts. La revisión final cubre destinos OPC relativos, absolutos,
-  codificados y con fragmento.
+  factory actual. La regeneración fue idéntica byte a byte. Los JSON golden
+  cambiaron solo en tres campos descriptivos por respuesta, por los cambios
+  de carátula integrados en `master`. La nueva guarda envía los bytes del
+  archivo versionado, valida sus relaciones OPC, comprueba que abre con
+  `python-docx` y compara la respuesta completa de la API, incluida la ficha,
+  las reglas y los prompts. La revisión final cubre destinos OPC relativos,
+  absolutos, codificados y con fragmento.
 - **Verificación:** 83 pruebas del contrato de API y 13 de la guarda de
   ejemplos pasan. `ruff check`, `ruff format --check`, `mypy`, la
   comprobación de OpenAPI y `nix flake check` pasan. La prueba manual con
   uvicorn devolvió 200 para el DOCX bueno, 422 para un XML mal formado y 422
   para un paquete sin `word/document.xml`.
-- **Suite completa:** 1125 pruebas pasan y 5 fallan en el baseline de las
-  cinco plantillas oficiales. El test espera 8 warnings, mientras el catálogo
-  vigente de NM-05 produce 9. B5 y B6 no modifican el motor, las reglas ni
-  esos fixtures; la actualización queda fuera de este lote.
+- **Suite completa:** `nix run .#test -- tests/ -q` termina con **1170 pruebas
+  superadas**. La base actual ya incluye la actualización del baseline de
+  plantillas, por lo que no quedan fallos locales ajenos a este lote.
 
 ---
 
@@ -287,8 +287,8 @@ validaciones consecutivas sin limpiar el limitador.
 | Integración de la SPA con la identidad del trámite | `frontend/src/ficha.js`, `frontend/src/components/FichaDeposito.jsx` |
 | Pruebas del buzón, del wrapper y del frontend | `tests/test_api_buzon.py`, `tests/test_constancia.py`, `tools/dspace-fill/test/wrapper.test.js`, `frontend/src/ficha.test.js`, `frontend/src/components/FichaDeposito.test.jsx` |
 | Registro de ejecución de la auditoría | `docs/HANDOVER_CORRECTITUD_2026-11-12.md` §2.1 |
-| Traducción de documentos inválidos a 422 | `validator/api.py`, `tests/test_api_contract.py`, commits `d900f11`, `bc63e9e`, `d7916de` y `ac2aeea` |
-| Guarda integral de ejemplos versionados | `tests/test_ejemplos_versionados.py`, `docs/ejemplos/`, commits `9149583` y `ac2aeea` |
+| Traducción de documentos inválidos a 422 | `validator/api.py`, `tests/test_api_contract.py`, commits `d900f11`, `bc63e9e`, `d7916de` y `ac2aeea`; PR #123 |
+| Guarda integral de ejemplos versionados | `tests/test_ejemplos_versionados.py`, `docs/ejemplos/`, commits `9149583` y `ac2aeea`; PR #123 |
 | Bitácora | este archivo |
 
 - Commits de la semana: `1f94571` (guía de instalación), `a548e41`
@@ -297,11 +297,10 @@ validaciones consecutivas sin limpiar el limitador.
   en `ee73a5e` (límite canónico del papeleo), `78d0b00` (reporte fail-closed
   del userscript) y `46efcc5` (identidad del trámite en la SPA). El cierre
   local de B5 y B6 usa `d900f11`, `bc63e9e`, `d7916de`, `9149583` y
-  `ac2aeea`.
-- Suite al cierre local de B5 y B6: **1130 tests**. En la verificación local,
-  **1125 pasan y 5 fallan** en el baseline de las cinco plantillas oficiales.
-  El test espera 8 warnings, mientras el catálogo vigente de NM-05 produce 9.
-  B5 y B6 no cambian el motor, las reglas ni esos fixtures.
+  `ac2aeea`, entregado en el PR #123 abierto.
+- Suite al cierre local de B5 y B6: **1170 tests**. En la verificación local,
+  **1170 pasan** después de integrar el `master` actual y regenerar los JSON
+  golden. No quedan fallos locales.
 - Verificación del flujo de Windows: el `.bat` y el `.ps1` se revisaron y
   se fijó el fin de línea CRLF, pero el flujo no se ejecutó en un Windows
   real desde este entorno. Queda pendiente probarlo en la máquina del
@@ -365,8 +364,9 @@ validaciones consecutivas sin limpiar el limitador.
    - **B8**: detección de autofill y de formularios restaurados.
    - **B1**: medir en la máquina del operador y acordar el cupo, más la
      prueba de dos validaciones consecutivas.
-8. B5 y B6 están implementados en la rama `fix/api-b5-b6-ejemplos`; falta
-   integrarlos. B1 y la verificación de navegador siguen fuera de este lote.
+8. B5 y B6 están implementados en el PR #123 abierto, rama
+   `fix/api-b5-b6-ejemplos`; falta integrarlos. B1 y la verificación de
+   navegador siguen fuera de este lote.
 
 ## Actualización 2026-11-12 — Handover de correctitud
 

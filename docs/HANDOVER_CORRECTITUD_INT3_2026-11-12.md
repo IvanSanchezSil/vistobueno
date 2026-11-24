@@ -278,7 +278,7 @@ Usar `total_evaluadas` bajo «evaluadas». Mostrar omitidas aparte.
   (`KeyError: "There is no item named 'media/logo.png' in the archive"`).
   No bloqueaba M11 —el factory era lo que se arreglaba ahí— pero su
   regeneración y el refuerzo de la guardia de ejemplos eran **B6 de Int1**.
-- **Estado B6 (2026-11-23):** cerrado en código en la rama
+- **Estado B6 (2026-11-23):** cerrado en código en el PR #123 abierto, rama
   `fix/api-b5-b6-ejemplos` (`9149583`, `ac2aeea`). Los dos DOCX se
   regeneraron desde el factory reparado. La guarda usa los bytes versionados,
   valida las relaciones OPC y compara la respuesta completa de la API con los
