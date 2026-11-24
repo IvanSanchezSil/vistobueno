@@ -182,3 +182,43 @@ rellenan `detectado=false` para las ausentes (`renati.juror`, o cualquier
 campo que el XPath no encontró). Este cambio vive en el área de Int1; el motor
 no lo hace (handover §6: "no tocar la API").
 
+## 9. RI-07 — acotar el XPath de carátula (2026-11-24)
+
+Retblast midó, sobre la tesis no aprobada, 14,33 s en
+`caratula_autores_tamano` y 26,41 s en `ficha_autores`: 40,74 de 44,29 s.
+Ambas consultas usan `following-sibling::` / `preceding-sibling::`, y
+`ExtractedDocx.xpath()` evaluaba el XPath en **todo** el `word/document.xml`
+para recién después filtrar por `contexto: caratula`.
+
+**Mecanismo elegido.** Para `parte: document` con contexto `caratula` o
+`caratula_ficha`, `xpath()` evalúa sobre un `w:body` copia que contiene solo
+los párrafos de la carátula, en el mismo orden. Un mapa nodo copia → nodo
+original traduce los resultados antes de devolverlos: así la paginación
+(`pagina_de`) y los conjuntos `_caratula`/`_caratula_ficha` siguen
+indexados por los nodos reales. Los resultados que no son elementos
+(atributos, texto, escalares) caen al camino anterior, sin traducción.
+
+**Invariantes que se preservan** (son los que retblast pidió explícitamente):
+
+- el orden de los autores (`dc.contributor.author` es una lista);
+- los cortes por «ASESOR(A):» y «Línea de Investigación:» introducidos en el
+  PR #124, que solo rigen si hay una etiqueta precedente;
+- la separación del ORCID respecto del nombre del asesor y de los autores;
+- el semáforo, el resumen y las 8 capturas de la ficha.
+
+**Alcance del supuesto.** El catálogo actual solo consulta, desde un nodo de
+carátula, hermanos **dentro** de la carátula; no usa `last()`/`position()`
+sobre el cuerpo ni mira párrafos posteriores al salto de sección. Si una
+regla futura necesita esos ejes, debe evaluarse con el árbol completo o
+actualizarse este mecanismo. `tests/test_caratula_xpath.py` compara, para
+**todas** las expresiones de carátula de `reglas_unt.yaml` y
+`reglas_ficha.yaml`, el resultado reducido contra el filtro anterior; esa
+regresión avisa si el supuesto deja de valer.
+
+**Medición local (sintética, no sustituye el corpus real).** Con 250 párrafos
+de cuerpo y una pasada por consulta: `caratula_autores_tamano` 0,204 s →
+0,001 s (×227) y `ficha_autores` 1,493 s → 0,002 s (×792). Con 1500 párrafos,
+la primera consulta pasó de 6,254 s a 0,001 s. Falta repetir las dos cargas
+con las dos versiones de la tesis y las cinco plantillas de retblast para
+confirmar el semáforo y el tiempo real de la API.
+

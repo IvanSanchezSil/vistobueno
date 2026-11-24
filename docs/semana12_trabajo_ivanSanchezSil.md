@@ -328,6 +328,31 @@ se agregó el flag en `AnalizadorExtraccion`.
 **Documentación:** notas fechadas en el diseño 17 §4 y en el handover del
 motor §2 y §4 (lista de claves acordadas actualizada con `renati.advisor.orcid`).
 
+### 2026-11-24 — RI-07: XPath de carátula acotado; RI-08 documentado
+
+Tras la fusión del PR #124, retblast fusionó y no respondió el comentario con
+las preguntas sobre RI-07/08/09. Se avanza con lo que no depende de evidencia
+externa; RI-09 se entrega en el PR #125 y RI-07 en su propio PR.
+
+- **RI-07:** `ExtractedDocx.xpath()` evalúa las consultas con contexto
+  `caratula`/`caratula_ficha` en un árbol reducido a la carátula y devuelve
+  los nodos originales mediante un mapa copia→original. Así los ejes
+  `following/preceding-sibling::` no recorren el cuerpo completo. Los
+  resultados no-elemento siguen por el camino anterior.
+- **Regresión:** `tests/test_caratula_xpath.py` (35 pruebas) compara las 32
+  expresiones de carátula del catálogo contra el filtro anterior y comprueba
+  que semáforo, resumen, resultados y ficha sean idénticos con 200 párrafos
+  de cuerpo y etiquetas engañosas. Se conservan el orden de autores, los
+  cortes por asesor/línea y el ORCID separado del nombre.
+- **Medición sintética local:** 0,204 s → 0,001 s en
+  `caratula_autores_tamano` (×227) y 1,493 s → 0,002 s en `ficha_autores`
+  (×792) con 250 párrafos de cuerpo. No sustituye la medición con la tesis
+  real: ese corpus no está en este worktree.
+- **RI-08:** se documenta la discrepancia (descripción anuncia línea, ciudad
+  y año; selectores cubren autores y asesor; REQ-24/26 parciales y REQ-27 en
+  conflicto) y se deja la regla sin cambio hasta cotejar el manual y recibir
+  la decisión de retblast sobre tamaño y severidad.
+
 ---
 
 ## Evidencias
@@ -353,6 +378,8 @@ motor §2 y §4 (lista de claves acordadas actualizada con `renati.advisor.orcid
 | Reglas de captura | `reglas_ficha.yaml`: `ficha_orcid_asesor`, `ficha_asesor`, `ficha_autores` |
 | Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed (37 tras la revisión del 2026-11-24) |
 | Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
+| RI-07 | `tests/test_caratula_xpath.py`, diseño 17 §9 y handover de ficha §9 |
+| RI-08 | Handover de ficha §9 (diseño y decisión pendiente; sin cambio de regla) |
 
 ---
 

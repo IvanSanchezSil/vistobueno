@@ -198,3 +198,46 @@ Nota menor (ítem 4 de la misma revisión): documentar en el diseño 17
 que el XPath de autores espera **párrafos hermanos** (funciona con
 párrafos separados y con "Autor1, Autor2" en una línea vía separador,
 pero vale dejarlo escrito).
+
+---
+
+## 9. Seguimiento RI-07 / RI-08 (2026-11-24)
+
+### RI-07 — rendimiento de los XPath de carátula
+
+Implementado en `validator/extractor.py`: las consultas con contexto
+`caratula`/`caratula_ficha` se evalúan en un árbol reducido a la carátula y
+los nodos se traducen de vuelta a los originales. Detalle, invariantes y
+mediciones en `docs/diseno/17_extraccion_ficha.md` §9.
+
+Regresión: `tests/test_caratula_xpath.py` (35 pruebas) compara todas las
+expresiones del catálogo contra el comportamiento anterior y verifica que el
+reporte completo —semáforo, resumen, resultados y ficha— sea idéntico con un
+cuerpo de 200 párrafos que incluye etiquetas engañosas de asesor y línea.
+
+**Falta para cerrar:** las dos versiones de la tesis y las cinco plantillas
+oficiales que sí tiene retblast. Sin ese corpus no se pueden repetir las dos
+cargas consecutivas ni confirmar el tiempo de la API en Firefox.
+
+### RI-08 — alcance de `caratula_autores_tamano` (sin cambio de código)
+
+Retblast puso `ciudad.sz` y `linea.sz` en 36 pt en el doc bueno y la regla
+siguió en verde. Evidencia disponible en el repo:
+
+- `caratula_autores_tamano` **describe** autores, asesor, línea de
+  investigación, ciudad y año, y su `cita` incluye el texto del manual para
+  autores y línea («(tamaño de letra, 12 puntos)»). Sus dos
+  `parrafo_xpath` cubren solo autores y asesor.
+- `caratula_ciudad_pais_negrita` cita el manual para ciudad y país («tamaño
+  de letra, 12 puntos»), pero comprueba `w:b` y el patrón de mayúsculas,
+  **no el tamaño**.
+- `caratula_linea_investigacion` comprueba que la línea esté en el catálogo
+  RCU-220, **no su tamaño**.
+- `docs/MATRIZ_REQUISITOS_2026-11-12.csv`: REQ-24 (línea 12 pt) y REQ-26
+  (ciudad y país 12 pt) están `PARCIAL`; REQ-27 (año) está `CONFLICTO` por
+  año de curso frente a año de sustentación.
+
+No se modifica la regla ni la matriz: decidir si línea/ciudad/año entran a
+`error` o si se recorta la descripción requiere cotejar el manual (no está en
+este worktree) y la confirmación de retblast. Las dos opciones quedan
+planteadas para esa decisión.
