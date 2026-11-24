@@ -30,6 +30,7 @@ factory). Un ZIP válido sin ``word/document.xml`` sigue lanzando
 
 import re
 import zipfile
+from copy import deepcopy
 from dataclasses import dataclass, field
 
 from lxml import etree
@@ -816,6 +817,10 @@ class ExtractedDocx:
     # Caché de consultas XPath (F4): clave (parte, contexto, xpath). Evita
     # re-ejecutar la misma consulta por cada analizador de la regla.
     _cache: dict = field(default_factory=dict, repr=False)
+    # Árboles reducidos a la carátula (RI-07). Permiten evaluar los XPath con
+    # `following/preceding-sibling::` sobre un body con solo los párrafos de
+    # carátula, en vez de recorrer todo el documento y filtrar después.
+    _arboles_caratula: dict = field(default_factory=dict, repr=False)
     # Paginación física (ítem 1 de la Fase 2, corregida en M3/VA-04):
     # párrafo -> `PaginaFisica` (número + grado de certeza), calculada a
     # partir de los saltos que Word persiste en el XML.
@@ -996,24 +1001,64 @@ class ExtractedDocx:
         clave = (parte, contexto, xpath_expr)
         if clave in self._cache:
             return self._cache[clave]
-        arboles = self._arboles(parte)
-        if not arboles:
-            raise ValueError(f"parte '{parte}' no disponible en este archivo")
-        nodos = []
-        for tree in arboles:
-            nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
-        if contexto == "cuerpo":
-            nodos = [n for n in nodos if self.is_cuerpo(n)]
-        if contexto == "cuerpo_prosa":
-            nodos = [n for n in nodos if self.is_cuerpo_prosa(n)]
-        if contexto == "seccion_cuerpo":
-            nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
-        if contexto == "caratula":
-            nodos = [n for n in nodos if self.is_caratula(n)]
-        if contexto == "caratula_ficha":
-            nodos = [n for n in nodos if self.is_caratula_ficha(n)]
+        if parte == "document" and contexto in ("caratula", "caratula_ficha"):
+            # RI-07: evaluar sobre un body con SOLO los párrafos de carátula.
+            # Los ejes `following/preceding-sibling::` se resuelven así sobre
+            # decenas de párrafos, no sobre todo el cuerpo de la tesis.
+            arbol, mapa = self._arbol_caratula(contexto)
+            encontrados = arbol.xpath(xpath_expr, namespaces=NS)
+            if all(isinstance(n, etree._Element) for n in encontrados):
+                nodos = [mapa.get(n, n) for n in encontrados]
+            else:
+                # Atributos, texto o escalares: se evalúa en el árbol completo
+                # para conservar la semántica anterior sin traducciones frágiles.
+                nodos = []
+                for tree in self._arboles(parte):
+                    nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
+                if contexto == "caratula":
+                    nodos = [n for n in nodos if self.is_caratula(n)]
+                else:
+                    nodos = [n for n in nodos if self.is_caratula_ficha(n)]
+        else:
+            arboles = self._arboles(parte)
+            if not arboles:
+                raise ValueError(f"parte '{parte}' no disponible en este archivo")
+            nodos = []
+            for tree in arboles:
+                nodos.extend(tree.xpath(xpath_expr, namespaces=NS))
+            if contexto == "cuerpo":
+                nodos = [n for n in nodos if self.is_cuerpo(n)]
+            if contexto == "cuerpo_prosa":
+                nodos = [n for n in nodos if self.is_cuerpo_prosa(n)]
+            if contexto == "seccion_cuerpo":
+                nodos = [n for n in nodos if self.es_seccion_cuerpo(n)]
         self._cache[clave] = nodos
         return nodos
+
+    def _arbol_caratula(self, contexto: str) -> tuple[etree._Element, dict]:
+        """Body reducido a la carátula y mapa nodo copia → nodo original.
+
+        Se devuelven los nodos **originales** al caller mediante
+        `_del_arbol_reducido`: la paginación (`pagina_de`) y los conjuntos
+        `_caratula`/`_caratula_ficha` están indexados por los nodos reales del
+        DOCX, no por las copias. El orden de los párrafos se conserva para que
+        los ejes `sibling` y `position()` sigan significando lo mismo.
+        """
+        if contexto in self._arboles_caratula:
+            return self._arboles_caratula[contexto]
+        conjunto = self._caratula if contexto == "caratula" else self._caratula_ficha
+        raiz = etree.Element(W + "document", nsmap=self.document.nsmap)
+        cuerpo = etree.SubElement(raiz, W + "body")
+        mapa: dict = {raiz: self.document, cuerpo: self.document.find(W + "body")}
+        for parrafo in self.document.xpath("//w:body/w:p", namespaces=NS):
+            if parrafo not in conjunto:
+                continue
+            copia = deepcopy(parrafo)
+            cuerpo.append(copia)
+            for original, clon in zip(parrafo.iter(), copia.iter(), strict=True):
+                mapa[clon] = original
+        self._arboles_caratula[contexto] = (raiz, mapa)
+        return raiz, mapa
 
 
 def _relaciones(xml_bytes: bytes | None) -> dict[str, str]:
