@@ -642,6 +642,26 @@ class TestLimitePeticiones:
         for _ in range(3):
             assert subir_plantilla().status_code == 200
 
+    def test_rechazo_mensaje_coherente_con_retry_after(self, monkeypatch):
+        """El mensaje 429 indica una espera coherente con el header Retry-After."""
+        monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_MAX", raising=False)
+        # Presupuesto ínfimo: cualquier validación lo agota y el siguiente
+        # rechazo debe indicar cuánto esperar.
+        cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
+        monkeypatch.setattr(
+            validator.api, "_LIMITADOR_CPU_VALIDACION", cupo
+        )
+        assert subir_plantilla().status_code == 200
+        rebotada = subir_plantilla()
+        assert rebotada.status_code == 429
+        retry_after = int(rebotada.headers["Retry-After"])
+        detalle = rebotada.json()["detail"].lower()
+        if retry_after >= 60:
+            assert "minutos" in detalle
+        else:
+            assert "segundos" in detalle
+        assert "validación" in detalle
+
 
 class TestLimitadorCPU:
     """El cupo adaptativo rinde menos en un equipo lento con el mismo

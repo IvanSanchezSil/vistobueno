@@ -861,6 +861,65 @@ dos autores generan dos constancias y dos filas con el mismo handle.
 - La app JAMÁS escribe el XLSX oficial: el operador pega la fila o
   copia las celdas del archivo descargado.
 
+## Módulo de IA del encargado (optín, advisory) — Funcionalidad 2
+
+El módulo de IA es **opt-in** y **advisory**: nunca toca el semáforo ni
+produce un `RuleResult`. Solo consume el reporte ya generado por el
+motor determinista. Se habilita definiendo `OLLAMA_URL` en el entorno
+del servidor (p. ej. `OLLAMA_URL=http://127.0.0.1:11434`). Sin ella, los
+endpoints responden según se indica a continuación.
+
+### `GET /asistente/estado`
+
+Devuelve si el módulo de IA está disponible y el modelo en uso. Siempre
+devuelve `200`: si no hay `OLLAMA_URL` o el servicio no responde,
+responde con `disponible=false`.
+
+**Respuesta (200):**
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `disponible` | `bool` | `true` si el servicio de IA responde |
+| `modelo` | `string` | Nombre del modelo en uso; vacío si no disponible |
+
+Sin `OLLAMA_URL`: `{"disponible": false, "modelo": ""}`.
+
+### `POST /asistente/explicar`
+
+Valida un DOCX con el motor determinista y le pide al LLM que explique
+las reglas fallidas y las priorice por orden de corrección. Reutiliza la
+misma validación de entrada que `POST /validar` (extensión, content-type,
+tamaño y firma ZIP).
+
+Es **advisory**: la salida de la IA es solo texto de apoyo para el
+encargado, nunca modifica el semáforo ni el reporte de validación.
+
+**Cuerpo:** `multipart/form-data` con campo `archivo` (`.docx`).
+
+**Respuestas:**
+
+| Código | Significado |
+|--------|-------------|
+| `200` | Explicaciones y prioridades generadas por el LLM |
+| `400` | Sin archivo en la solicitud |
+| `415` | Tipo de archivo no soportado |
+| `422` | Archivo corrupto, no es DOCX válido |
+| `503` | Módulo de IA no disponible (falta `OLLAMA_URL`) |
+
+**Ejemplo de respuesta (200):**
+
+```json
+{
+  "explicaciones": [
+    {"rule_id": "papel_tamano", "explicacion": "El papel debe ser A4"}
+  ],
+  "prioridades": [
+    {"orden": 1, "rule_id": "papel_tamano", "razon": "Requisito fundamental del formato.", "esfuerzo": "bajo"}
+  ],
+  "modelo": "qwen2.5:3b"
+}
+```
+
 ## Changelog
 
 ### v1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)

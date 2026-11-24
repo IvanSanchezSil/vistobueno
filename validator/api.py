@@ -23,7 +23,7 @@ from datetime import datetime
 from functools import cache
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from zoneinfo import ZoneInfo
 
 from email_validator import EmailNotValidError, validate_email
@@ -41,7 +41,7 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers
-from starlette.responses import PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .api_models import (
@@ -51,8 +51,11 @@ from .api_models import (
     DepositoAPI,
     DepositoRecibido,
     DepositoReportado,
+    EstadoAsistenteAPI,
     EstadoDepositoAPI,
     EstadoNotificacionAPI,
+    ExplicacionItemAPI,
+    ExplicacionYPrioridadAPI,
     FichaDeposito,
     FichaPendienteLeida,
     FichaPendientePublicada,
@@ -62,6 +65,7 @@ from .api_models import (
     InconsistenciaRequest,
     MetadatosValidacion,
     NotificacionAPI,
+    PrioridadItemAPI,
     PromptIA,
     ReconciliacionResponse,
     ReconciliarRequest,
@@ -71,6 +75,7 @@ from .api_models import (
     TramiteLeido,
     ValidarResponse,
 )
+from .asistente import explicar_y_priorizar
 from .buzon import (
     AutoresNoCoinciden,
     Buzon,
@@ -101,6 +106,12 @@ from .constancia import (
 from .dsl_check import DSLValidationError
 from .engine import build_report, load_ficha_rules, load_rules, validate_docx
 from .extractor import InvalidDocumentError
+from .llm import (
+    ErrorIA,
+    LLMClient,
+    LLMNoDisponible,
+    get_llm_client,
+)
 from .models import RuleResult
 from .notificacion import ConfigSMTP, enviar_notificacion
 from .prompts import build_ai_help_section
@@ -628,13 +639,21 @@ def _config_limite_peticiones() -> tuple[int, float]:
 
 
 def _rechazar_por_limite(reintentar: float, recurso: str) -> None:
-    """Respuesta 429 uniforme de los cupos."""
+    """Respuesta 429 uniforme de los cupos.
+
+    El `Retry-After` sigue en segundos (estándar HTTP).
+    El mensaje cambia a minutos si la espera es de 60 s o más.
+    """
+    if reintentar < 60:
+        wait_msg = f"Espera {int(reintentar)} segundos antes de reintentar."
+    else:
+        wait_min = int(round(reintentar / 60))
+        wait_msg = f"Espera {wait_min} minutos antes de reintentar."
     raise HTTPException(
         status_code=429,
         headers={"Retry-After": str(int(reintentar) + 1)},
         detail=(
-            f"Demasiadas peticiones de {recurso} seguidas. "
-            "Espera unos segundos antes de reintentar."
+            f"Demasiadas peticiones de {recurso} seguidas. {wait_msg}"
         ),
     )
 
@@ -953,6 +972,12 @@ app = FastAPI(
 )
 # DNS rebinding: se valida el header Host antes de cualquier endpoint.
 app.add_middleware(MiddlewareHostConfiable)
+
+
+@app.exception_handler(LLMNoDisponible)
+async def _llm_no_disponible_handler(request: Request, exc: LLMNoDisponible):
+    """Convierte `LLMNoDisponible` en 503 para los endpoints de IA."""
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
 @app.post(
@@ -1951,6 +1976,210 @@ async def generar_fila_registro(
         # CPU real del hilo que armó las filas, no la latencia
         # (revisión PR #71, B1).
         _LIMITADOR_CPU_PAPELES.registrar_coste(medidor.segundos)
+
+
+# ---------------------------------------------------------------------------
+# Asistente del encargado — módulo de IA (diseño 16, Paso 0 + Funcionalidad 2)
+# ---------------------------------------------------------------------------
+# Endpoints de IA: módulo advisory que nunca toca el semáforo ni produce
+# `RuleResult`. Habilitado con `OLLAMA_URL` (opt-in). Sin ella responde 503
+# (estado) o 503 (explicar), igual que la notificación SMTP.
+
+def _estado_ia_desde_cliente(client: LLMClient) -> EstadoAsistenteAPI:
+    """Normaliza el resultado de `client.disponible()` a un DTO."""
+    try:
+        disponible = True if client.disponible() is True else False
+    except Exception:
+        disponible = False
+    return EstadoAsistenteAPI(
+        disponible=disponible,
+        modelo=client.modelo if disponible else "",
+    )
+
+
+@app.get(
+    "/asistente/estado",
+    response_model=EstadoAsistenteAPI,
+    summary="Estado del módulo de IA",
+    description=(
+        "Devuelve si el módulo de IA está disponible y el modelo en uso. "
+        "Nunca devuelve 503: si no hay `OLLAMA_URL` o el servicio no responde, "
+        "responde con `disponible=false` para que el frontend desactive el botón."
+    ),
+    responses={
+        200: {"description": "Estado del módulo de IA (siempre devuelve 200)"},
+        403: {"description": "Petición desde otro equipo o sin token válido"},
+    },
+    dependencies=[Depends(verificar_acceso_local)],
+)
+async def estado_ia_endpoint():
+    """GET /asistente/estado — estado del módulo de IA."""
+    try:
+        client = get_llm_client()
+    except LLMNoDisponible:
+        return EstadoAsistenteAPI(disponible=False, modelo="")
+    return await _estado_ia_desda_cliente(client)
+
+
+
+
+async def _estado_ia_desda_cliente(client: LLMClient) -> EstadoAsistenteAPI:
+    """Normaliza el resultado de `client.disponible()` a un DTO."""
+    try:
+        disponible = True if await client.disponible() is True else False
+    except ErrorIA:
+        disponible = False
+    return EstadoAsistenteAPI(
+        disponible=disponible,
+        modelo=client.modelo if disponible else "",
+    )
+
+
+def obtener_cliente_ia():
+    """Devuelve el cliente LLM para los endpoints de IA.
+
+    Inyectable en tests con
+    `app.dependency_overrides[obtener_cliente_ia] = lambda: StubLLM(...)`.
+    """
+    return get_llm_client()
+
+
+
+@app.post(
+    "/asistente/explicar",
+    response_model=ExplicacionYPrioridadAPI,
+    summary="Explicación y priorización de fallos (Funcionalidad 2)",
+    description=(
+        "Valida un DOCX con el motor determinista y le pide al LLM que "
+        "explique las reglas fallidas y las priorice por orden de corrección. "
+        "Es advisory: nunca toca el semáforo ni produce un `RuleResult`. "
+        "Reutiliza la validación de entrada de POST /validar (extensión, "
+        "content-type, tamaño y firma ZIP)."
+    ),
+    responses={
+        400: {"description": "Sin archivo en la solicitud"},
+        403: {"description": "Petición desde otro equipo o sin token válido"},
+        413: {"description": "Archivo excede el tamaño máximo (10 MB)"},
+        415: {"description": "Tipo de archivo no soportado"},
+        422: {"description": "Archivo corrupto, no es DOCX válido o correo inválido"},
+        503: {"description": "Módulo de IA no disponible (falta OLLAMA_URL)"},
+    },
+    dependencies=[Depends(verificar_acceso_local)],
+)
+async def explicar_ia_file(
+    archivo: UploadFile = File(...), client = Depends(obtener_cliente_ia)  # noqa: B008
+):
+    """POST /asistente/explicar — explica y prioriza los fallos de un DOCX."""
+    # --- Validación de entrada igual que POST /validar ---
+    if not archivo.filename or not archivo.filename.lower().endswith(EXTENSION_ACEPTADA):
+        raise HTTPException(status_code=400, detail="No se recibió ningún archivo.")
+
+    content_type = archivo.content_type or ""
+    if content_type and content_type not in TIPOS_ACEPTADOS:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Content-Type no soportado: '{content_type}'. Solo se aceptan archivos .docx."
+            ),
+        )
+
+    try:
+        contenido = await archivo.read(TAMANO_MAXIMO_BYTES + 1)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail="No se pudo leer el archivo enviado.") from e
+
+    tamano = len(contenido)
+    if tamano > TAMANO_MAXIMO_BYTES:
+        raise HTTPException(status_code=413, detail="El archivo excede el tamaño máximo permitido (10 MB).")
+    if tamano == 0:
+        raise HTTPException(status_code=422, detail="El archivo está vacío.")
+
+    if not contenido.startswith(b"PK\x03\x04"):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "El archivo no es un ZIP/DOCX válido: cabecera incorrecta "
+                "(se esperaba la firma 'PK')."
+            ),
+        )
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=EXTENSION_ACEPTADA) as tmp:
+            tmp.write(contenido)
+            tmp_path = tmp.name
+
+        rules_data = _get_rules()
+
+        try:
+            with zipfile.ZipFile(tmp_path) as paquete:
+                if "word/document.xml" not in paquete.namelist():
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            "El archivo no contiene un documento Word válido: "
+                            "archivo interno faltante ('word/document.xml')."
+                        ),
+                    )
+        except zipfile.BadZipFile as e:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+                ),
+            ) from e
+
+        medidor = _MedidorCPU()
+        try:
+            resultados_motor = await run_in_threadpool(
+                medidor.medir, validate_docx, tmp_path, rules_data, _get_ficha_rules()
+            )
+        except DSLValidationError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error interno del validador: configuración de reglas inválida: {e}",
+            ) from e
+        except InvalidDocumentError as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"El archivo no contiene un documento Word válido: {e}.",
+            ) from e
+        except zipfile.BadZipFile as e:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+                ),
+            ) from e
+        finally:
+            _cobrar_coste_validacion(medidor.segundos)
+
+        # Funcionalidad 2: explicar y priorizar los fallos.
+        tipo_documento: str | None = None
+        resultado = await explicar_y_priorizar(resultados_motor, client=client, tipo_documento=tipo_documento)
+
+        return ExplicacionYPrioridadAPI(
+            explicaciones=[
+                ExplicacionItemAPI(rule_id=e.rule_id, explicacion=e.explicacion)
+                for e in resultado.explicaciones
+            ],
+            prioridades=[
+                PrioridadItemAPI(
+                    orden=p.orden,
+                    rule_id=p.rule_id,
+                    razon=p.razon,
+                    esfuerzo=cast(Literal["bajo", "medio", "alto"], p.esfuerzo),
+                )
+                for p in resultado.prioridades
+            ],
+            modelo=resultado.modelo,
+        )
+    finally:
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 # ---------------------------------------------------------------------------
