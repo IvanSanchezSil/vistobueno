@@ -8,7 +8,10 @@ fusionado el 2026-11-18, cierra VA-13 (AUD-24 a AUD-27). Los PR #112 (M10),
 #113 (M9), #114 (M12a) y #117 (integra #115, M8) quedaron fusionados el
 2026-11-19 y cierran VA-18, VA-12, NM-01 y VA-16; la medición de M8 contra
 plantillas oficiales y tesis real está registrada en el handover de Int3.
-Siguen pendientes VA-10, VA-11 (B5), VA-17 (B6), VA-19 y
+La entrega de Int1 del 2026-11-23 (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`)
+implementa B5 y B6, pero aún requiere integración.
+Siguen pendientes de integración VA-11 (B5) y VA-17 (B6). También siguen
+pendientes VA-10, VA-19 y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
 PR #116), además del bloque normativo: NM-01, NM-02, NM-05 y NM-07 quedaron
 cerrados con los PR #114, #118, #120 y #121, ya fusionados; siguen pendientes
@@ -704,13 +707,13 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-08 | Int1 | **cerrado en código** (PR #116, merge `d576b09`; US-03 y US-04): se quitan las filas sobrantes con el control del widget y los pares autor/DNI conservan la posición; falta la evidencia en navegador real | B4: filas sobrantes |
 | VA-09 | Int1 + Int2 | **cerrado** (PR #95, merge `0469983`): B2 y F2 implementados; contrato v1.13.0 | B2 + F2: identidad de trámite |
 | VA-10 | Int2 | pendiente | F1: identidad del resguardo |
-| VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 pendiente | M1a + B5: documento inválido |
+| VA-11 | Int3 + Int1 | M1a **cerrado** (PR #99, merge `7d90502`; implementación `f601f29`); B5 **cerrado en código** (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`, commits `d900f11`, `bc63e9e`, `d7916de` y `ac2aeea`): XML mal formado, raíz ajena y cuerpo ausente devuelven 422; las reglas inválidas devuelven 500; falta integración | M1a + B5: documento inválido |
 | VA-12 | Int3 | **cerrado** (PR #113 fusionado, `efbf565`; corrección `1c617f1`): el texto del documento se escapa para Markdown, la cerca del prompt no se puede cerrar y el fetcher del PDF solo acepta `data:` | M9: PDF sin recursos no permitidos |
 | VA-13 | Int3 | **cerrado** (PR #75 fusionado): AUD-24 a AUD-27 y las etiquetas de las plantillas oficiales cubiertas | M0: PR #75, AUD-24 a AUD-27 |
 | VA-14 | Int3 | **cerrado** (PR #105, merge `a666778`; implementación `c2eb680`): ítem 5 «Base de datos»; título real reconocido y ausencia informada; comparación por subcadena ratificada el 2026-11-16 | M6: «Base de datos» |
 | VA-15 | Int3 | **cerrado** (PR #106, merge `de0ca8bb`; implementación `b92f7f3`, `ad78342`): el tamaño del logo se mide y se avisa; la comparación se aplica a todas las imágenes de la carátula (salvedad documentada en `reglas_unt.yaml`) | M7: alcance de la regla del logo |
 | VA-16 | Int3 | **cerrado** (PR #115 integrado por #117, `5dda06d`; correcciones `4e40973`, `0f91f54`): ORCID por autor/asesor con checksum ISO 7064 MOD 11-2, destino del vínculo y texto entre paréntesis; medición con plantillas y tesis real en el handover de Int3 | M8: ORCID |
-| VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 pendiente | B6: ejemplos; M11: factory |
+| VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 **cerrado en código** (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`, commits `9149583` y `ac2aeea`): ejemplos regenerados; la guarda usa los bytes versionados, valida el paquete OPC y compara la respuesta API completa; falta integración | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | **cerrado** (B7 en PR #93, `a6c8d4e`; M10 en PR #112, `94df0e4`; correcciones `3e75289`, `0762716`): CLI y exportador distinguen evaluadas de no aplicables | B7 + M10: conteos |
 | VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
 | VA-20 | Int1 | **parcial** (PR #116, merge `d576b09`; US-02): los valores escritos se releen y las filas se concilian con los controles del widget; falta la puerta de Angular | B3 y puerta Angular de Int1: antes del piloto |
