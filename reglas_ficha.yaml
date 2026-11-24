@@ -7,9 +7,11 @@
 # como `dict[campo] = {"valor", "pagina", "detectado"}` (contrato de
 # `docs/HANDOVER_MOTOR_FICHA_DEPOSITO.md` §4).
 #
-# Claves acordadas (PLAN_FICHA §4.2): dc.title, dc.contributor.author,
-# dc.contributor.advisor, dc.description.abstract, dc.subject,
-# dc.date.issued, escuela, renati.juror.
+# Claves que publica el motor (PLAN_FICHA §4.2 + decisión 2026-11-23):
+# dc.title, dc.contributor.author, dc.contributor.advisor,
+# dc.description.abstract, dc.subject, dc.date.issued, escuela y
+# renati.advisor.orcid. `renati.juror` sigue sin capturarse (viabilidad
+# negativa del diseño 17) y la API lo publica como no detectado.
 #
 # No están en `reglas_unt.yaml` a propósito: allí cada regla debe tener una
 # mutación (tests/_mutations.py) y una captura read-only no tiene desvío
@@ -55,9 +57,14 @@ reglas:
     quitar_prefijo: ^\s*autor\s*(?:\([^)]*\)|as?|es)?\s*:?\s*
     # AUD-24: todos los párrafos de autor tras «AUTORES:»/«AUTORA:», sin
     # partir por la coma interna de «Apellidos, Nombres». Se saltan las
-    # líneas de ORCID y las instrucciones entre paréntesis de las plantillas,
-    # y se corta en «ASESOR(A):» o «Línea de investigación:».
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'autor')][1] | //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'linea')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'orcid')) and not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'orcid.org')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), '(')) and not(w:pPr/w:pStyle) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'linea') or w:pPr/w:pStyle])]
+    # instrucciones entre paréntesis de las plantillas y se corta en
+    # «ASESOR(A):» o «Línea de investigación:». Desde 2026-11-23 las líneas
+    # de ORCID puras se descartan con `filtro` (no con el XPath) para que un
+    # autor con su ORCID en el mismo párrafo no desaparezca; el sufijo se
+    # recorta con `quitar_sufijo`.
+    filtro: '^(?!\s*\(?\s*(?:(?:c[oó]digo\s+)?orcid\s*:\s*)?(?:https?://(?:www\.)?orcid\.org/)?\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]\s*\)?\s*\.?\s*$).*'
+    quitar_sufijo: '\s*\(?\s*(?:https?://(?:www\.)?orcid\.org/)?\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]\s*\)?\s*$'
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'autor')][1] | //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'autor')][1]/following-sibling::w:p[not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'linea')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'orcid')) and not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), '(')) and not(w:pPr/w:pStyle) and not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor') or starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'linea') or w:pPr/w:pStyle])]
 
 - id: ficha_asesor
   tipo: estructura
@@ -76,9 +83,34 @@ reglas:
     # AUD-25: la etiqueta «ASESOR(A):» suele ir en su propio párrafo y el
     # nombre en el siguiente; si van juntos, la propia etiqueta trae el
     # nombre. `primero_no_vacio` elige la primera pieza que, tras limpiar el
-    # prefijo, no quede vacía.
+    # prefijo, no quede vacía. Desde 2026-11-23 se descarta la línea de ORCID
+    # pura (antes se publicaba como nombre) y se recorta el ORCID pegado al
+    # final del nombre. La etiqueta se localiza con `starts-with`: `contains`
+    # podía tomar como etiqueta un título que mencionara «asesoría». El XPath
+    # se corta en «Línea de investigación:» para que, si solo hay ORCID, no se
+    # publique esa etiqueta (ni el texto posterior) como nombre del asesor.
+    filtro: '^(?!\s*\(?\s*(?:(?:c[oó]digo\s+)?orcid\s*:\s*)?(?:https?://(?:www\.)?orcid\.org/)?\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]\s*\)?\s*\.?\s*$).*'
+    quitar_sufijo: '\s*\(?\s*(?:https?://(?:www\.)?orcid\.org/)?\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx]\s*\)?\s*$'
     seleccion: primero_no_vacio
-    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')][1] | //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')][1]/following-sibling::w:p[normalize-space(.)][1]
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')][1] | //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')][1]/following-sibling::w:p[normalize-space(.)][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'linea'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'linea')])][position() <= 2]
+
+- id: ficha_orcid_asesor
+  tipo: estructura
+  descripcion: Captura del ORCID del asesor (renati.advisor.orcid)
+  valor_esperado: identificador ORCID del asesor
+  severidad: warning
+  fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
+  ubicacion: Carátula, Apellidos y nombres del asesor (párr. 180)
+  cita: '"Apellidos y nombres del/a asesor(a)"'
+  extraccion:
+    parte: document
+    contexto: caratula
+    campo: renati.advisor.orcid
+    modo: texto
+    filtro: '(?<![\dXx])\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx](?![\dXx])'
+    patron: '((?<![\dXx])\d{4}-?\d{4}-?\d{4}-?\d{3}[\dXx](?![\dXx]))'
+    seleccion: primero
+    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')][1] | //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜáéíóúñü', 'abcdefghijklmnopqrstuvwxyzaeiounuaeiounu'), 'asesor')][1]/following-sibling::w:p[normalize-space(.)][position() <= 2]
 
 - id: ficha_escuela
   tipo: estructura
