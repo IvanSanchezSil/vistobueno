@@ -25,7 +25,8 @@ Solo lectura: no cambia el semáforo, no agrega reglas de validación, no toca
 ## 2. Mecanismo elegido
 
 El handover ofrece dos opciones. Se elige un **híbrido** porque ninguna de las
-dos, sola, cubre bien los 8 campos:
+dos, sola, cubre bien los campos del contrato (8 capturados desde 2026-11-23,
+más `renati.juror`, que sigue en viabilidad):
 
 - La ficha captura **párrafos de carátula** (título, autores, asesor, escuela,
   año) que **no** son las reglas ya mecanizadas de la carátula (esas validan
@@ -77,6 +78,7 @@ campo opcional en `RuleResult` + el acumulador.
 | `dc.subject` | palabras clave del resumen | reusa `palabras_clave_minimo` |
 | `dc.date.issued` | año en carátula | localización nueva |
 | `escuela` | línea "ESCUELA ACADÉMICO PROFESIONAL DE…" | localización nueva |
+| `renati.advisor.orcid` | párrafo de la etiqueta del asesor o hasta dos párrafos siguientes | detectado desde 2026-11-23 (PR 1 del reparto ORCID) |
 | `renati.juror` | sección de firmas / jurado | **viabilidad**: ver §6 |
 
 `valor` es `str` o `list[str]` (autores, palabras clave, jurado). `pagina` se
@@ -91,8 +93,28 @@ DSpace pre-llena por colección 16 campos, así que el motor **no** captura:
 - **Línea de investigación** (`dc.subject.ocde`): pre-llena. El **mapeo
   línea→OCDE queda cancelado** para el depósito (no era una fase pendiente, se
   descarta).
-- DNI del autor/asesor, ORCID, DOI, ISBN: los teclea el operador; el motor no
-  los busca.
+- DNI del autor/asesor, DOI e ISBN: los teclea el operador; el motor no los
+  busca. El ORCID del **autor** sigue siendo manual.
+
+**Cambio de decisión (2026-11-23, PR 1 del reparto ORCID con Int1 e Int2):**
+el ORCID del **asesor** pasa de campo manual a campo detectado. Sale de la
+carátula con `ficha_orcid_asesor`: se acepta en el párrafo de la etiqueta o en
+los dos párrafos no vacíos siguientes, con o sin `https://orcid.org/`. En el
+mismo cambio, `ficha_asesor` y `ficha_autores` dejan de descartar párrafos por
+contener `orcid.org`: ahora separan la línea pura con `filtro` y recortan el
+ORCID pegado al nombre con `quitar_sufijo`. La detección del checksum y su
+publicación en la API son del PR 2 (Int1); en este PR el contrato HTTP no
+cambia porque `CAMPOS_EXTRAIDOS_FICHA` aún no incluye la clave.
+
+**Ajustes de la revisión (2026-11-24, PR #124):** el corte en «Línea de
+investigación:» se acotó a una línea que tenga un párrafo de asesor precedente
+(y el equivalente en `ficha_autores`, con un párrafo de autor precedente). Sin
+ese ámbito, una línea previa al bloque tumbaba la captura del asesor o de los
+autores. `quitar_sufijo` acepta ahora el prefijo opcional «(Código) ORCID:»
+para que el identificador sin URL no quede pegado al nombre. Se cubren con
+tests el ORCID desnudo, el ORCID con etiqueta y la línea de investigación
+previa. La clave ausente cuando no hay ORCID se mantiene: retblast confirmó
+que la API garantiza la forma del contrato en el PR 2.
 
 Por eso `escuela` no es un campo del formulario de DSpace, sino el dato de la
 columna ESCUELAS del registro de la biblioteca (el operador lo usa fuera de la

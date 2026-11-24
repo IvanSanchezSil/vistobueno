@@ -13,9 +13,10 @@ implementa B5 y B6, pero aún requiere integración.
 Siguen pendientes de integración VA-11 (B5) y VA-17 (B6). También siguen
 pendientes VA-10, VA-19 y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
-PR #116), además del bloque normativo: NM-01 cerrado, NM-02 en código en el
-PR #118 (pendiente de fusión) y NM-03 a NM-07 pendientes. Un PR abierto no
-cierra el hallazgo hasta su integración y verificación.
+PR #116), además del bloque normativo: NM-01, NM-02, NM-05 y NM-07 quedaron
+cerrados con los PR #114, #118, #120 y #121, ya fusionados; siguen pendientes
+NM-03, NM-04 y NM-06. Un PR abierto no cierra el hallazgo hasta su
+integración y verificación.
 **Alcance de este documento:** evidencia medida, pendientes con criterio de
 aceptación, decisiones ya tomadas y decisiones de dominio que el equipo
 todavía no ha cerrado.
@@ -726,12 +727,12 @@ No se cerraron defectos con esta documentación. Los detalles están en M12 de I
 | ID | Responsable | Estado | Trabajo |
 |---|---|---|---|
 | NM-01 | Int3 | **cerrado** (PR #114 fusionado, `448df55`; corrección `e18b381`): 6 veredictos corregidos con 15 regresiones en `tests/test_m12a_numeracion.py`; continuidad exacta declarada como límite sin render | M12a: numeración y pies |
-| NM-02 | Int3 | **corregido en código** (PR #118, abierto; pendiente de fusión): escuela obligatoria aunque esté la facultad, 12 pt en todo el párrafo del asesor y patrón de mayúsculas/minúsculas aplicado al párrafo del nombre cuando va tras la etiqueta; 18 regresiones en `tests/test_m12b_caratula_bloques.py` | M12b: bloques de carátula |
+| NM-02 | Int3 | **cerrado** (PR #118 fusionado el 2026-11-21, merge `bbd5f80`; 18 regresiones en `tests/test_m12b_caratula_bloques.py`): escuela obligatoria aunque esté la facultad, 12 pt en todo el párrafo del asesor y patrón de mayúsculas/minúsculas aplicado al párrafo del nombre cuando va tras la etiqueta | M12b: bloques de carátula |
 | NM-03 | Int3; Int2 comunica límites | pendiente | M12c y F3: esquemas y alcance |
 | NM-04 | Int3 + decisión del encargado | pendiente | M12d: título y autores |
-| NM-05 | Int3 | pendiente | M12e: referencias por ámbito |
+| NM-05 | Int3 | **cerrado** (PR #120 fusionado el 2026-11-20, merge `eec9e81`): referencias contadas por entrada y mínimos por tipo de documento | M12e: referencias por ámbito |
 | NM-06 | Int3 + decisión del encargado | pendiente | M12f: anexos |
-| NM-07 | Int3 | **corregido en código** (rama `semana12-m12g-citas-origen`, PR pendiente de fusión): `origen_cita` interno en 18 reglas, etiquetas por procedencia en prompts y linter que rechaza orígenes inválidos y citas literales recortadas; sin manual ni copias reales, la literalidad del resto de citas queda como límite declarado | M12g: origen de las reglas |
+| NM-07 | Int3 | **cerrado** (PR #121 fusionado el 2026-11-20, merge `65ce33a`): `origen_cita` interno en 18 reglas, etiquetas por procedencia en prompts y linter que rechaza orígenes inválidos y citas literales recortadas; la literalidad del resto de citas queda como límite declarado | M12g: origen de las reglas |
 | NM-08 | Int1 | decidido por usuario 2026-11-12 | Emular acceso abierto; B3 comprueba persistencia |
 
 ---

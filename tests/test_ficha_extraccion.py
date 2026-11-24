@@ -1,9 +1,9 @@
 """Tests de la captura de la ficha de depósito (diseño 17).
 
-Verifican que el motor expone, con página, el texto completo de los 7 campos
-que la SPA necesita para pre-llenar el formulario oficial de DSpace (la 8ª
-clave, `renati.juror`, es opcional y no se captura: ver diseño 17 §6), y que la
-captura es de SOLO LECTURA: no cambia el semáforo ni agrega reglas de
+Verifican que el motor expone, con página, el texto completo de los 8 campos
+que publica `reporte["ficha"]` (el ORCID del asesor se detecta desde la
+carátula desde 2026-11-23; `renati.juror` sigue sin capturarse: diseño 17 §6),
+y que la captura es de SOLO LECTURA: no cambia el semáforo ni agrega reglas de
 validación.
 
 Contrato: `docs/HANDOVER_MOTOR_FICHA_DEPOSITO.md` §4 y `docs/PLAN_FICHA_DEPOSITO.md` §4.2.
@@ -27,7 +27,7 @@ def _ficha(path: str) -> dict:
     return build_report(resultados)["ficha"]
 
 
-def test_ficha_captura_los_siete_campos_del_doc_bueno():
+def test_ficha_captura_los_ocho_campos_del_doc_bueno():
     path = compilar_docx(configuracion_base())
     try:
         ficha = _ficha(path)
@@ -36,11 +36,12 @@ def test_ficha_captura_los_siete_campos_del_doc_bueno():
 
         os.unlink(path)
 
-    # Las 7 claves acordadas (renati.juror es opcional y no se captura hoy).
+    # Las 8 claves que publica el motor (renati.juror sigue sin capturarse).
     assert set(ficha) == {
         "dc.title",
         "dc.contributor.author",
         "dc.contributor.advisor",
+        "renati.advisor.orcid",
         "dc.description.abstract",
         "dc.subject",
         "dc.date.issued",
@@ -61,6 +62,7 @@ def test_ficha_valores_esperados_del_doc_bueno():
     assert "Estrategias lúdicas" in ficha["dc.title"]["valor"]
     assert ficha["dc.contributor.author"]["valor"] == ["Ana María Pérez García"]
     assert ficha["dc.contributor.advisor"]["valor"] == "Mag. Carlos Alberto RODRÍGUEZ MIRANDA"
+    assert ficha["renati.advisor.orcid"]["valor"] == "0000-0002-1694-233X"
     assert ficha["escuela"]["valor"] == "ESCUELA PROFESIONAL DE EDUCACIÓN INICIAL"
     assert ficha["dc.date.issued"]["valor"] == "2026"
     assert ficha["dc.subject"]["valor"] == ["clave0", "clave1", "clave2"]
@@ -79,6 +81,8 @@ def test_ficha_incluye_pagina_de_origen():
     # La carátula es la página 1.
     assert ficha["dc.title"]["pagina"] == 1
     assert ficha["dc.contributor.author"]["pagina"] == 1
+    assert ficha["dc.contributor.advisor"]["pagina"] == 1
+    assert ficha["renati.advisor.orcid"]["pagina"] == 1
     assert ficha["escuela"]["pagina"] == 1
     assert ficha["dc.date.issued"]["pagina"] == 1
     # Resumen y palabras clave viven en una página posterior a la 1.
