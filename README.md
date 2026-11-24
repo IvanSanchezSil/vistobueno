@@ -210,14 +210,17 @@ nix run .#serve -- validator.api:app --reload
 # falsificar el peer y saltar el control de loopback.
 uvicorn validator.api:app --reload --no-proxy-headers
 
-# validar un DOCX desde CLI
-python -m validator.cli tesis.docx unt_format_rules_schema.yaml
+# validar un DOCX desde CLI (mismo YAML que usa la API)
+python -m validator.cli tesis.docx reglas_unt.yaml
 
 # solo errores bloqueantes
-python -m validator.cli tesis.docx unt_format_rules_schema.yaml --severity error
+python -m validator.cli tesis.docx reglas_unt.yaml --severity error
 
 # reporte completo en JSON (incluye "como_preguntar_a_una_ia")
-python -m validator.cli tesis.docx unt_format_rules_schema.yaml --json
+python -m validator.cli tesis.docx reglas_unt.yaml --json
+
+# `unt_format_rules_schema.yaml` es el esquema legacy: sirve para comparar
+# con la versión histórica, pero NO reproduce lo que responde la API.
 
 # exportar el reporte a Markdown o PDF (para la bitácora/entrega)
 python -m validator.cli tesis.docx reglas_unt.yaml --formato markdown --salida reporte.md
