@@ -534,6 +534,11 @@ operador presente). El kit del piloto está en `docs/PILOTO_OPERADOR.md`.
    `?formato=tsv | csv | xlsx`, `/fila-registro` devuelve el archivo
    descargable directo.
 
+Nota de cambio (2026-11-23): el motor ya captura el ORCID del asesor desde
+la carátula (`renati.advisor.orcid` en `reporte["ficha"]`). En esta versión
+la API todavía lo trata como campo manual: su publicación como dato extraído
+llega en el siguiente PR del reparto ORCID.
+
 Nota de seguridad operativa: los `.har` exportados del navegador traen
 cookies, tokens y cuerpos POST completos (incluso con el export
 "sanitized" de Chrome). Se manejan como secretos: canal privado,

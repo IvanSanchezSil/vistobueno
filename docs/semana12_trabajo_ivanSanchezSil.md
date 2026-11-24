@@ -2,11 +2,11 @@
 
 - **Integrante**: ivanSanchezSil (Integrante 3 — Motor de reglas / Procesamiento)
 - **Semana**: 12
-- **Fechas**: 2026-11-12 → 2026-11-18 (semana en curso)
+- **Fechas**: 2026-11-12 → 2026-11-23 (semana en curso)
 - **Rol**: extractor, motor, analizadores, reglas YAML, exportador/CLI y
   pruebas/factory del motor
-- **Rama de trabajo**: `semana12-m11-factory-opc`
-- **Base**: `upstream/master` `bf6be5e` (PR #94)
+- **Rama de trabajo**: `motor-orcid-asesor`
+- **Base**: `upstream/master` `bbd5f80` (PR #118)
 - **Plan**: [`PLAN_SEMANA12_MOTOR_CORRECTITUD.md`](PLAN_SEMANA12_MOTOR_CORRECTITUD.md)
 
 ---
@@ -262,6 +262,46 @@ implementado.
 **Entrega:** commit `b92f7f3`, rama `semana12-m7-logo`, PR apilado
 sobre #105.
 
+### 2026-11-23 — PR 1 del reparto ORCID: captura del ORCID del asesor
+
+Retblast repartió el paso de ORCID del asesor a campo detectado en tres PR:
+motor (Int3), API/userscript (Int1) y frontend (Int2). Este PR es solo el
+motor: no cambia el contrato HTTP, no toca `api.py` ni `api_models.py`, y la
+validación de checksum y la publicación en `ficha_deposito` quedan para el
+PR 2 de Int1.
+
+**Reproducción previa al arreglo** (`tests/_caratula_real.py`):
+
+- asesor sin nombre y solo ORCID → `dc.contributor.advisor` con la URL;
+- autor con ORCID en el mismo párrafo → el autor desaparecía de la ficha;
+- asesor con ORCID pegado → el nombre publicaba el identificador.
+
+**Arreglo en `reglas_ficha.yaml`:**
+
+- regla nueva `ficha_orcid_asesor` (`renati.advisor.orcid`) sobre la etiqueta
+  del asesor y los dos párrafos siguientes, con `filtro` y `patron` para ORCID
+  con o sin `https://orcid.org/`;
+- `ficha_asesor` pasa de `contains(..., 'asesor')` a `starts-with`, descarta
+  la línea de ORCID pura y recorta el sufijo; el XPath se corta en «Línea de
+  investigación:» para no publicar esa etiqueta como nombre cuando el asesor
+  solo trae ORCID;
+- `ficha_autores` deja de excluir párrafos por `contains(..., 'orcid.org')`:
+  ahora filtra solo la línea pura y recorta el ORCID final.
+
+**Verificación:** 32 pruebas entre `tests/test_ficha_extraccion.py` (8 claves
+en el doc bueno, valor y página del ORCID) y `tests/test_captura_ficha.py`
+(7 casos nuevos de aceptación). Semáforo y resumen intactos: son reglas de
+captura. Los tests los escribe Int3 en este PR con autorización de retblast
+para que se integre solo.
+
+**Documentación:** nota de cambio con fecha en el diseño 17 §4 y en el
+handover del motor §2; cierre de NM-02, NM-05 y NM-07 en la tabla §11 del
+handover de auditoría; nota en el README para dejar claro que la API sigue
+tratando el campo como manual hasta el PR 2.
+
+**Entrega:** rama `motor-orcid-asesor`, PR abierto contra `upstream/master`;
+sin fusión (retblast integra).
+
 ---
 
 ## Evidencias
@@ -283,6 +323,10 @@ sobre #105.
 | Suite M6 | 937 passed, 4 skipped |
 | Suite M7 | 948 passed, 4 skipped |
 | Estado de los hallazgos | §2 de `HANDOVER_CORRECTITUD_2026-11-12.md` |
+| Reproducción del ORCID del asesor | `tests/_caratula_real.py` (placeholders, sin PII) |
+| Reglas de captura | `reglas_ficha.yaml`: `ficha_orcid_asesor`, `ficha_asesor`, `ficha_autores` |
+| Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed |
+| Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
 
 ---
 
@@ -310,3 +354,5 @@ sobre #105.
 2. Implementar M1a: validar la entrada del extractor y documentar las partes
    OPC mínimas admitidas (desbloquea B5 de Int1).
 3. Continuar con M1 (formato efectivo y revisión de todo el texto).
+4. Coordinar con Int1 e Int2 los PR 2 y 3 del reparto ORCID: checksum y
+   publicación del campo extraído, y aviso de verificación en la SPA.
