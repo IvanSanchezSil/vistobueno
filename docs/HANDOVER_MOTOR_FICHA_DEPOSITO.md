@@ -57,6 +57,22 @@ y la ficha no los publica.
 > `CAMPOS_MANUALES_FICHA`). Si el documento no trae ORCID, el motor omite la
 > clave y la API publica `detectado=false` desde su lista acordada.
 
+> **Ajustes de la revisión (2026-11-24, PR #124):** retblast reprodujo dos
+> casos límite y se corrigieron en el mismo PR antes de la fusión:
+> 1. El predicado que cortaba en «Línea de investigación:» era absoluto: si
+>    esa línea aparecía **antes** del bloque «ASESOR(A):», el asesor dejaba
+>    de detectarse. Ahora solo corta en una línea que tenga un párrafo de
+>    asesor precedente. El mismo problema se acotó en `ficha_autores` (la
+>    línea previa a «AUTORES:» borraba todos los nombres).
+> 2. `quitar_sufijo` no recortaba la etiqueta cuando el ORCID iba sin URL:
+>    «Dra. Nombre ORCID: 0000-…» publicaba «Dra. Nombre ORCID:». El patrón
+>    acepta ahora el prefijo opcional «(Código) ORCID:» en asesor y autores.
+>
+> Se agregaron casos para ORCID desnudo bajo la etiqueta, ORCID con etiqueta
+> y línea de investigación previa (37 pruebas de ficha en verde). Retblast
+> confirmó que la clave **ausente** cuando no hay ORCID es la forma correcta:
+> la estabilidad del contrato la garantiza la API en el PR 2.
+
 Requisitos comunes:
 
 - **Texto completo, no resumen**: `found` trunca (`vals[:3]`, conteos);
@@ -105,11 +121,12 @@ Cualquiera de las dos opciones debe permitir que `build_report()` (o el
 }
 ```
 
-Claves acordadas: `dc.title`, `dc.contributor.author`,
-`dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`,
-`dc.date.issued`, `escuela`, `renati.juror` (opcional). Con eso, la API
-arma `ficha_deposito.extraidos[]` (PLAN_FICHA §5) sin parsear `found` ni
-inventar heurísticas por regla. Si un dato no aplica, `detectado: false`.
+Claves acordadas (actualizado 2026-11-24): `dc.title`,
+`dc.contributor.author`, `dc.contributor.advisor`, `renati.advisor.orcid`,
+`dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela` y
+`renati.juror` (opcional; hoy no se captura). Con eso, la API arma
+`ficha_deposito.extraidos[]` (PLAN_FICHA §5) sin parsear `found` ni inventar
+heurísticas por regla. Si un dato no aplica, `detectado: false`.
 
 ## 5. Verificación que te pido
 

@@ -2,7 +2,7 @@
 
 - **Integrante**: ivanSanchezSil (Integrante 3 — Motor de reglas / Procesamiento)
 - **Semana**: 12
-- **Fechas**: 2026-11-12 → 2026-11-23 (semana en curso)
+- **Fechas**: 2026-11-12 → 2026-11-24 (semana en curso)
 - **Rol**: extractor, motor, analizadores, reglas YAML, exportador/CLI y
   pruebas/factory del motor
 - **Rama de trabajo**: `motor-orcid-asesor`
@@ -302,6 +302,32 @@ tratando el campo como manual hasta el PR 2.
 **Entrega:** rama `motor-orcid-asesor`, PR abierto contra `upstream/master`;
 sin fusión (retblast integra).
 
+### 2026-11-24 — Ajustes de la revisión de retblast en el PR #124
+
+Retblast revisó `ba9d755` en un clon aparte (suite 1149/9 frente a 1142/9 en
+`bbd5f80`, linter del DSL, mypy y OpenAPI limpios) y pidió dos correcciones
+antes de fusionar:
+
+1. El predicado que cortaba en «Línea de investigación:» era absoluto: con la
+   línea **antes** del bloque «ASESOR(A):», el nombre dejaba de detectarse. Se
+   acotó a una línea con un párrafo de asesor precedente. El mismo patrón en
+   `ficha_autores` también borraba los autores si la línea iba antes de
+   «AUTORES:»; se acotó con un párrafo de autor precedente.
+2. `quitar_sufijo` dejaba «ORCID:» pegado al nombre cuando el identificador no
+   llevaba URL. El patrón acepta ahora el prefijo opcional «(Código) ORCID:»
+   en asesor y autores.
+
+**Cobertura nueva:** ORCID desnudo bajo la etiqueta, ORCID con etiqueta en
+asesor y autor, y línea de investigación previa a cada bloque. Las 4 nuevas
+fallaban antes del arreglo; la ficha queda en 37 pruebas verdes.
+
+**Decisión confirmada:** retblast aceptó que la clave quede **ausente** en
+`reporte["ficha"]` cuando no hay ORCID (la API fija la forma en el PR 2). No
+se agregó el flag en `AnalizadorExtraccion`.
+
+**Documentación:** notas fechadas en el diseño 17 §4 y en el handover del
+motor §2 y §4 (lista de claves acordadas actualizada con `renati.advisor.orcid`).
+
 ---
 
 ## Evidencias
@@ -325,7 +351,7 @@ sin fusión (retblast integra).
 | Estado de los hallazgos | §2 de `HANDOVER_CORRECTITUD_2026-11-12.md` |
 | Reproducción del ORCID del asesor | `tests/_caratula_real.py` (placeholders, sin PII) |
 | Reglas de captura | `reglas_ficha.yaml`: `ficha_orcid_asesor`, `ficha_asesor`, `ficha_autores` |
-| Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed |
+| Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed (37 tras la revisión del 2026-11-24) |
 | Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
 
 ---

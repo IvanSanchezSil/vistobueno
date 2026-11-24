@@ -106,6 +106,16 @@ ORCID pegado al nombre con `quitar_sufijo`. La detección del checksum y su
 publicación en la API son del PR 2 (Int1); en este PR el contrato HTTP no
 cambia porque `CAMPOS_EXTRAIDOS_FICHA` aún no incluye la clave.
 
+**Ajustes de la revisión (2026-11-24, PR #124):** el corte en «Línea de
+investigación:» se acotó a una línea que tenga un párrafo de asesor precedente
+(y el equivalente en `ficha_autores`, con un párrafo de autor precedente). Sin
+ese ámbito, una línea previa al bloque tumbaba la captura del asesor o de los
+autores. `quitar_sufijo` acepta ahora el prefijo opcional «(Código) ORCID:»
+para que el identificador sin URL no quede pegado al nombre. Se cubren con
+tests el ORCID desnudo, el ORCID con etiqueta y la línea de investigación
+previa. La clave ausente cuando no hay ORCID se mantiene: retblast confirmó
+que la API garantiza la forma del contrato en el PR 2.
+
 Por eso `escuela` no es un campo del formulario de DSpace, sino el dato de la
 columna ESCUELAS del registro de la biblioteca (el operador lo usa fuera de la
 pantalla).
