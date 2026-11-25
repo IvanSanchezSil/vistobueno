@@ -14,6 +14,7 @@ import argparse
 import sys
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:
@@ -73,12 +74,10 @@ def main() -> int:
             print(f"Error: el archivo {ruta} no existe", file=sys.stderr)
             return 1
         nuevo_t, nuevo = _validar(ruta, reglas, ficha)
-        original = ExtractedDocx.xpath
-        ExtractedDocx.xpath = xpath_anterior
-        try:
+        # `patch.object` restaura el método aunque falle la validación y
+        # evita asignar un método directamente (rechazado por mypy).
+        with patch.object(ExtractedDocx, "xpath", xpath_anterior):
             anterior_t, anterior = _validar(ruta, reglas, ficha)
-        finally:
-            ExtractedDocx.xpath = original
         print(f"=== {ruta.name} ===")
         print(f"  anterior: {anterior_t:.2f} s | actual: {nuevo_t:.2f} s")
         print(f"  semáforo: {nuevo['semaforo']} | resumen: {nuevo['resumen']}")
