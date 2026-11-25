@@ -45,6 +45,20 @@ def _zip_con_documento_xml(documento_xml: str) -> bytes:
     return buffer.getvalue()
 
 
+def _correr_dependencia(dependencia) -> None:
+    """Ejecuta una dependencia con `yield` hasta el final.
+
+    Las dependencias de cupo son generadores: el `finally` (que libera
+    el hueco de la cota) corre cuando el generador termina.
+    """
+
+    async def _correr() -> None:
+        async for _ in dependencia():
+            pass
+
+    asyncio.run(_correr())
+
+
 # ---------------------------------------------------------------------------
 # Tests: respuesta exitosa (200)
 # ---------------------------------------------------------------------------
@@ -308,6 +322,8 @@ class TestErrores:
         detalle = respuesta.json()["detail"]
         assert "configuración de reglas inválida" in detalle
         assert "Traceback" not in detalle
+        # El detalle del YAML no se filtra al cliente: queda en el log.
+        assert "regla_invalida" not in detalle
 
     @pytest.mark.parametrize(
         "error",
@@ -329,8 +345,10 @@ class TestErrores:
 
         assert respuesta.status_code == 500
         detalle = respuesta.json()["detail"]
-        assert type(error).__name__ in detalle
-        assert "configuración de reglas inválida" in detalle
+        assert "Error interno del validador" in detalle
+        # El detalle no filtra la excepción (puede traer rutas del servidor
+        # o reglas internas): el diagnóstico queda en el log.
+        assert type(error).__name__ not in detalle
         assert "Traceback" not in detalle
 
     def test_docx_admitido_responde_200(self):
@@ -819,7 +837,7 @@ class TestCupoCpuPorEntorno:
         monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "5")
         cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
         monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 5.0
 
     def test_el_papeleo_se_puede_desactivar_con_cero(self, monkeypatch):
@@ -827,7 +845,7 @@ class TestCupoCpuPorEntorno:
         monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "0")
         cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
         monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 0.0
         assert cupo.adquirir()[0] is True
 
@@ -841,11 +859,11 @@ class TestCupoCpuPorEntorno:
         monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
 
         monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "0")
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 0.0
 
         monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG")
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 1.0
 
     def test_quitar_la_ventana_devuelve_la_base(self, monkeypatch):

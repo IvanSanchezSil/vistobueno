@@ -125,6 +125,15 @@ class TestEstadoIA:
         assert respuesta.status_code == 200
         assert respuesta.json() == {"disponible": False, "modelo": ""}
 
+    def test_estado_con_url_malformada_no_devuelve_500(self, cliente_ia, monkeypatch):
+        """Una `OLLAMA_URL` inválida se informa como no disponible, no como 500."""
+        monkeypatch.setenv("OLLAMA_URL", "http://[::1")
+
+        respuesta = cliente_ia.get("/asistente/estado")
+
+        assert respuesta.status_code == 200
+        assert respuesta.json() == {"disponible": False, "modelo": ""}
+
 
 # ---------------------------------------------------------------------------
 # Tests: POST /asistente/explicar

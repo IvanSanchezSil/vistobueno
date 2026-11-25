@@ -564,6 +564,27 @@ class TestEndpointConstancia:
         assert respuesta.status_code == 422
         assert "fuera de rango" in respuesta.json()["detail"]
 
+    def test_cota_de_simultaneidad_ocupada_es_429(self):
+        """Con los huecos de papeleo ocupados, el endpoint responde 429.
+
+        El cupo de CPU se consulta antes de generar el documento: sin la
+        cota, una ráfaga paralela entraría entera y cargaría el equipo
+        por encima del presupuesto.
+        """
+        ocupacion = [
+            validator.api._SEMAFORO_PAPELES.acquire(blocking=False)
+            for _ in range(validator.api.MAX_PAPELES_CONCURRENTES)
+        ]
+        try:
+            assert all(ocupacion)
+            respuesta = CLIENTE.post("/constancia", json=_solicitud())
+            assert respuesta.status_code == 429
+            assert int(respuesta.headers["Retry-After"]) >= 1
+        finally:
+            for tomada in ocupacion:
+                if tomada:
+                    validator.api._SEMAFORO_PAPELES.release()
+
     def test_timestamp_invalido_es_422(self):
         solicitud = _solicitud(timestamp="ayer")
         respuesta = CLIENTE.post("/constancia", json=solicitud)
