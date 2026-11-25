@@ -906,8 +906,10 @@ endpoints responden según se indica a continuación.
 ### `GET /asistente/estado`
 
 Devuelve si el módulo de IA está disponible y el modelo en uso. Siempre
-devuelve `200`: si no hay `OLLAMA_URL` o el servicio no responde,
-responde con `disponible=false`.
+devuelve `200`: si no hay `OLLAMA_URL`, si el servicio no responde o si
+la `OLLAMA_URL` está mal formada, responde con `disponible=false`. La
+sonda espera como máximo 5 s (el plazo del cliente LLM es mayor): un
+servicio que acepta la conexión pero no contesta no cuelga la SPA.
 
 **Respuesta (200):**
 
@@ -916,7 +918,8 @@ responde con `disponible=false`.
 | `disponible` | `bool` | `true` si el servicio de IA responde |
 | `modelo` | `string` | Nombre del modelo en uso; vacío si no disponible |
 
-Sin `OLLAMA_URL`: `{"disponible": false, "modelo": ""}`.
+Sin `OLLAMA_URL`: `{"disponible": false, "modelo": ""}`. Con una URL
+mal formada, el mismo resultado (el error queda en el log del servidor).
 
 ### `POST /asistente/explicar`
 
