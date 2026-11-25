@@ -334,6 +334,15 @@ Para la Func 1 (`POST /asistente/semantico`), en el mismo archivo:
   el botón de explicación: (a) la SPA aborta la validación a los 30 s
   (`TIMEOUT_VALIDACION_MS`) y `POST /asistente/explicar` puede tardar más
   (valida el DOCX y luego llama al LLM): ese botón necesita un plazo
-  mayor; (b) el endpoint responde `429` cuando el cupo de CPU está lleno
-  o hay dos validaciones simultáneas, así que el reintento debe leer el
-  header `Retry-After`.
+  mayor; (b) el endpoint responde `429` cuando el cupo de CPU está lleno,
+  hay dos validaciones simultáneas o ya hay dos explicaciones con IA en
+  curso (`MAX_IA_CONCURRENTES`), así que el reintento debe leer el header
+  `Retry-After`.
+
+**La espera al LLM no bloquea `/validar`** (revisión adversarial de RI-01):
+el hueco de la cota de validaciones cubre solo el trabajo de CPU, así que
+una explicación en curso (hasta 180 s esperando al LLM) no retiene la
+capacidad de la API. Lo que sí limita es la cota propia de IA: dos
+explicaciones simultáneas como máximo; la tercera recibe `429` con
+`Retry-After` = el plazo del cliente LLM (`OLLAMA_TIMEOUT`, 180 s por
+defecto).

@@ -771,11 +771,24 @@ CPU por minuto). No hay que calibrar nada por hardware.
 
 El presupuesto cubre **una tesis completa**. Medido con las dos tesis
 reales del corpus (después de RI-07, PR #126), una validación consume
-~3.8 s de CPU: con el valor predeterminado, **dos tesis consecutivas
-entran** (la segunda se admite mientras la deuda de la primera sigue
-por debajo de 5 s) y la tercera recibe `429` con una espera de ~26 s.
+entre **1.5 y 3.8 s de CPU**: el coste depende del documento y del estado
+del proceso (la compilación del DSL y la caché de expresiones regulares
+se recalculan en cada petición). Con el valor predeterminado:
+
+- **una tesis SIEMPRE entra** (la más cara medida cuesta 3.8 s < 5 s): el
+  operador nunca queda bloqueado por un documento;
+- **dos tesis consecutivas SIEMPRE entran**: la segunda se admite
+  mientras la deuda de la primera sigue por debajo de 5 s;
+- **la tercera espera** cuando las dos anteriores consumieron más de 5 s
+  en total (lo normal: 2 × 3.6 s = 7.2 s). Si la máquina valida más
+  rápido, entra una tercera.
+
 Ese es el criterio de cierre de RI-01: la carga siguiente no queda
-bloqueada por la anterior, pero una ráfaga de tesis sí se corta.
+bloqueada por la anterior, pero una ráfaga de tesis sí se corta. El
+presupuesto es un límite de **trabajo por minuto**, no un contador de
+tesis: por eso la espera del `429` se calcula con la deuda medida (entre
+12 y 31 s según el coste real de la validación y el tiempo transcurrido)
+y no es un valor fijo.
 
 `POST /asistente/explicar` consume el mismo cupo: valida el DOCX con el
 mismo motor, así que cobra el mismo trabajo.
@@ -811,10 +824,24 @@ las tesis reales del corpus: 4 tesis en paralelo entraron las cuatro
 Por eso hay además una **cota de dos operaciones pesadas a la vez**
 (`MAX_VALIDACIONES_CONCURRENTES`): como máximo dos peticiones pesadas a
 la vez; las demás reciben `429` con `Retry-After` y una espera estimada a
-partir del último coste medido. La cota no depende del entorno y se
-libera siempre, incluso si la petición falla o su cuerpo es inválido.
-El margen es el mismo de la política de cupos: dos tesis seguidas entran,
-la tercera espera.
+partir del último coste medido. La cota no depende del entorno.
+
+El hueco cubre **solo el trabajo de CPU**: se toma dentro del hilo que
+valida y se suelta cuando ese trabajo acaba. Por eso una espera externa
+no retiene la capacidad de la API:
+
+- la notificación por correo (`notificar=true`) espera al SMTP **fuera**
+  del hueco;
+- `POST /asistente/explicar` espera al LLM **fuera** del hueco (tiene su
+  propia cota, `MAX_IA_CONCURRENTES`, también de dos: si la espera al LLM
+  retuviera un hueco de validación, dos explicaciones en curso dejarían
+  `/validar` sin servicio aunque la máquina estuviera ociosa).
+
+Si la tarea se cancela (el cliente se desconecta), el hilo sigue
+trabajando: suelta el hueco y cobra su coste real cuando termina. El
+margen es el mismo de la política de cupos: una tesis entra y dos
+seguidas también; la tercera espera cuando las dos anteriores pasaron el
+presupuesto.
 
 El papeleo tiene su propia cota (`MAX_PAPELES_CONCURRENTES`, también dos):
 generar un DOCX/XLSX es más caro que validar.
@@ -944,15 +971,18 @@ encontrado y cita), no el texto completo de la tesis.
 | `413` | Archivo excede el tamaño máximo (10 MB) |
 | `415` | Tipo de archivo no soportado |
 | `422` | Archivo ausente, corrupto o no es un DOCX válido **o** respuesta de IA no interpretable |
-| `429` | Cupo de CPU agotado o cota de validaciones simultáneas ocupada: la espera indicada en `Retry-After` y en el mensaje es la misma |
+| `429` | Cupo de CPU agotado, cota de validaciones ocupada o cota de explicaciones con IA ocupada: la espera indicada en `Retry-After` y en el mensaje es la misma |
+| `500` | Error interno del validador (por ejemplo, configuración de reglas inválida). El detalle no filtra internals |
 | `503` | Módulo de IA no disponible (falta `OLLAMA_URL` o el servicio no responde) |
 
 El endpoint consume el mismo **cupo de CPU** y la misma **cota de
 validaciones simultáneas** que `POST /validar`: valida el DOCX con el
 mismo motor y cobra ese trabajo. Un documento sin fallos devuelve `200`
 con las listas vacías, sin llamar al LLM. La llamada al LLM no consume
-CPU local (solo espera), pero el hueco de la cota queda ocupado hasta que
-la respuesta sale: con una explicación en curso queda un hueco libre.
+CPU local (solo espera) y **no retiene el hueco de validación**: el hueco
+se suelta al terminar la validación y la espera al LLM va con su propia
+cota (`MAX_IA_CONCURRENTES`, dos explicaciones simultáneas). Con una
+explicación en curso, `/validar` sigue entrando con normalidad.
 
 Si el módulo de IA no está configurado, el endpoint responde `503` antes
 de validar el archivo: el servicio no está disponible y el archivo no se
@@ -992,8 +1022,9 @@ nunca toca el semáforo ni produce un `RuleResult`.
 **Cupo de CPU**: el presupuesto por ventana de la validación sube de `2.0`
 a `5.0` s de CPU (PR #127). El criterio es que una tesis normal entre
 entera: medido con las tesis reales del corpus, una validación consume
-~3.8 s de CPU, así que dos tesis consecutivas responden `200` y la tercera
-recibe `429` con una espera coherente con `Retry-After`.
+entre 1.5 y 3.8 s de CPU, así que una tesis y dos consecutivas responden
+`200` siempre, y una tercera recibe `429` cuando las dos anteriores
+consumieron más de 5 s (lo normal).
 `POST /asistente/explicar` consume el mismo cupo.
 
 **Cota de validaciones simultáneas**: como máximo dos validaciones
@@ -1003,9 +1034,17 @@ entera: medido con las tesis reales, 4 en paralelo consumieron 14.2 s de
 CPU y bloquearon la carga siguiente 102 s. Las peticiones que no caben
 reciben `429` con `Retry-After`.
 
+**El hueco cubre solo el trabajo de CPU**: se toma dentro del hilo que
+valida y se suelta cuando la validación acaba. La espera al LLM de
+`POST /asistente/explicar` y la espera al SMTP de la notificación no
+retienen el hueco; las explicaciones con IA tienen su propia cota
+(`MAX_IA_CONCURRENTES`, dos). Si la tarea se cancela, el hilo sigue
+trabajando y suelta el hueco y cobra su coste al terminar.
+
 **Mensaje 429**: la espera del mensaje coincide con el header
-`Retry-After`, en segundos o en minutos, con singular o plural según el
-valor.
+`Retry-After`, siempre en segundos, con singular o plural según el
+valor. La espera se calcula con la deuda medida, así que no es un valor
+fijo (entre 12 y 31 s con las tesis reales del corpus).
 
 **Detalle del 500**: el mensaje ya no incluye la excepción (puede
 contener rutas del servidor o reglas internas). El diagnóstico completo

@@ -418,11 +418,13 @@ validaciones seguidas en un equipo de 60 ms y ~20 en uno de 250 ms: se
 ajusta solo, sin calibrar por hardware.
 
 El presupuesto cubre **una tesis completa**: con las tesis reales del
-corpus, una validación consume ~3.8 s de CPU, así que **dos tesis
-consecutivas responden `200`** y la tercera recibe `429` con una espera de
-~26 s. La carga siguiente no queda bloqueada por la anterior, pero una
-ráfaga de tesis sí se corta. `POST /asistente/explicar` consume el mismo
-cupo: valida el DOCX con el mismo motor.
+corpus, una validación consume entre **1.5 y 3.8 s de CPU** (el coste
+depende del documento y del estado del proceso), así que **una tesis y
+dos consecutivas responden `200` siempre**, y una tercera recibe `429`
+cuando las dos anteriores consumieron más de 5 s (lo normal). La carga
+siguiente no queda bloqueada por la anterior, pero una ráfaga de tesis sí
+se corta. `POST /asistente/explicar` consume el mismo cupo: valida el
+DOCX con el mismo motor.
 
 El coste que se cobra es **CPU del hilo que validó**, no la latencia: con
 varias peticiones a la vez, la espera no cuenta como trabajo.
@@ -433,6 +435,11 @@ validaciones simultáneas**: las peticiones que no caben reciben `429` con
 con las tesis reales: 4 en paralelo consumieron 14.2 s de CPU y
 bloquearon la carga siguiente 102 s). El papeleo tiene su propia cota,
 también de dos operaciones a la vez.
+
+El hueco de la cota cubre **solo el trabajo de CPU**: la espera al SMTP
+del correo y la espera al LLM de `POST /asistente/explicar` no lo
+retienen (las explicaciones con IA tienen su propia cota de dos). Por
+eso una explicación en curso no deja `/validar` sin servicio.
 
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo (1 s por
 minuto), porque generar DOCX/XLSX es más caro que validar. Se sube con
