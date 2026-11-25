@@ -8,6 +8,7 @@ Uso:
     pytest tests/test_api_ia_contrato.py -v
 """
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -106,6 +107,21 @@ class TestEstadoIA:
         """Un LLM caído se expresa como disponible=false, no como 503."""
         monkeypatch.setattr(llm_module, "get_llm_client", lambda *_args, **_kwargs: _StubCaido())
         respuesta = cliente_ia.get("/asistente/estado")
+        assert respuesta.status_code == 200
+        assert respuesta.json() == {"disponible": False, "modelo": ""}
+
+    def test_estado_no_se_cuelga_con_un_servicio_mudo(self, cliente_ia, monkeypatch):
+        """Un servicio que acepta la conexión pero no responde no cuelga la SPA."""
+
+        async def _colgado():
+            await asyncio.sleep(30)
+            return {"disponible": True, "modelo": "stub"}
+
+        monkeypatch.setattr(api_module, "estado_ia", _colgado)
+        monkeypatch.setattr(api_module, "TIEMPO_MAX_ESTADO_IA_S", 0.05)
+
+        respuesta = cliente_ia.get("/asistente/estado")
+
         assert respuesta.status_code == 200
         assert respuesta.json() == {"disponible": False, "modelo": ""}
 

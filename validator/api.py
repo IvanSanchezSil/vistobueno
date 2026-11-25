@@ -10,6 +10,7 @@ Uso:
     uvicorn validator.api:app --reload
 """
 
+import asyncio
 import logging
 import math
 import os
@@ -2028,12 +2029,22 @@ async def generar_fila_registro(
 # Es opt-in con `OLLAMA_URL`; sin ella, `estado` responde `disponible=false`
 # y `explicar` responde 503.
 
+# La sonda de disponibilidad no debe colgar la SPA: si el servicio acepta
+# la conexión pero no responde, se corta la espera y se informa como no
+# disponible. El plazo del cliente LLM (`OLLAMA_TIMEOUT`, 180 s por
+# defecto) es demasiado largo para un botón que consulta el estado.
+TIEMPO_MAX_ESTADO_IA_S = 5.0
+
 
 def obtener_cliente_ia() -> LLMClient:
     """Devuelve el cliente LLM para los endpoints de IA.
 
     Inyectable en tests con
     `app.dependency_overrides[obtener_cliente_ia] = lambda: StubLLM(...)`.
+
+    Solo lo usa `POST /asistente/explicar`: `GET /asistente/estado` llama
+    a `estado_ia()`, que ya sabe devolver `disponible=false` cuando el
+    módulo no está configurado.
     """
     return get_llm_client()
 
@@ -2055,7 +2066,12 @@ def obtener_cliente_ia() -> LLMClient:
 )
 async def estado_asistente() -> EstadoAsistenteAPI:
     """GET /asistente/estado — estado del módulo de IA (nunca 503)."""
-    estado = await estado_ia()
+    try:
+        estado = await asyncio.wait_for(estado_ia(), timeout=TIEMPO_MAX_ESTADO_IA_S)
+    except TimeoutError:
+        # Un servicio que acepta la conexión pero no responde no puede
+        # colgar la SPA: se informa como no disponible.
+        return EstadoAsistenteAPI(disponible=False, modelo="")
     return EstadoAsistenteAPI(
         disponible=bool(estado["disponible"]),
         modelo=str(estado["modelo"]),
