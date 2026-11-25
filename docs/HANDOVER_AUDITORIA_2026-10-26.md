@@ -533,13 +533,15 @@ Los cuatro quedaron cerrados en la rama `fix/api-hardening-b0-b1`.
   /fila-registro` no tenían control de acceso ni límite; un peer remoto
   podía generar constancias oficiales con datos arbitrarios y consumir
   CPU. **Cierre**: dependency de acceso en toda la API + cupo adaptativo
-  propio para el papeleo.
+  propio para el papeleo + cota de dos operaciones de papeleo simultáneas.
 - **AUD-31 (media) — límite no adaptativo**: la ventana fija de 60
   peticiones/minuto asumía un coste por petición; medido en este equipo,
   una validación tarda ~58 ms (~33/min con 2 s de CPU por minuto), y en
   un equipo 4× más lento el mismo número permite 4× más presión de CPU.
   **Cierre**: cupo adaptativo que acumula los segundos de trabajo reales
-  y se fuga a 2 s por minuto.
+  y se fuga a 5 s por minuto (PR #127) + cota de dos validaciones
+  simultáneas (PR #131: sin ella, una ráfaga paralela entraba entera y
+  bloqueaba la carga siguiente).
 
 ### AUD-33 — el botón "+" del formulario no se encontraba (media, Int1)
 

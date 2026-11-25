@@ -330,4 +330,10 @@ Para la Func 1 (`POST /asistente/semantico`), en el mismo archivo:
   `POST /validar?tipo_confirmado=` para la re-validación human-in-the-loop
   (toque acotado en el flujo de compilación: `sobreescribir_tipo`).
 - **Frontend (I2)**: necesita el estado (`GET /asistente/estado`) y los
-  endpoints de las Func 1, 2, 3 y 5 antes de sus botones.
+  endpoints de las Func 1, 2, 3 y 5 antes de sus botones. Dos avisos para
+  el botón de explicación: (a) la SPA aborta la validación a los 30 s
+  (`TIMEOUT_VALIDACION_MS`) y `POST /asistente/explicar` puede tardar más
+  (valida el DOCX y luego llama al LLM): ese botón necesita un plazo
+  mayor; (b) el endpoint responde `429` cuando el cupo de CPU está lleno
+  o hay dos validaciones simultáneas, así que el reintento debe leer el
+  header `Retry-After`.

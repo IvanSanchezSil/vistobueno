@@ -516,8 +516,8 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=false" \
 | `413` | Archivo excede 10 MB |
 | `415` | Tipo de archivo no soportado (no es `.docx`) |
 | `422` | Solicitud mal formada (sin campo `archivo`) / Cabecera ZIP inválida / Archivo vacío / DOCX corrupto o sin estructura válida / Correo inválido / Falta la atestación del operador o la revisión esperada / Handle no institucional |
-| `429` | Se superó el límite de peticiones de validación (header `Retry-After`) |
-| `500` | Error interno del servidor |
+| `429` | Se superó el límite de peticiones de validación o la cota de validaciones simultáneas (header `Retry-After`) |
+| `500` | Error interno del servidor (el detalle no incluye la excepción; el diagnóstico queda en el log del servidor) |
 
 ---
 
@@ -793,10 +793,27 @@ desactivado.
 
 El coste que se cobra es **CPU del hilo que hizo el trabajo**, no la
 latencia: con varias peticiones a la vez, la espera del GIL no es trabajo
-y no se cobra. El control es por trabajo acumulado, no por número de
-peticiones: varias cargas simultáneas pueden entrar y se cobran al
-terminar. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
+y no se cobra. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
 cupo de CPU no se cobra: ese modo cuenta peticiones por IP.
+
+### Cota de operaciones pesadas simultáneas
+
+El cupo se consulta **antes** del trabajo pesado: el coste real solo se
+conoce al terminar. Sin una cota de simultaneidad, una ráfaga paralela
+entra entera y carga el equipo por encima del presupuesto. Medido con
+las tesis reales del corpus: 4 tesis en paralelo entraron las cuatro
+(14.2 s de CPU) y la carga siguiente quedó bloqueada 102 s.
+
+Por eso hay además una **cota de dos operaciones pesadas a la vez**
+(`MAX_VALIDACIONES_CONCURRENTES`): como máximo dos peticiones pesadas a
+la vez; las demás reciben `429` con `Retry-After` y una espera estimada a
+partir del último coste medido. La cota no depende del entorno y se
+libera siempre, incluso si la petición falla o su cuerpo es inválido.
+El margen es el mismo de la política de cupos: dos tesis seguidas entran,
+la tercera espera.
+
+El papeleo tiene su propia cota (`MAX_PAPELES_CONCURRENTES`, también dos):
+generar un DOCX/XLSX es más caro que validar.
 
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo
 adaptativo (`1.0` s por ventana): generar DOCX/XLSX es más caro que
@@ -916,16 +933,21 @@ encontrado y cita), no el texto completo de la tesis.
 | Código | Significado |
 |--------|-------------|
 | `200` | Explicaciones y prioridades generadas por el LLM |
-| `400` | Sin archivo en la solicitud |
+| `400` | Campo `archivo` presente pero sin nombre |
 | `413` | Archivo excede el tamaño máximo (10 MB) |
 | `415` | Tipo de archivo no soportado |
-| `422` | Archivo corrupto, no es DOCX válido **o** respuesta de IA no interpretable |
-| `429` | Cupo de CPU agotado: la espera indicada en `Retry-After` y en el mensaje es la misma |
+| `422` | Archivo ausente, corrupto o no es un DOCX válido **o** respuesta de IA no interpretable |
+| `429` | Cupo de CPU agotado o cota de validaciones simultáneas ocupada: la espera indicada en `Retry-After` y en el mensaje es la misma |
 | `503` | Módulo de IA no disponible (falta `OLLAMA_URL` o el servicio no responde) |
 
-El endpoint consume el mismo **cupo de CPU** que `POST /validar`: valida
-el DOCX con el mismo motor y cobra ese trabajo. Un documento sin fallos
-devuelve `200` con las listas vacías, sin llamar al LLM.
+El endpoint consume el mismo **cupo de CPU** y la misma **cota de
+validaciones simultáneas** que `POST /validar`: valida el DOCX con el
+mismo motor y cobra ese trabajo. Un documento sin fallos devuelve `200`
+con las listas vacías, sin llamar al LLM.
+
+Si el módulo de IA no está configurado, el endpoint responde `503` antes
+de validar el archivo: el servicio no está disponible y el archivo no se
+procesa.
 
 **Ejemplo de respuesta (200):**
 
@@ -951,7 +973,8 @@ El reporte de `POST /validar` no cambia: la salida de la IA es advisory y
 nunca toca el semáforo ni produce un `RuleResult`.
 
 - `GET /asistente/estado` → `200 {"disponible": bool, "modelo": string}`.
-  Nunca falla: sin `OLLAMA_URL` o con el servicio caído responde
+  Nunca falla: sin `OLLAMA_URL`, con el servicio caído, con una URL
+  malformada o si el servicio no responde en 5 s, responde
   `disponible=false`.
 - `POST /asistente/explicar` (multipart con `archivo`) → `200` con
   `explicaciones`, `prioridades` y `modelo`. Un documento sin fallos
@@ -964,9 +987,20 @@ entera: medido con las tesis reales del corpus, una validación consume
 recibe `429` con una espera coherente con `Retry-After`.
 `POST /asistente/explicar` consume el mismo cupo.
 
+**Cota de validaciones simultáneas**: como máximo dos validaciones
+pesadas a la vez (`MAX_VALIDACIONES_CONCURRENTES`). El cupo se consulta
+antes del trabajo, así que sin esta cota una ráfaga paralela entraba
+entera: medido con las tesis reales, 4 en paralelo consumieron 14.2 s de
+CPU y bloquearon la carga siguiente 102 s. Las peticiones que no caben
+reciben `429` con `Retry-After`.
+
 **Mensaje 429**: la espera del mensaje coincide con el header
 `Retry-After`, en segundos o en minutos, con singular o plural según el
 valor.
+
+**Detalle del 500**: el mensaje ya no incluye la excepción (puede
+contener rutas del servidor o reglas internas). El diagnóstico completo
+queda en el log del servidor.
 
 ### v1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)
 

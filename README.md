@@ -427,6 +427,13 @@ cupo: valida el DOCX con el mismo motor.
 El coste que se cobra es **CPU del hilo que validó**, no la latencia: con
 varias peticiones a la vez, la espera no cuenta como trabajo.
 
+Como el cupo se consulta antes de validar, hay además una **cota de dos
+validaciones simultáneas**: las peticiones que no caben reciben `429` con
+`Retry-After`. Sin esa cota, una ráfaga paralela entraba entera (medido
+con las tesis reales: 4 en paralelo consumieron 14.2 s de CPU y
+bloquearon la carga siguiente 102 s). El papeleo tiene su propia cota,
+también de dos operaciones a la vez.
+
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo (1 s por
 minuto), porque generar DOCX/XLSX es más caro que validar. Se sube con
 `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` y se desactiva con `0`: es la
@@ -569,8 +576,10 @@ el reporte. **Nunca toca el semáforo** ni produce `RuleResult`. Funcionalidades
 (`LLMClient` + `OllamaClient` + `StubLLM`) y `validator/asistente.py` (Funcionalidad 2:
 `explicar_y_priorizar`), con tests sin red ni GPU. Los endpoints
 `GET /asistente/estado` y `POST /asistente/explicar` están implementados
-en `validator/api.py` (contrato en `docs/HANDOVER_API_IA.md`).
-**Pendiente**: los botones del frontend (contrato en `docs/HANDOVER_API_IA.md`).
+en `validator/api.py` (contrato v1.15.0 en `docs/CONTRATO_API.md`).
+**Pendiente**: los botones del frontend (contrato en `docs/HANDOVER_API_IA.md`;
+el botón de explicación necesita un plazo mayor que los 30 s de la
+validación y debe reintentar ante un `429` leyendo `Retry-After`).
 
 Configuración: `OLLAMA_URL` (habilita el módulo), `OLLAMA_MODEL` (por defecto
 `qwen2.5:3b`; en GPU `qwen2.5:7b`) y `OLLAMA_TIMEOUT` (segundos). Sin
