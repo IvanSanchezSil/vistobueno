@@ -441,7 +441,7 @@ def configuracion_base() -> dict:
             "negrita": False,
             "sz": 24,
         },
-        "ciudad": {"texto": "TRUJILLO - PERÚ, 2026", "negrita": True, "sz": 24},
+        "ciudad": {"texto": "Trujillo - Perú, 2026", "negrita": True, "sz": 24},
         "proyecto": {"texto": "PROYECTO DE INVESTIGACIÓN", "negrita": False, "sz": 26},
     }
     return {

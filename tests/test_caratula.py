@@ -71,7 +71,7 @@ def _docx(cuerpo_both: bool, titulo_real: bool, jc_trujillo: str = "center") -> 
         + _p("Br. Morales Saldaña, Victor Alberto")
         + _p("ASESORA:", bold=True)
         + _p("Dra. Vásquez Mondragón, Cecilia Del Pilar", bold=True)
-        + _p("TRUJILLO - PERÚ, 2026", bold=True, jc=jc_trujillo)
+        + _p("Trujillo - Perú, 2026", bold=True, jc=jc_trujillo)
         + _sect_break()
     )
     body = (
