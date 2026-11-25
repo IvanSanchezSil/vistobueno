@@ -712,9 +712,7 @@ class ExplicacionYPrioridadAPI(BaseModel):
     explicaciones: list[ExplicacionItemAPI] = Field(
         ..., description="Una explicación por regla fallida"
     )
-    prioridades: list[PrioridadItemAPI] = Field(
-        ..., description="Orden recomendado de corrección"
-    )
+    prioridades: list[PrioridadItemAPI] = Field(..., description="Orden recomendado de corrección")
     modelo: str = Field(default="", description="Modelo de IA que generó la respuesta")
 
 
@@ -728,4 +726,3 @@ class EstadoAsistenteAPI(BaseModel):
 
     disponible: bool = Field(..., description="True si el servicio de IA responde")
     modelo: str = Field(default="", description="Modelo en uso; vacío si no está disponible")
-

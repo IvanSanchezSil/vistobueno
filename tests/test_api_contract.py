@@ -9,6 +9,7 @@ Uso:
 
 import asyncio
 import io
+import math
 import time
 import zipfile
 from pathlib import Path
@@ -643,23 +644,24 @@ class TestLimitePeticiones:
             assert subir_plantilla().status_code == 200
 
     def test_rechazo_mensaje_coherente_con_retry_after(self, monkeypatch):
-        """El mensaje 429 indica una espera coherente con el header Retry-After."""
+        """El mensaje 429 usa la misma espera que el header Retry-After."""
         monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_MAX", raising=False)
         # Presupuesto ínfimo: cualquier validación lo agota y el siguiente
         # rechazo debe indicar cuánto esperar.
         cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
-        monkeypatch.setattr(
-            validator.api, "_LIMITADOR_CPU_VALIDACION", cupo
-        )
+        monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_VALIDACION", cupo)
         assert subir_plantilla().status_code == 200
         rebotada = subir_plantilla()
         assert rebotada.status_code == 429
-        retry_after = int(rebotada.headers["Retry-After"])
+        espera = int(rebotada.headers["Retry-After"])
         detalle = rebotada.json()["detail"].lower()
-        if retry_after >= 60:
-            assert "minutos" in detalle
+        if espera < 60:
+            unidad = "segundo" if espera == 1 else "segundos"
+            assert f"{espera} {unidad}" in detalle
         else:
-            assert "segundos" in detalle
+            minutos = math.ceil(espera / 60)
+            unidad = "minuto" if minutos == 1 else "minutos"
+            assert f"{minutos} {unidad}" in detalle
         assert "validación" in detalle
 
 
@@ -692,6 +694,47 @@ class TestLimitadorCPU:
         permitido, reintentar = cupo.adquirir()
         assert permitido is False
         assert reintentar > 1.0
+
+    def test_dos_tesis_normales_seguidas_caben_en_el_cupo_por_defecto(self):
+        """RI-01: una tesis real no agota el cupo y la siguiente entra.
+
+        El coste de 3.5 s es el trabajo restante de la tesis B de la
+        revisión integral después de RI-07 (44.29 s totales menos los
+        40.74 s de las dos reglas que corregía ese PR). La comprobación
+        del limitador es `deuda < presupuesto`: con 5 s la segunda tesis
+        entra; la tercera ya espera al cupo.
+        """
+        cupo = validator.api.LimitadorCPU()
+        coste_tesis = 3.5
+        assert cupo.presupuesto == 5.0
+
+        assert cupo.adquirir()[0] is True
+        cupo.registrar_coste(coste_tesis)
+        assert cupo.adquirir()[0] is True
+        cupo.registrar_coste(coste_tesis)
+
+        permitido, reintentar = cupo.adquirir()
+        assert permitido is False
+        assert reintentar == pytest.approx(24.0, abs=0.1)
+
+    def test_el_mensaje_del_rechazo_usa_singular_y_plural(self):
+        """RI-01: el mensaje no dice «1 segundos» ni redondea de menos."""
+        with pytest.raises(validator.api.HTTPException) as un_segundo:
+            validator.api._rechazar_por_limite(1.0, "validación")
+        assert un_segundo.value.headers == {"Retry-After": "1"}
+        assert "1 segundo " in un_segundo.value.detail
+        assert "1 segundos" not in un_segundo.value.detail
+
+        with pytest.raises(validator.api.HTTPException) as un_minuto:
+            validator.api._rechazar_por_limite(60.0, "validación")
+        assert un_minuto.value.headers == {"Retry-After": "60"}
+        assert "1 minuto " in un_minuto.value.detail
+        assert "1 minutos" not in un_minuto.value.detail
+
+        with pytest.raises(validator.api.HTTPException) as dos_minutos:
+            validator.api._rechazar_por_limite(119.2, "validación")
+        assert dos_minutos.value.headers == {"Retry-After": "120"}
+        assert "2 minutos" in dos_minutos.value.detail
 
     def test_un_presupuesto_de_cero_desactiva_el_cupo(self):
         """Presupuesto 0 = cupo apagado (salida de emergencia del operador)."""
