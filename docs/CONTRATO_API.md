@@ -950,7 +950,9 @@ encontrado y cita), no el texto completo de la tesis.
 El endpoint consume el mismo **cupo de CPU** y la misma **cota de
 validaciones simultáneas** que `POST /validar`: valida el DOCX con el
 mismo motor y cobra ese trabajo. Un documento sin fallos devuelve `200`
-con las listas vacías, sin llamar al LLM.
+con las listas vacías, sin llamar al LLM. La llamada al LLM no consume
+CPU local (solo espera), pero el hueco de la cota queda ocupado hasta que
+la respuesta sale: con una explicación en curso queda un hueco libre.
 
 Si el módulo de IA no está configurado, el endpoint responde `503` antes
 de validar el archivo: el servicio no está disponible y el archivo no se
