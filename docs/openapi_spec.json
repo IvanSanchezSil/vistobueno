@@ -3,7 +3,7 @@
   "info": {
     "title": "VistoBueno API",
     "description": "API de validación automática de formato de tesis — UNT FECyC",
-    "version": "1.14.0"
+    "version": "1.15.0"
   },
   "paths": {
     "/validar": {
@@ -420,7 +420,7 @@
       "get": {
         "summary": "Estado del módulo de IA",
         "description": "Devuelve si el módulo de IA está disponible y el modelo en uso. Nunca devuelve 503: si no hay `OLLAMA_URL` o el servicio no responde, responde con `disponible=false` para que el frontend desactive el botón.",
-        "operationId": "estado_ia_endpoint_asistente_estado_get",
+        "operationId": "estado_asistente_asistente_estado_get",
         "responses": {
           "200": {
             "description": "Estado del módulo de IA (siempre devuelve 200)",
@@ -442,12 +442,12 @@
       "post": {
         "summary": "Explicación y priorización de fallos (Funcionalidad 2)",
         "description": "Valida un DOCX con el motor determinista y le pide al LLM que explique las reglas fallidas y las priorice por orden de corrección. Es advisory: nunca toca el semáforo ni produce un `RuleResult`. Reutiliza la validación de entrada de POST /validar (extensión, content-type, tamaño y firma ZIP).",
-        "operationId": "explicar_ia_file_asistente_explicar_post",
+        "operationId": "explicar_asistente_asistente_explicar_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_explicar_ia_file_asistente_explicar_post"
+                "$ref": "#/components/schemas/Body_explicar_asistente_asistente_explicar_post"
               }
             }
           },
@@ -477,10 +477,13 @@
             "description": "Tipo de archivo no soportado"
           },
           "422": {
-            "description": "Archivo corrupto, no es DOCX válido o correo inválido"
+            "description": "Archivo corrupto, no es DOCX válido o respuesta de IA no interpretable"
+          },
+          "429": {
+            "description": "Demasiadas peticiones de validación seguidas"
           },
           "503": {
-            "description": "Módulo de IA no disponible (falta OLLAMA_URL)"
+            "description": "Módulo de IA no disponible (falta OLLAMA_URL o servicio caído)"
           }
         }
       }
@@ -488,7 +491,7 @@
   },
   "components": {
     "schemas": {
-      "Body_explicar_ia_file_asistente_explicar_post": {
+      "Body_explicar_asistente_asistente_explicar_post": {
         "properties": {
           "archivo": {
             "type": "string",
@@ -500,7 +503,7 @@
         "required": [
           "archivo"
         ],
-        "title": "Body_explicar_ia_file_asistente_explicar_post"
+        "title": "Body_explicar_asistente_asistente_explicar_post"
       },
       "Body_validar_validar_post": {
         "properties": {
