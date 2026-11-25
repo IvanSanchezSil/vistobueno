@@ -447,10 +447,15 @@ del PR #128, para no abrir otro PR.
 **Verificación:** 107 pruebas enfocadas pasadas; suite completa 1223 pasadas,
 9 omitidas y 1 fallo preexistente de WeasyPrint 70 (CI usa 69). `ruff check`,
 `ruff format --check`, `mypy` y el escáner de secretos limpios. Corro el corpus
-real por petición explícita
-del usuario: las tres reglas en verde en los siete documentos (2 tesis + 5
+real por petición explícita del usuario: las tres reglas en verde en los siete
+documentos (2 tesis + 5
 plantillas) y semáforo/resumen sin cambios: aprobada 0 errores/5 advertencias,
 no aprobada 4/5, plantillas 2 o 4 errores con 9 advertencias.
+
+**Entrega:** commits `74c3216` y `dd09654` pusheados a
+`origin/ri08-tamano-caratula` (PR #128, sin merge). CI verde en
+https://github.com/retblast/vistobueno/actions/runs/45620297259 y aviso a
+retblast en https://github.com/retblast/vistobueno/pull/128#issuecomment-7163377535.
 
 ---
 

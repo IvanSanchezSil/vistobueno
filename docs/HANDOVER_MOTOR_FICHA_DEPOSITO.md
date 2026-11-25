@@ -312,3 +312,5 @@ sigue partida en tres runs y el valor de la línea sigue siendo
 Se regeneraron los dos JSON y los dos DOCX de `docs/ejemplos/` y se
 actualizaron la cita en `docs/ejemplo_respuesta_motor.json`, la matriz y esta
 sección. Todo queda en commits separados dentro del PR #128, sin merge.
+CI verde en https://github.com/retblast/vistobueno/actions/runs/45620297259 y
+aviso publicado en https://github.com/retblast/vistobueno/pull/128#issuecomment-7163377535.
