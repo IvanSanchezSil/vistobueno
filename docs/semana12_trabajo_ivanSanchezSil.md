@@ -410,7 +410,9 @@ y año en curso: la duda que había quedado abierta se resolvía con esa fuente.
 **Verificación:** `tests/test_ri08_caratula_tamano.py` y la suite enfocada de
 carátula pasan; `ruff check`, `ruff format --check`, `mypy validator/ scripts/`
 y el escáner de secretos sin hallazgos. Retblast fusionó el PR #126 (RI-07)
-mientras se hacía este trabajo.
+mientras se hacía este trabajo. RI-08 se entregó en el PR #128, abierto y sin
+merge de mi parte; CI verde en https://github.com/retblast/vistobueno/actions/runs/45615829450
+y aviso de pendientes publicado en #128 y #126.
 
 ---
 
@@ -438,7 +440,7 @@ mientras se hacía este trabajo.
 | Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed (37 tras la revisión del 2026-11-24) |
 | Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
 | RI-07 | `tests/test_caratula_xpath.py`, `scripts/medir_caratula.py`, diseño 17 §9 y handover de ficha §9 |
-| RI-08 | `tests/test_ri08_caratula_tamano.py`, `reglas_unt.yaml` (cinco bloques a 12 pt), handover de ficha §9 y matriz REQ-24/26/27 |
+| RI-08 | PR #128: `tests/test_ri08_caratula_tamano.py`, `reglas_unt.yaml` (cinco bloques a 12 pt), handover de ficha §9 y matriz REQ-24/26/27 |
 | RI-09 | `tests/test_reglas_activas.py`, README (CLI con `reglas_unt.yaml`), `AGENTS.md` (54 reglas) y plan de Semana 12 restaurado |
 
 ---

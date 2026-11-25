@@ -264,4 +264,5 @@ de `docs/ejemplos/` (solo cambian `ubicacion` y `cita`).
 
 **Corpus real:** la regla sigue en verde en la tesis aprobada, en la no
 aprobada y en las cinco plantillas; no cambia semáforo, resumen, capturas ni
-los cuatro errores de la tesis no aprobada.
+los cuatro errores de la tesis no aprobada. Entregado en el PR #128, abierto y
+sin merge de mi parte; CI verde en https://github.com/retblast/vistobueno/actions/runs/45615829450.
