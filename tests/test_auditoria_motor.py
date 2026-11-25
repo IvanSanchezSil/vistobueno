@@ -429,7 +429,8 @@ def test_aud05_ignora_runs_sin_texto_y_no_mira_al_asesor():
 
     El run vacío lleva 14 pt (sz 28) a propósito: si se leyera, la regla
     fallaría. El asesor lleva 10 pt (sz 20) para probar que el bloque de
-    autores termina antes de «ASESOR(A):».
+    autores termina antes de «ASESOR(A):». Línea, ciudad y año se incluyen
+    a 12 pt porque RI-08 también los mide en esta misma regla.
     """
     path = _docx_caratula_runs(
         [
@@ -438,6 +439,15 @@ def test_aud05_ignora_runs_sin_texto_y_no_mira_al_asesor():
             [("", "28"), ("Ana María Pérez García", "24")],
             [("ASESORA:", "24")],
             [("Dra. Cecilia Del Pilar Vásquez Mondragón", "20")],
+            [("Línea de Investigación:", "24")],
+            [
+                (
+                    "Educación y Ciencias de la Comunicación y Desarrollo Sostenible",
+                    "24",
+                )
+            ],
+            [("Trujillo – Perú", "24")],
+            [("2026", "24")],
         ]
     )
     try:

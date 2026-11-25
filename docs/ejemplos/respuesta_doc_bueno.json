@@ -195,9 +195,9 @@
       "mensaje": "Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula",
       "esperado": "12pt",
       "encontrado": "cumple",
-      "ubicacion": "Carátula, especificaciones (párr. 161, 168, 179-183)",
+      "ubicacion": "Carátula, especificaciones (párr. 179-183 y equivalentes)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-      "cita": "\"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
+      "cita": "\"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas. A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas, debajo y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Año en curso (tamaño de letra, 12 puntos).\"",
       "aplicable": true
     },
     {

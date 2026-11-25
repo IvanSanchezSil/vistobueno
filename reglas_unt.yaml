@@ -323,10 +323,14 @@ reglas:
   descripcion: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula
   valor_esperado: 12pt
   severidad: error
-  ubicacion: Carátula, especificaciones (párr. 161, 168, 179-183)
+  ubicacion: Carátula, especificaciones (párr. 179-183 y equivalentes)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
-  cita: '"(Times New Román 12 puntos)" para autores; "Línea de investigación, con letras mayúsculas y
-    minúsculas (tamaño de letra, 12 puntos)."'
+  cita: >-
+    "Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas. A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos)."
+    "Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas, debajo y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos)."
+    "Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos)."
+    "Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos)."
+    "Año en curso (tamaño de letra, 12 puntos)."
   # EVALUADO (2026-11-11): AUD-05. Al ser la única regla `error` de carátula,
   # se endurece el muestreo: todos los runs con texto de todos los párrafos
   # del bloque de autores (desde «AUTORES:» hasta antes de «ASESOR(A):»,
@@ -335,6 +339,15 @@ reglas:
   # segundo autor con otro tamaño pasaban inadvertidos. Las demás reglas de
   # carátula migraron a `formato_efectivo` en M1; su selector de párrafos se
   # conserva (decisión §8 del handover).
+  #
+  # EVALUADO (2026-11-25): RI-08. La descripción y la cita anunciaban también
+  # línea, ciudad y año, pero los selectores solo cubrían autores y asesor:
+  # 36 pt en `linea`/`ciudad` pasaban en verde. El manual (párr. 179-183) fija
+  # 12 pt para los cinco bloques, así que se amplía la regla existente en vez
+  # de recortar su descripción. La línea se mide en etiqueta + valor; la
+  # ciudad se localiza como el último párrafo con «Trujillo» de la carátula
+  # (no el de la Universidad) y el año se lee en `caratula_ficha`, que incluye
+  # el párrafo de cierre de sección donde las tesis reales lo colocan.
   formato_efectivo:
     - parte: document
       contexto: caratula
@@ -351,6 +364,32 @@ reglas:
       sujeto: run
       parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
         'asesor')]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '24'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: >-
+        //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'línea de investigación')][1]
+        | //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'línea de investigación')][1]/following-sibling::w:p[1]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '24'
+    - parte: document
+      contexto: caratula
+      sujeto: run
+      parrafo_xpath: >-
+        //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')][last()]
+      propiedad: w:sz/@w:val
+      comparacion: all_eq
+      esperado: '24'
+    - parte: document
+      contexto: caratula_ficha
+      sujeto: run
+      parrafo_xpath: >-
+        //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')][last()]
+        | //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')][last()]/following-sibling::w:p[1][string-length(normalize-space(.)) = 4 and number(normalize-space(.)) >= 1900 and number(normalize-space(.)) <= 2100]
       propiedad: w:sz/@w:val
       comparacion: all_eq
       esperado: '24'
