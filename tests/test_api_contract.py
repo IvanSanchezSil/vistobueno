@@ -698,14 +698,14 @@ class TestLimitadorCPU:
     def test_dos_tesis_normales_seguidas_caben_en_el_cupo_por_defecto(self):
         """RI-01: una tesis real no agota el cupo y la siguiente entra.
 
-        El coste de 3.5 s es el trabajo restante de la tesis B de la
-        revisión integral después de RI-07 (44.29 s totales menos los
-        40.74 s de las dos reglas que corregía ese PR). La comprobación
-        del limitador es `deuda < presupuesto`: con 5 s la segunda tesis
-        entra; la tercera ya espera al cupo.
+        El coste de 3.8 s es el medido con las tesis reales del corpus
+        después de RI-07 (PR #126): ~3.75-3.8 s de CPU por validación en
+        la máquina del operador. La comprobación del limitador es
+        `deuda < presupuesto`: con 5 s la segunda tesis entra; la tercera
+        ya espera al cupo.
         """
         cupo = validator.api.LimitadorCPU()
-        coste_tesis = 3.5
+        coste_tesis = 3.8
         assert cupo.presupuesto == 5.0
 
         assert cupo.adquirir()[0] is True
@@ -715,7 +715,8 @@ class TestLimitadorCPU:
 
         permitido, reintentar = cupo.adquirir()
         assert permitido is False
-        assert reintentar == pytest.approx(24.0, abs=0.1)
+        # (7.6 s de deuda - 5 s de presupuesto) / (5 s por minuto) = 31.2 s
+        assert reintentar == pytest.approx(31.2, abs=0.1)
 
     def test_el_mensaje_del_rechazo_usa_singular_y_plural(self):
         """RI-01: el mensaje no dice «1 segundos» ni redondea de menos."""

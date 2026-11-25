@@ -140,11 +140,11 @@ class TestDosTesisSeguidas:
         assert self._subir(_docx_bytes()).status_code == 200
 
     def test_la_tercera_tesis_espera_el_cupo(self, monkeypatch):
-        """Dos tesis de 3.5 s de CPU entran; la tercera recibe 429 coherente.
+        """Dos tesis de 3.8 s de CPU entran; la tercera recibe 429 coherente.
 
         El coste se simula con un medidor fijo para no gastar minutos de
-        CPU en el test. 3.5 s es el trabajo restante de la tesis B de la
-        revisión integral después de RI-07.
+        CPU en el test. 3.8 s es el coste medido con las tesis reales del
+        corpus después de RI-07.
         """
 
         class MedidorFijo:
@@ -155,7 +155,7 @@ class TestDosTesisSeguidas:
                 try:
                     return fn(*args)
                 finally:
-                    self.segundos += 3.5
+                    self.segundos += 3.8
 
         monkeypatch.setattr(validator.api, "_MedidorCPU", MedidorFijo)
 
@@ -166,6 +166,6 @@ class TestDosTesisSeguidas:
         assert rebotada.status_code == 429
         espera = int(rebotada.headers["Retry-After"])
         detalle = rebotada.json()["detail"].lower()
-        # 7 s de deuda - 5 s de presupuesto = 2 s a 5 s/min ≈ 24 s.
-        assert 20 <= espera <= 30
+        # 7.6 s de deuda - 5 s de presupuesto = 2.6 s a 5 s/min ≈ 31 s.
+        assert 25 <= espera <= 40
         assert f"{espera} segundos" in detalle
