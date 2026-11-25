@@ -190,53 +190,44 @@ class TestRafagaParalela:
             files={"archivo": ("tesis.docx", contenido, MIME_DOCX)},
         )
 
+    @staticmethod
+    def _validacion_lenta(docx_path, rules_data, ficha_data=None):
+        """Mantiene la validación en curso.
+
+        El trabajo se despacha al threadpool, así que la espera no
+        bloquea el event loop: las peticiones se solapan de verdad.
+        """
+        time.sleep(0.5)
+        return []
+
+    @classmethod
+    async def _disparar(cls, numero: int, contenido: bytes) -> list[httpx.Response]:
+        """Lanza `numero` validaciones a la vez y devuelve las respuestas."""
+        transporte = httpx.ASGITransport(app=validator.api.app, client=("127.0.0.1", 50000))
+        async with httpx.AsyncClient(
+            transport=transporte, base_url="http://127.0.0.1", timeout=60
+        ) as cliente:
+            return list(
+                await asyncio.gather(*[cls._subir_async(cliente, contenido) for _ in range(numero)])
+            )
+
     def test_la_rafaga_paralela_no_entra_entera(self, monkeypatch):
         """Solo entran las validaciones que caben en la cota; el resto, 429."""
-
-        def validate_docx_lenta(docx_path, rules_data, ficha_data=None):
-            # La espera mantiene la validación en curso: el trabajo se
-            # despacha al threadpool, así que no bloquea el event loop.
-            time.sleep(0.5)
-            return []
-
-        monkeypatch.setattr(validator.api, "validate_docx", validate_docx_lenta)
+        monkeypatch.setattr(validator.api, "validate_docx", self._validacion_lenta)
         contenido = _docx_bytes()
 
-        async def _rafaga() -> list[int]:
-            transporte = httpx.ASGITransport(app=validator.api.app, client=("127.0.0.1", 50000))
-            async with httpx.AsyncClient(
-                transport=transporte, base_url="http://127.0.0.1", timeout=60
-            ) as cliente:
-                respuestas = await asyncio.gather(
-                    *[self._subir_async(cliente, contenido) for _ in range(6)]
-                )
-            return [r.status_code for r in respuestas]
-
-        codigos = asyncio.run(_rafaga())
+        respuestas = asyncio.run(self._disparar(6, contenido))
+        codigos = [r.status_code for r in respuestas]
 
         assert codigos.count(200) == validator.api.MAX_VALIDACIONES_CONCURRENTES, codigos
         assert codigos.count(429) == 6 - validator.api.MAX_VALIDACIONES_CONCURRENTES, codigos
 
     def test_el_429_de_la_cota_dice_cuanto_esperar(self, monkeypatch):
         """La respuesta de la cota trae `Retry-After` y el mismo mensaje."""
-
-        def validate_docx_lenta(docx_path, rules_data, ficha_data=None):
-            time.sleep(0.5)
-            return []
-
-        monkeypatch.setattr(validator.api, "validate_docx", validate_docx_lenta)
+        monkeypatch.setattr(validator.api, "validate_docx", self._validacion_lenta)
         contenido = _docx_bytes()
 
-        async def _rafaga() -> list[httpx.Response]:
-            transporte = httpx.ASGITransport(app=validator.api.app, client=("127.0.0.1", 50000))
-            async with httpx.AsyncClient(
-                transport=transporte, base_url="http://127.0.0.1", timeout=60
-            ) as cliente:
-                return list(
-                    await asyncio.gather(*[self._subir_async(cliente, contenido) for _ in range(4)])
-                )
-
-        respuestas = asyncio.run(_rafaga())
+        respuestas = asyncio.run(self._disparar(4, contenido))
         rebotadas = [r for r in respuestas if r.status_code == 429]
 
         assert rebotadas, [r.status_code for r in respuestas]
