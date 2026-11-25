@@ -15,7 +15,7 @@ loop en ejecución devuelve el loop.
 import asyncio
 
 from conftest import CLIENTE, MIME_DOCX
-from docx_factory import compilar_docx, configuracion_base
+from docx_factory import aplicar_mutacion, compilar_docx, configuracion_base
 
 import validator.api
 from validator.models import RuleResult, Severity
@@ -25,6 +25,13 @@ from validator.notificacion import ResultadoEnvio
 def _docx_bytes() -> bytes:
     """Bytes del documento bueno del factory (sin depender de recursos/)."""
     with open(compilar_docx(configuracion_base()), "rb") as f:
+        return f.read()
+
+
+def _docx_rojo_bytes() -> bytes:
+    """Bytes de un DOCX con el cuerpo a 15 pt: reporte rojo, misma estructura."""
+    config = aplicar_mutacion("tamano_cuerpo", configuracion_base())
+    with open(compilar_docx(config), "rb") as f:
         return f.read()
 
 
@@ -104,3 +111,61 @@ class TestTrabajoBloqueanteFueraDelEventLoop:
             "enviar_notificacion corrió en el hilo del event loop: "
             "un SMTP caído congelaría la API hasta por 10 s por request"
         )
+
+
+class TestDosTesisSeguidas:
+    """RI-01: dos validaciones consecutivas no se bloquean entre sí.
+
+    El cupo es estado del proceso. Estos tests NO lo limpian entre las dos
+    cargas: es exactamente la condición que reproducía el 429 de la
+    revisión integral. El fixture autouse solo limpia al empezar y al
+    terminar cada test.
+    """
+
+    @staticmethod
+    def _subir(contenido: bytes):
+        return CLIENTE.post(
+            "/validar",
+            files={"archivo": ("tesis.docx", contenido, MIME_DOCX)},
+        )
+
+    def test_orden_verde_rojo(self):
+        """Tesis conforme y luego tesis con errores: las dos llegan a 200."""
+        assert self._subir(_docx_bytes()).status_code == 200
+        assert self._subir(_docx_rojo_bytes()).status_code == 200
+
+    def test_orden_rojo_verde(self):
+        """El orden inverso tampoco deja la segunda carga fuera."""
+        assert self._subir(_docx_rojo_bytes()).status_code == 200
+        assert self._subir(_docx_bytes()).status_code == 200
+
+    def test_la_tercera_tesis_espera_el_cupo(self, monkeypatch):
+        """Dos tesis de 3.5 s de CPU entran; la tercera recibe 429 coherente.
+
+        El coste se simula con un medidor fijo para no gastar minutos de
+        CPU en el test. 3.5 s es el trabajo restante de la tesis B de la
+        revisión integral después de RI-07.
+        """
+
+        class MedidorFijo:
+            def __init__(self) -> None:
+                self.segundos = 0.0
+
+            def medir(self, fn, *args):
+                try:
+                    return fn(*args)
+                finally:
+                    self.segundos += 3.5
+
+        monkeypatch.setattr(validator.api, "_MedidorCPU", MedidorFijo)
+
+        assert self._subir(_docx_bytes()).status_code == 200
+        assert self._subir(_docx_rojo_bytes()).status_code == 200
+
+        rebotada = self._subir(_docx_bytes())
+        assert rebotada.status_code == 429
+        espera = int(rebotada.headers["Retry-After"])
+        detalle = rebotada.json()["detail"].lower()
+        # 7 s de deuda - 5 s de presupuesto = 2 s a 5 s/min ≈ 24 s.
+        assert 20 <= espera <= 30
+        assert f"{espera} segundos" in detalle

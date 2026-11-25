@@ -3,7 +3,7 @@
   "info": {
     "title": "VistoBueno API",
     "description": "API de validación automática de formato de tesis — UNT FECyC",
-    "version": "1.14.0"
+    "version": "1.15.0"
   },
   "paths": {
     "/validar": {
@@ -415,10 +415,96 @@
           }
         }
       }
+    },
+    "/asistente/estado": {
+      "get": {
+        "summary": "Estado del módulo de IA",
+        "description": "Devuelve si el módulo de IA está disponible y el modelo en uso. Nunca devuelve 503: si no hay `OLLAMA_URL` o el servicio no responde, responde con `disponible=false` para que el frontend desactive el botón.",
+        "operationId": "estado_asistente_asistente_estado_get",
+        "responses": {
+          "200": {
+            "description": "Estado del módulo de IA (siempre devuelve 200)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoAsistenteAPI"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Petición desde otro equipo o sin token válido"
+          }
+        }
+      }
+    },
+    "/asistente/explicar": {
+      "post": {
+        "summary": "Explicación y priorización de fallos (Funcionalidad 2)",
+        "description": "Valida un DOCX con el motor determinista y le pide al LLM que explique las reglas fallidas y las priorice por orden de corrección. Es advisory: nunca toca el semáforo ni produce un `RuleResult`. Reutiliza la validación de entrada de POST /validar (extensión, content-type, tamaño y firma ZIP).",
+        "operationId": "explicar_asistente_asistente_explicar_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_explicar_asistente_asistente_explicar_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplicacionYPrioridadAPI"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Sin archivo en la solicitud"
+          },
+          "403": {
+            "description": "Petición desde otro equipo o sin token válido"
+          },
+          "413": {
+            "description": "Archivo excede el tamaño máximo (10 MB)"
+          },
+          "415": {
+            "description": "Tipo de archivo no soportado"
+          },
+          "422": {
+            "description": "Archivo corrupto, no es DOCX válido o respuesta de IA no interpretable"
+          },
+          "429": {
+            "description": "Demasiadas peticiones de validación seguidas"
+          },
+          "503": {
+            "description": "Módulo de IA no disponible (falta OLLAMA_URL o servicio caído)"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Body_explicar_asistente_asistente_explicar_post": {
+        "properties": {
+          "archivo": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Archivo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "archivo"
+        ],
+        "title": "Body_explicar_asistente_asistente_explicar_post"
+      },
       "Body_validar_validar_post": {
         "properties": {
           "archivo": {
@@ -865,6 +951,27 @@
           }
         ]
       },
+      "EstadoAsistenteAPI": {
+        "properties": {
+          "disponible": {
+            "type": "boolean",
+            "title": "Disponible",
+            "description": "True si el servicio de IA responde"
+          },
+          "modelo": {
+            "type": "string",
+            "title": "Modelo",
+            "description": "Modelo en uso; vacío si no está disponible",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "disponible"
+        ],
+        "title": "EstadoAsistenteAPI",
+        "description": "Respuesta de GET /asistente/estado.\n\nSi el módulo de IA no está configurado (`OLLAMA_URL` ausente) o el\nservicio no responde, `disponible` es `false` y la SPA debe mostrar el\nbotón deshabilitado."
+      },
       "EstadoDepositoAPI": {
         "type": "string",
         "enum": [
@@ -889,6 +996,60 @@
         ],
         "title": "EstadoNotificacionAPI",
         "description": "Estado del envío del correo de observaciones al estudiante.\n\nLa herramienta es de uso interno (personal del repositorio): el estado\ndescribe qué pasó con el envío para que el operador pueda informar al\nestudiante o reintentar manualmente. El envío es opt-in por solicitud\n(campo `notificar`): el operador decide cuándo el reporte está listo\npara llegarle al estudiante."
+      },
+      "ExplicacionItemAPI": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id",
+            "description": "ID de la regla a la que se refiere la explicación"
+          },
+          "explicacion": {
+            "type": "string",
+            "title": "Explicacion",
+            "description": "Causa probable y qué significa para la entrega"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "explicacion"
+        ],
+        "title": "ExplicacionItemAPI",
+        "description": "Explicación en lenguaje llano de una regla fallida (Funcionalidad 2)."
+      },
+      "ExplicacionYPrioridadAPI": {
+        "properties": {
+          "explicaciones": {
+            "items": {
+              "$ref": "#/components/schemas/ExplicacionItemAPI"
+            },
+            "type": "array",
+            "title": "Explicaciones",
+            "description": "Una explicación por regla fallida"
+          },
+          "prioridades": {
+            "items": {
+              "$ref": "#/components/schemas/PrioridadItemAPI"
+            },
+            "type": "array",
+            "title": "Prioridades",
+            "description": "Orden recomendado de corrección"
+          },
+          "modelo": {
+            "type": "string",
+            "title": "Modelo",
+            "description": "Modelo de IA que generó la respuesta",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "explicaciones",
+          "prioridades"
+        ],
+        "title": "ExplicacionYPrioridadAPI",
+        "description": "Respuesta de POST /asistente/explicar (Funcionalidad 2, advisory).\n\nLa salida de IA es solo texto de apoyo: nunca toca el semáforo ni\nproduce un `RuleResult`."
       },
       "FichaDeposito": {
         "properties": {
@@ -1257,6 +1418,45 @@
         ],
         "title": "NotificacionAPI",
         "description": "Estado de la notificación por correo de observaciones.\n\nExposición para el personal del repositorio: con `estado` \"enviado\" la\ninterfaz puede informar \"enviamos las observaciones al correo del\nestudiante\"; con \"fallo\", el `detalle` explica el motivo técnico para\nreintentar o enviar manualmente; con \"deshabilitado\", el `detalle`\nindica cómo habilitar el servidor (nota de configuración)."
+      },
+      "PrioridadItemAPI": {
+        "properties": {
+          "orden": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Orden",
+            "description": "Orden de corrección (1 = primero)"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id",
+            "description": "ID de la regla a corregir"
+          },
+          "razon": {
+            "type": "string",
+            "title": "Razon",
+            "description": "Por qué se recomienda ese orden"
+          },
+          "esfuerzo": {
+            "type": "string",
+            "enum": [
+              "bajo",
+              "medio",
+              "alto"
+            ],
+            "title": "Esfuerzo",
+            "description": "Esfuerzo estimado de la corrección"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orden",
+          "rule_id",
+          "razon",
+          "esfuerzo"
+        ],
+        "title": "PrioridadItemAPI",
+        "description": "Orden recomendado de corrección de un fallo (Funcionalidad 2)."
       },
       "PromptIA": {
         "properties": {
