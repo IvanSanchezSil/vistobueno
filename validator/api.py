@@ -11,6 +11,7 @@ Uso:
 """
 
 import logging
+import math
 import os
 import re
 import secrets
@@ -23,7 +24,7 @@ from datetime import datetime
 from functools import cache
 from ipaddress import ip_address
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from zoneinfo import ZoneInfo
 
 from email_validator import EmailNotValidError, validate_email
@@ -41,7 +42,7 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers
-from starlette.responses import PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .api_models import (
@@ -51,8 +52,11 @@ from .api_models import (
     DepositoAPI,
     DepositoRecibido,
     DepositoReportado,
+    EstadoAsistenteAPI,
     EstadoDepositoAPI,
     EstadoNotificacionAPI,
+    ExplicacionItemAPI,
+    ExplicacionYPrioridadAPI,
     FichaDeposito,
     FichaPendienteLeida,
     FichaPendientePublicada,
@@ -62,6 +66,7 @@ from .api_models import (
     InconsistenciaRequest,
     MetadatosValidacion,
     NotificacionAPI,
+    PrioridadItemAPI,
     PromptIA,
     ReconciliacionResponse,
     ReconciliarRequest,
@@ -71,6 +76,7 @@ from .api_models import (
     TramiteLeido,
     ValidarResponse,
 )
+from .asistente import RespuestaIAInvalida, explicar_y_priorizar
 from .buzon import (
     AutoresNoCoinciden,
     Buzon,
@@ -101,6 +107,13 @@ from .constancia import (
 from .dsl_check import DSLValidationError
 from .engine import build_report, load_ficha_rules, load_rules, validate_docx
 from .extractor import InvalidDocumentError
+from .llm import (
+    LLMClient,
+    LLMError,
+    LLMNoDisponible,
+    estado_ia,
+    get_llm_client,
+)
 from .models import RuleResult
 from .notificacion import ConfigSMTP, enviar_notificacion
 from .prompts import build_ai_help_section
@@ -341,7 +354,13 @@ VENTANA_PETICIONES_DEFAULT = 60.0
 # cupo acumula los segundos de trabajo MEDIDOS y se fuga a
 # `presupuesto_segundos` por ventana, así que se ajusta solo al hardware
 # sin constantes por modelo de PC.
-PRESUPUESTO_CPU_DEFAULT = 2.0  # segundos de trabajo por ventana
+#
+# RI-01: el presupuesto debe dejar entrar dos tesis normales seguidas.
+# La comprobación es `deuda < presupuesto`: la segunda entra mientras la
+# primera no haya agotado el cupo. Con 5 s hay margen para una tesis real
+# (la revisión integral midió ~3.5 s de trabajo restante tras RI-07) y la
+# ráfaga de documentos patológicos sigue cortada.
+PRESUPUESTO_CPU_DEFAULT = 5.0  # segundos de trabajo por ventana
 PRESUPUESTO_CPU_PAPELES_DEFAULT = 1.0  # el papeleo (DOCX/XLSX) pesa más
 COSTE_CPU_MINIMO = 0.01
 COSTE_CPU_MAXIMO = 10.0  # un documento patológico no bloquea media hora
@@ -401,9 +420,14 @@ class LimitadorCPU:
     el mismo en cualquier equipo; lo que cambia es cuántas peticiones
     caben en él:
 
-    - equipo rápido (~60 ms por validación): ~33 seguidas con 2 s;
-    - equipo lento (~250 ms por validación): ~8 seguidas;
-    - tasa sostenida: 2 s de CPU por minuto en ambos casos.
+    - equipo rápido (~60 ms por validación): ~83 seguidas con 5 s;
+    - equipo lento (~250 ms por validación): ~20 seguidas;
+    - tesis real (~3.5 s tras RI-07): dos seguidas.
+
+    La segunda petición entra mientras la primera no agote el cupo; por
+    eso el presupuesto se fija por encima del coste de una tesis normal
+    (RI-01). La tasa sostenida es de 5 s de CPU por minuto en cualquier
+    caso, así que una ráfaga sigue cortada.
 
     El coste se mide en el endpoint (`registrar_coste`) después de la
     operación pesada, así que no hay números mágicos por hardware.
@@ -628,14 +652,25 @@ def _config_limite_peticiones() -> tuple[int, float]:
 
 
 def _rechazar_por_limite(reintentar: float, recurso: str) -> None:
-    """Respuesta 429 uniforme de los cupos."""
+    """Respuesta 429 uniforme de los cupos.
+
+    `Retry-After` sigue el estándar HTTP: segundos, redondeados hacia
+    arriba para no reintentar antes de que el cupo libere espacio. El
+    mensaje usa la misma espera que el header; cambia a minutos cuando
+    la espera llega a 60 s.
+    """
+    espera = max(1, math.ceil(reintentar))
+    if espera < 60:
+        unidad = "segundo" if espera == 1 else "segundos"
+        wait_msg = f"Espera {espera} {unidad} antes de reintentar."
+    else:
+        minutos = math.ceil(espera / 60)
+        unidad = "minuto" if minutos == 1 else "minutos"
+        wait_msg = f"Espera {minutos} {unidad} antes de reintentar."
     raise HTTPException(
         status_code=429,
-        headers={"Retry-After": str(int(reintentar) + 1)},
-        detail=(
-            f"Demasiadas peticiones de {recurso} seguidas. "
-            "Espera unos segundos antes de reintentar."
-        ),
+        headers={"Retry-After": str(espera)},
+        detail=(f"Demasiadas peticiones de {recurso} seguidas. {wait_msg}"),
     )
 
 
@@ -949,10 +984,132 @@ def _validar_correo(correo: str | None) -> str | None:
 app = FastAPI(
     title="VistoBueno API",
     description="API de validación automática de formato de tesis — UNT FECyC",
-    version="1.14.0",
+    version="1.15.0",
 )
 # DNS rebinding: se valida el header Host antes de cualquier endpoint.
 app.add_middleware(MiddlewareHostConfiable)
+
+
+@app.exception_handler(LLMNoDisponible)
+async def _llm_no_disponible_handler(request: Request, exc: LLMNoDisponible):
+    """Convierte `LLMNoDisponible` en 503 para los endpoints de IA."""
+    return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+
+async def _guardar_docx_temporal(archivo: UploadFile) -> tuple[str, int]:
+    """Valida el DOCX subido y lo guarda en un archivo temporal.
+
+    Aplica la misma validación de entrada que `POST /validar`: nombre,
+    extensión, content-type, tamaño, archivo vacío, firma ZIP y presencia
+    de `word/document.xml`. Devuelve la ruta del temporal y el tamaño en
+    bytes; el llamador debe borrar la ruta.
+
+    La usan `/validar` y `/asistente/explicar` para que las dos rutas
+    rechacen los archivos con los mismos códigos y mensajes.
+    """
+    if archivo.filename is None or archivo.filename == "":
+        raise HTTPException(
+            status_code=400,
+            detail="Campo 'archivo' requerido. Envíe un archivo .docx en el campo 'archivo' del formulario multipart.",
+        )
+
+    if not archivo.filename.lower().endswith(EXTENSION_ACEPTADA):
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Tipo de archivo no soportado: '{archivo.filename}'. "
+                f"Solo se aceptan archivos .docx "
+                f"({EXTENSION_ACEPTADA})."
+            ),
+        )
+
+    content_type = archivo.content_type or ""
+    if content_type and content_type not in TIPOS_ACEPTADOS:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"Content-Type no soportado: '{content_type}'. Solo se aceptan archivos .docx."
+            ),
+        )
+
+    # Leer a lo sumo TAMANO_MAXIMO_BYTES + 1: evita cargar en memoria un
+    # upload arbitrariamente grande antes de validar el tamaño.
+    try:
+        contenido = await archivo.read(TAMANO_MAXIMO_BYTES + 1)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail="No se pudo leer el archivo enviado.",
+        ) from e
+
+    tamano = len(contenido)
+    if tamano > TAMANO_MAXIMO_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=("El archivo excede el tamaño máximo permitido (10 MB)."),
+        )
+
+    if tamano == 0:
+        raise HTTPException(
+            status_code=422,
+            detail="El archivo está vacío.",
+        )
+
+    # Un DOCX es un paquete OPC (ZIP). La firma local permite rechazar
+    # rápido un archivo renombrado a .docx sin abrirlo.
+    if not contenido.startswith(b"PK\x03\x04"):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "El archivo no es un ZIP/DOCX válido: cabecera incorrecta "
+                "(se esperaba la firma 'PK')."
+            ),
+        )
+
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=EXTENSION_ACEPTADA) as tmp:
+            tmp.write(contenido)
+            tmp_path = tmp.name
+
+        # La parte OPC obligatoria se comprueba antes de validar: si falta,
+        # la respuesta es 422; un KeyError posterior de las reglas es un
+        # fallo interno de configuración y sigue la ruta del 500.
+        with zipfile.ZipFile(tmp_path) as paquete:
+            if "word/document.xml" not in paquete.namelist():
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "El archivo no contiene un documento Word válido: "
+                        "archivo interno faltante ('word/document.xml')."
+                    ),
+                )
+    except zipfile.BadZipFile as e:
+        if tmp_path is not None:
+            try:
+                Path(tmp_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+            ),
+        ) from e
+    except BaseException:
+        if tmp_path is not None:
+            try:
+                Path(tmp_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        raise
+
+    if tmp_path is None:  # pragma: no cover - NamedTemporaryFile lanza o asigna
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo preparar el archivo temporal.",
+        )
+    return tmp_path, tamano
 
 
 @app.post(
@@ -1052,106 +1209,16 @@ async def validar(
         examples=[""],
     ),
 ):
-    # --- Validación: ¿hay archivo? ---
-    if archivo.filename is None or archivo.filename == "":
-        raise HTTPException(
-            status_code=400,
-            detail="Campo 'archivo' requerido. Envíe un archivo .docx en el campo 'archivo' del formulario multipart.",
-        )
-
-    # --- Validación: extensión ---
-    if not archivo.filename.lower().endswith(EXTENSION_ACEPTADA):
-        raise HTTPException(
-            status_code=415,
-            detail=(
-                f"Tipo de archivo no soportado: '{archivo.filename}'. "
-                f"Solo se aceptan archivos .docx "
-                f"({EXTENSION_ACEPTADA})."
-            ),
-        )
-
-    # --- Validación: content-type (advisory, no definitivo) ---
-    content_type = archivo.content_type or ""
-    if content_type and content_type not in TIPOS_ACEPTADOS:
-        raise HTTPException(
-            status_code=415,
-            detail=(
-                f"Content-Type no soportado: '{content_type}'. Solo se aceptan archivos .docx."
-            ),
-        )
-
     # --- Validación: correo electrónico (opcional) ---
     correo_normalizado = _validar_correo(correo)
 
-    # --- Leer contenido (con tope) ---
-    # Leer a lo sumo TAMANO_MAXIMO_BYTES + 1: evita cargar en memoria
-    # un upload arbitrariamente grande antes de validar el tamaño.
-    # Nota: por eso el 413 no reporta el tamaño exacto recibido.
-    try:
-        contenido = await archivo.read(TAMANO_MAXIMO_BYTES + 1)
-    except Exception as e:
-        raise HTTPException(
-            status_code=422,
-            detail="No se pudo leer el archivo enviado.",
-        ) from e
-
-    # --- Validación: tamaño ---
-    tamano = len(contenido)
-    if tamano > TAMANO_MAXIMO_BYTES:
-        raise HTTPException(
-            status_code=413,
-            detail=("El archivo excede el tamaño máximo permitido (10 MB)."),
-        )
-
-    if tamano == 0:
-        raise HTTPException(
-            status_code=422,
-            detail="El archivo está vacío.",
-        )
-
-    # --- Validación: magic bytes de un ZIP/DOCX (cabecera PK) ---
-    # Un DOCX es un paquete OPC (ZIP). Toda imagen ZIP válida comienza con
-    # la firma local 'PK\x03\x04'. Verificarla antes de escribir el temporal
-    # permite rechazar rápido archivos renombrados a .docx sin abrirlos.
-    if not contenido.startswith(b"PK\x03\x04"):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "El archivo no es un ZIP/DOCX válido: cabecera incorrecta "
-                "(se esperaba la firma 'PK')."
-            ),
-        )
-
-    # --- Guardar en archivo temporal y procesar ---
+    # --- Validación del DOCX y guardado en archivo temporal ---
+    # La misma validación de entrada la usa /asistente/explicar.
     tmp_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=EXTENSION_ACEPTADA) as tmp:
-            tmp.write(contenido)
-            tmp_path = tmp.name
+        tmp_path, tamano = await _guardar_docx_temporal(archivo)
 
         rules_data = _get_rules()
-
-        # `validate_docx` combina la extracción del paquete y la ejecución de
-        # reglas en una sola llamada. La parte OPC obligatoria se comprueba
-        # aquí: si falta, la respuesta es 422; un KeyError posterior de las
-        # reglas es un fallo interno de configuración y llega al 500 exterior.
-        try:
-            with zipfile.ZipFile(tmp_path) as paquete:
-                if "word/document.xml" not in paquete.namelist():
-                    raise HTTPException(
-                        status_code=422,
-                        detail=(
-                            "El archivo no contiene un documento Word válido: "
-                            "archivo interno faltante ('word/document.xml')."
-                        ),
-                    )
-        except zipfile.BadZipFile as e:
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
-                ),
-            ) from e
 
         # El 422 se acota a excepciones explícitas del archivo. Un ValueError
         # o KeyError de las reglas es un fallo interno de configuración y debe
@@ -1209,7 +1276,8 @@ async def validar(
             resultados_motor=resultados_motor,
             reporte=reporte,
             prompts_data=prompts_data,
-            archivo_nombre=archivo.filename,
+            # El helper ya validó que el nombre existe y no está vacío.
+            archivo_nombre=archivo.filename or "",
             archivo_tamano=tamano,
             rules_data=rules_data,
         )
@@ -1951,6 +2019,153 @@ async def generar_fila_registro(
         # CPU real del hilo que armó las filas, no la latencia
         # (revisión PR #71, B1).
         _LIMITADOR_CPU_PAPELES.registrar_coste(medidor.segundos)
+
+
+# ---------------------------------------------------------------------------
+# Asistente del encargado — módulo de IA (diseño 16, Funcionalidad 2)
+# ---------------------------------------------------------------------------
+# Módulo advisory: nunca toca el semáforo ni produce `RuleResult`.
+# Es opt-in con `OLLAMA_URL`; sin ella, `estado` responde `disponible=false`
+# y `explicar` responde 503.
+
+
+def obtener_cliente_ia() -> LLMClient:
+    """Devuelve el cliente LLM para los endpoints de IA.
+
+    Inyectable en tests con
+    `app.dependency_overrides[obtener_cliente_ia] = lambda: StubLLM(...)`.
+    """
+    return get_llm_client()
+
+
+@app.get(
+    "/asistente/estado",
+    response_model=EstadoAsistenteAPI,
+    summary="Estado del módulo de IA",
+    description=(
+        "Devuelve si el módulo de IA está disponible y el modelo en uso. "
+        "Nunca devuelve 503: si no hay `OLLAMA_URL` o el servicio no responde, "
+        "responde con `disponible=false` para que el frontend desactive el botón."
+    ),
+    responses={
+        200: {"description": "Estado del módulo de IA (siempre devuelve 200)"},
+        403: {"description": "Petición desde otro equipo o sin token válido"},
+    },
+    dependencies=[Depends(verificar_acceso_local)],
+)
+async def estado_asistente() -> EstadoAsistenteAPI:
+    """GET /asistente/estado — estado del módulo de IA (nunca 503)."""
+    estado = await estado_ia()
+    return EstadoAsistenteAPI(
+        disponible=bool(estado["disponible"]),
+        modelo=str(estado["modelo"]),
+    )
+
+
+@app.post(
+    "/asistente/explicar",
+    response_model=ExplicacionYPrioridadAPI,
+    summary="Explicación y priorización de fallos (Funcionalidad 2)",
+    description=(
+        "Valida un DOCX con el motor determinista y le pide al LLM que "
+        "explique las reglas fallidas y las priorice por orden de corrección. "
+        "Es advisory: nunca toca el semáforo ni produce un `RuleResult`. "
+        "Reutiliza la validación de entrada de POST /validar (extensión, "
+        "content-type, tamaño y firma ZIP)."
+    ),
+    responses={
+        400: {"description": "Sin archivo en la solicitud"},
+        403: {"description": "Petición desde otro equipo o sin token válido"},
+        413: {"description": "Archivo excede el tamaño máximo (10 MB)"},
+        415: {"description": "Tipo de archivo no soportado"},
+        422: {
+            "description": "Archivo corrupto, no es DOCX válido o respuesta de IA no interpretable"
+        },
+        429: {"description": "Demasiadas peticiones de validación seguidas"},
+        503: {"description": "Módulo de IA no disponible (falta OLLAMA_URL o servicio caído)"},
+    },
+    dependencies=[Depends(verificar_acceso_local), Depends(limitar_validaciones)],
+)
+async def explicar_asistente(
+    archivo: UploadFile = File(...),  # noqa: B008
+    client: LLMClient = Depends(obtener_cliente_ia),  # noqa: B008
+) -> ExplicacionYPrioridadAPI:
+    """POST /asistente/explicar — explica y prioriza los fallos de un DOCX."""
+    # --- Validación del DOCX y guardado en archivo temporal ---
+    tmp_path = None
+    try:
+        tmp_path, _ = await _guardar_docx_temporal(archivo)
+
+        medidor = _MedidorCPU()
+        try:
+            resultados_motor = await run_in_threadpool(
+                medidor.medir, validate_docx, tmp_path, _get_rules(), _get_ficha_rules()
+            )
+        except DSLValidationError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error interno del validador: configuración de reglas inválida: {e}",
+            ) from e
+        except InvalidDocumentError as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"El archivo no contiene un documento Word válido: {e}.",
+            ) from e
+        except zipfile.BadZipFile as e:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
+                ),
+            ) from e
+        finally:
+            _cobrar_coste_validacion(medidor.segundos)
+
+        # Tipo documental efectivo: el inferido manda; si no hubo inferencia,
+        # se usa el declarado. La IA lo recibe como contexto, nunca lo cambia.
+        metadatos_tipo = _extraer_metadata_tipo_documento(resultados_motor)
+        tipo_documento: str | None = (
+            metadatos_tipo["tipo_documento_inferido"] or metadatos_tipo["tipo_documento_declarado"]
+        )
+
+        # Funcionalidad 2: explicar y priorizar los fallos.
+        try:
+            resultado = await explicar_y_priorizar(
+                resultados_motor, client=client, tipo_documento=tipo_documento
+            )
+        except LLMError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Servicio de IA no disponible: {e}",
+            ) from e
+        except RespuestaIAInvalida as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"La IA no devolvió un formato interpretable: {e}",
+            ) from e
+
+        return ExplicacionYPrioridadAPI(
+            explicaciones=[
+                ExplicacionItemAPI(rule_id=e.rule_id, explicacion=e.explicacion)
+                for e in resultado.explicaciones
+            ],
+            prioridades=[
+                PrioridadItemAPI(
+                    orden=p.orden,
+                    rule_id=p.rule_id,
+                    razon=p.razon,
+                    esfuerzo=cast(Literal["bajo", "medio", "alto"], p.esfuerzo),
+                )
+                for p in resultado.prioridades
+            ],
+            modelo=resultado.modelo,
+        )
+    finally:
+        if tmp_path is not None:
+            try:
+                Path(tmp_path).unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 # ---------------------------------------------------------------------------

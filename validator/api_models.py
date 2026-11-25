@@ -682,3 +682,47 @@ class ValidarResponse(BaseModel):
             ]
         }
     }
+
+
+class ExplicacionItemAPI(BaseModel):
+    """Explicación en lenguaje llano de una regla fallida (Funcionalidad 2)."""
+
+    rule_id: str = Field(..., description="ID de la regla a la que se refiere la explicación")
+    explicacion: str = Field(..., description="Causa probable y qué significa para la entrega")
+
+
+class PrioridadItemAPI(BaseModel):
+    """Orden recomendado de corrección de un fallo (Funcionalidad 2)."""
+
+    orden: int = Field(..., ge=1, description="Orden de corrección (1 = primero)")
+    rule_id: str = Field(..., description="ID de la regla a corregir")
+    razon: str = Field(..., description="Por qué se recomienda ese orden")
+    esfuerzo: Literal["bajo", "medio", "alto"] = Field(
+        ..., description="Esfuerzo estimado de la corrección"
+    )
+
+
+class ExplicacionYPrioridadAPI(BaseModel):
+    """Respuesta de POST /asistente/explicar (Funcionalidad 2, advisory).
+
+    La salida de IA es solo texto de apoyo: nunca toca el semáforo ni
+    produce un `RuleResult`.
+    """
+
+    explicaciones: list[ExplicacionItemAPI] = Field(
+        ..., description="Una explicación por regla fallida"
+    )
+    prioridades: list[PrioridadItemAPI] = Field(..., description="Orden recomendado de corrección")
+    modelo: str = Field(default="", description="Modelo de IA que generó la respuesta")
+
+
+class EstadoAsistenteAPI(BaseModel):
+    """Respuesta de GET /asistente/estado.
+
+    Si el módulo de IA no está configurado (`OLLAMA_URL` ausente) o el
+    servicio no responde, `disponible` es `false` y la SPA debe mostrar el
+    botón deshabilitado.
+    """
+
+    disponible: bool = Field(..., description="True si el servicio de IA responde")
+    modelo: str = Field(default="", description="Modelo en uso; vacío si no está disponible")
