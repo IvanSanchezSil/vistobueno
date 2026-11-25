@@ -195,9 +195,9 @@
       "mensaje": "Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula",
       "esperado": "12pt",
       "encontrado": "cumple",
-      "ubicacion": "Carátula, especificaciones (párr. 161, 168, 179-183)",
+      "ubicacion": "Carátula, especificaciones (párr. 179-183 y equivalentes)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-      "cita": "\"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
+      "cita": "\"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas. A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas, debajo y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Año en curso (tamaño de letra, 12 puntos).\"",
       "aplicable": true
     },
     {
@@ -437,7 +437,7 @@
       "encontrado": "cumple",
       "ubicacion": "Carátula, campo \"Línea de Investigación\"",
       "fuente": "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf",
-      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"",
+      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"; manual, párr. 181: \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
       "aplicable": true
     },
     {
@@ -744,7 +744,7 @@
   "como_preguntar_a_una_ia": [],
   "metadatos": {
     "archivo_nombre": "doc_bueno.docx",
-    "archivo_tamano_bytes": 5833,
+    "archivo_tamano_bytes": 5835,
     "reglas_evaluadas": 44,
     "reglas_totales": 54,
     "version_esquema": "2026-09-01",

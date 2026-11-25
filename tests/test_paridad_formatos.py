@@ -213,7 +213,7 @@ def _document_xml(conforme: bool, estructura: bool, detectable: bool = False) ->
                 '<w:sz w:val="24"/>',
             )
         )
-        paras.append(_cover_para("TRUJILLO - PERÚ, 2026", '<w:b/><w:sz w:val="24"/>'))
+        paras.append(_cover_para("Trujillo - Perú, 2026", '<w:b/><w:sz w:val="24"/>'))
     else:
         paras.append(
             _cover_para("Universidad Nacional de Trujillo", '<w:sz w:val="24"/>', jc="left")

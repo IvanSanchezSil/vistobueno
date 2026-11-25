@@ -382,6 +382,81 @@ tocar `AGENTS.md`.
 **Verificación:** `tests/test_reglas_activas.py` compara los cinco conteos del
 script con el resumen del motor.
 
+### 2026-11-25 — RI-08: los 12 pt de carátula cubren los cinco bloques
+
+El usuario aclaró que el manual oficial estaba en el mismo ZIP de recursos de
+`Descargas` junto con las tesis y las plantillas. Al cotejarlo, los párr.
+179-183 fijan 12 pt para autores, asesor, línea de investigación, ciudad/país
+y año en curso: la duda que había quedado abierta se resolvía con esa fuente.
+
+- Se amplía `caratula_autores_tamano` (sigue `severidad: error`) con tres
+  comprobaciones: línea (etiqueta + valor), ciudad (último «Trujillo» de la
+  carátula, no la Universidad) y año (`contexto: caratula_ficha`, que incluye
+  el párrafo de cierre de sección de las tesis reales). Todas usan `all_eq`
+  sobre los runs con texto. La `cita` ahora reproduce literalmente los cinco
+  párrafos del manual y la `ubicacion` se ajusta a párr. 179-183.
+- Nueva regresión `tests/test_ri08_caratula_tamano.py`: 36 pt en línea,
+  ciudad o año separado pasan a rojo; el año a 12 pt sigue en verde. Se
+  actualizó el caso AUD-05 del run vacío para incluir los tres bloques nuevos.
+- Se regeneraron los dos JSON golden de `docs/ejemplos/`; solo cambian
+  `ubicacion` y `cita` de esta regla. Los DOCX versionados no se tocaron.
+- Matriz: REQ-24 y REQ-26 siguen `PARCIAL` por las propiedades que faltan
+  (letras mixtas, centrado), pero ya registran la evidencia de 12 pt; REQ-27
+  mantiene `CONFLICTO` solo por año en curso frente a sustentación.
+- Corpus real: la regla queda en verde en la tesis aprobada, la no aprobada
+  y las cinco plantillas; no cambian semáforo, resumen, ficha ni los cuatro
+  errores de la tesis no aprobada.
+
+**Verificación:** `tests/test_ri08_caratula_tamano.py` y la suite enfocada de
+carátula pasan; `ruff check`, `ruff format --check`, `mypy validator/ scripts/`
+y el escáner de secretos sin hallazgos. Retblast fusionó el PR #126 (RI-07)
+mientras se hacía este trabajo. RI-08 se entregó en el PR #128, abierto y sin
+merge de mi parte; CI verde en https://github.com/retblast/vistobueno/actions/runs/45615829450
+y aviso de pendientes publicado en #128 y #126.
+
+### 2026-11-26 — REQ-24/REQ-26: letras mixtas y centrado de carátula
+
+El usuario pidió avanzar con lo que se podía hacer de la lista de pendientes
+sin decisión externa. RI-08 ya cubría el tamaño (12 pt) de los cinco bloques,
+pero al cotejar el manual seguían sin evidencia propia las letras mixtas y el
+centrado de línea y ciudad. Se trabajó sobre `ri08-tamano-caratula`, la rama
+del PR #128, para no abrir otro PR.
+
+- `caratula_ciudad_pais_negrita`: el `[1]` heredado medía la Universidad (las
+  dos líneas contienen «Trujillo»); ahora usa `[last()]`. El patrón antes
+  aceptaba solo mayúsculas; ahora exige al menos una mayúscula y una
+  minúscula por run con letras y admite los runs de solo espacio que hay en
+  la tesis real. Se quitó el acoplamiento con la negrita de la Universidad en
+  `tests/_mutations.py`.
+- `alineacion_caratula_todos_elementos`: se agregaron la etiqueta y el valor
+  de «línea de investigación» al XPath de centrado.
+- `caratula_linea_investigacion`: se conserva el catálogo RCU-220 y se añade
+  el patrón mixto sobre el párrafo de valor; la cita ahora incluye el párr.
+  181 del manual.
+- Factory: `Trujillo - Perú, 2026` en vez de `TRUJILLO - PERÚ, 2026`
+  (placeholder, sin datos personales).
+- Nueva regresión `tests/test_req24_26_caratula_mixtas_centrado.py` (7 casos)
+  y ajuste de las fixtures de `test_caratula.py` y `test_paridad_formatos.py`.
+- Documentación: matriz REQ-24 y REQ-26 a `CERRADO`, handover de ficha §9 con
+  el detalle y la cita actualizada en `docs/ejemplo_respuesta_motor.json`.
+- Se regeneraron los DOS json y los DOS DOCX versionados de `docs/ejemplos/`;
+  el cambio del texto del factory era intencional, así que esta vez sí se
+  conservan los DOCX. En los golden solo cambian la cita y el tamaño de
+  archivo.
+
+**Verificación:** 107 pruebas enfocadas pasadas; suite completa 1223 pasadas,
+9 omitidas y 1 fallo preexistente de WeasyPrint 70 (CI usa 69). `ruff check`,
+`ruff format --check`, `mypy` y el escáner de secretos limpios. Corro el corpus
+real por petición explícita del usuario: las tres reglas en verde en los siete
+documentos (2 tesis + 5
+plantillas) y semáforo/resumen sin cambios: aprobada 0 errores/5 advertencias,
+no aprobada 4/5, plantillas 2 o 4 errores con 9 advertencias.
+
+**Entrega:** commits `74c3216` y `dd09654` pusheados a
+`origin/ri08-tamano-caratula` (PR #128, sin merge). CI verde en
+https://github.com/retblast/vistobueno/actions/runs/45620297259 y aviso a
+retblast en https://github.com/retblast/vistobueno/pull/128#issuecomment-7163377535.
+
 ---
 
 ## Evidencias
@@ -408,8 +483,9 @@ script con el resumen del motor.
 | Suite de ficha | `pytest tests/test_ficha_extraccion.py tests/test_captura_ficha.py -q` → 32 passed (37 tras la revisión del 2026-11-24) |
 | Cierre normativo | §11 de `docs/HANDOVER_AUDITORIA_2026-10-26.md` (NM-02, NM-05, NM-07) |
 | RI-07 | `tests/test_caratula_xpath.py`, `scripts/medir_caratula.py`, diseño 17 §9 y handover de ficha §9 |
-| RI-08 | Handover de ficha §9 (diseño y decisión pendiente; sin cambio de regla) |
+| RI-08 | PR #128: `tests/test_ri08_caratula_tamano.py`, `reglas_unt.yaml` (cinco bloques a 12 pt), handover de ficha §9 y matriz REQ-24/26/27 |
 | RI-09 | `tests/test_reglas_activas.py`, README (CLI con `reglas_unt.yaml`), `AGENTS.md` (54 reglas) y plan de Semana 12 restaurado |
+| REQ-24/REQ-26 | `tests/test_req24_26_caratula_mixtas_centrado.py`, `reglas_unt.yaml` (patrón mixto, `[last()]`, centrado de línea), matriz y handover de ficha §9 |
 
 ---
 
