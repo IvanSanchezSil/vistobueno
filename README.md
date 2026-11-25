@@ -560,9 +560,10 @@ el reporte. **Nunca toca el semáforo** ni produce `RuleResult`. Funcionalidades
 
 **Implementado (motor, rama `semana8-modulo-ia`)**: `validator/llm.py`
 (`LLMClient` + `OllamaClient` + `StubLLM`) y `validator/asistente.py` (Funcionalidad 2:
-`explicar_y_priorizar`), con tests sin red ni GPU. **Pendiente**: el *wiring* de
-los endpoints `GET /asistente/estado` y `POST /asistente/explicar` en la API y
-los botones del frontend (contrato en `docs/HANDOVER_API_IA.md`).
+`explicar_y_priorizar`), con tests sin red ni GPU. Los endpoints
+`GET /asistente/estado` y `POST /asistente/explicar` están implementados
+en `validator/api.py` (contrato en `docs/HANDOVER_API_IA.md`).
+**Pendiente**: los botones del frontend (contrato en `docs/HANDOVER_API_IA.md`).
 
 Configuración: `OLLAMA_URL` (habilita el módulo), `OLLAMA_MODEL` (por defecto
 `qwen2.5:3b`; en GPU `qwen2.5:7b`) y `OLLAMA_TIMEOUT` (segundos). Sin
