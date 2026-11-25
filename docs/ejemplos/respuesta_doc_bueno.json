@@ -437,7 +437,7 @@
       "encontrado": "cumple",
       "ubicacion": "Carátula, campo \"Línea de Investigación\"",
       "fuente": "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf",
-      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"",
+      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"; manual, párr. 181: \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
       "aplicable": true
     },
     {
@@ -744,7 +744,7 @@
   "como_preguntar_a_una_ia": [],
   "metadatos": {
     "archivo_nombre": "doc_bueno.docx",
-    "archivo_tamano_bytes": 5833,
+    "archivo_tamano_bytes": 5835,
     "reglas_evaluadas": 44,
     "reglas_totales": 54,
     "version_esquema": "2026-09-01",

@@ -485,6 +485,11 @@ reglas:
     parte: document
     contexto: caratula
     sujeto: parrafo
+    # EVALUADO (2026-11-26): REQ-24/REQ-26. La keywords heredadas no
+    # incluían "línea de investigación", así que ni su etiqueta ni su valor
+    # se comprobaban. Se agregan ambos como ramas del XPath; la ciudad ya
+    # entraba por "trujillo" (en la práctica, la primera coincidencia es la
+    # Universidad, que también debe ir centrada).
     parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'universidad') or (contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
       'facultad') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
@@ -495,7 +500,10 @@ reglas:
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autores:') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
       'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'mención') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo')]
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'trujillo') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
+      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'línea de investigación')]
+      | //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'línea de investigación')][1]/following-sibling::w:p[1]
     propiedad: w:jc/@w:val
     comparacion: all_eq
     esperado: center
@@ -870,12 +878,20 @@ reglas:
   ubicacion: Carátula, especificaciones (párr. 182)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos)."'
+  # EVALUADO (2026-11-26): REQ-26. El `[1]` heredado resolvía a la
+  # UNIVERSIDAD (también contiene "Trujillo"), así que la negrita y el patrón
+  # se medían en el renglón equivocado y hasta "TRUJILLO - PERÚ" pasaba como
+  # "mayúsculas y minúsculas". Se usa `[last()]` para la línea de ciudad y el
+  # patrón exige al menos una mayúscula y una minúscula por run con letras;
+  # los runs de solo espacio siguen pasando (la tesis real parte el texto en
+  # 'Trujillo', ' ', '– Perú'). El centrado se comprueba en
+  # `alineacion_caratula_todos_elementos`.
   formato_efectivo:
     parte: document
     contexto: caratula
     sujeto: run
     parrafo_xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'trujillo')][1]
+      'trujillo')][last()]
     propiedad: w:b
     comparacion: all_eq
     esperado: '1'
@@ -883,8 +899,8 @@ reglas:
     parte: document
     contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'trujillo')][1]//w:t
-    patron: ^[A-ZÁÉÍÓÚÑ0-9 .,-]+$
+      'trujillo')][last()]//w:t
+    patron: '^(?: +|(?=.*[A-ZÁÉÍÓÚÑ])(?=.*[a-záéíóúñ])[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,\-–]+)$'
     comparacion: fullmatch
     coincidencia: todos
 - id: caratula_linea_investigacion
@@ -896,7 +912,8 @@ reglas:
   ubicacion: Carátula, campo "Línea de Investigación"
   fuente: RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf
   cita: '"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por
-    RCU-N°220-2022/UNT)"'
+    RCU-N°220-2022/UNT)"; manual, párr. 181: "Línea de investigación, con letras mayúsculas y minúsculas
+    (tamaño de letra, 12 puntos)."'
   origen_cita: norma_institucional
   lista_texto:
     parte: document
@@ -955,6 +972,18 @@ reglas:
     - ciencias matemáticas
     - educación y ciencias de la comunicación y desarrollo sostenible
     ignore_case: true
+  # EVALUADO (2026-11-26): REQ-24. El catálogo RCU-220 comprueba el CONTENIDO,
+  # pero el párr. 181 del manual también exige letras mayúsculas y minúsculas.
+  # Se mide el párrafo de valor (no la etiqueta, que en plantillas cambia de
+  # forma) con el mismo patrón mixto de REQ-26; los runs de solo espacio pasan.
+  patron_texto:
+    parte: document
+    contexto: caratula
+    xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
+      'línea de investigación')][1]/following-sibling::w:p[1]//w:t
+    patron: '^(?: +|(?=.*[A-ZÁÉÍÓÚÑ])(?=.*[a-záéíóúñ])[A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .,\-–]+)$'
+    comparacion: fullmatch
+    coincidencia: todos
 # EVALUADO: desviaciones entre la plantilla oficial y el esquema del manual.
 # La plantilla oficial del proyecto cuantitativo (EDUCACION INICIAL, en
 # `recursos/`) exige 3 secciones que el esquema del manual NO lista. Por eso
