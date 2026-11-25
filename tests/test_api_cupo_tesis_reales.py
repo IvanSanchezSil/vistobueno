@@ -32,9 +32,7 @@ def _tesis_reales() -> list[Path]:
     constancia, no una tesis.
     """
     return sorted(
-        ruta
-        for ruta in RECURSOS_DIR.glob("TESIS*.docx")
-        if "MODELO B" not in ruta.name.upper()
+        ruta for ruta in RECURSOS_DIR.glob("TESIS*.docx") if "MODELO B" not in ruta.name.upper()
     )
 
 
