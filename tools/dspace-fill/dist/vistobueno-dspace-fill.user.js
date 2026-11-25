@@ -757,10 +757,18 @@ const VBEjecutor = (() => {
 					if (actual === op.texto) {
 						return { ok: true, detalle: "" };
 					}
-					// Valor no quedó: reescribir y reintentar en la
-					// siguiente vuelta del bucle exterior.
-					_ponerTexto(doc, input, op.texto);
-					break;
+					// El widget no aceptó la selección: se restaura el
+					// valor anterior y se reporta pendiente. NO se
+					// reescribe el texto, porque eso enmascararía el
+					// fallo (parecería relleno sin haber seleccionado).
+					_ponerTexto(doc, input, previo);
+					return {
+						ok: false,
+						detalle:
+							"el widget no aceptó la opción " +
+							op.texto +
+							" (no quedó seleccionada)",
+					};
 				}
 			}
 		}
