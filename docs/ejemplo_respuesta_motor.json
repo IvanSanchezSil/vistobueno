@@ -346,7 +346,7 @@
       "found": "textos: 1 evaluados, 1 en_lista_faltan: #1=(times new román 12 puntos)",
       "location": "Carátula, campo \"Línea de Investigación\"; página 13",
       "fuente": "RCU-N-220-2022-UNT-LINEAS DE INVESTIGACION.pdf",
-      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"",
+      "cita": "\"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"; manual, párr. 181: \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
       "ficha": []
     },
     {
@@ -557,7 +557,7 @@
     },
     {
       "rule_id": "caratula_linea_investigacion",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT\n- Valor esperado según el reglamento: Línea de investigación aprobada (RCU-N°220-2022/UNT)\n- Lo que encontró el validador: textos: 1 evaluados, 1 en_lista_faltan: #1=(times new román 12 puntos)\n- Cita del reglamento: \"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: La Línea de Investigación declarada en carátula debe ser una de las líneas aprobadas por el RCU-N°220-2022/UNT\n- Valor esperado según el reglamento: Línea de investigación aprobada (RCU-N°220-2022/UNT)\n- Lo que encontró el validador: textos: 1 evaluados, 1 en_lista_faltan: #1=(times new román 12 puntos)\n- Cita del reglamento: \"Tabla 1, 2 y 3: Líneas de Investigación de la Universidad Nacional de Trujillo (aprobadas por RCU-N°220-2022/UNT)\"; manual, párr. 181: \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "resumen_longitud",

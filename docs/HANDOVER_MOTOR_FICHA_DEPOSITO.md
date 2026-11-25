@@ -251,10 +251,11 @@ en vez de recortar su descripción:
 Las cinco comprobaciones usan `all_eq` sobre todos los runs con texto.
 `caratula_ciudad_pais_negrita` y `caratula_linea_investigacion` siguen
 midiendo negrita/contenido, respectivamente: no se duplica su propiedad.
-En la matriz REQ-24 y REQ-26 siguen `PARCIAL` por las propiedades que aún no
-se demuestran (mixtas, centrado), pero su evidencia de 12 pt ya está cubierta;
-REQ-27 mantiene `CONFLICTO` por año en curso frente a año de sustentación,
-aunque el tamaño del año ya se valide.
+En la matriz REQ-24 y REQ-26 quedaron `PARCIAL` en esa entrega por las
+propiedades que aún no se demostraban (mixtas, centrado), pero su evidencia
+de 12 pt ya estaba cubierta; ambas se cerraron el 2026-11-26 (sección
+«REQ-24/REQ-26» más abajo). REQ-27 mantiene `CONFLICTO` por año en curso frente
+a año de sustentación, aunque el tamaño del año ya se valide.
 
 **Regresión:** `tests/test_ri08_caratula_tamano.py` verifica que el documento
 bueno siga en verde y que 36 pt en línea, ciudad o año separado pongan la
@@ -266,3 +267,48 @@ de `docs/ejemplos/` (solo cambian `ubicacion` y `cita`).
 aprobada y en las cinco plantillas; no cambia semáforo, resumen, capturas ni
 los cuatro errores de la tesis no aprobada. Entregado en el PR #128, abierto y
 sin merge de mi parte; CI verde en https://github.com/retblast/vistobueno/actions/runs/45615829450.
+
+### REQ-24/REQ-26 — mixtas y centrado de línea y ciudad (cerrado 2026-11-26)
+
+El reparto dejaba dos propiedades sin medir pese a estar en la descripción de
+las reglas. Con los dos DOCX reales se comprobó la causa:
+
+- `caratula_ciudad_pais_negrita` usaba `[1]` para «Trujillo» y por eso medía
+  la Universidad, no la línea de ciudad; además su patrón (`^[A-Z...]+$`)
+  aceptaba un texto todo en mayúsculas como «mixto».
+- `alineacion_caratula_todos_elementos` no incluía «línea de investigación»,
+  así que ni su etiqueta ni su valor entraban en el control de centrado.
+
+Cambios aplicados sobre la rama del PR #128 (no se abre otro PR):
+
+- `caratula_ciudad_pais_negrita` pasa a `[last()]` y usa un patrón de
+  fullmatch que exige al menos una mayúscula y una minúscula por run con
+  letras. Los runs de solo espacio siguen válidos: la tesis real parte la
+  ciudad en `'Trujillo'`, `' '`, `'– Perú'`. Se elimina `REGLAS_ACOPLADAS`
+  entre esta regla y `caratula_universidad_negrita_mayusculas`.
+- `alineacion_caratula_todos_elementos` agrega la etiqueta y el párrafo de
+  valor de «línea de investigación» al XPath (la ciudad ya entraba por
+  «trujillo»).
+- `caratula_linea_investigacion` conserva el catálogo RCU-220 y añade el
+  mismo patrón mixto sobre el párrafo de valor, con la cita del párr. 181.
+- El factory pasa de `TRUJILLO - PERÚ, 2026` a `Trujillo - Perú, 2026` para
+  reflejar el manual; los textos siguen siendo placeholders, sin PII.
+
+**Regresión:** `tests/test_req24_26_caratula_mixtas_centrado.py` (7 casos)
+comprueba el documento bueno, que solo mayúsculas falle según el bloque, que
+la línea o la ciudad desalineadas pongan en rojo la alineación y que quitar
+la negrita a la Universidad ya no afecte a la ciudad. Enfocadas: 107 pasadas;
+suite completa: 1223 pasadas, 9 omitidas y 1 fallo preexistente de
+WeasyPrint 70 en `test_pdf_rechaza_recursos_externos_sin_escapar` (CI usa 69).
+Los dos golden vencidos por el cambio del factory se regeneraron y ya pasan.
+
+**Corpus real (2026-11-26):** se repitió la validación de las dos tesis y las
+cinco plantillas. Las tres reglas quedan en verde en los siete documentos; el
+semáforo y el resumen no cambian (aprobada verde 0/5, no aprobada rojo 4/5,
+plantillas rojo 2 o 4 errores con 9 advertencias). En la tesis real la ciudad
+sigue partida en tres runs y el valor de la línea sigue siendo
+«Educación y Ciencias de la Comunicación y Desarrollo Sostenible».
+
+Se regeneraron los dos JSON y los dos DOCX de `docs/ejemplos/` y se
+actualizaron la cita en `docs/ejemplo_respuesta_motor.json`, la matriz y esta
+sección. Todo queda en commits separados dentro del PR #128, sin merge.
