@@ -182,3 +182,64 @@ rellenan `detectado=false` para las ausentes (`renati.juror`, o cualquier
 campo que el XPath no encontró). Este cambio vive en el área de Int1; el motor
 no lo hace (handover §6: "no tocar la API").
 
+## 9. RI-07 — acotar el XPath de carátula (2026-11-24)
+
+Retblast midó, sobre la tesis no aprobada, 14,33 s en
+`caratula_autores_tamano` y 26,41 s en `ficha_autores`: 40,74 de 44,29 s.
+Ambas consultas usan `following-sibling::` / `preceding-sibling::`, y
+`ExtractedDocx.xpath()` evaluaba el XPath en **todo** el `word/document.xml`
+para recién después filtrar por `contexto: caratula`.
+
+**Mecanismo elegido.** Para `parte: document` con contexto `caratula` o
+`caratula_ficha`, `xpath()` evalúa sobre un `w:body` copia que contiene solo
+los párrafos de la carátula, en el mismo orden. Un mapa nodo copia → nodo
+original traduce los resultados antes de devolverlos: así la paginación
+(`pagina_de`) y los conjuntos `_caratula`/`_caratula_ficha` siguen
+indexados por los nodos reales. Los resultados que no son elementos
+(atributos, texto, escalares) caen al camino anterior, sin traducción.
+
+**Invariantes que se preservan** (son los que retblast pidió explícitamente):
+
+- el orden de los autores (`dc.contributor.author` es una lista);
+- los cortes por «ASESOR(A):» y «Línea de Investigación:» introducidos en el
+  PR #124, que solo rigen si hay una etiqueta precedente;
+- la separación del ORCID respecto del nombre del asesor y de los autores;
+- el semáforo, el resumen y las 8 capturas de la ficha.
+
+**Alcance del supuesto.** El catálogo actual solo consulta, desde un nodo de
+carátula, hermanos **dentro** de la carátula; no usa `last()`/`position()`
+sobre el cuerpo ni mira párrafos posteriores al salto de sección. Si una
+regla futura necesita esos ejes, debe evaluarse con el árbol completo o
+actualizarse este mecanismo. `tests/test_caratula_xpath.py` compara, para
+**todas** las expresiones de carátula de `reglas_unt.yaml` y
+`reglas_ficha.yaml`, el resultado reducido contra el filtro anterior; esa
+regresión avisa si el supuesto deja de valer.
+
+**Medición sintética.** Con 250 párrafos de cuerpo y una pasada por consulta:
+`caratula_autores_tamano` 0,204 s → 0,001 s (×227) y `ficha_autores`
+1,493 s → 0,002 s (×792). Con 1500 párrafos, la primera pasó de 6,254 s a
+0,001 s.
+
+**Medición con el corpus real (2026-11-24).** Se usaron las dos versiones de
+la tesis (la que lleva `(1)` es la aprobada) y las cinco plantillas oficiales
+que aportó retblast, sin copiar ningún documento al repo. Herramienta
+reproducible: `python scripts/medir_caratula.py <docx...>` (ejecuta la
+validación con el motor actual y con la implementación previa a RI-07,
+compara el reporte completo e imprime los tiempos).
+
+| Documento | Antes | Después | Resultado |
+|---|---|---|---|
+| Tesis aprobada `(1)` | 37,65 s | 2,63 s | verde, 0 errores, 5 advertencias, 42/54 |
+| Tesis no aprobada | 37,20 s | 2,22 s | rojo, 4 errores, 5 advertencias, 42/54 |
+| Educación Inicial | 0,26 s | 0,14 s | rojo, 2 errores, 9 advertencias |
+| Otras cuatro plantillas | 0,26–0,27 s | 0,11–0,17 s | rojo, 4 errores, 9 advertencias |
+
+Las dos consultas críticas, medidas por separado en la tesis no aprobada,
+pasaron de 10,30 s a 0,007 s (`caratula_autores_tamano`) y de 16,60 s a
+0,010 s (`ficha_autores`). En los siete documentos el reporte completo
+—semáforo, resumen, IDs/estados/severidades de las reglas y las 8 claves de
+la ficha— fue **idéntico** antes y después. Los cuatro errores de la tesis no
+aprobada siguen siendo `tamano_cuerpo`, `interlineado`, `alineacion_cuerpo` y
+`estructura_tinv_cuantitativo`; la aprobada mantiene las siete capturas
+esperadas (incluidos los dos autores) más `renati.advisor.orcid`.
+
