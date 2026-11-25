@@ -45,6 +45,7 @@ def _reiniciar_limitador():
         api_module.MAX_VALIDACIONES_CONCURRENTES
     )
     api_module._SEMAFORO_PAPELES = threading.BoundedSemaphore(api_module.MAX_PAPELES_CONCURRENTES)
+    api_module._SEMAFORO_IA = threading.BoundedSemaphore(api_module.MAX_IA_CONCURRENTES)
     yield
     api_module._LIMITADOR_PETICIONES.limpiar()
     api_module._LIMITADOR_CPU_VALIDACION.limpiar()
@@ -53,6 +54,7 @@ def _reiniciar_limitador():
         api_module.MAX_VALIDACIONES_CONCURRENTES
     )
     api_module._SEMAFORO_PAPELES = threading.BoundedSemaphore(api_module.MAX_PAPELES_CONCURRENTES)
+    api_module._SEMAFORO_IA = threading.BoundedSemaphore(api_module.MAX_IA_CONCURRENTES)
 
 
 # ---------------------------------------------------------------------------

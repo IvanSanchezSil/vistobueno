@@ -20,7 +20,8 @@ import tempfile
 import threading
 import time
 import zipfile
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from functools import cache
 from ipaddress import ip_address
@@ -110,6 +111,7 @@ from .engine import build_report, load_ficha_rules, load_rules, validate_docx
 from .extractor import InvalidDocumentError
 from .llm import (
     LLMClient,
+    LLMConfig,
     LLMError,
     LLMNoDisponible,
     estado_ia,
@@ -359,10 +361,16 @@ VENTANA_PETICIONES_DEFAULT = 60.0
 # RI-01: el presupuesto debe dejar entrar dos tesis normales seguidas.
 # La comprobación es `deuda < presupuesto`: la segunda entra mientras la
 # primera no haya agotado el cupo. Con 5 s hay margen para una tesis real
-# (medido con las tesis reales del corpus: ~3.8 s de CPU por validación
-# después de RI-07) y la ráfaga de documentos patológicos sigue cortada:
-# un documento que consume el máximo (10 s) deja la carga siguiente
-# esperando ~1 minuto.
+# (medido con las tesis reales del corpus: entre 1.5 y 3.8 s de CPU por
+# validación, según el documento y el estado del proceso) y la ráfaga de
+# documentos patológicos sigue cortada: un documento que consume el
+# máximo (10 s) deja la carga siguiente esperando ~1 minuto.
+#
+# El presupuesto es un límite de TRABAJO por minuto, no un contador de
+# tesis: una tesis siempre entra (la más cara medida cuesta 3.8 s < 5 s)
+# y dos seguidas también. La tercera espera cuando las dos anteriores
+# consumieron más de 5 s en total; si la máquina valida más rápido, entra
+# una tercera.
 PRESUPUESTO_CPU_DEFAULT = 5.0  # segundos de trabajo por ventana
 PRESUPUESTO_CPU_PAPELES_DEFAULT = 1.0  # el papeleo (DOCX/XLSX) pesa más
 COSTE_CPU_MINIMO = 0.01
@@ -379,12 +387,20 @@ COSTE_CPU_MAXIMO = 10.0  # un documento patológico no bloquea media hora
 #
 # Con dos huecos, una ráfaga no pasa de dos validaciones simultáneas
 # (el mismo margen que la política de "dos tesis seguidas"), y las demás
-# reciben 429 con la espera estimada. El hueco se libera siempre, incluso
-# si la petición falla o su cuerpo es inválido.
+# reciben 429 con la espera estimada. El hueco cubre SOLO el trabajo de
+# CPU: se toma dentro del hilo que valida y se suelta cuando ese trabajo
+# acaba (ver `_hueco_validacion`).
 MAX_VALIDACIONES_CONCURRENTES = 2
 # La misma cota para el papeleo: generar un DOCX/XLSX también consume CPU
 # y el cupo se consulta antes del trabajo.
 MAX_PAPELES_CONCURRENTES = 2
+# Cota de explicaciones con IA simultáneas. Es SEPARADA de la de
+# validaciones a propósito: `POST /asistente/explicar` valida el DOCX
+# (trabajo pesado, con hueco de validación) y después espera al LLM
+# local, que puede tardar hasta 180 s sin consumir CPU de la API. Si esa
+# espera retuviera un hueco de validación, dos explicaciones en curso
+# dejarían `/validar` sin servicio aunque la máquina estuviera ociosa.
+MAX_IA_CONCURRENTES = 2
 
 
 class LimitadorPeticiones:
@@ -598,6 +614,10 @@ _LIMITADOR_CPU_PAPELES = LimitadorCPU(presupuesto_segundos=PRESUPUESTO_CPU_PAPEL
 # Cota de validaciones pesadas simultáneas (ver MAX_VALIDACIONES_CONCURRENTES).
 _SEMAFORO_VALIDACIONES = threading.BoundedSemaphore(MAX_VALIDACIONES_CONCURRENTES)
 _SEMAFORO_PAPELES = threading.BoundedSemaphore(MAX_PAPELES_CONCURRENTES)
+# Cota de explicaciones con IA simultáneas. Es aparte de la de
+# validaciones: una explicación espera al LLM (hasta 180 s) sin consumir
+# CPU de la API, así que no debe retener un hueco de validación.
+_SEMAFORO_IA = threading.BoundedSemaphore(MAX_IA_CONCURRENTES)
 
 
 # ---------------------------------------------------------------------------
@@ -629,6 +649,54 @@ class _MedidorCPU:
             return fn(*args)
         finally:
             self.segundos += time.thread_time() - inicio
+
+
+@contextmanager
+def _hueco_validacion() -> Iterator[None]:
+    """Cota de validaciones pesadas simultáneas (RI-01).
+
+    Coge uno de los `MAX_VALIDACIONES_CONCURRENTES` huecos. Si no hay
+    hueco, responde 429: el cupo de CPU se consulta antes del trabajo,
+    así que sin esta cota una ráfaga paralela entraría entera.
+
+    El hueco cubre SOLO el trabajo de CPU, no la petición entera:
+
+    - se toma dentro del hilo que valida y se suelta cuando ese trabajo
+      acaba, de modo que una espera externa (el LLM del asistente o el
+      SMTP de la notificación) no retiene el hueco;
+    - si la tarea ASGI se cancela, el hilo sigue trabajando y suelta el
+      hueco al terminar: la máquina no queda con más validaciones
+      simultáneas de las permitidas.
+    """
+    if not _SEMAFORO_VALIDACIONES.acquire(blocking=False):
+        # Hay validaciones en curso: se estima que un hueco se libera
+        # cuando termine la más reciente (el último coste medido).
+        _rechazar_por_limite(max(_LIMITADOR_CPU_VALIDACION.coste_ultimo, 1.0), "validación")
+    try:
+        yield
+    finally:
+        _SEMAFORO_VALIDACIONES.release()
+
+
+def _validar_docx_cotado(
+    medidor: _MedidorCPU,
+    ruta: str,
+    rules_data: dict,
+    ficha_data: dict | None,
+    cobrar: Callable[[float], None],
+) -> list[RuleResult]:
+    """Valida el DOCX en el hilo del pool, con hueco de cota y cobro.
+
+    El hueco y el cobro ocurren DENTRO del hilo: si la tarea ASGI se
+    cancela mientras valida, el hilo sigue, suelta el hueco al terminar
+    y cobra el coste real. Así ni la máquina ni el cupo se quedan sin
+    contabilizar el trabajo que realmente se hizo.
+    """
+    with _hueco_validacion():
+        try:
+            return medidor.medir(validate_docx, ruta, rules_data, ficha_data)
+        finally:
+            cobrar(medidor.segundos)
 
 
 # ---------------------------------------------------------------------------
@@ -700,41 +768,28 @@ def _rechazar_por_limite(reintentar: float, recurso: str) -> None:
 
     `Retry-After` sigue el estándar HTTP: segundos, redondeados hacia
     arriba para no reintentar antes de que el cupo libere espacio. El
-    mensaje usa la misma espera que el header; cambia a minutos cuando
-    la espera llega a 60 s.
+    mensaje dice EXACTAMENTE la misma espera, también en segundos: si el
+    mensaje lo redondeara a minutos, el cliente vería dos esperas
+    distintas para el mismo rechazo.
     """
     espera = max(1, math.ceil(reintentar))
-    if espera < 60:
-        unidad = "segundo" if espera == 1 else "segundos"
-        wait_msg = f"Espera {espera} {unidad} antes de reintentar."
-    else:
-        minutos = math.ceil(espera / 60)
-        unidad = "minuto" if minutos == 1 else "minutos"
-        wait_msg = f"Espera {minutos} {unidad} antes de reintentar."
+    unidad = "segundo" if espera == 1 else "segundos"
     raise HTTPException(
         status_code=429,
         headers={"Retry-After": str(espera)},
-        detail=(f"Demasiadas peticiones de {recurso} seguidas. {wait_msg}"),
+        detail=(
+            f"Demasiadas peticiones de {recurso} seguidas. "
+            f"Espera {espera} {unidad} antes de reintentar."
+        ),
     )
 
 
-async def limitar_validaciones(request: Request) -> AsyncIterator[None]:
-    """Dependency de POST /validar y /asistente/explicar: corta los abusos.
+def _comprobar_cupo_validacion(request: Request) -> None:
+    """Cupo de validaciones: ventana fija por IP o presupuesto de CPU.
 
-    Dos controles, ambos con 429:
-
-    - **Cupo**: si `VISTOBUENO_RATE_LIMIT_MAX` está definido se usa la
-      ventana fija por IP (comportamiento previo; `0` la desactiva). Si
-      no, se usa el cupo adaptativo por CPU, que se ajusta a la
-      velocidad del equipo.
-    - **Cota de simultaneidad**: como máximo
-      `MAX_VALIDACIONES_CONCURRENTES` validaciones pesadas a la vez. El
-      cupo de CPU se consulta antes del trabajo, así que sin esta cota
-      una ráfaga paralela entraría entera y cargaría el equipo por
-      encima del presupuesto.
-
-    El hueco de la cota se libera siempre (el `finally` de esta
-    dependencia), incluso si la petición falla o su cuerpo es inválido.
+    Lanza 429 si la petición no entra. En el modo adaptativo el cupo
+    consulta la deuda de CPU acumulada, que refleja el trabajo real
+    medido de las validaciones anteriores.
     """
     if not _modo_adaptativo():
         maximo, ventana = _config_limite_peticiones()
@@ -754,14 +809,52 @@ async def limitar_validaciones(request: Request) -> AsyncIterator[None]:
         if not permitido:
             _rechazar_por_limite(reintentar, "validación")
 
-    if not _SEMAFORO_VALIDACIONES.acquire(blocking=False):
-        # Hay validaciones en curso: se estima que un hueco se libera
-        # cuando termine la más reciente (el último coste medido).
-        _rechazar_por_limite(max(_LIMITADOR_CPU_VALIDACION.coste_ultimo, 1.0), "validación")
+
+async def limitar_validaciones(request: Request) -> AsyncIterator[None]:
+    """Dependency de POST /validar: corta los abusos.
+
+    Dos controles, ambos con 429:
+
+    - **Cupo**: si `VISTOBUENO_RATE_LIMIT_MAX` está definido se usa la
+      ventana fija por IP (comportamiento previo; `0` la desactiva). Si
+      no, se usa el cupo adaptativo por CPU, que se ajusta a la
+      velocidad del equipo.
+    - **Cota de simultaneidad**: como máximo
+      `MAX_VALIDACIONES_CONCURRENTES` validaciones pesadas a la vez. El
+      cupo de CPU se consulta antes del trabajo, así que sin esta cota
+      una ráfaga paralela entraría entera y cargaría el equipo por
+      encima del presupuesto.
+
+    El hueco de la cota se toma dentro del hilo que valida
+    (`_hueco_validacion`) y cubre solo el trabajo de CPU: la notificación
+    por correo, que espera al SMTP, no lo retiene.
+    """
+    _comprobar_cupo_validacion(request)
+    yield
+
+
+async def limitar_ia(request: Request) -> AsyncIterator[None]:
+    """Dependency de POST /asistente/explicar: cupo y cota de IA.
+
+    El endpoint valida el DOCX (trabajo pesado: toma un hueco de la cota
+    de validaciones) y después espera al LLM local, que puede tardar
+    hasta 180 s sin consumir CPU de la API. Por eso la cota de llamadas
+    IA es SEPARADA: si la espera al LLM retuviera un hueco de
+    validación, dos explicaciones en curso dejarían `/validar` sin
+    servicio aunque la máquina estuviera ociosa.
+
+    El cupo de CPU sí se consulta: la validación del asistente consume
+    CPU de la API y se cobra al mismo presupuesto que `/validar`.
+    """
+    _comprobar_cupo_validacion(request)
+    if not _SEMAFORO_IA.acquire(blocking=False):
+        # Las explicaciones en curso tardan como máximo el plazo del
+        # cliente LLM: esa es la espera estimada hasta que haya hueco.
+        _rechazar_por_limite(_timeout_ia_segundos(), "explicación con IA")
     try:
         yield
     finally:
-        _SEMAFORO_VALIDACIONES.release()
+        _SEMAFORO_IA.release()
 
 
 async def limitar_papeleo() -> AsyncIterator[None]:
@@ -1309,7 +1402,12 @@ async def validar(
         medidor = _MedidorCPU()
         try:
             resultados_motor = await run_in_threadpool(
-                medidor.medir, validate_docx, tmp_path, rules_data, _get_ficha_rules()
+                _validar_docx_cotado,
+                medidor,
+                tmp_path,
+                rules_data,
+                _get_ficha_rules(),
+                _cobrar_coste_validacion,
             )
         except DSLValidationError as e:
             # Reglas rotas = error de configuración del servidor, no del
@@ -1339,11 +1437,6 @@ async def validar(
                     "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
                 ),
             ) from e
-        finally:
-            # El cupo adaptativo descuenta el TRABAJO real (CPU del hilo
-            # que validó), no la latencia: con peticiones concurrentes, la
-            # espera del GIL no es trabajo (revisión PR #71, B1).
-            _cobrar_coste_validacion(medidor.segundos)
 
         reporte = build_report(resultados_motor)
 
@@ -2020,7 +2113,18 @@ async def descargar_constancia(
             medidor.medir, llenar_constancia, _ruta_plantilla_constancia(), objetivo
         )
     except ErrorConfiguracionConstancia as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        # La ruta de la plantilla es una ruta del servidor: no se
+        # devuelve en la respuesta (queda en el log del servidor). El
+        # detalle dice qué hacer, no dónde está el archivo.
+        logging.getLogger(__name__).error("Configuración de la constancia inválida: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Error de configuración de la constancia: la plantilla del Modelo B no está "
+                "disponible o no es un DOCX válido (revise VISTOBUENO_PLANTILLA_CONSTANCIA "
+                "y la carpeta recursos/)."
+            ),
+        ) from e
     finally:
         # CPU real del hilo que generó el documento, no la latencia
         # (revisión PR #71, B1).
@@ -2119,6 +2223,15 @@ async def generar_fila_registro(
 TIEMPO_MAX_ESTADO_IA_S = 5.0
 
 
+def _timeout_ia_segundos() -> float:
+    """Plazo de espera del cliente LLM, en segundos.
+
+    Es la espera estimada hasta que una explicación en curso libera su
+    hueco de la cota de IA (`OLLAMA_TIMEOUT`, 180 s por defecto).
+    """
+    return max(1.0, LLMConfig.desde_entorno().timeout_s)
+
+
 def obtener_cliente_ia() -> LLMClient:
     """Devuelve el cliente LLM para los endpoints de IA.
 
@@ -2187,9 +2300,10 @@ async def estado_asistente() -> EstadoAsistenteAPI:
             "description": "Archivo corrupto, no es DOCX válido o respuesta de IA no interpretable"
         },
         429: {"description": "Demasiadas peticiones de validación seguidas"},
+        500: {"description": "Error interno del validador (configuración de reglas inválida)"},
         503: {"description": "Módulo de IA no disponible (falta OLLAMA_URL o servicio caído)"},
     },
-    dependencies=[Depends(verificar_acceso_local), Depends(limitar_validaciones)],
+    dependencies=[Depends(verificar_acceso_local), Depends(limitar_ia)],
 )
 async def explicar_asistente(
     archivo: UploadFile = File(...),  # noqa: B008
@@ -2204,7 +2318,12 @@ async def explicar_asistente(
         medidor = _MedidorCPU()
         try:
             resultados_motor = await run_in_threadpool(
-                medidor.medir, validate_docx, tmp_path, _get_rules(), _get_ficha_rules()
+                _validar_docx_cotado,
+                medidor,
+                tmp_path,
+                _get_rules(),
+                _get_ficha_rules(),
+                _cobrar_coste_validacion,
             )
         except DSLValidationError as e:
             logging.getLogger(__name__).exception(
@@ -2226,8 +2345,6 @@ async def explicar_asistente(
                     "No se pudo procesar el archivo DOCX: archivo corrupto o no es un DOCX válido."
                 ),
             ) from e
-        finally:
-            _cobrar_coste_validacion(medidor.segundos)
 
         # Tipo documental efectivo: el inferido manda; si no hubo inferencia,
         # se usa el declarado. La IA lo recibe como contexto, nunca lo cambia.

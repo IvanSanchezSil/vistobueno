@@ -9,7 +9,6 @@ Uso:
 
 import asyncio
 import io
-import math
 import time
 import zipfile
 from pathlib import Path
@@ -673,13 +672,11 @@ class TestLimitePeticiones:
         assert rebotada.status_code == 429
         espera = int(rebotada.headers["Retry-After"])
         detalle = rebotada.json()["detail"].lower()
-        if espera < 60:
-            unidad = "segundo" if espera == 1 else "segundos"
-            assert f"{espera} {unidad}" in detalle
-        else:
-            minutos = math.ceil(espera / 60)
-            unidad = "minuto" if minutos == 1 else "minutos"
-            assert f"{minutos} {unidad}" in detalle
+        # La espera se dice siempre en segundos: el mensaje y el header
+        # expresan el mismo número (ni minutos redondeados).
+        unidad = "segundo" if espera == 1 else "segundos"
+        assert f"{espera} {unidad}" in detalle
+        assert "minuto" not in detalle
         assert "validación" in detalle
 
 
@@ -744,16 +741,18 @@ class TestLimitadorCPU:
         assert "1 segundo " in un_segundo.value.detail
         assert "1 segundos" not in un_segundo.value.detail
 
+        # La espera se dice siempre en segundos: el mensaje y el header
+        # expresan el MISMO número (ni minutos redondeados).
         with pytest.raises(validator.api.HTTPException) as un_minuto:
             validator.api._rechazar_por_limite(60.0, "validación")
         assert un_minuto.value.headers == {"Retry-After": "60"}
-        assert "1 minuto " in un_minuto.value.detail
-        assert "1 minutos" not in un_minuto.value.detail
+        assert "60 segundos " in un_minuto.value.detail
+        assert "minuto" not in un_minuto.value.detail
 
         with pytest.raises(validator.api.HTTPException) as dos_minutos:
             validator.api._rechazar_por_limite(119.2, "validación")
         assert dos_minutos.value.headers == {"Retry-After": "120"}
-        assert "2 minutos" in dos_minutos.value.detail
+        assert "120 segundos " in dos_minutos.value.detail
 
     def test_un_presupuesto_de_cero_desactiva_el_cupo(self):
         """Presupuesto 0 = cupo apagado (salida de emergencia del operador)."""
