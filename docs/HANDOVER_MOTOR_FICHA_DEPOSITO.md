@@ -201,7 +201,7 @@ pero vale dejarlo escrito).
 
 ---
 
-## 9. Seguimiento RI-07 / RI-08 (2026-11-24)
+## 9. Seguimiento RI-07 / RI-08 (2026-11-24/25)
 
 ### RI-07 — rendimiento de los XPath de carátula
 
@@ -229,25 +229,39 @@ aprobada no cambiaron. Detalle y tabla en `docs/diseno/17_extraccion_ficha.md` �
 consecutivas en la API de retblast y la comprobación en Firefox del límite
 de 30 s (acá se midió el motor, no el navegador).
 
-### RI-08 — alcance de `caratula_autores_tamano` (sin cambio de código)
+### RI-08 — alcance de `caratula_autores_tamano` (cerrado 2026-11-25)
 
 Retblast puso `ciudad.sz` y `linea.sz` en 36 pt en el doc bueno y la regla
-siguió en verde. Evidencia disponible en el repo:
+siguió en verde. El manual oficial sí estaba disponible en el ZIP de recursos
+que aportó el usuario (`MANUAL REVISADO TERCERA VERSION OBSERVACIONES
+11-07-2025.docx`, no copiado al repo) y resuelve la duda: los párr. 179-183
+fijan **12 pt** para autores, asesor, línea de investigación, ciudad/país y
+año en curso. Se amplía la regla existente, que mantiene `severidad: error`,
+en vez de recortar su descripción:
 
-- `caratula_autores_tamano` **describe** autores, asesor, línea de
-  investigación, ciudad y año, y su `cita` incluye el texto del manual para
-  autores y línea («(tamaño de letra, 12 puntos)»). Sus dos
-  `parrafo_xpath` cubren solo autores y asesor.
-- `caratula_ciudad_pais_negrita` cita el manual para ciudad y país («tamaño
-  de letra, 12 puntos»), pero comprueba `w:b` y el patrón de mayúsculas,
-  **no el tamaño**.
-- `caratula_linea_investigacion` comprueba que la línea esté en el catálogo
-  RCU-220, **no su tamaño**.
-- `docs/MATRIZ_REQUISITOS_2026-11-12.csv`: REQ-24 (línea 12 pt) y REQ-26
-  (ciudad y país 12 pt) están `PARCIAL`; REQ-27 (año) está `CONFLICTO` por
-  año de curso frente a año de sustentación.
+- nueva comprobación para la línea: etiqueta y párrafo siguiente (si el texto
+  va junto en un solo párrafo, el XPath devuelve solo ese nodo);
+- nueva comprobación para ciudad/país: el **último** párrafo con «Trujillo»
+  de la carátula, para no medir la Universidad a 18 pt;
+- nueva comprobación para el año: el párrafo de cierre de sección
+  (`contexto: caratula_ficha`), donde las tesis reales ponen el año separado;
+  cuando el año va dentro de la línea de ciudad, ese mismo párrafo ya queda
+  cubierto.
 
-No se modifica la regla ni la matriz: decidir si línea/ciudad/año entran a
-`error` o si se recorta la descripción requiere cotejar el manual (no está en
-este worktree) y la confirmación de retblast. Las dos opciones quedan
-planteadas para esa decisión.
+Las cinco comprobaciones usan `all_eq` sobre todos los runs con texto.
+`caratula_ciudad_pais_negrita` y `caratula_linea_investigacion` siguen
+midiendo negrita/contenido, respectivamente: no se duplica su propiedad.
+En la matriz REQ-24 y REQ-26 siguen `PARCIAL` por las propiedades que aún no
+se demuestran (mixtas, centrado), pero su evidencia de 12 pt ya está cubierta;
+REQ-27 mantiene `CONFLICTO` por año en curso frente a año de sustentación,
+aunque el tamaño del año ya se valide.
+
+**Regresión:** `tests/test_ri08_caratula_tamano.py` verifica que el documento
+bueno siga en verde y que 36 pt en línea, ciudad o año separado pongan la
+regla en rojo. Se ajustó `test_aud05_ignora_runs_sin_texto_y_no_mira_al_asesor`
+para incluir esos tres bloques a 12 pt, y se regeneraron los dos JSON golden
+de `docs/ejemplos/` (solo cambian `ubicacion` y `cita`).
+
+**Corpus real:** la regla sigue en verde en la tesis aprobada, en la no
+aprobada y en las cinco plantillas; no cambia semáforo, resumen, capturas ni
+los cuatro errores de la tesis no aprobada.

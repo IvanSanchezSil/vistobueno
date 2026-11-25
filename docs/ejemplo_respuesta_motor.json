@@ -104,9 +104,9 @@
       "message": "Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula",
       "expected": "12pt",
       "found": "@w:val: sin valores que comparar; esperado=12 pt",
-      "location": "Carátula, especificaciones (párr. 161, 168, 179-183)",
+      "location": "Carátula, especificaciones (párr. 179-183 y equivalentes)",
       "fuente": "MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx",
-      "cita": "\"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"",
+      "cita": "\"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas. A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas, debajo y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Año en curso (tamaño de letra, 12 puntos).\"",
       "ficha": []
     },
     {
@@ -489,7 +489,7 @@
     },
     {
       "rule_id": "caratula_autores_tamano",
-      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula\n- Valor esperado según el reglamento: 12pt\n- Lo que encontró el validador: @w:val: sin valores que comparar; esperado=12 pt\n- Cita del reglamento: \"(Times New Román 12 puntos)\" para autores; \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
+      "prompt": "Tengo un documento de tesis en Word (Universidad Nacional de Trujillo). Detecté un problema de formato:\n\n- Regla incumplida: Tamaño de letra de autores, asesor, línea de investigación, ciudad y año en carátula\n- Valor esperado según el reglamento: 12pt\n- Lo que encontró el validador: @w:val: sin valores que comparar; esperado=12 pt\n- Cita del reglamento: \"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas. A continuación, se consignará con minúsculas y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Apellidos y nombres del/a asesor(a): Centrado, con negrita, con letras mayúsculas y minúsculas, debajo y entre paréntesis el hipervínculo del código ORCID de 16 dígitos, asociado a su perfil ORCID (tamaño de letra, 12 puntos).\" \"Línea de investigación, con letras mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Ciudad y país: Centrado, con negrita, con mayúsculas y minúsculas (tamaño de letra, 12 puntos).\" \"Año en curso (tamaño de letra, 12 puntos).\"\n\n¿Puedes darme instrucciones paso a paso para corregir esto en Microsoft Word, sin afectar el resto del formato del documento?"
     },
     {
       "rule_id": "interlineado",
