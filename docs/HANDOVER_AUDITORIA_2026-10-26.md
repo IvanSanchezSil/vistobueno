@@ -681,8 +681,8 @@ verificación.
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
 | AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
 | AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR #71) |
-| AUD-30 | Int1 | **cerrado** (acceso al papeleo) | `8efffd7` (PR #71) |
-| AUD-31 | Int1 | **cerrado** (cupo adaptativo por CPU) | `8efffd7` (PR #71) |
+| AUD-30 | Int1 | **cerrado** (acceso al papeleo) + cota de simultaneidad (PR #131) | `8efffd7` (PR #71), PR #131 |
+| AUD-31 | Int1 | **cerrado** (cupo adaptativo por CPU) + cota de simultaneidad (PR #131) | `8efffd7` (PR #71), PR #131 |
 | AUD-32 | Int1 | **cerrado** (hora de Perú) | `f0ba1f0` (PR #71) |
 | AUD-33 | Int1 | **cerrado** (botón "+" del userscript) | `22e6a19` (PR #71) |
 | AUD-34 | Int1 | **cerrado** (claves entre comillas en el escáner) | `efca435` (PR #71) |

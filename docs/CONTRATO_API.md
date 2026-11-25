@@ -791,6 +791,10 @@ desactivado.
 | `VISTOBUENO_RATE_LIMIT_CPU_SEG` | `5.0` | Presupuesto de CPU por ventana del modo adaptativo. `0` lo desactiva. |
 | `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` | `1.0` | Presupuesto de CPU por ventana del papeleo. `0` lo desactiva. |
 
+Desactivar el presupuesto (`0`) no desactiva la **cota de
+simultaneidad**: esa cota protege la máquina (no deja que varias
+validaciones pesadas corran a la vez), no la contabilidad del cupo.
+
 El coste que se cobra es **CPU del hilo que hizo el trabajo**, no la
 latencia: con varias peticiones a la vez, la espera del GIL no es trabajo
 y no se cobra. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
