@@ -323,8 +323,9 @@ Para la Func 1 (`POST /asistente/semantico`), en el mismo archivo:
 
 - **Motor (I3)**: **completo**: Paso 0 + Func 1, 2, 3 y 5 (todos los pasos de
   `docs/diseno/16_modulo_ia.md` §10 hechos en el motor).
-- **API (I1)**: `GET /asistente/estado` y los endpoints
-  `POST /asistente/explicar`, `POST /asistente/clasificar`,
+- **API (I1)**: **hecho**: `GET /asistente/estado` y
+  `POST /asistente/explicar` (PR #127; contrato v1.15.0 en
+  `docs/CONTRATO_API.md`). **Pendiente**: `POST /asistente/clasificar`,
   `POST /asistente/redactar` y `POST /asistente/semantico` (§2.2/§4); más el
   `POST /validar?tipo_confirmado=` para la re-validación human-in-the-loop
   (toque acotado en el flujo de compilación: `sobreescribir_tipo`).

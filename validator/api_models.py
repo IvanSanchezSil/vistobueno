@@ -710,7 +710,7 @@ class ExplicacionYPrioridadAPI(BaseModel):
     """
 
     explicaciones: list[ExplicacionItemAPI] = Field(
-        ..., description="Una explicación por regla fallida"
+        ..., description="Explicación de cada regla fallida que el modelo menciona"
     )
     prioridades: list[PrioridadItemAPI] = Field(..., description="Orden recomendado de corrección")
     modelo: str = Field(default="", description="Modelo de IA que generó la respuesta")

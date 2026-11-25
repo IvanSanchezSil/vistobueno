@@ -11,7 +11,8 @@ plantillas oficiales y tesis real está registrada en el handover de Int3.
 La entrega de Int1 del 2026-11-23 (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`)
 implementa B5 y B6, pero aún requiere integración.
 Siguen pendientes de integración VA-11 (B5) y VA-17 (B6). También siguen
-pendientes VA-10, VA-19 y
+pendientes VA-10 y la parte de Int2 de VA-19 (F4: reintento en la SPA; la
+parte de backend, B1, quedó cerrada con el PR #127, merge `72b6a4b`), y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
 PR #116), además del bloque normativo: NM-01, NM-02, NM-05 y NM-07 quedaron
 cerrados con los PR #114, #118, #120 y #121, ya fusionados; siguen pendientes
@@ -715,7 +716,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-16 | Int3 | **cerrado** (PR #115 integrado por #117, `5dda06d`; correcciones `4e40973`, `0f91f54`): ORCID por autor/asesor con checksum ISO 7064 MOD 11-2, destino del vínculo y texto entre paréntesis; medición con plantillas y tesis real en el handover de Int3 | M8: ORCID |
 | VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 **cerrado en código** (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`, commits `9149583` y `ac2aeea`): ejemplos regenerados; la guarda usa los bytes versionados, valida el paquete OPC y compara la respuesta API completa; falta integración | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | **cerrado** (B7 en PR #93, `a6c8d4e`; M10 en PR #112, `94df0e4`; correcciones `3e75289`, `0762716`): CLI y exportador distinguen evaluadas de no aplicables | B7 + M10: conteos |
-| VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
+| VA-19 | Int1 + Int2 | **parcial** (PR #127, merge `72b6a4b`): B1 cerrado en backend — el presupuesto de CPU subió a 5 s por ventana, una tesis completa entra en el cupo (medido: ~3.8 s de CPU), dos tesis seguidas responden 200 y el mensaje 429 coincide con `Retry-After`; falta F4 (Int2): reintento en la SPA | B1 + F4: límite y reintento |
 | VA-20 | Int1 | **parcial** (PR #116, merge `d576b09`; US-02): los valores escritos se releen y las filas se concilian con los controles del widget; falta la puerta de Angular | B3 y puerta Angular de Int1: antes del piloto |
 | VA-21 | Int1 + Int2 | **parcial** (PR #116, merge `d576b09`; US-08 y US-11): rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador; falta F5 (Int2) y la verificación en navegador real | B8 + F5: autofill y restauración |
 

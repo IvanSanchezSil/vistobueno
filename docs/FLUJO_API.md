@@ -1,11 +1,11 @@
 # Flujo del endpoint POST /validar
 
-**Versión del contrato**: 1.14.0<br>
+**Versión del contrato**: 1.15.0<br>
 **Fecha**: 2026-11-16
 
 > Este documento describe el flujo de `POST /validar` y el buzón de la ficha.
 > El contrato completo, incluidos constancia y registro, está en
-> `docs/CONTRATO_API.md` (v1.14.0).
+> `docs/CONTRATO_API.md` (v1.15.0).
 
 ---
 

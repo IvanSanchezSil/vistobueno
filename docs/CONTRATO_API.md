@@ -1,7 +1,7 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)<br>
-**Fecha**: 2026-11-12<br>
+**Versión**: 1.15.0 (2026-11-25 — endpoints del asistente de IA y política del cupo de CPU)<br>
+**Fecha**: 2026-11-25<br>
 **Estado**: Implementado
 
 > **Nota de lectura**: los títulos de sección con versión (por ejemplo,
@@ -760,14 +760,25 @@ manual está en `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md`.
 `POST /validar` recompila el DSL en cada request: el recurso a proteger es
 el CPU del proceso. Por defecto rige un **cupo adaptativo por CPU**: la
 API acumula los segundos reales de trabajo de cada validación y los
-"fuga" a `2.0` s por ventana de `60` s. Una petición entra si la deuda
+"fuga" a `5.0` s por ventana de `60` s. Una petición entra si la deuda
 está por debajo del presupuesto; si no, responde `429` con
 `Retry-After`.
 
 El presupuesto es el mismo en cualquier equipo; lo que cambia es cuántas
-peticiones caben: ~33 seguidas en un equipo de 60 ms por validación,
-~8 en uno de 250 ms. La tasa sostenida también se ajusta sola (2 s de
+peticiones caben: ~83 seguidas en un equipo de 60 ms por validación,
+~20 en uno de 250 ms. La tasa sostenida también se ajusta sola (5 s de
 CPU por minuto). No hay que calibrar nada por hardware.
+
+El presupuesto cubre **una tesis completa**. Medido con las dos tesis
+reales del corpus (después de RI-07, PR #126), una validación consume
+~3.8 s de CPU: con el valor predeterminado, **dos tesis consecutivas
+entran** (la segunda se admite mientras la deuda de la primera sigue
+por debajo de 5 s) y la tercera recibe `429` con una espera de ~26 s.
+Ese es el criterio de cierre de RI-01: la carga siguiente no queda
+bloqueada por la anterior, pero una ráfaga de tesis sí se corta.
+
+`POST /asistente/explicar` consume el mismo cupo: valida el DOCX con el
+mismo motor, así que cobra el mismo trabajo.
 
 Si se define `VISTOBUENO_RATE_LIMIT_MAX`, vuelve el límite de **ventana
 fija por IP** (comportamiento previo) y el modo adaptativo queda
@@ -777,12 +788,14 @@ desactivado.
 |----------|---------|-------------|
 | `VISTOBUENO_RATE_LIMIT_VENTANA_SEG` | `60` | Ventana en segundos (ambos modos). |
 | `VISTOBUENO_RATE_LIMIT_MAX` | — | Si se define, activa la ventana fija por IP. `0` la desactiva. |
-| `VISTOBUENO_RATE_LIMIT_CPU_SEG` | `2.0` | Presupuesto de CPU por ventana del modo adaptativo. `0` lo desactiva. |
+| `VISTOBUENO_RATE_LIMIT_CPU_SEG` | `5.0` | Presupuesto de CPU por ventana del modo adaptativo. `0` lo desactiva. |
 | `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` | `1.0` | Presupuesto de CPU por ventana del papeleo. `0` lo desactiva. |
 
 El coste que se cobra es **CPU del hilo que hizo el trabajo**, no la
 latencia: con varias peticiones a la vez, la espera del GIL no es trabajo
-y no se cobra. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
+y no se cobra. El control es por trabajo acumulado, no por número de
+peticiones: varias cargas simultáneas pueden entrar y se cobran al
+terminar. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
 cupo de CPU no se cobra: ese modo cuenta peticiones por IP.
 
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo
@@ -892,7 +905,9 @@ misma validación de entrada que `POST /validar` (extensión, content-type,
 tamaño y firma ZIP).
 
 Es **advisory**: la salida de la IA es solo texto de apoyo para el
-encargado, nunca modifica el semáforo ni el reporte de validación.
+encargado, nunca modifica el semáforo ni el reporte de validación. Al LLM
+se le envía solo el bloque de fallos (regla, severidad, esperado,
+encontrado y cita), no el texto completo de la tesis.
 
 **Cuerpo:** `multipart/form-data` con campo `archivo` (`.docx`).
 
@@ -902,9 +917,15 @@ encargado, nunca modifica el semáforo ni el reporte de validación.
 |--------|-------------|
 | `200` | Explicaciones y prioridades generadas por el LLM |
 | `400` | Sin archivo en la solicitud |
+| `413` | Archivo excede el tamaño máximo (10 MB) |
 | `415` | Tipo de archivo no soportado |
-| `422` | Archivo corrupto, no es DOCX válido |
-| `503` | Módulo de IA no disponible (falta `OLLAMA_URL`) |
+| `422` | Archivo corrupto, no es DOCX válido **o** respuesta de IA no interpretable |
+| `429` | Cupo de CPU agotado: la espera indicada en `Retry-After` y en el mensaje es la misma |
+| `503` | Módulo de IA no disponible (falta `OLLAMA_URL` o el servicio no responde) |
+
+El endpoint consume el mismo **cupo de CPU** que `POST /validar`: valida
+el DOCX con el mismo motor y cobra ese trabajo. Un documento sin fallos
+devuelve `200` con las listas vacías, sin llamar al LLM.
 
 **Ejemplo de respuesta (200):**
 
@@ -921,6 +942,31 @@ encargado, nunca modifica el semáforo ni el reporte de validación.
 ```
 
 ## Changelog
+
+### v1.15.0 (2026-11-25 — endpoints del asistente de IA y cupo de CPU)
+
+**Cambio aditivo**: se exponen `GET /asistente/estado` y
+`POST /asistente/explicar` (módulo de IA local, opt-in con `OLLAMA_URL`).
+El reporte de `POST /validar` no cambia: la salida de la IA es advisory y
+nunca toca el semáforo ni produce un `RuleResult`.
+
+- `GET /asistente/estado` → `200 {"disponible": bool, "modelo": string}`.
+  Nunca falla: sin `OLLAMA_URL` o con el servicio caído responde
+  `disponible=false`.
+- `POST /asistente/explicar` (multipart con `archivo`) → `200` con
+  `explicaciones`, `prioridades` y `modelo`. Un documento sin fallos
+  devuelve las listas vacías sin llamar al LLM.
+
+**Cupo de CPU**: el presupuesto por ventana de la validación sube de `2.0`
+a `5.0` s de CPU (PR #127). El criterio es que una tesis normal entre
+entera: medido con las tesis reales del corpus, una validación consume
+~3.8 s de CPU, así que dos tesis consecutivas responden `200` y la tercera
+recibe `429` con una espera coherente con `Retry-After`.
+`POST /asistente/explicar` consume el mismo cupo.
+
+**Mensaje 429**: la espera del mensaje coincide con el header
+`Retry-After`, en segundos o en minutos, con singular o plural según el
+valor.
 
 ### v1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)
 
