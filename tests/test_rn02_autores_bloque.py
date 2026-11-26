@@ -129,6 +129,30 @@ def test_orcid_en_negrita_y_mayusculas_no_cuenta_como_autor():
     assert resultado.passed, resultado.found
 
 
+def test_orcid_desnudo_entre_parentesis_terminado_en_x_no_cuenta_como_autor():
+    """Revisión de retblast: el código entre paréntesis no lleva la palabra ORCID.
+
+    El manual lo pide entre paréntesis y `caratula_orcid` admite la `X` final
+    (ISO 7064). Sin la exclusión por '(', ese run en negrita y con mayúscula
+    se tomaba como un nombre y ponía la regla en rojo.
+    """
+    paras = _caratula_dos_autores()
+    paras[2] = [("(0000-0002-1825-0097)", True)]
+    paras[4] = [("(0000-0002-1694-233X)", True)]
+    resultado = _resultado(paras)
+    assert resultado.passed, resultado.found
+
+
+def test_orcid_desnudo_no_exime_al_segundo_autor_en_negrita():
+    """Excluir el ORCID no puede desactivar la negrita de los nombres."""
+    paras = _caratula_dos_autores(segundo=[("Blanca Esther Torres Ruiz", True)])
+    paras[2] = [("(0000-0002-1825-0097)", True)]
+    paras[4] = [("(0000-0002-1694-233X)", True)]
+    resultado = _resultado(paras)
+    assert not resultado.passed
+    assert "1 incumplen" in resultado.found, resultado.found
+
+
 def test_nombre_partido_con_las_mayusculas_en_un_run_cumple():
     """La capitalidad se decide sobre el nombre completo, no por run."""
     resultado = _resultado(

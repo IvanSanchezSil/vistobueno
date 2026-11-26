@@ -823,17 +823,23 @@ reglas:
   cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
   # RN-02: el bloque de autores puede traer varios nombres separados por su
   # ORCID. Se miden TODOS los párrafos hasta «ASESOR(A):», sin las líneas
-  # ORCID. La negrita es por run (`all_eq` sobre todos ellos) y la capitalidad
-  # se decide sobre el NOMBRE COMPLETO, para que un nombre partido en runs no
-  # se lea como «todo en mayúsculas». Se mantiene el criterio EVALUADO de
-  # arriba: mayúsculas y minúsculas, sin cambiar la convención hasta que
-  # biblioteca resuelva la discrepancia con el manual.
+  # ORCID. Además de la palabra `orcid`, se descartan los párrafos que empiezan
+  # con '(': el manual y `caratula_orcid` admiten el código entre paréntesis
+  # sin etiqueta, p. ej. `(0000-0002-1694-233X)`, cuya X es válida (ISO 7064).
+  # La negrita es por run (`all_eq` sobre todos ellos) y la capitalidad se
+  # decide sobre el NOMBRE COMPLETO, para que un nombre partido en runs no se
+  # lea como «todo en mayúsculas». LÍMITE: si el ORCID va PEGADO al nombre en
+  # el mismo párrafo, se descarta ese párrafo entero; `ficha_autores` ya lo
+  # resuelve con `filtro`/`quitar_sufijo`, pero estos dos analizadores aún no
+  # tienen ese recorte (seguimiento del PR #134). Se mantiene el criterio
+  # EVALUADO de arriba: mayúsculas y minúsculas, sin cambiar la convención
+  # hasta que biblioteca resuelva la discrepancia con el manual.
   formato_efectivo:
     parte: document
     contexto: caratula
     sujeto: run
     parrafo_xpath: >-
-      //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[normalize-space(.) != ''][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid'))][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
+      //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[normalize-space(.) != ''][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid'))][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])][not(starts-with(normalize-space(.), '('))]
     propiedad: w:b
     comparacion: all_eq
     esperado: '0'
@@ -842,7 +848,7 @@ reglas:
     contexto: caratula
     unidad: nodo
     xpath: >-
-      //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[normalize-space(.) != ''][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid'))][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
+      //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[normalize-space(.) != ''][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid'))][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])][not(starts-with(normalize-space(.), '('))]
     patron: '^((.*[a-záéíóúñ].*)|[^A-ZÁÉÍÓÚÑa-záéíóúñ]*)$'
     comparacion: fullmatch
     coincidencia: todos
