@@ -99,11 +99,11 @@ REGLAS = [
 # - Volteo a proyecto (proyecto_caratula_texto): 5 reglas — las reglas de los
 #   tipos tinv alternativos ya eran no aplicables y no se mueven.
 #
-# - caratula_universidad_negrita_mayusculas y caratula_ciudad_pais_negrita
-#   seleccionan el MISMO párrafo: la línea "UNIVERSIDAD NACIONAL DE TRUJILLO"
-#   contiene "trujillo", así que `[1]` de la regla de ciudad resuelve al
-#   párrafo de la universidad. Un cambio de negrita en esa línea las afecta
-#   a ambas (quirk del XPath heredado del reglamento).
+# - Antes, caratula_universidad_negrita_mayusculas y caratula_ciudad_pais_negrita
+#   seleccionaban el MISMO párrafo: la línea "UNIVERSIDAD NACIONAL DE TRUJILLO"
+#   contiene "trujillo", así que `[1]` de la regla de ciudad resolvía a la
+#   universidad. Desde REQ-26 la regla de ciudad usa `[last()]`, ya no están
+#   acopladas y su mutación actúa sobre `portada.ciudad`.
 REGLAS_ACOPLADAS = {
     "estructura_tinv_cualitativo": {
         "deteccion_tipo_documento",
@@ -179,8 +179,6 @@ REGLAS_ACOPLADAS = {
         "referencias_minimo_proyecto",
         "anexos_minimos_cuantitativo",
     },
-    "caratula_universidad_negrita_mayusculas": {"caratula_ciudad_pais_negrita"},
-    "caratula_ciudad_pais_negrita": {"caratula_universidad_negrita_mayusculas"},
     # indice_subdivisiones renombra la subdivisión "INDICE DE CONTENIDOS" ->
     # "ÍNDICE GENERAL" y el título paraguas "ÍNDICE" -> "CONTENIDO GENERAL".
     # Con el XPath por texto completo (PR #102) ya no queda ningún título de
@@ -451,7 +449,7 @@ _MUTACIONES = {
         negrita=True
     ),
     "caratula_asesor_negrita": lambda c: c["portada"]["asesor"].update(negrita=False),
-    "caratula_ciudad_pais_negrita": lambda c: c["portada"]["univ"].update(negrita=False),
+    "caratula_ciudad_pais_negrita": lambda c: c["portada"]["ciudad"].update(negrita=False),
     "caratula_linea_investigacion": lambda c: c["portada"]["linea"].update(
         texto="Tecnologías disruptivas"
     ),
