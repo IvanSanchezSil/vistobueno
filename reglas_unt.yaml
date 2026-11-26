@@ -815,20 +815,28 @@ reglas:
   ubicacion: Carátula, especificaciones (párr. 179)
   fuente: MANUAL REVISADO TERCERA VERSION OBSERVACIONES 11-07-2025.docx
   cita: '"Apellidos y Nombres del autor(a/es/as): Centrado, con letras mayúsculas."'
+  # RN-02: el bloque de autores puede traer varios nombres separados por su
+  # ORCID. Se miden TODOS los párrafos hasta «ASESOR(A):», sin las líneas
+  # ORCID. La negrita es por run (`all_eq` sobre todos ellos) y la capitalidad
+  # se decide sobre el NOMBRE COMPLETO, para que un nombre partido en runs no
+  # se lea como «todo en mayúsculas». Se mantiene el criterio EVALUADO de
+  # arriba: mayúsculas y minúsculas, sin cambiar la convención hasta que
+  # biblioteca resuelva la discrepancia con el manual.
   formato_efectivo:
     parte: document
     contexto: caratula
     sujeto: run
-    parrafo_xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]
+    parrafo_xpath: >-
+      //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[normalize-space(.) != ''][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid'))][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
     propiedad: w:b
     comparacion: all_eq
     esperado: '0'
   patron_texto:
     parte: document
     contexto: caratula
-    xpath: //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ',
-      'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[1]//w:t
+    unidad: nodo
+    xpath: >-
+      //w:body/w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'autor')][1]/following-sibling::w:p[normalize-space(.) != ''][not(contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'orcid'))][not(starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor'))][not(preceding-sibling::w:p[starts-with(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'), 'asesor')])]
     patron: '^((.*[a-záéíóúñ].*)|[^A-ZÁÉÍÓÚÑa-záéíóúñ]*)$'
     comparacion: fullmatch
     coincidencia: todos
