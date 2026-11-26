@@ -291,9 +291,6 @@
 		// lista de DNI que no corresponde a los autores) NO inician el
 		// plan: el relleno dejaría los datos desalineados. No se registra
 		// ningun envio: el operador corrige la ficha y vuelve a preparar.
-		if (Array.isArray(plan.avisos) && plan.avisos.length) {
-			mostrarToast(plan.avisos.join(" "), 8000);
-		}
 		if (!VBRelleno.puedeIntentar(plan)) {
 			const problemas = (plan.problemas || [])
 				.map(function (problema) {
@@ -370,6 +367,7 @@
 					"Relleno parcial: vuelve a pulsar Rellenar para completar solo lo que quedo a mano."
 				);
 			}
+			partes.push(...plan.avisos);
 			mostrarToast(partes.join(" "), 12000);
 			// El timestamp del clic en "Depositar" se conserva solo si es
 			// el MISMO tramite: un tramite nuevo empieza sin hora (PR #71).

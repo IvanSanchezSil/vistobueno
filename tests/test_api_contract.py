@@ -984,7 +984,7 @@ class TestFichaDeposito:
         assert datos["semaforo"] == "rojo"
 
     def test_ficha_presente_con_todos_los_campos_en_verde(self):
-        """VERDE → ficha con los 8 extraídos acordados y los 4 manuales."""
+        """VERDE → ficha con los campos extraídos y manuales acordados."""
         ficha = self._subir_doc_bueno().json()["ficha_deposito"]
         assert ficha is not None
 
@@ -1022,6 +1022,27 @@ class TestFichaDeposito:
         self._assert_extraido(por_campo["escuela"], True, str)
         # Jurado: captura no confiable según el handover → sin dato.
         self._assert_extraido(por_campo["renati.juror"], False, type(None))
+
+        assert por_campo["renati.advisor.orcid"]["valor"] == "0000-0002-1694-233X"
+
+    @pytest.mark.parametrize(
+        "captura, esperado",
+        [
+            ("https://orcid.org/000000021694233x", "0000-0002-1694-233X"),
+            ("0000-0002-1694-2330", None),
+            (["0000-0002-1694-233X"], None),
+            (None, None),
+        ],
+    )
+    def test_orcid_extraido_es_escalar_y_tiene_checksum(self, captura, esperado):
+        ficha = validator.api._ficha_desde_reporte(
+            {"ficha": {"renati.advisor.orcid": {"valor": captura, "pagina": 1, "detectado": True}}}
+        )
+        campo = next(c for c in ficha.extraidos if c.campo == "renati.advisor.orcid")
+        assert campo.valor == esperado
+        assert campo.detectado is (esperado is not None)
+        assert campo.pagina == (1 if esperado else None)
+        assert all(c.campo != campo.campo for c in ficha.manuales)
 
     @staticmethod
     def _assert_extraido(campo, detectado, tipo_valor):

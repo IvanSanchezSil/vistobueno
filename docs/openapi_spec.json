@@ -707,7 +707,7 @@
           "campo"
         ],
         "title": "CampoManualFicha",
-        "description": "Campo que el operador teclea en la pantalla de ficha (v1.7.0).\n\nMatrícula, DNI del autor/asesor y ORCID no salen del DOCX: el\noperador los escribe UNA vez aquí y fluyen al formulario de DSpace\n(vía userscript), a la constancia y a la fila del registro."
+        "description": "Campo que el operador teclea en la pantalla de ficha (v1.7.0).\n\nEl operador completa matrícula y DNI del autor o asesor. Las fichas\nanteriores también pueden enviar el ORCID del asesor en esta sección."
       },
       "ConstanciaRequest": {
         "properties": {
@@ -1062,7 +1062,7 @@
             },
             "type": "array",
             "title": "Extraidos",
-            "description": "Valores extraídos del DOCX por el motor (título, autores, asesor, resumen, palabras clave, año, escuela, jurado)"
+            "description": "Valores extraídos del DOCX por el motor (título, autores, asesor, resumen, palabras clave, año, escuela, jurado, ORCID del asesor)"
           },
           "manuales": {
             "items": {
@@ -1070,7 +1070,7 @@
             },
             "type": "array",
             "title": "Manuales",
-            "description": "Campos que el operador teclea (matrícula, DNI del autor, DNI del asesor, ORCID del asesor)"
+            "description": "Campos que el operador teclea (matrícula, DNI del autor y DNI del asesor; admite ORCID del asesor en fichas anteriores)"
           }
         },
         "type": "object",

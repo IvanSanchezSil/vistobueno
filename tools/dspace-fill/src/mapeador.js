@@ -36,30 +36,11 @@ const VBMapeador = (() => {
 		return typeof valor === "string" && valor.trim() ? [valor.trim()] : [];
 	}
 
-
 	function normalizarOrcid(valor) {
-		if (valor === null || valor === undefined) return null;
-		const texto = String(valor).trim();
-		if (!texto) return null;
-		let id = null;
-		// URL oficial: https://orcid.org/0000-0002-1825-0097
-		let m = texto.match(/^https?:\/\/(?:www\.)?orcid\.org\/(\d{4})-(\d{4})-(\d{4})-(\d{3}[\dXx])\/?$/i);
-		if (m) id = m[1] + m[2] + m[3] + m[4];
-		if (!id) {
-			m = texto.match(/^https?:\/\/(?:www\.)?orcid\.org\/(\d{16}|\d{4}\d{4}\d{4}\d{3}[\dXx])\/?$/i);
-			if (m && m[1].length === 16) id = m[1];
-		}
-		if (!id) {
-			// Solo dos formas desnudas: 16 caracteres continuos o 4 grupos con todos los guiones.
-			m = texto.match(/^(\d{4})(\d{4})(\d{4})(\d{3}[\dXx])$/);
-			if (m) id = m[1] + m[2] + m[3] + m[4];
-		}
-		if (!id) {
-			m = texto.match(/^(\d{4})-(\d{4})-(\d{4})-(\d{3}[\dXx])$/);
-			if (m) id = m[1] + m[2] + m[3] + m[4];
-		}
-		if (!id || id.length !== 16) return null;
-		return (id.slice(0, 4) + "-" + id.slice(4, 8) + "-" + id.slice(8, 12) + "-" + id.slice(12, 16)).toUpperCase();
+		if (typeof valor !== "string") return null;
+		const texto = valor.trim().replace(/^https?:\/\/(?:www\.)?orcid\.org\/([^/]+)\/?$/i, "$1");
+		if (!/^(?:\d{15}[\dX]|\d{4}-\d{4}-\d{4}-\d{3}[\dX])$/i.test(texto)) return null;
+		return texto.replace(/-/g, "").toUpperCase().match(/.{4}/g).join("-");
 	}
 
 	function checksumOrcidValido(orcid) {
@@ -250,7 +231,7 @@ const VBMapeador = (() => {
 			}
 		}
 		if (!presenteEnExtraidos) {
-			orcidCrudo = valorManual(ficha, "renati.advisor.orcid");
+			orcidCrudo = comoLista(valorManual(ficha, "renati.advisor.orcid"))[0];
 		}
 		// Normalización: acepta ORCID desnudo con o sin guiones y la URL
 		// oficial, y lo deja en dddd-dddd-dddd-dddd. Cadena vacía o solo
@@ -265,7 +246,7 @@ const VBMapeador = (() => {
 					valor: orcidNormalizado,
 				});
 			} else {
-				avisos.push("ORCID del asesor: dígito de control inválido; se omite el relleno");
+				avisos.push("ORCID del asesor: formato o dígito de control inválido; se omite el relleno");
 				omitidos.push("ORCID del asesor");
 			}
 		}

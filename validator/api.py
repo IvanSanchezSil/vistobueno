@@ -1022,15 +1022,6 @@ def _forma_valida(campo: str, valor: object) -> bool:
     ", Trujillo 2024". Un `contains` dejaría pasar ese texto y el
     ítem se publicaría con la fecha equivocada.
     """
-    if campo == "renati.advisor.orcid":
-        if isinstance(valor, list):
-            valor = valor[0] if valor else ""
-        if not isinstance(valor, str) or not valor.strip():
-            return True  # ausente: ya filtrado por _valor_utilizable
-        normalizado = orcid.extraer(valor)
-        if normalizado is None:
-            return False
-        return orcid.checksum_valido(normalizado)
     if campo != "dc.date.issued":
         return True
     if isinstance(valor, list):
@@ -1063,11 +1054,12 @@ def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
     for campo in CAMPOS_EXTRAIDOS_FICHA:
         dato = datos_motor.get(campo) or {}
         valor = dato.get("valor")
+        if campo == "renati.advisor.orcid":
+            candidato = orcid.extraer(valor) if isinstance(valor, str) else None
+            valor = candidato if candidato and orcid.checksum_valido(candidato) else None
         detectado = (
             bool(dato.get("detectado")) and _valor_utilizable(valor) and _forma_valida(campo, valor)
         )
-        if detectado and campo == "renati.advisor.orcid" and isinstance(valor, str):
-            valor = orcid.extraer(valor) or valor.strip()
         extraidos.append(
             CampoExtraidoFicha(
                 campo=campo,
