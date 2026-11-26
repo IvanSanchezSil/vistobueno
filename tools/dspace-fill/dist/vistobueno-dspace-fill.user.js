@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VistoBueno — rellenador del formulario de depósito UNT
 // @namespace    vistobueno
-// @version      1.2.4
+// @version      1.2.5
 // @description  Pre-llena el formulario oficial de depósito de DSpace (repositorio UNT) con la ficha de VistoBueno, registra el momento del clic en Depositar y pide al operador que confirme el ítem archivado. Protocolo 2: el archivo solo se registra con atestación explícita. Ver docs/CONTRATO_API.md.
 // @match        https://repositorio.unitru.edu.pe/*
 // @run-at       document-idle
@@ -829,17 +829,16 @@ const VBEjecutor = (() => {
 					if (actual === op.texto || seleccionada || cerrado) {
 						return { ok: true, detalle: "" };
 					}
-					// El widget no aceptó la selección: se restaura el
-					// valor anterior y se reporta pendiente. NO se
-					// reescribe el texto, porque eso enmascararía el
-					// fallo (parecería relleno sin haber seleccionado).
-					_ponerTexto(doc, input, previo);
+					// Angular ignora los eventos sintéticos (no son
+					// trusted): no se puede forzar la selección por DOM.
+					// Se deja el texto escrito para que el operador solo
+					// tenga que abrir el dropdown y confirmar la opción.
 					return {
 						ok: false,
 						detalle:
-							"el widget no aceptó la opción " +
-							op.texto +
-							" (no quedó seleccionada)",
+							"el widget requiere selección manual (eventos no trusted): " +
+							"el texto quedó escrito; abrir el dropdown y elegir " +
+							op.texto,
 					};
 				}
 			}

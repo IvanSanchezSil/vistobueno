@@ -362,17 +362,16 @@ const VBEjecutor = (() => {
 					if (actual === op.texto || seleccionada || cerrado) {
 						return { ok: true, detalle: "" };
 					}
-					// El widget no aceptó la selección: se restaura el
-					// valor anterior y se reporta pendiente. NO se
-					// reescribe el texto, porque eso enmascararía el
-					// fallo (parecería relleno sin haber seleccionado).
-					_ponerTexto(doc, input, previo);
+					// Angular ignora los eventos sintéticos (no son
+					// trusted): no se puede forzar la selección por DOM.
+					// Se deja el texto escrito para que el operador solo
+					// tenga que abrir el dropdown y confirmar la opción.
 					return {
 						ok: false,
 						detalle:
-							"el widget no aceptó la opción " +
-							op.texto +
-							" (no quedó seleccionada)",
+							"el widget requiere selección manual (eventos no trusted): " +
+							"el texto quedó escrito; abrir el dropdown y elegir " +
+							op.texto,
 					};
 				}
 			}
