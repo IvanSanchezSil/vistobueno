@@ -915,11 +915,15 @@ reglas:
     RCU-N°220-2022/UNT)"; manual, párr. 181: "Línea de investigación, con letras mayúsculas y minúsculas
     (tamaño de letra, 12 puntos)."'
   origen_cita: norma_institucional
+  # RN-03: el catálogo comprueba el CONTENIDO del párrafo de valor completo.
+  # Con `//w:t` se comparaba cada run por separado, así que una línea válida
+  # partida en varios runs daba falso rojo. La tipografía mixta (REQ-24) se
+  # sigue midiendo run por run en `patron_texto`, más abajo.
   lista_texto:
     parte: document
-    contexto: todos
+    contexto: caratula
     xpath: //w:body/w:p[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÑÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúñü'),
-      'línea de investigación')][1]/following-sibling::w:p[1]//w:t
+      'línea de investigación')][1]/following-sibling::w:p[1]
     lista:
     - alimentos y bebidas
     - arqueología
