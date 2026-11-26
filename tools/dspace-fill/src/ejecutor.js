@@ -339,7 +339,10 @@ const VBEjecutor = (() => {
 					// revierte lo escrito (listener de Angular, render
 					// posterior) NO cuenta como relleno.
 					const actual = _valorDe(input);
-					if (actual === op.texto) {
+					const seleccionada =
+						el.getAttribute("aria-selected") === "true" ||
+						(el.classList && (el.classList.contains("active") || el.classList.contains("selected")));
+					if (actual === op.texto || seleccionada) {
 						return { ok: true, detalle: "" };
 					}
 					// El widget no aceptó la selección: se restaura el

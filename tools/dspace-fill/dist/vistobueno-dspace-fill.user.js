@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VistoBueno — rellenador del formulario de depósito UNT
 // @namespace    vistobueno
-// @version      1.2.1
+// @version      1.2.2
 // @description  Pre-llena el formulario oficial de depósito de DSpace (repositorio UNT) con la ficha de VistoBueno, registra el momento del clic en Depositar y pide al operador que confirme el ítem archivado. Protocolo 2: el archivo solo se registra con atestación explícita. Ver docs/CONTRATO_API.md.
 // @match        https://repositorio.unitru.edu.pe/*
 // @run-at       document-idle
@@ -806,7 +806,10 @@ const VBEjecutor = (() => {
 					// revierte lo escrito (listener de Angular, render
 					// posterior) NO cuenta como relleno.
 					const actual = _valorDe(input);
-					if (actual === op.texto) {
+					const seleccionada =
+						el.getAttribute("aria-selected") === "true" ||
+						(el.classList && (el.classList.contains("active") || el.classList.contains("selected")));
+					if (actual === op.texto || seleccionada) {
 						return { ok: true, detalle: "" };
 					}
 					// El widget no aceptó la selección: se restaura el
