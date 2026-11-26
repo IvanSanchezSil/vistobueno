@@ -338,14 +338,28 @@ const VBEjecutor = (() => {
 					input.dispatchEvent(
 						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
 					);
+					// Algunos widgets solo confirman con teclado: se
+					// intenta navegar con flecha y Enter.
+					input.dispatchEvent(
+						new vista.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+					);
+					input.dispatchEvent(
+						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+					);
+					await dormir(120);
 					// US-02 / US-01: releer el valor - un control que
 					// revierte lo escrito (listener de Angular, render
-					// posterior) NO cuenta como relleno.
+					// posterior) NO cuenta como relleno. En este widget el
+					// valor visible es un enlace, así que también se
+					// considera éxito si el dropdown se cerró o la opción
+					// quedó marcada como activa.
 					const actual = _valorDe(input);
+					const dropdown = listbox ? listbox.parentElement : null;
+					const cerrado = !dropdown || !dropdown.classList || !dropdown.classList.contains("show");
 					const seleccionada =
 						el.getAttribute("aria-selected") === "true" ||
 						(el.classList && (el.classList.contains("active") || el.classList.contains("selected")));
-					if (actual === op.texto || seleccionada) {
+					if (actual === op.texto || seleccionada || cerrado) {
 						return { ok: true, detalle: "" };
 					}
 					// El widget no aceptó la selección: se restaura el
