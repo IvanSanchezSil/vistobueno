@@ -9,7 +9,6 @@ Uso:
 
 import asyncio
 import io
-import math
 import time
 import zipfile
 from pathlib import Path
@@ -43,6 +42,20 @@ def _zip_con_documento_xml(documento_xml: str) -> bytes:
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("word/document.xml", documento_xml)
     return buffer.getvalue()
+
+
+def _correr_dependencia(dependencia) -> None:
+    """Ejecuta una dependencia con `yield` hasta el final.
+
+    Las dependencias de cupo son generadores: el `finally` (que libera
+    el hueco de la cota) corre cuando el generador termina.
+    """
+
+    async def _correr() -> None:
+        async for _ in dependencia():
+            pass
+
+    asyncio.run(_correr())
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +321,8 @@ class TestErrores:
         detalle = respuesta.json()["detail"]
         assert "configuración de reglas inválida" in detalle
         assert "Traceback" not in detalle
+        # El detalle del YAML no se filtra al cliente: queda en el log.
+        assert "regla_invalida" not in detalle
 
     @pytest.mark.parametrize(
         "error",
@@ -329,8 +344,10 @@ class TestErrores:
 
         assert respuesta.status_code == 500
         detalle = respuesta.json()["detail"]
-        assert type(error).__name__ in detalle
-        assert "configuración de reglas inválida" in detalle
+        assert "Error interno del validador" in detalle
+        # El detalle no filtra la excepción (puede traer rutas del servidor
+        # o reglas internas): el diagnóstico queda en el log.
+        assert type(error).__name__ not in detalle
         assert "Traceback" not in detalle
 
     def test_docx_admitido_responde_200(self):
@@ -655,13 +672,11 @@ class TestLimitePeticiones:
         assert rebotada.status_code == 429
         espera = int(rebotada.headers["Retry-After"])
         detalle = rebotada.json()["detail"].lower()
-        if espera < 60:
-            unidad = "segundo" if espera == 1 else "segundos"
-            assert f"{espera} {unidad}" in detalle
-        else:
-            minutos = math.ceil(espera / 60)
-            unidad = "minuto" if minutos == 1 else "minutos"
-            assert f"{minutos} {unidad}" in detalle
+        # La espera se dice siempre en segundos: el mensaje y el header
+        # expresan el mismo número (ni minutos redondeados).
+        unidad = "segundo" if espera == 1 else "segundos"
+        assert f"{espera} {unidad}" in detalle
+        assert "minuto" not in detalle
         assert "validación" in detalle
 
 
@@ -698,14 +713,14 @@ class TestLimitadorCPU:
     def test_dos_tesis_normales_seguidas_caben_en_el_cupo_por_defecto(self):
         """RI-01: una tesis real no agota el cupo y la siguiente entra.
 
-        El coste de 3.5 s es el trabajo restante de la tesis B de la
-        revisión integral después de RI-07 (44.29 s totales menos los
-        40.74 s de las dos reglas que corregía ese PR). La comprobación
-        del limitador es `deuda < presupuesto`: con 5 s la segunda tesis
-        entra; la tercera ya espera al cupo.
+        El coste de 3.8 s es el medido con las tesis reales del corpus
+        después de RI-07 (PR #126): ~3.75-3.8 s de CPU por validación en
+        la máquina del operador. La comprobación del limitador es
+        `deuda < presupuesto`: con 5 s la segunda tesis entra; la tercera
+        ya espera al cupo.
         """
         cupo = validator.api.LimitadorCPU()
-        coste_tesis = 3.5
+        coste_tesis = 3.8
         assert cupo.presupuesto == 5.0
 
         assert cupo.adquirir()[0] is True
@@ -715,7 +730,8 @@ class TestLimitadorCPU:
 
         permitido, reintentar = cupo.adquirir()
         assert permitido is False
-        assert reintentar == pytest.approx(24.0, abs=0.1)
+        # (7.6 s de deuda - 5 s de presupuesto) / (5 s por minuto) = 31.2 s
+        assert reintentar == pytest.approx(31.2, abs=0.1)
 
     def test_el_mensaje_del_rechazo_usa_singular_y_plural(self):
         """RI-01: el mensaje no dice «1 segundos» ni redondea de menos."""
@@ -725,16 +741,18 @@ class TestLimitadorCPU:
         assert "1 segundo " in un_segundo.value.detail
         assert "1 segundos" not in un_segundo.value.detail
 
+        # La espera se dice siempre en segundos: el mensaje y el header
+        # expresan el MISMO número (ni minutos redondeados).
         with pytest.raises(validator.api.HTTPException) as un_minuto:
             validator.api._rechazar_por_limite(60.0, "validación")
         assert un_minuto.value.headers == {"Retry-After": "60"}
-        assert "1 minuto " in un_minuto.value.detail
-        assert "1 minutos" not in un_minuto.value.detail
+        assert "60 segundos " in un_minuto.value.detail
+        assert "minuto" not in un_minuto.value.detail
 
         with pytest.raises(validator.api.HTTPException) as dos_minutos:
             validator.api._rechazar_por_limite(119.2, "validación")
         assert dos_minutos.value.headers == {"Retry-After": "120"}
-        assert "2 minutos" in dos_minutos.value.detail
+        assert "120 segundos " in dos_minutos.value.detail
 
     def test_un_presupuesto_de_cero_desactiva_el_cupo(self):
         """Presupuesto 0 = cupo apagado (salida de emergencia del operador)."""
@@ -818,7 +836,7 @@ class TestCupoCpuPorEntorno:
         monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "5")
         cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
         monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 5.0
 
     def test_el_papeleo_se_puede_desactivar_con_cero(self, monkeypatch):
@@ -826,7 +844,7 @@ class TestCupoCpuPorEntorno:
         monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "0")
         cupo = validator.api.LimitadorCPU(presupuesto_segundos=0.001)
         monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 0.0
         assert cupo.adquirir()[0] is True
 
@@ -840,11 +858,11 @@ class TestCupoCpuPorEntorno:
         monkeypatch.setattr(validator.api, "_LIMITADOR_CPU_PAPELES", cupo)
 
         monkeypatch.setenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG", "0")
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 0.0
 
         monkeypatch.delenv("VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG")
-        asyncio.run(validator.api.limitar_papeleo())
+        _correr_dependencia(validator.api.limitar_papeleo)
         assert cupo.presupuesto == 1.0
 
     def test_quitar_la_ventana_devuelve_la_base(self, monkeypatch):

@@ -482,6 +482,9 @@
           "429": {
             "description": "Demasiadas peticiones de validación seguidas"
           },
+          "500": {
+            "description": "Error interno del validador (configuración de reglas inválida)"
+          },
           "503": {
             "description": "Módulo de IA no disponible (falta OLLAMA_URL o servicio caído)"
           }
@@ -1026,7 +1029,7 @@
             },
             "type": "array",
             "title": "Explicaciones",
-            "description": "Una explicación por regla fallida"
+            "description": "Explicación de cada regla fallida que el modelo menciona"
           },
           "prioridades": {
             "items": {

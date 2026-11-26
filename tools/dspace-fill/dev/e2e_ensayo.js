@@ -34,6 +34,16 @@ const USERSCRIPT = fs.readFileSync(
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Lectura defensiva del envío en curso: un registro a medio escribir
+// no debe tumbar el ensayo.
+function leerEnvio(dom) {
+	try {
+		return JSON.parse(dom.window.localStorage.getItem("vb:vb_envio") || "null");
+	} catch (e) {
+		return null;
+	}
+}
+
 async function esperar(condicion, msTotal, mensaje) {
 	const inicio = Date.now();
 	while (Date.now() - inicio < msTotal) {
@@ -297,6 +307,12 @@ function migrarLocalStorage(origen, destino) {
 		"el mock no sirvió el botón de ficha con dos autores"
 	);
 	docDos.getElementById("btn-publicar-ficha-dos").click();
+	// El trámite de dos autores es un trámite NUEVO: el clic en
+	// Depositar solo lleva hora si el envío en curso es el de este
+	// trámite (US-07). Se guarda el tramite_id para esperar el registro
+	// correcto: el localStorage todavía trae el envío del trámite
+	// anterior.
+	let tramiteDos = null;
 	await esperar(
 		async () => {
 			const r = await fetch(MOCK + "/api-proxy/ficha-pendiente");
@@ -304,11 +320,16 @@ function migrarLocalStorage(origen, destino) {
 			const sobre = await r.json();
 			const ficha = sobre.ficha || {};
 			const autores = (ficha.extraidos || []).find((e) => e.campo === "dc.contributor.author");
-			return autores && Array.isArray(autores.valor) && autores.valor.length === 2;
+			if (!autores || !Array.isArray(autores.valor) || autores.valor.length !== 2) return false;
+			tramiteDos = sobre.tramite_id || null;
+			return true;
 		},
 		8000,
 		"la ficha de dos autores nunca llegó al buzón"
 	);
+	if (!tramiteDos) {
+		throw new Error("❌ la ficha de dos autores llegó al buzón sin tramite_id");
+	}
 
 	const domDos2 = await nuevaPagina("/mock/submit");
 	ejecutarUserscript(domDos2);
@@ -355,9 +376,22 @@ function migrarLocalStorage(origen, destino) {
 	// v1.14.0). El papeleo necesita un depósito confirmado del trámite
 	// actual: por eso el clic en Depositar y la confirmación se repiten
 	// con la ficha de dos autores.
+	//
+	// El registro del envío se escribe cuando el relleno termina
+	// (microtask). El clic no puede ganarle a esa cola: si se adelanta,
+	// el localStorage todavía trae el envío del trámite ANTERIOR y el
+	// timestamp no se registra (fallo intermitente).
+	await esperar(
+		() => {
+			const registro = leerEnvio(domDos2);
+			return registro && registro.tramite_id === tramiteDos;
+		},
+		5000,
+		"el envío en curso del trámite de dos autores nunca quedó registrado"
+	);
 	docDos2.getElementById("deposit").click();
 	await dormir(400);
-	const envioDos = JSON.parse(domDos2.window.localStorage.getItem("vb:vb_envio") || "null");
+	const envioDos = leerEnvio(domDos2);
 	if (!envioDos || !envioDos.timestamp) {
 		throw new Error("❌ el clic en Depositar no registró el timestamp del trámite de dos autores");
 	}

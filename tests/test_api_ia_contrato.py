@@ -8,7 +8,10 @@ Uso:
     pytest tests/test_api_ia_contrato.py -v
 """
 
+import asyncio
 import json
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -72,6 +75,42 @@ class _StubCaido(StubLLM):
         raise LLMError("servicio caído")
 
 
+class _StubLento(StubLLM):
+    """Stub que se queda esperando: simula un LLM lento.
+
+    La petición queda en la espera al LLM, que es justo el estado que
+    retiene el hueco de validación si el endpoint lo toma al principio.
+    """
+
+    def __init__(self, evento: threading.Event) -> None:
+        super().__init__(
+            respuestas=json.dumps(
+                {
+                    "explicaciones": [
+                        {"rule_id": "tamano_cuerpo", "explicacion": "El cuerpo debe ir a 12 pt"}
+                    ],
+                    "prioridades": [
+                        {
+                            "orden": 1,
+                            "rule_id": "tamano_cuerpo",
+                            "razon": "Es un requisito de formato del cuerpo.",
+                            "esfuerzo": "bajo",
+                        }
+                    ],
+                }
+            ),
+            modelo="stub",
+        )
+        self._evento = evento
+        self.entradas = 0
+
+    async def chat(self, system, user, json_schema=None):
+        self.entradas += 1
+        while not self._evento.is_set():
+            await asyncio.sleep(0.01)
+        return await super().chat(system, user, json_schema)
+
+
 # ---------------------------------------------------------------------------
 # Tests: GET /asistente/estado
 # ---------------------------------------------------------------------------
@@ -106,6 +145,30 @@ class TestEstadoIA:
         """Un LLM caído se expresa como disponible=false, no como 503."""
         monkeypatch.setattr(llm_module, "get_llm_client", lambda *_args, **_kwargs: _StubCaido())
         respuesta = cliente_ia.get("/asistente/estado")
+        assert respuesta.status_code == 200
+        assert respuesta.json() == {"disponible": False, "modelo": ""}
+
+    def test_estado_no_se_cuelga_con_un_servicio_mudo(self, cliente_ia, monkeypatch):
+        """Un servicio que acepta la conexión pero no responde no cuelga la SPA."""
+
+        async def _colgado():
+            await asyncio.sleep(30)
+            return {"disponible": True, "modelo": "stub"}
+
+        monkeypatch.setattr(api_module, "estado_ia", _colgado)
+        monkeypatch.setattr(api_module, "TIEMPO_MAX_ESTADO_IA_S", 0.05)
+
+        respuesta = cliente_ia.get("/asistente/estado")
+
+        assert respuesta.status_code == 200
+        assert respuesta.json() == {"disponible": False, "modelo": ""}
+
+    def test_estado_con_url_malformada_no_devuelve_500(self, cliente_ia, monkeypatch):
+        """Una `OLLAMA_URL` inválida se informa como no disponible, no como 500."""
+        monkeypatch.setenv("OLLAMA_URL", "http://[::1")
+
+        respuesta = cliente_ia.get("/asistente/estado")
+
         assert respuesta.status_code == 200
         assert respuesta.json() == {"disponible": False, "modelo": ""}
 
@@ -283,3 +346,85 @@ class TestExplicarIA:
             files={"archivo": _archivo_docx(contenido=b"no empieza con PK")},
         )
         assert respuesta.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Tests: la espera al LLM no retiene los huecos de validación
+# ---------------------------------------------------------------------------
+
+
+class TestLaEsperaAlLLMNoBloqueaLaValidacion:
+    """La cota de validaciones cubre el trabajo de CPU, no la espera.
+
+    `POST /asistente/explicar` valida el DOCX (trabajo pesado) y después
+    espera al LLM local, que puede tardar hasta 180 s sin consumir CPU de
+    la API. Si esa espera retuviera un hueco de validación, dos
+    explicaciones en curso dejarían `/validar` sin servicio aunque la
+    máquina estuviera ociosa (revisión adversarial de RI-01).
+    """
+
+    @staticmethod
+    def _lanzar_explicaciones(cliente_ia, stub, doc, cuantas):
+        """Lanza explicaciones en segundo plano y espera a que lleguen al LLM."""
+        resultados: list = []
+
+        def _explicar() -> None:
+            resultados.append(
+                cliente_ia.post("/asistente/explicar", files={"archivo": _archivo_docx(doc)})
+            )
+
+        hilos = [threading.Thread(target=_explicar) for _ in range(cuantas)]
+        for hilo in hilos:
+            hilo.start()
+        limite = time.monotonic() + 30
+        while stub.entradas < cuantas and time.monotonic() < limite:
+            time.sleep(0.02)
+        return hilos, resultados
+
+    def test_dos_ia_en_curso_no_bloquean_validar(self, cliente_ia):
+        """Con dos explicaciones esperando al LLM, /validar sigue entrando."""
+        evento = threading.Event()
+        stub = _StubLento(evento)
+        _inyectar_cliente(stub)
+        doc = _docx_rojo_bytes()
+
+        hilos, resultados = self._lanzar_explicaciones(cliente_ia, stub, doc, 2)
+        try:
+            assert stub.entradas == 2, "las explicaciones no llegaron al LLM"
+
+            # Las dos explicaciones están esperando: el hueco de
+            # validación debe estar libre (la validación ya terminó).
+            validar = cliente_ia.post("/validar", files={"archivo": _archivo_docx(doc)})
+
+            assert validar.status_code == 200, validar.text
+        finally:
+            evento.set()
+            for hilo in hilos:
+                hilo.join(timeout=30)
+
+        assert [r.status_code for r in resultados] == [200, 200]
+
+    def test_la_tercera_explicacion_simultanea_recibe_429(self, cliente_ia):
+        """La cota de IA limita las explicaciones concurrentes."""
+        evento = threading.Event()
+        stub = _StubLento(evento)
+        _inyectar_cliente(stub)
+        doc = _docx_rojo_bytes()
+
+        hilos, _ = self._lanzar_explicaciones(cliente_ia, stub, doc, api_module.MAX_IA_CONCURRENTES)
+        try:
+            assert stub.entradas == api_module.MAX_IA_CONCURRENTES
+
+            rebotada = cliente_ia.post("/asistente/explicar", files={"archivo": _archivo_docx(doc)})
+
+            assert rebotada.status_code == 429
+            detalle = rebotada.json()["detail"].lower()
+            assert "ia" in detalle
+            # El mensaje y el header dicen la misma espera.
+            espera = int(rebotada.headers["Retry-After"])
+            unidad = "segundo" if espera == 1 else "segundos"
+            assert f"{espera} {unidad}" in detalle
+        finally:
+            evento.set()
+            for hilo in hilos:
+                hilo.join(timeout=30)

@@ -13,7 +13,9 @@ loop en ejecución devuelve el loop.
 """
 
 import asyncio
+import time
 
+import httpx
 from conftest import CLIENTE, MIME_DOCX
 from docx_factory import aplicar_mutacion, compilar_docx, configuracion_base
 
@@ -140,11 +142,11 @@ class TestDosTesisSeguidas:
         assert self._subir(_docx_bytes()).status_code == 200
 
     def test_la_tercera_tesis_espera_el_cupo(self, monkeypatch):
-        """Dos tesis de 3.5 s de CPU entran; la tercera recibe 429 coherente.
+        """Dos tesis de 3.8 s de CPU entran; la tercera recibe 429 coherente.
 
         El coste se simula con un medidor fijo para no gastar minutos de
-        CPU en el test. 3.5 s es el trabajo restante de la tesis B de la
-        revisión integral después de RI-07.
+        CPU en el test. 3.8 s es el coste medido con las tesis reales del
+        corpus después de RI-07.
         """
 
         class MedidorFijo:
@@ -155,7 +157,7 @@ class TestDosTesisSeguidas:
                 try:
                     return fn(*args)
                 finally:
-                    self.segundos += 3.5
+                    self.segundos += 3.8
 
         monkeypatch.setattr(validator.api, "_MedidorCPU", MedidorFijo)
 
@@ -166,6 +168,133 @@ class TestDosTesisSeguidas:
         assert rebotada.status_code == 429
         espera = int(rebotada.headers["Retry-After"])
         detalle = rebotada.json()["detail"].lower()
-        # 7 s de deuda - 5 s de presupuesto = 2 s a 5 s/min ≈ 24 s.
-        assert 20 <= espera <= 30
+        # 7.6 s de deuda - 5 s de presupuesto = 2.6 s a 5 s/min ≈ 31 s.
+        assert 25 <= espera <= 40
         assert f"{espera} segundos" in detalle
+
+
+class TestRafagaParalela:
+    """RI-01: una ráfaga paralela no puede saltarse el cupo.
+
+    El cupo de CPU se consulta antes del trabajo pesado: el coste real
+    solo se conoce al terminar. Sin una cota de simultaneidad, varias
+    peticiones paralelas entran todas antes de que la primera cobre su
+    coste (medido con las tesis reales: 4 en paralelo = 14.2 s de CPU y
+    la carga siguiente bloqueada 102 s).
+    """
+
+    @staticmethod
+    def _subir_async(cliente: httpx.AsyncClient, contenido: bytes):
+        return cliente.post(
+            "/validar",
+            files={"archivo": ("tesis.docx", contenido, MIME_DOCX)},
+        )
+
+    @staticmethod
+    def _validacion_lenta(docx_path, rules_data, ficha_data=None):
+        """Mantiene la validación en curso.
+
+        El trabajo se despacha al threadpool, así que la espera no
+        bloquea el event loop: las peticiones se solapan de verdad.
+        """
+        time.sleep(0.5)
+        return []
+
+    @classmethod
+    async def _disparar(cls, numero: int, contenido: bytes) -> list[httpx.Response]:
+        """Lanza `numero` validaciones a la vez y devuelve las respuestas."""
+        transporte = httpx.ASGITransport(app=validator.api.app, client=("127.0.0.1", 50000))
+        async with httpx.AsyncClient(
+            transport=transporte, base_url="http://127.0.0.1", timeout=60
+        ) as cliente:
+            return list(
+                await asyncio.gather(*[cls._subir_async(cliente, contenido) for _ in range(numero)])
+            )
+
+    def test_la_rafaga_paralela_no_entra_entera(self, monkeypatch):
+        """Solo entran las validaciones que caben en la cota; el resto, 429."""
+        monkeypatch.setattr(validator.api, "validate_docx", self._validacion_lenta)
+        contenido = _docx_bytes()
+
+        respuestas = asyncio.run(self._disparar(6, contenido))
+        codigos = [r.status_code for r in respuestas]
+
+        assert codigos.count(200) == validator.api.MAX_VALIDACIONES_CONCURRENTES, codigos
+        assert codigos.count(429) == 6 - validator.api.MAX_VALIDACIONES_CONCURRENTES, codigos
+
+    def test_el_429_de_la_cota_dice_cuanto_esperar(self, monkeypatch):
+        """La respuesta de la cota trae `Retry-After` y el mismo mensaje."""
+        monkeypatch.setattr(validator.api, "validate_docx", self._validacion_lenta)
+        contenido = _docx_bytes()
+
+        respuestas = asyncio.run(self._disparar(4, contenido))
+        rebotadas = [r for r in respuestas if r.status_code == 429]
+
+        assert rebotadas, [r.status_code for r in respuestas]
+        for rebotada in rebotadas:
+            espera = int(rebotada.headers["Retry-After"])
+            detalle = rebotada.json()["detail"].lower()
+            assert espera >= 1
+            # El mensaje usa la misma espera que el header (singular o plural).
+            assert f"{espera} segundo" in detalle
+
+    def test_el_hueco_se_libera_tras_un_archivo_rechazado(self):
+        """Un 415 no deja un hueco cogido: las dos siguientes entran."""
+        assert (
+            CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", b"contenido", "text/plain")},
+            ).status_code
+            == 415
+        )
+        assert (
+            CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", _docx_bytes(), MIME_DOCX)},
+            ).status_code
+            == 200
+        )
+        assert (
+            CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", _docx_bytes(), MIME_DOCX)},
+            ).status_code
+            == 200
+        )
+
+    def test_el_hueco_se_libera_si_el_cuerpo_es_invalido(self):
+        """Una petición sin archivo (422) no deja un hueco cogido."""
+        assert CLIENTE.post("/validar").status_code == 422
+        assert (
+            CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", _docx_bytes(), MIME_DOCX)},
+            ).status_code
+            == 200
+        )
+        assert (
+            CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", _docx_bytes(), MIME_DOCX)},
+            ).status_code
+            == 200
+        )
+
+    def test_la_cota_ocupada_devuelve_429(self):
+        """Con los huecos ocupados, /validar responde 429 con Retry-After."""
+        ocupacion = [
+            validator.api._SEMAFORO_VALIDACIONES.acquire(blocking=False)
+            for _ in range(validator.api.MAX_VALIDACIONES_CONCURRENTES)
+        ]
+        try:
+            assert all(ocupacion)
+            respuesta = CLIENTE.post(
+                "/validar",
+                files={"archivo": ("tesis.docx", _docx_bytes(), MIME_DOCX)},
+            )
+            assert respuesta.status_code == 429
+            assert int(respuesta.headers["Retry-After"]) >= 1
+        finally:
+            for tomada in ocupacion:
+                if tomada:
+                    validator.api._SEMAFORO_VALIDACIONES.release()

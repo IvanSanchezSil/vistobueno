@@ -11,7 +11,8 @@ plantillas oficiales y tesis real está registrada en el handover de Int3.
 La entrega de Int1 del 2026-11-23 (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`)
 implementa B5 y B6, pero aún requiere integración.
 Siguen pendientes de integración VA-11 (B5) y VA-17 (B6). También siguen
-pendientes VA-10, VA-19 y
+pendientes VA-10 y la parte de Int2 de VA-19 (F4: reintento en la SPA; la
+parte de backend, B1, quedó cerrada con el PR #127, merge `72b6a4b`), y
 la verificación en navegador real de VA-08, VA-20 y VA-21 (parciales tras el
 PR #116), además del bloque normativo: NM-01, NM-02, NM-05 y NM-07 quedaron
 cerrados con los PR #114, #118, #120 y #121, ya fusionados; siguen pendientes
@@ -532,13 +533,17 @@ Los cuatro quedaron cerrados en la rama `fix/api-hardening-b0-b1`.
   /fila-registro` no tenían control de acceso ni límite; un peer remoto
   podía generar constancias oficiales con datos arbitrarios y consumir
   CPU. **Cierre**: dependency de acceso en toda la API + cupo adaptativo
-  propio para el papeleo.
+  propio para el papeleo + cota de dos operaciones de papeleo simultáneas.
 - **AUD-31 (media) — límite no adaptativo**: la ventana fija de 60
   peticiones/minuto asumía un coste por petición; medido en este equipo,
   una validación tarda ~58 ms (~33/min con 2 s de CPU por minuto), y en
   un equipo 4× más lento el mismo número permite 4× más presión de CPU.
   **Cierre**: cupo adaptativo que acumula los segundos de trabajo reales
-  y se fuga a 2 s por minuto.
+  y se fuga a 5 s por minuto (PR #127) + cota de dos validaciones
+  simultáneas (PR #131: sin ella, una ráfaga paralela entraba entera y
+  bloqueaba la carga siguiente). El hueco de la cota cubre solo el
+  trabajo de CPU: la espera al LLM del asistente y la del SMTP no
+  retienen la capacidad de la API (PR #131).
 
 ### AUD-33 — el botón "+" del formulario no se encontraba (media, Int1)
 
@@ -678,8 +683,8 @@ verificación.
 | DSpace REST | Int1 | **cerrado: deprecado** | PR #65 |
 | AUD-28 | Int1 | **cerrado** (Host / DNS rebinding) | `8efffd7` (PR #71) |
 | AUD-29 | Int1 | **cerrado** (fórmulas en JSON) | `8efffd7` (PR #71) |
-| AUD-30 | Int1 | **cerrado** (acceso al papeleo) | `8efffd7` (PR #71) |
-| AUD-31 | Int1 | **cerrado** (cupo adaptativo por CPU) | `8efffd7` (PR #71) |
+| AUD-30 | Int1 | **cerrado** (acceso al papeleo) + cota de simultaneidad (PR #131) | `8efffd7` (PR #71), PR #131 |
+| AUD-31 | Int1 | **cerrado** (cupo adaptativo por CPU) + cota de simultaneidad (PR #131) | `8efffd7` (PR #71), PR #131 |
 | AUD-32 | Int1 | **cerrado** (hora de Perú) | `f0ba1f0` (PR #71) |
 | AUD-33 | Int1 | **cerrado** (botón "+" del userscript) | `22e6a19` (PR #71) |
 | AUD-34 | Int1 | **cerrado** (claves entre comillas en el escáner) | `efca435` (PR #71) |
@@ -715,7 +720,7 @@ de comprobar en el navegador real. retblast implementa solo la parte de Int1.
 | VA-16 | Int3 | **cerrado** (PR #115 integrado por #117, `5dda06d`; correcciones `4e40973`, `0f91f54`): ORCID por autor/asesor con checksum ISO 7064 MOD 11-2, destino del vínculo y texto entre paréntesis; medición con plantillas y tesis real en el handover de Int3 | M8: ORCID |
 | VA-17 | Int1 + Int3 | M11 **cerrado** (PR #98, merge `dcbe4d9`; implementación `85690c5`, `e560b24`): factory OPC; B6 **cerrado en código** (PR #123 abierto; rama `fix/api-b5-b6-ejemplos`, commits `9149583` y `ac2aeea`): ejemplos regenerados; la guarda usa los bytes versionados, valida el paquete OPC y compara la respuesta API completa; falta integración | B6: ejemplos; M11: factory |
 | VA-18 | Int1 + Int3 | **cerrado** (B7 en PR #93, `a6c8d4e`; M10 en PR #112, `94df0e4`; correcciones `3e75289`, `0762716`): CLI y exportador distinguen evaluadas de no aplicables | B7 + M10: conteos |
-| VA-19 | Int1 + Int2 | pendiente | B1 + F4: límite y reintento |
+| VA-19 | Int1 + Int2 | **parcial** (PR #127, merge `72b6a4b`; PR #131): B1 cerrado en backend — el presupuesto de CPU subió a 5 s por ventana, una tesis completa entra en el cupo (medido: entre 1.5 y 3.8 s de CPU según el documento y el estado del proceso), una tesis y dos seguidas responden 200 siempre, la tercera espera cuando las dos anteriores pasaron el presupuesto, y el mensaje 429 coincide con `Retry-After` en segundos; el hueco de la cota cubre solo el trabajo de CPU (la espera al LLM no bloquea `/validar`); falta F4 (Int2): reintento en la SPA | B1 + F4: límite y reintento |
 | VA-20 | Int1 | **parcial** (PR #116, merge `d576b09`; US-02): los valores escritos se releen y las filas se concilian con los controles del widget; falta la puerta de Angular | B3 y puerta Angular de Int1: antes del piloto |
 | VA-21 | Int1 + Int2 | **parcial** (PR #116, merge `d576b09`; US-08 y US-11): rellenar, enviar y archivar son estados distintos y el archivo exige atestación del operador; falta F5 (Int2) y la verificación en navegador real | B8 + F5: autofill y restauración |
 

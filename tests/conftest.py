@@ -5,6 +5,7 @@ la ruta al DOCX de prueba (plantilla oficial o factory) y un helper para
 subirlo a la API.
 """
 
+import threading
 from functools import cache
 from pathlib import Path
 
@@ -37,10 +38,23 @@ def _reiniciar_limitador():
     api_module._LIMITADOR_PETICIONES.limpiar()
     api_module._LIMITADOR_CPU_VALIDACION.limpiar()
     api_module._LIMITADOR_CPU_PAPELES.limpiar()
+    # La cota de validaciones simultáneas también es estado del proceso:
+    # se reconstruye para que un test interrumpido no deje un hueco
+    # cogido y haga fallar los siguientes.
+    api_module._SEMAFORO_VALIDACIONES = threading.BoundedSemaphore(
+        api_module.MAX_VALIDACIONES_CONCURRENTES
+    )
+    api_module._SEMAFORO_PAPELES = threading.BoundedSemaphore(api_module.MAX_PAPELES_CONCURRENTES)
+    api_module._SEMAFORO_IA = threading.BoundedSemaphore(api_module.MAX_IA_CONCURRENTES)
     yield
     api_module._LIMITADOR_PETICIONES.limpiar()
     api_module._LIMITADOR_CPU_VALIDACION.limpiar()
     api_module._LIMITADOR_CPU_PAPELES.limpiar()
+    api_module._SEMAFORO_VALIDACIONES = threading.BoundedSemaphore(
+        api_module.MAX_VALIDACIONES_CONCURRENTES
+    )
+    api_module._SEMAFORO_PAPELES = threading.BoundedSemaphore(api_module.MAX_PAPELES_CONCURRENTES)
+    api_module._SEMAFORO_IA = threading.BoundedSemaphore(api_module.MAX_IA_CONCURRENTES)
 
 
 # ---------------------------------------------------------------------------

@@ -323,10 +323,26 @@ Para la Func 1 (`POST /asistente/semantico`), en el mismo archivo:
 
 - **Motor (I3)**: **completo**: Paso 0 + Func 1, 2, 3 y 5 (todos los pasos de
   `docs/diseno/16_modulo_ia.md` §10 hechos en el motor).
-- **API (I1)**: `GET /asistente/estado` y los endpoints
-  `POST /asistente/explicar`, `POST /asistente/clasificar`,
+- **API (I1)**: **hecho**: `GET /asistente/estado` y
+  `POST /asistente/explicar` (PR #127; contrato v1.15.0 en
+  `docs/CONTRATO_API.md`). **Pendiente**: `POST /asistente/clasificar`,
   `POST /asistente/redactar` y `POST /asistente/semantico` (§2.2/§4); más el
   `POST /validar?tipo_confirmado=` para la re-validación human-in-the-loop
   (toque acotado en el flujo de compilación: `sobreescribir_tipo`).
 - **Frontend (I2)**: necesita el estado (`GET /asistente/estado`) y los
-  endpoints de las Func 1, 2, 3 y 5 antes de sus botones.
+  endpoints de las Func 1, 2, 3 y 5 antes de sus botones. Dos avisos para
+  el botón de explicación: (a) la SPA aborta la validación a los 30 s
+  (`TIMEOUT_VALIDACION_MS`) y `POST /asistente/explicar` puede tardar más
+  (valida el DOCX y luego llama al LLM): ese botón necesita un plazo
+  mayor; (b) el endpoint responde `429` cuando el cupo de CPU está lleno,
+  hay dos validaciones simultáneas o ya hay dos explicaciones con IA en
+  curso (`MAX_IA_CONCURRENTES`), así que el reintento debe leer el header
+  `Retry-After`.
+
+**La espera al LLM no bloquea `/validar`** (revisión adversarial de RI-01):
+el hueco de la cota de validaciones cubre solo el trabajo de CPU, así que
+una explicación en curso (hasta 180 s esperando al LLM) no retiene la
+capacidad de la API. Lo que sí limita es la cota propia de IA: dos
+explicaciones simultáneas como máximo; la tercera recibe `429` con
+`Retry-After` = el plazo del cliente LLM (`OLLAMA_TIMEOUT`, 180 s por
+defecto).

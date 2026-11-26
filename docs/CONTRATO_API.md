@@ -1,7 +1,7 @@
 # Contrato de API — VistoBueno
 
-**Versión**: 1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)<br>
-**Fecha**: 2026-11-12<br>
+**Versión**: 1.15.0 (2026-11-25 — endpoints del asistente de IA y política del cupo de CPU)<br>
+**Fecha**: 2026-11-25<br>
 **Estado**: Implementado
 
 > **Nota de lectura**: los títulos de sección con versión (por ejemplo,
@@ -516,8 +516,8 @@ curl -X POST "http://localhost:8000/validar?incluir_prompts_ia=false" \
 | `413` | Archivo excede 10 MB |
 | `415` | Tipo de archivo no soportado (no es `.docx`) |
 | `422` | Solicitud mal formada (sin campo `archivo`) / Cabecera ZIP inválida / Archivo vacío / DOCX corrupto o sin estructura válida / Correo inválido / Falta la atestación del operador o la revisión esperada / Handle no institucional |
-| `429` | Se superó el límite de peticiones de validación (header `Retry-After`) |
-| `500` | Error interno del servidor |
+| `429` | Se superó el límite de peticiones de validación o la cota de validaciones simultáneas (header `Retry-After`) |
+| `500` | Error interno del servidor (el detalle no incluye la excepción; el diagnóstico queda en el log del servidor) |
 
 ---
 
@@ -760,14 +760,38 @@ manual está en `docs/HANDOVER_DESPLIEGUE_MAQUINA_OPERADOR.md`.
 `POST /validar` recompila el DSL en cada request: el recurso a proteger es
 el CPU del proceso. Por defecto rige un **cupo adaptativo por CPU**: la
 API acumula los segundos reales de trabajo de cada validación y los
-"fuga" a `2.0` s por ventana de `60` s. Una petición entra si la deuda
+"fuga" a `5.0` s por ventana de `60` s. Una petición entra si la deuda
 está por debajo del presupuesto; si no, responde `429` con
 `Retry-After`.
 
 El presupuesto es el mismo en cualquier equipo; lo que cambia es cuántas
-peticiones caben: ~33 seguidas en un equipo de 60 ms por validación,
-~8 en uno de 250 ms. La tasa sostenida también se ajusta sola (2 s de
+peticiones caben: ~83 seguidas en un equipo de 60 ms por validación,
+~20 en uno de 250 ms. La tasa sostenida también se ajusta sola (5 s de
 CPU por minuto). No hay que calibrar nada por hardware.
+
+El presupuesto cubre **una tesis completa**. Medido con las dos tesis
+reales del corpus (después de RI-07, PR #126), una validación consume
+entre **1.5 y 3.8 s de CPU**: el coste depende del documento y del estado
+del proceso (la compilación del DSL y la caché de expresiones regulares
+se recalculan en cada petición). Con el valor predeterminado:
+
+- **una tesis SIEMPRE entra** (la más cara medida cuesta 3.8 s < 5 s): el
+  operador nunca queda bloqueado por un documento;
+- **dos tesis consecutivas SIEMPRE entran**: la segunda se admite
+  mientras la deuda de la primera sigue por debajo de 5 s;
+- **la tercera espera** cuando las dos anteriores consumieron más de 5 s
+  en total (lo normal: 2 × 3.6 s = 7.2 s). Si la máquina valida más
+  rápido, entra una tercera.
+
+Ese es el criterio de cierre de RI-01: la carga siguiente no queda
+bloqueada por la anterior, pero una ráfaga de tesis sí se corta. El
+presupuesto es un límite de **trabajo por minuto**, no un contador de
+tesis: por eso la espera del `429` se calcula con la deuda medida (entre
+12 y 31 s según el coste real de la validación y el tiempo transcurrido)
+y no es un valor fijo.
+
+`POST /asistente/explicar` consume el mismo cupo: valida el DOCX con el
+mismo motor, así que cobra el mismo trabajo.
 
 Si se define `VISTOBUENO_RATE_LIMIT_MAX`, vuelve el límite de **ventana
 fija por IP** (comportamiento previo) y el modo adaptativo queda
@@ -777,13 +801,50 @@ desactivado.
 |----------|---------|-------------|
 | `VISTOBUENO_RATE_LIMIT_VENTANA_SEG` | `60` | Ventana en segundos (ambos modos). |
 | `VISTOBUENO_RATE_LIMIT_MAX` | — | Si se define, activa la ventana fija por IP. `0` la desactiva. |
-| `VISTOBUENO_RATE_LIMIT_CPU_SEG` | `2.0` | Presupuesto de CPU por ventana del modo adaptativo. `0` lo desactiva. |
+| `VISTOBUENO_RATE_LIMIT_CPU_SEG` | `5.0` | Presupuesto de CPU por ventana del modo adaptativo. `0` lo desactiva. |
 | `VISTOBUENO_RATE_LIMIT_PAPELES_CPU_SEG` | `1.0` | Presupuesto de CPU por ventana del papeleo. `0` lo desactiva. |
+
+Desactivar el presupuesto (`0`) no desactiva la **cota de
+simultaneidad**: esa cota protege la máquina (no deja que varias
+validaciones pesadas corran a la vez), no la contabilidad del cupo.
 
 El coste que se cobra es **CPU del hilo que hizo el trabajo**, no la
 latencia: con varias peticiones a la vez, la espera del GIL no es trabajo
 y no se cobra. En el modo legacy (`VISTOBUENO_RATE_LIMIT_MAX` definido) el
 cupo de CPU no se cobra: ese modo cuenta peticiones por IP.
+
+### Cota de operaciones pesadas simultáneas
+
+El cupo se consulta **antes** del trabajo pesado: el coste real solo se
+conoce al terminar. Sin una cota de simultaneidad, una ráfaga paralela
+entra entera y carga el equipo por encima del presupuesto. Medido con
+las tesis reales del corpus: 4 tesis en paralelo entraron las cuatro
+(14.2 s de CPU) y la carga siguiente quedó bloqueada 102 s.
+
+Por eso hay además una **cota de dos operaciones pesadas a la vez**
+(`MAX_VALIDACIONES_CONCURRENTES`): como máximo dos peticiones pesadas a
+la vez; las demás reciben `429` con `Retry-After` y una espera estimada a
+partir del último coste medido. La cota no depende del entorno.
+
+El hueco cubre **solo el trabajo de CPU**: se toma dentro del hilo que
+valida y se suelta cuando ese trabajo acaba. Por eso una espera externa
+no retiene la capacidad de la API:
+
+- la notificación por correo (`notificar=true`) espera al SMTP **fuera**
+  del hueco;
+- `POST /asistente/explicar` espera al LLM **fuera** del hueco (tiene su
+  propia cota, `MAX_IA_CONCURRENTES`, también de dos: si la espera al LLM
+  retuviera un hueco de validación, dos explicaciones en curso dejarían
+  `/validar` sin servicio aunque la máquina estuviera ociosa).
+
+Si la tarea se cancela (el cliente se desconecta), el hilo sigue
+trabajando: suelta el hueco y cobra su coste real cuando termina. El
+margen es el mismo de la política de cupos: una tesis entra y dos
+seguidas también; la tercera espera cuando las dos anteriores pasaron el
+presupuesto.
+
+El papeleo tiene su propia cota (`MAX_PAPELES_CONCURRENTES`, también dos):
+generar un DOCX/XLSX es más caro que validar.
 
 `POST /constancia` y `POST /fila-registro` tienen su propio cupo
 adaptativo (`1.0` s por ventana): generar DOCX/XLSX es más caro que
@@ -872,8 +933,10 @@ endpoints responden según se indica a continuación.
 ### `GET /asistente/estado`
 
 Devuelve si el módulo de IA está disponible y el modelo en uso. Siempre
-devuelve `200`: si no hay `OLLAMA_URL` o el servicio no responde,
-responde con `disponible=false`.
+devuelve `200`: si no hay `OLLAMA_URL`, si el servicio no responde o si
+la `OLLAMA_URL` está mal formada, responde con `disponible=false`. La
+sonda espera como máximo 5 s (el plazo del cliente LLM es mayor): un
+servicio que acepta la conexión pero no contesta no cuelga la SPA.
 
 **Respuesta (200):**
 
@@ -882,7 +945,8 @@ responde con `disponible=false`.
 | `disponible` | `bool` | `true` si el servicio de IA responde |
 | `modelo` | `string` | Nombre del modelo en uso; vacío si no disponible |
 
-Sin `OLLAMA_URL`: `{"disponible": false, "modelo": ""}`.
+Sin `OLLAMA_URL`: `{"disponible": false, "modelo": ""}`. Con una URL
+mal formada, el mismo resultado (el error queda en el log del servidor).
 
 ### `POST /asistente/explicar`
 
@@ -892,7 +956,9 @@ misma validación de entrada que `POST /validar` (extensión, content-type,
 tamaño y firma ZIP).
 
 Es **advisory**: la salida de la IA es solo texto de apoyo para el
-encargado, nunca modifica el semáforo ni el reporte de validación.
+encargado, nunca modifica el semáforo ni el reporte de validación. Al LLM
+se le envía solo el bloque de fallos (regla, severidad, esperado,
+encontrado y cita), no el texto completo de la tesis.
 
 **Cuerpo:** `multipart/form-data` con campo `archivo` (`.docx`).
 
@@ -901,10 +967,26 @@ encargado, nunca modifica el semáforo ni el reporte de validación.
 | Código | Significado |
 |--------|-------------|
 | `200` | Explicaciones y prioridades generadas por el LLM |
-| `400` | Sin archivo en la solicitud |
+| `400` | Campo `archivo` presente pero sin nombre |
+| `413` | Archivo excede el tamaño máximo (10 MB) |
 | `415` | Tipo de archivo no soportado |
-| `422` | Archivo corrupto, no es DOCX válido |
-| `503` | Módulo de IA no disponible (falta `OLLAMA_URL`) |
+| `422` | Archivo ausente, corrupto o no es un DOCX válido **o** respuesta de IA no interpretable |
+| `429` | Cupo de CPU agotado, cota de validaciones ocupada o cota de explicaciones con IA ocupada: la espera indicada en `Retry-After` y en el mensaje es la misma |
+| `500` | Error interno del validador (por ejemplo, configuración de reglas inválida). El detalle no filtra internals |
+| `503` | Módulo de IA no disponible (falta `OLLAMA_URL` o el servicio no responde) |
+
+El endpoint consume el mismo **cupo de CPU** y la misma **cota de
+validaciones simultáneas** que `POST /validar`: valida el DOCX con el
+mismo motor y cobra ese trabajo. Un documento sin fallos devuelve `200`
+con las listas vacías, sin llamar al LLM. La llamada al LLM no consume
+CPU local (solo espera) y **no retiene el hueco de validación**: el hueco
+se suelta al terminar la validación y la espera al LLM va con su propia
+cota (`MAX_IA_CONCURRENTES`, dos explicaciones simultáneas). Con una
+explicación en curso, `/validar` sigue entrando con normalidad.
+
+Si el módulo de IA no está configurado, el endpoint responde `503` antes
+de validar el archivo: el servicio no está disponible y el archivo no se
+procesa.
 
 **Ejemplo de respuesta (200):**
 
@@ -921,6 +1003,52 @@ encargado, nunca modifica el semáforo ni el reporte de validación.
 ```
 
 ## Changelog
+
+### v1.15.0 (2026-11-25 — endpoints del asistente de IA y cupo de CPU)
+
+**Cambio aditivo**: se exponen `GET /asistente/estado` y
+`POST /asistente/explicar` (módulo de IA local, opt-in con `OLLAMA_URL`).
+El reporte de `POST /validar` no cambia: la salida de la IA es advisory y
+nunca toca el semáforo ni produce un `RuleResult`.
+
+- `GET /asistente/estado` → `200 {"disponible": bool, "modelo": string}`.
+  Nunca falla: sin `OLLAMA_URL`, con el servicio caído, con una URL
+  malformada o si el servicio no responde en 5 s, responde
+  `disponible=false`.
+- `POST /asistente/explicar` (multipart con `archivo`) → `200` con
+  `explicaciones`, `prioridades` y `modelo`. Un documento sin fallos
+  devuelve las listas vacías sin llamar al LLM.
+
+**Cupo de CPU**: el presupuesto por ventana de la validación sube de `2.0`
+a `5.0` s de CPU (PR #127). El criterio es que una tesis normal entre
+entera: medido con las tesis reales del corpus, una validación consume
+entre 1.5 y 3.8 s de CPU, así que una tesis y dos consecutivas responden
+`200` siempre, y una tercera recibe `429` cuando las dos anteriores
+consumieron más de 5 s (lo normal).
+`POST /asistente/explicar` consume el mismo cupo.
+
+**Cota de validaciones simultáneas**: como máximo dos validaciones
+pesadas a la vez (`MAX_VALIDACIONES_CONCURRENTES`). El cupo se consulta
+antes del trabajo, así que sin esta cota una ráfaga paralela entraba
+entera: medido con las tesis reales, 4 en paralelo consumieron 14.2 s de
+CPU y bloquearon la carga siguiente 102 s. Las peticiones que no caben
+reciben `429` con `Retry-After`.
+
+**El hueco cubre solo el trabajo de CPU**: se toma dentro del hilo que
+valida y se suelta cuando la validación acaba. La espera al LLM de
+`POST /asistente/explicar` y la espera al SMTP de la notificación no
+retienen el hueco; las explicaciones con IA tienen su propia cota
+(`MAX_IA_CONCURRENTES`, dos). Si la tarea se cancela, el hilo sigue
+trabajando y suelta el hueco y cobra su coste al terminar.
+
+**Mensaje 429**: la espera del mensaje coincide con el header
+`Retry-After`, siempre en segundos, con singular o plural según el
+valor. La espera se calcula con la deuda medida, así que no es un valor
+fijo (entre 12 y 31 s con las tesis reales del corpus).
+
+**Detalle del 500**: el mensaje ya no incluye la excepción (puede
+contener rutas del servidor o reglas internas). El diagnóstico completo
+queda en el log del servidor.
 
 ### v1.14.0 (2026-11-16 — confirmación explícita del operador, revisión y dos ventanas)
 
