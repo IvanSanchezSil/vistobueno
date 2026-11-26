@@ -39,8 +39,8 @@ test("el dist contiene los módulos y el wrapper", () => {
 	assert.ok(dist.includes("UserScript"));
 });
 
-test("el dist declara la versión 1.2.0 (protocolo incompatible con 1.1.0)", () => {
-	assert.match(dist, /@version\s+1\.2\.0/);
+test("el dist declara la versión 1.2.5 (protocolo incompatible con 1.1.0)", () => {
+	assert.match(dist, /@version\s+1\.2\.5/);
 	assert.doesNotMatch(dist, /@version\s+1\.1\.0/);
 });
 
