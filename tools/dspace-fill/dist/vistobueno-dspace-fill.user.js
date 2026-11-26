@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VistoBueno — rellenador del formulario de depósito UNT
 // @namespace    vistobueno
-// @version      1.2.2
+// @version      1.2.3
 // @description  Pre-llena el formulario oficial de depósito de DSpace (repositorio UNT) con la ficha de VistoBueno, registra el momento del clic en Depositar y pide al operador que confirme el ítem archivado. Protocolo 2: el archivo solo se registra con atestación explícita. Ver docs/CONTRATO_API.md.
 // @match        https://repositorio.unitru.edu.pe/*
 // @run-at       document-idle
@@ -793,12 +793,15 @@ const VBEjecutor = (() => {
 			for (const el of opciones) {
 				const texto = (el.textContent || "").replace(/\s+/g, " ").trim();
 				if (texto === op.texto) {
+					const vista = input.ownerDocument.defaultView;
+					try { el.focus(); } catch (e) {}
+					el.dispatchEvent(new vista.MouseEvent("mousedown", { bubbles: true }));
 					el.click();
+					el.dispatchEvent(new vista.MouseEvent("mouseup", { bubbles: true }));
 					_evento(doc, input, "change");
 					// Algunos widgets de Angular responden mejor al
 					// teclado que al clic sintético: se intenta Enter
 					// sobre el input como respaldo.
-					const vista = input.ownerDocument.defaultView;
 					input.dispatchEvent(
 						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
 					);

@@ -326,12 +326,15 @@ const VBEjecutor = (() => {
 			for (const el of opciones) {
 				const texto = (el.textContent || "").replace(/\s+/g, " ").trim();
 				if (texto === op.texto) {
+					const vista = input.ownerDocument.defaultView;
+					try { el.focus(); } catch (e) {}
+					el.dispatchEvent(new vista.MouseEvent("mousedown", { bubbles: true }));
 					el.click();
+					el.dispatchEvent(new vista.MouseEvent("mouseup", { bubbles: true }));
 					_evento(doc, input, "change");
 					// Algunos widgets de Angular responden mejor al
 					// teclado que al clic sintético: se intenta Enter
 					// sobre el input como respaldo.
-					const vista = input.ownerDocument.defaultView;
 					input.dispatchEvent(
 						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
 					);
