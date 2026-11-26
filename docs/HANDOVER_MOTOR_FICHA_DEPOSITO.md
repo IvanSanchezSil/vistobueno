@@ -314,3 +314,34 @@ actualizaron la cita en `docs/ejemplo_respuesta_motor.json`, la matriz y esta
 sección. Todo queda en commits separados dentro del PR #128, sin merge.
 CI verde en https://github.com/retblast/vistobueno/actions/runs/45620297259 y
 aviso publicado en https://github.com/retblast/vistobueno/pull/128#issuecomment-7163377535.
+
+### RN-03 / RN-02 / RN-04 — revisión de retblast (cerrados 2026-11-26)
+
+Rama nueva `rn-primera-tanda` sobre `upstream/master` `75aae02` (ya incluye
+los PR #131 y #132). Tres commits atómicos, **sin merge**:
+
+| Hallazgo | Commit | Cierre |
+|---|---|---|
+| RN-03 | `c4acf1e` | `caratula_linea_investigacion` coteja el catálogo RCU-220 con el **párrafo completo** del valor dentro de la carátula. Antes usaba `//w:t` con `contexto: todos`, así que una línea válida partida en runs daba falso rojo. El patrón de mayúsculas/minúsculas (REQ-24) sigue midiendo run por run. Regresión: `tests/test_rn03_linea_investigacion.py` (4 casos: un run, dos runs, línea inválida y línea solo en el cuerpo). |
+| RN-02 | `9e81cbe` | `caratula_autores_mayusculas_sin_negrita` cubre **todos** los párrafos de nombre hasta «ASESOR(A):», excluye las líneas ORCID, mide la negrita por run con `all_eq` y decide la capitalidad sobre el nombre completo. `AnalizadorRegex` acepta `unidad: run \| nodo` (defecto `run`, semántica legacy), validada por el linter del DSL y documentada en `docs/DSL.md`. Regresión: `tests/test_rn02_autores_bloque.py` (6 casos). Se mantiene el criterio `EVALUADO` de letras mixtas que confirmó el usuario; el literal «letras mayúsculas» del manual sigue pendiente de biblioteca. |
+| RN-04 | `24f5950` | Solo el diagnóstico: cuando dos valores en twips redondean al mismo texto en cm (1417 y 1418 → «2.50 cm»), el detalle muestra ambos crudos (`1417 twips (2.50 cm)` / `esperado=1418 twips (2.50 cm)`). Sin colisión se conserva el formato en cm (`567` → `1.00 cm`). La comparación sigue siendo exacta: 1418 pasa, 1417 falla. **No se aplica** `tolerancia: 1`; queda pendiente de biblioteca. Regresión: `tests/test_rn04_diagnostico_margen.py` (3 casos). |
+
+**Corpus real repetido tras cada cambio** (dos tesis + cinco plantillas,
+sin copiar nada al repo): tesis aprobada verde `0 errores / 5 avisos`, tesis
+no aprobada rojo `4 / 5`, EDUCACIÓN INICIAL rojo `2 / 9` y las otras cuatro
+plantillas rojo `4 / 9`; 54 reglas evaluadas en los siete documentos. Las
+tres reglas quedan en verde en los siete. No hubo cambio de semáforo, así
+que no había regla nueva que confirmar con biblioteca.
+
+**Verificación:** suite completa `1276 passed, 14 skipped` con un único fallo
+preexistente de WeasyPrint 70 en
+`test_pdf_rechaza_recursos_externos_sin_escapar` (CI usa 69); enfocadas de
+RN-04 con sus regresiones, 57 pasadas. `ruff check validator/ scripts/
+tests/`, `ruff format --check validator/ scripts/ tests/`, `mypy validator/
+scripts/` y `scripts/verificar_secretos.py --all` limpios. No se regeneraron
+los golden de `docs/ejemplos/`: ningún documento versionado cambió de salida.
+
+**Sigue pendiente:** RN-01 (requiere verificación visual en Word del
+pie/titlePg), RN-10 (frontend/API, fuera del motor), RN-11, RN-12, RN-13 y
+RN-14 (decisión de biblioteca). RN-09 ya quedó resuelto en `master` por el
+PR #132 y no requiere cambio aquí.
