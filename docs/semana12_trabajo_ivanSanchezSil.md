@@ -495,6 +495,28 @@ versionado cambió de salida.
 **Pendiente:** RN-01 (verificación visual en Word), RN-10 (frontend/API),
 RN-11 a RN-14 (decisión de biblioteca) y la tolerancia de 1 twip de RN-04.
 
+### 2026-11-26 — Seguimiento de la revisión de retblast (PR #134)
+
+Retblast revisó la tanda: CI verde, `1277 passed, 14 skipped` en su entorno y
+corpus sin cambios. Pidió un ajuste antes de integrar y dos menores:
+
+- `3445fce`: los dos XPath del bloque de autores descartan también los ORCID
+  desnudos entre paréntesis, sin depender de la palabra `orcid`. Dos tests
+  nuevos en `tests/test_rn02_autores_bloque.py` (ORCID terminado en `X`
+  ignorado; segundo autor en negrita sigue fallando). Queda documentado el
+  límite del ORCID pegado al nombre en el mismo párrafo.
+- `233a416`: el linter del DSL rechaza claves desconocidas en `patron_texto`
+  (p. ej. `unidade: nodo`), con dos tests en `tests/test_t2_linter.py` y nota
+  en `docs/DSL.md`.
+- Matriz: REQ-06/07/08/09 bajan a `DECIDIDO` mientras biblioteca decide la
+  tolerancia de 1 twip.
+
+El corte del bloque cuando falta la etiqueta del asesor queda como
+seguimiento, según la recomendación de retblast. Corpus repetido tras cada
+cambio: las siete cifras y los semáforos siguen idénticos. Suite final
+`1280 passed, 14 skipped` con el mismo fallo preexistente; `ruff`, `mypy` y
+el escáner de secretos limpios en las rutas de CI.
+
 ---
 
 ## Evidencias
@@ -527,6 +549,7 @@ RN-11 a RN-14 (decisión de biblioteca) y la tolerancia de 1 twip de RN-04.
 | RN-03 | `c4acf1e`, `tests/test_rn03_linea_investigacion.py`, `reglas_unt.yaml` (catálogo por párrafo en carátula) |
 | RN-02 | `9e81cbe`, `tests/test_rn02_autores_bloque.py`, `unidad: nodo` en `AnalizadorRegex`, `docs/DSL.md` |
 | RN-04 | `24f5950`, `tests/test_rn04_diagnostico_margen.py`, `validator/detalle.py`, handover de ficha §9 y matriz REQ-06/07/08/09 |
+| Revisión PR #134 | `3445fce` (ORCID desnudo), `233a416` (claves de `patron_texto`), handover de ficha §9 y matriz REQ-06/07/08/09 a `DECIDIDO` |
 
 ---
 

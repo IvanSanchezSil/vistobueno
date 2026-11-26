@@ -345,3 +345,32 @@ los golden de `docs/ejemplos/`: ningún documento versionado cambió de salida.
 pie/titlePg), RN-10 (frontend/API, fuera del motor), RN-11, RN-12, RN-13 y
 RN-14 (decisión de biblioteca). RN-09 ya quedó resuelto en `master` por el
 PR #132 y no requiere cambio aquí.
+
+### Seguimiento de la revisión de retblast en el PR #134 (2026-11-26)
+
+Retblast pidió un ajuste antes de integrar y dos menores. Se atienden en la
+misma rama, con dos commits nuevos y el corpus repetido tras cada uno:
+
+- `3445fce` (RN-02): la exclusión de ORCID ya no depende de la palabra
+  literal `orcid`. Los dos XPath descartan también los párrafos que empiezan
+  con `(`, para que un código desnudo `(0000-0002-1694-233X)` —válido según
+  `caratula_orcid` e ISO 7064— no se lea como nombre. Dos tests nuevos: el
+  ORCID desnudo se ignora y un segundo autor en negrita sigue fallando.
+  **Límite documentado:** si el ORCID va pegado al nombre en el mismo
+  párrafo, ese párrafo se descarta entero; `ficha_autores` sí sabe recortarlo
+  con `filtro`/`quitar_sufijo`, pero estos dos analizadores todavía no.
+- `233a416`: el linter rechaza claves desconocidas en `patron_texto`, así que
+  un typo como `unidade: nodo` ya no cae en `run` en silencio. Se documenta
+  en `docs/DSL.md` y se cubre con dos tests.
+
+Además, REQ-06/07/08/09 pasan de `CERRADO` a `DECIDIDO`: el diagnóstico y la
+comparación exacta están probados, pero la tolerancia de 1 twip sigue
+pendiente de biblioteca.
+
+**Queda para otro momento:** el corte del bloque de autores cuando falta
+`ASESOR(A):` (un título en negrita puede entrar como autor), que retblast
+aceptó como seguimiento. El corpus real sigue igual: aprobada verde `0/5`,
+no aprobada rojo `4/5`, plantillas rojo `2/9` y `4/9`, sin cambio de
+semáforo. Suite completa final: `1280 passed, 14 skipped` con el mismo fallo
+preexistente de WeasyPrint 70; `ruff`, `mypy` y el escáner de secretos
+limpios en las rutas de CI.
