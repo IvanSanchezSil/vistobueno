@@ -795,6 +795,13 @@ const VBEjecutor = (() => {
 				if (texto === op.texto) {
 					el.click();
 					_evento(doc, input, "change");
+					// Algunos widgets de Angular responden mejor al
+					// teclado que al clic sintético: se intenta Enter
+					// sobre el input como respaldo.
+					const vista = input.ownerDocument.defaultView;
+					input.dispatchEvent(
+						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+					);
 					// US-02 / US-01: releer el valor - un control que
 					// revierte lo escrito (listener de Angular, render
 					// posterior) NO cuenta como relleno.
