@@ -95,6 +95,7 @@ Las 32 reglas con mecanismo verificable fueron evaluadas end-to-end contra las 5
 - **Anexos obligatorios por tipo de trabajo** (matriz de consistencia, consentimiento informado, declaración jurada, etc.): depende de la misma decisión de tipo de investigación que el punto anterior. Fuera del MVP por ahora.
 - **Validación de texto de carátula dependiente del programa** (ej. "AUTORA" vs "AUTOR(A)", línea de "Mención" solo en Tecnología Educativa): detectado en la comparación de plantillas pero sin regla formal aún — necesitaría una tabla programa → texto esperado, no una regla genérica.
 - **Sangría de primera línea (1.27 cm)**: el manual la exige; las plantillas usan 708/709 twips (~1.25 cm), no 720. Desde 2026-10-12 la regla admite una `tolerancia: 12` twips (acepta 1.25 cm). Ver decisión de severidad abajo.
+- **Márgenes en twips**: la comparación con 1418 twips (2.50 cm) sigue siendo exacta. Si un valor como 1417 redondea al mismo «2.50 cm», el reporte muestra ambos valores en twips para que el error no parezca una contradicción. Aceptar 1417 con `tolerancia: 1` queda pendiente de decisión de biblioteca.
 
 ### Decisión tomada (2026-09-01): 3 reglas bajadas de `error` a `warning`
 

@@ -515,6 +515,12 @@ reglas:
 # incluso dentro del cuerpo, p. ej. OPERACIONALIZACIÓN) producían falsos
 # positivos (handover issue #2). La política queda resuelta: se acepta la
 # rotación estándar de Word; no se exige uniformidad fuera del cuerpo.
+#
+# RN-04 (2026-11-26): la comparación sigue siendo EXACTA (1418 twips). El
+# detalle añade los twips crudos cuando dos valores distintos redondean al
+# mismo centímetro (1417 y 1418 → 2.50 cm), para no decir «2.50 cm
+# encontrado; 2.50 cm esperado» en una regla en rojo. La tolerancia de 1
+# twip queda pendiente de decisión de biblioteca.
 - id: margen_superior
   tipo: atributo_xml
   descripcion: Margen superior del documento
