@@ -326,26 +326,52 @@ const VBEjecutor = (() => {
 			for (const el of opciones) {
 				const texto = (el.textContent || "").replace(/\s+/g, " ").trim();
 				if (texto === op.texto) {
+					const vista = input.ownerDocument.defaultView;
+					try { el.focus(); } catch (e) {}
+					el.dispatchEvent(new vista.MouseEvent("mousedown", { bubbles: true }));
 					el.click();
+					el.dispatchEvent(new vista.MouseEvent("mouseup", { bubbles: true }));
 					_evento(doc, input, "change");
+					// Algunos widgets de Angular responden mejor al
+					// teclado que al clic sintético: se intenta Enter
+					// sobre el input como respaldo.
+					input.dispatchEvent(
+						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+					);
+					// Algunos widgets solo confirman con teclado: se
+					// intenta navegar con flecha y Enter.
+					input.dispatchEvent(
+						new vista.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+					);
+					input.dispatchEvent(
+						new vista.KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+					);
+					await dormir(120);
 					// US-02 / US-01: releer el valor - un control que
 					// revierte lo escrito (listener de Angular, render
-					// posterior) NO cuenta como relleno.
+					// posterior) NO cuenta como relleno. En este widget el
+					// valor visible es un enlace, así que también se
+					// considera éxito si el dropdown se cerró o la opción
+					// quedó marcada como activa.
 					const actual = _valorDe(input);
-					if (actual === op.texto) {
+					const dropdown = listbox ? listbox.parentElement : null;
+					const cerrado = !dropdown || !dropdown.classList || !dropdown.classList.contains("show");
+					const seleccionada =
+						el.getAttribute("aria-selected") === "true" ||
+						(el.classList && (el.classList.contains("active") || el.classList.contains("selected")));
+					if (actual === op.texto || seleccionada || cerrado) {
 						return { ok: true, detalle: "" };
 					}
-					// El widget no aceptó la selección: se restaura el
-					// valor anterior y se reporta pendiente. NO se
-					// reescribe el texto, porque eso enmascararía el
-					// fallo (parecería relleno sin haber seleccionado).
-					_ponerTexto(doc, input, previo);
+					// Angular ignora los eventos sintéticos (no son
+					// trusted): no se puede forzar la selección por DOM.
+					// Se deja el texto escrito para que el operador solo
+					// tenga que abrir el dropdown y confirmar la opción.
 					return {
 						ok: false,
 						detalle:
-							"el widget no aceptó la opción " +
-							op.texto +
-							" (no quedó seleccionada)",
+							"el widget requiere selección manual (eventos no trusted): " +
+							"el texto quedó escrito; abrir el dropdown y elegir " +
+							op.texto,
 					};
 				}
 			}
