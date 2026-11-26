@@ -322,8 +322,30 @@ def _lint_conteo_nodos(config: dict, hallazgos: list[str], rule_id: str) -> None
 # autor partido en varios runs (RN-02). Un typo caería en `run` en silencio.
 _UNIDADES_REGEX = frozenset({"run", "nodo"})
 
+# Claves que entiende `patron_texto`. Un error de tecleo en `unidad`
+# (`unidade: nodo`) pasaba desapercibido: el analizador seguía midiendo por
+# run y la regla daba verde/rojo por el motivo equivocado (revisión PR #134).
+_CLAVES_PATRON_TEXTO = frozenset(
+    {
+        "parte",
+        "contexto",
+        "xpath",
+        "patron",
+        "comparacion",
+        "coincidencia",
+        "ignore_case",
+        "unidad",
+    }
+)
+
 
 def _lint_patron_texto(config: dict, hallazgos: list[str], rule_id: str) -> None:
+    desconocidas = sorted(set(config) - _CLAVES_PATRON_TEXTO)
+    if desconocidas:
+        hallazgos.append(
+            f"[{rule_id}] patron_texto: claves desconocidas {desconocidas} "
+            f"(válidas: {sorted(_CLAVES_PATRON_TEXTO)})"
+        )
     unidad = config.get("unidad", "run")
     if unidad not in _UNIDADES_REGEX:
         hallazgos.append(

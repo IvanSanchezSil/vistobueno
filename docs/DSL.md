@@ -190,7 +190,8 @@ patron_texto:
   `unidad: nodo` reúne con `text_of()` todo el texto del nodo seleccionado;
   se usa cuando la propiedad es del bloque completo (por ejemplo, que el
   nombre del autor tenga mayúsculas y minúsculas aunque Word lo parta en
-  varios runs). Un valor distinto se rechaza al cargar el DSL.
+  varios runs). Un valor distinto —o una clave mal escrita— se rechaza al
+  cargar el DSL, para no caer en `run` en silencio.
 
 ### 3. `lista_texto` → `AnalizadorLista`
 
