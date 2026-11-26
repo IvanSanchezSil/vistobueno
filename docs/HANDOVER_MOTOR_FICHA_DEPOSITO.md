@@ -28,7 +28,7 @@ completo que encontraron**, con su página.
 | Título | `dc.title` | `caratula_titulo_trabajo_*` | Sin cambio: texto completo, sin truncar |
 | Autores | `dc.contributor.author` | `caratula_autores_*` | Sin cambio: lista de nombres |
 | Asesor | `dc.contributor.advisor` | regla de asesor en carátula | Sin cambio, salvo el recorte del ORCID pegado (2026-11-23) |
-| ORCID del asesor | `renati.advisor.orcid` | carátula, etiqueta del asesor | **Detectado desde 2026-11-23** (PR 1); checksum y publicación en la API en el PR 2 de Int1 |
+| ORCID del asesor | `renati.advisor.orcid` | carátula, etiqueta del asesor | La API publica el valor normalizado en la ficha verde y comprueba el checksum (RN-09). |
 | Resumen | `dc.description.abstract` | `resumen_longitud` | Sin cambio: texto completo |
 | Palabras clave | `dc.subject` | `palabras_clave_minimo` | Sin cambio: lista de entradas |
 | Año de emisión | `dc.date.issued` | — (sin regla hoy) | Detección nueva: año en carátula |

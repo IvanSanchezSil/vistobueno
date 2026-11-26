@@ -697,6 +697,23 @@ class TestVentanasTemporales:
 class TestConciliacion:
     """Corrección revisada: sin ciclo, con revisión y sin aprobar por handle."""
 
+    @pytest.mark.parametrize("valor", ["000000021694233x", "", None])
+    def test_orcid_editado_se_conserva_al_generar_registro(self, valor, monkeypatch):
+        monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")
+        ficha = {
+            **FICHA,
+            "extraidos": [
+                *FICHA["extraidos"],
+                {"campo": "renati.advisor.orcid", "valor": valor, "detectado": False},
+            ],
+        }
+        publicado = _publicar_ficha(ficha=ficha)
+        assert publicado.status_code == 201
+        tramite_id = publicado.json()["tramite_id"]
+        assert _publicar_deposito(tramite_id).status_code == 204
+        registro = CLIENTE.post("/fila-registro", json=_solicitud_papeleo(tramite_id, ficha))
+        assert registro.status_code == 200
+
     def test_correccion_previa_a_confirmacion(self, monkeypatch):
         """Autor canónico incorrecto → ítem corregido → conciliar → confirmar."""
         monkeypatch.setenv("VISTOBUENO_FIRMA", "Responsable de prueba")

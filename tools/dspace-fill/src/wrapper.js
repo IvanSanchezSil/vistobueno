@@ -367,6 +367,7 @@
 					"Relleno parcial: vuelve a pulsar Rellenar para completar solo lo que quedo a mano."
 				);
 			}
+			partes.push(...plan.avisos);
 			mostrarToast(partes.join(" "), 12000);
 			// El timestamp del clic en "Depositar" se conserva solo si es
 			// el MISMO tramite: un tramite nuevo empieza sin hora (PR #71).

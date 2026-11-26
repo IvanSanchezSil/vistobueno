@@ -130,6 +130,7 @@ function migrarLocalStorage(origen, destino) {
 	const dniTipo = (doc.querySelector('select[name="renati.author_QUALDROP_METADATA"]') || {}).value || "";
 	const dniValor = (doc.querySelector('input[name="renati.author_QUALDROP_VALUE"]') || {}).value;
 	const derechos = (doc.getElementById("dc_rights") || {}).value;
+	const orcidAsesor = doc.querySelector('input[name="renati.advisor.orcid"]').value;
 
 	const espera = {
 		titulo: "Estrategias lúdicas",
@@ -144,10 +145,11 @@ function migrarLocalStorage(origen, destino) {
 	if (!dniTipo.endsWith(espera.dniTipo)) fallas.push("DNI (tipo)");
 	if (dniValor !== espera.dniValor) fallas.push("DNI (número)");
 	if (derechos !== espera.derechos) fallas.push("Acceso abierto (fix dc.rights)");
+	if (orcidAsesor !== "0000-0002-1694-233X") fallas.push("ORCID del asesor");
 	if (fallas.length) {
 		throw new Error("❌ campos sin llenar o incorrectos: " + fallas.join(", "));
 	}
-	console.log("  ✅ relleno: título, autor, DNI y 'Acceso abierto'");
+	console.log("  ✅ relleno: título, autor, DNI, ORCID del asesor y 'Acceso abierto'");
 
 	// --- 2. Depositar: timestamp ---
 	// Precondición: el wrapper guarda el envío en curso cuando termina de

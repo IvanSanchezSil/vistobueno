@@ -63,6 +63,12 @@
         "valor": null,
         "pagina": null,
         "detectado": false
+      },
+      {
+        "campo": "renati.advisor.orcid",
+        "valor": "0000-0002-1694-233X",
+        "pagina": 1,
+        "detectado": true
       }
     ],
     "manuales": [
@@ -76,10 +82,6 @@
       },
       {
         "campo": "renati.advisor.dni",
-        "valor": null
-      },
-      {
-        "campo": "renati.advisor.orcid",
         "valor": null
       }
     ]

@@ -223,9 +223,8 @@ class CampoExtraidoFicha(BaseModel):
 class CampoManualFicha(BaseModel):
     """Campo que el operador teclea en la pantalla de ficha (v1.7.0).
 
-    Matrícula, DNI del autor/asesor y ORCID no salen del DOCX: el
-    operador los escribe UNA vez aquí y fluyen al formulario de DSpace
-    (vía userscript), a la constancia y a la fila del registro.
+    El operador completa matrícula y DNI del autor o asesor. Las fichas
+    anteriores también pueden enviar el ORCID del asesor en esta sección.
     """
 
     campo: str = Field(..., description="Clave acordada (matricula, renati.author.dni, …)")
@@ -250,11 +249,11 @@ class FichaDeposito(BaseModel):
 
     extraidos: list[CampoExtraidoFicha] = Field(
         ...,
-        description="Valores extraídos del DOCX por el motor (título, autores, asesor, resumen, palabras clave, año, escuela, jurado)",
+        description="Valores extraídos del DOCX por el motor (título, autores, asesor, resumen, palabras clave, año, escuela, jurado, ORCID del asesor)",
     )
     manuales: list[CampoManualFicha] = Field(
         ...,
-        description="Campos que el operador teclea (matrícula, DNI del autor, DNI del asesor, ORCID del asesor)",
+        description="Campos que el operador teclea (matrícula, DNI del autor y DNI del asesor; admite ORCID del asesor en fichas anteriores)",
     )
 
 

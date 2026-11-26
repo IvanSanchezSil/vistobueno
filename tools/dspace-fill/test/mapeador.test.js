@@ -171,3 +171,34 @@ test("listaPosicional conserva los huecos; comoLista los descarta", () => {
 	assert.deepStrictEqual(VBMapeador.listaPosicional(["", "B"]), ["", "B"]);
 	assert.deepStrictEqual(VBMapeador.comoLista(["", "B"]), ["B"]);
 });
+
+test("ORCID extraído prevalece aun si está vacío o no fue detectado", () => {
+	const campo = "renati.advisor.orcid";
+	for (const valor of [null, "", "  ", "https://orcid.org/0000-0002-1694-233x"]) {
+		const ficha = fichaCompleta();
+		ficha.extraidos.push({ campo, valor, detectado: false });
+		const plan = VBMapeador.construirPlan(ficha, SELECTORES);
+		const orcid = plan.operaciones.find((op) => op.campo === "ORCID del asesor");
+		assert.strictEqual(orcid?.valor, valor?.trim() ? "0000-0002-1694-233X" : undefined);
+		assert.deepStrictEqual(plan.avisos, []);
+	}
+});
+
+test("un ORCID inválido no bloquea el plan ni recupera el valor manual", () => {
+	const { puedeIntentar } = require("../src/relleno.js");
+	for (const valor of [
+		"0000-0002-1825-0098",
+		"texto 0000-0002-1825-0097",
+		"https://example.test/0000-0002-1825-0097",
+		"00000002182500970",
+		"0000-00021825-0097",
+	]) {
+		const ficha = fichaCompleta();
+		ficha.extraidos.push({ campo: "renati.advisor.orcid", valor });
+		const plan = VBMapeador.construirPlan(ficha, SELECTORES);
+		assert.ok(puedeIntentar(plan));
+		assert.ok(plan.operaciones.some((op) => op.campo === "título"));
+		assert.ok(!plan.operaciones.some((op) => op.campo === "ORCID del asesor"));
+		assert.match(plan.avisos[0], /ORCID del asesor/);
+	}
+});

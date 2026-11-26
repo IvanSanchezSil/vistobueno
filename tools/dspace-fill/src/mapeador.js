@@ -36,6 +36,26 @@ const VBMapeador = (() => {
 		return typeof valor === "string" && valor.trim() ? [valor.trim()] : [];
 	}
 
+	function normalizarOrcid(valor) {
+		if (typeof valor !== "string") return null;
+		const texto = valor.trim().replace(/^https?:\/\/(?:www\.)?orcid\.org\/([^/]+)\/?$/i, "$1");
+		if (!/^(?:\d{15}[\dX]|\d{4}-\d{4}-\d{4}-\d{3}[\dX])$/i.test(texto)) return null;
+		return texto.replace(/-/g, "").toUpperCase().match(/.{4}/g).join("-");
+	}
+
+	function checksumOrcidValido(orcid) {
+		if (!orcid) return false;
+		const digitos = String(orcid).replace(/-/g, "").toUpperCase();
+		if (digitos.length !== 16 || !/^\d{15}[\dX]$/.test(digitos)) return false;
+		let total = 0;
+		for (let i = 0; i < 15; i++) {
+			total = (total + parseInt(digitos[i], 10)) * 2;
+		}
+		const resto = (12 - (total % 11)) % 11;
+		const esperado = resto === 10 ? "X" : String(resto);
+		return digitos[15] === esperado;
+	}
+
 	function construirPlan(ficha, selectores) {
 		// Cada operación es independiente: si falta el dato, la operación
 		// se omite y queda en el resumen (el toast lo muestra; el
@@ -45,6 +65,7 @@ const VBMapeador = (() => {
 		// campo falló (US-15).
 		const operaciones = [];
 		const omitidos = [];
+		const avisos = [];
 		const problemas = [];
 
 		const titulo = valorExtraido(ficha, "dc.title");
@@ -196,14 +217,38 @@ const VBMapeador = (() => {
 			});
 		}
 
-		const orcid = comoLista(valorManual(ficha, "renati.advisor.orcid"))[0];
-		if (orcid) {
-			operaciones.push({
-				tipo: "texto",
-				campo: "ORCID del asesor",
-				selector: selectores.orcidAsesor,
-				valor: orcid,
-			});
+		// Presencia en `extraidos` manda aunque el valor sea null o cadena
+		// vacía (borrado explícito del operador): en ese caso NO se consulta
+		// `manuales`, para que un valor legado no reaparezca. Solo si la
+		// clave no existe en `extraidos` se usa el valor legado.
+		let orcidCrudo = null;
+		let presenteEnExtraidos = false;
+		if (ficha && Array.isArray(ficha.extraidos)) {
+			const item = ficha.extraidos.find((e) => e && e.campo === "renati.advisor.orcid");
+			if (item) {
+				presenteEnExtraidos = true;
+				orcidCrudo = item.valor;
+			}
+		}
+		if (!presenteEnExtraidos) {
+			orcidCrudo = comoLista(valorManual(ficha, "renati.advisor.orcid"))[0];
+		}
+		// Normalización: acepta ORCID desnudo con o sin guiones y la URL
+		// oficial, y lo deja en dddd-dddd-dddd-dddd. Cadena vacía o solo
+		// espacios se trata como borrado (no se rellena ni se valida).
+		const orcidNormalizado = normalizarOrcid(orcidCrudo);
+		if (orcidCrudo !== null && orcidCrudo !== undefined && String(orcidCrudo).trim() !== "") {
+			if (orcidNormalizado && checksumOrcidValido(orcidNormalizado)) {
+				operaciones.push({
+					tipo: "texto",
+					campo: "ORCID del asesor",
+					selector: selectores.orcidAsesor,
+					valor: orcidNormalizado,
+				});
+			} else {
+				avisos.push("ORCID del asesor: formato o dígito de control inválido; se omite el relleno");
+				omitidos.push("ORCID del asesor");
+			}
 		}
 
 		// Fix del bug dc.rights: SIEMPRE se intenta (el default del
@@ -218,7 +263,7 @@ const VBMapeador = (() => {
 			texto: ACCESO_ABIERTO,
 		});
 
-		return { operaciones, omitidos: omitidos, problemas: problemas };
+		return { operaciones, omitidos: omitidos, problemas: problemas, avisos: avisos };
 	}
 
 	return {

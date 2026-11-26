@@ -467,7 +467,7 @@ test("clic en Depositar de otro tramite no pone hora al trámite actual (US-07)"
 // El formulario: rellenar y registrar el clic en Depositar
 // ---------------------------------------------------------------------------
 
-test("el formulario se rellena y guarda el envío con el protocolo 2", async () => {
+test("el formulario se rellena y conserva el aviso de ORCID inválido", async () => {
 	const { ventana } = montar({
 		html: FORM_HTML,
 		url: "https://repositorio.unitru.edu.pe/workspaceitems/1/edit",
@@ -477,6 +477,7 @@ test("el formulario se rellena y guarda el envío con el protocolo 2", async () 
 				body: {
 					ficha: {
 						extraidos: [
+							{ campo: "renati.advisor.orcid", valor: "0000-0002-1825-0098" },
 							{ campo: "dc.title", valor: TITULO_FICHA, pagina: 1, detectado: true },
 							{
 								campo: "dc.contributor.author",
@@ -506,6 +507,7 @@ test("el formulario se rellena y guarda el envío con el protocolo 2", async () 
 	assert.strictEqual(envio.tramite_id, "tramite-1");
 	assert.strictEqual(envio.revision, 0);
 	assert.strictEqual(envio.timestamp, null);
+	assert.match(ventana.document.getElementById("vb-toast").textContent, /ORCID del asesor.*inválido/);
 });
 
 test("datos esenciales invalidos: no se inicia el relleno ni se registra envio", async () => {

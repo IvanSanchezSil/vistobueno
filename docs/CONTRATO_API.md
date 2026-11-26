@@ -84,13 +84,13 @@ El archivo se procesó correctamente y se evaluaron las reglas.
     "extraidos": [
       {"campo": "dc.title", "valor": "Taller de dramatización de títeres…", "pagina": 1, "detectado": true},
       {"campo": "dc.contributor.author", "valor": ["Br. Apellido, Nombre"], "pagina": 1, "detectado": true},
-      {"campo": "dc.date.issued", "valor": null, "pagina": null, "detectado": false}
+      {"campo": "dc.date.issued", "valor": null, "pagina": null, "detectado": false},
+      {"campo": "renati.advisor.orcid", "valor": "0000-0002-1694-233X", "pagina": 1, "detectado": true}
     ],
     "manuales": [
       {"campo": "matricula", "valor": null},
       {"campo": "renati.author.dni", "valor": null},
-      {"campo": "renati.advisor.dni", "valor": null},
-      {"campo": "renati.advisor.orcid", "valor": null}
+      {"campo": "renati.advisor.dni", "valor": null}
     ]
   },
   "resumen": {
@@ -149,6 +149,20 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 > donde las 10 reglas de otros tipos de documento no aplican. Por eso
 > `total` (50) ≠ `total_evaluadas` (44) y `reglas_no_aplicables` = 6.
 
+### ORCID del asesor
+
+Cada ficha verde incluye `renati.advisor.orcid` en `extraidos`. La API
+normaliza la captura del motor y comprueba el dígito de control. Si falta o es
+inválido, devuelve `valor: null`, `pagina: null` y `detectado: false`.
+
+La publicación y la conciliación conservan la ficha enviada. El userscript
+usa el valor de `extraidos` si existe la clave, incluidos `null` y texto vacío.
+Solo consulta `manuales` en fichas que carecen de esa clave extraída. El
+indicador `detectado` describe la detección inicial y no impide usar un valor
+editado. Un valor vacío omite el autorrelleno del campo. Un valor no vacío e
+inválido genera un aviso y los demás campos se rellenan. En ambos casos se
+conserva el valor que el operador ya ingresó en DSpace.
+
 ### Descripción de campos de respuesta
 
 | Campo | Tipo | Descripción |
@@ -159,11 +173,11 @@ El archivo se procesó correctamente y se evaluaron las reglas.
 | `deposito.estado` | `string` | Veredicto del depósito en DSpace (ver sección "Depósito en DSpace") |
 | `deposito.detalle` | `string?` | Nota de seguimiento cuando se depositó (cola de aprobación); motivo técnico cuando `"fallo"`; nota de configuración cuando `"deshabilitado"`; `null` en el resto de casos |
 | `ficha_deposito` | `object?` | Ficha de depósito (v1.7.0). **Solo con semáforo `"verde"`; `null` en cualquier otro caso**. Valores detectados del DOCX listos para que el operador los corrija (ver sección "Ficha de depósito") |
-| `ficha_deposito.extraidos[].campo` | `string` | Clave acordada: `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`, `renati.juror` |
+| `ficha_deposito.extraidos[].campo` | `string` | Clave acordada: `dc.title`, `dc.contributor.author`, `dc.contributor.advisor`, `dc.description.abstract`, `dc.subject`, `dc.date.issued`, `escuela`, `renati.juror`, `renati.advisor.orcid` |
 | `ficha_deposito.extraidos[].valor` | `string \| array \| null` | Texto completo o lista de textos (autores, palabras clave); `null` si no detectado |
 | `ficha_deposito.extraidos[].pagina` | `int?` | Página de origen en el DOCX, si el motor la conoce |
 | `ficha_deposito.extraidos[].detectado` | `bool` | `true` si el motor encontró el elemento **y el valor es utilizable** (publicación vía `reglas_ficha.yaml`, diseño 17; `renati.juror` viaja `false`). Un valor vacío o con la forma equivocada viaja `false` con `valor=null` (v1.10.0) |
-| `ficha_deposito.manuales[].campo` | `string` | Clave acordada: `matricula`, `renati.author.dni`, `renati.advisor.dni`, `renati.advisor.orcid` |
+| `ficha_deposito.manuales[].campo` | `string` | Clave acordada: `matricula`, `renati.author.dni`, `renati.advisor.dni`. Se admite el ORCID del asesor en fichas anteriores. |
 | `ficha_deposito.manuales[].valor` | `string?` | Valor tecleado por el operador en pantalla; `null` desde el servidor |
 | `resumen.total` | `int` | Total de reglas presentes en el YAML de reglas |
 | `resumen.total_evaluadas` | `int` | Reglas realmente evaluadas sobre el documento |

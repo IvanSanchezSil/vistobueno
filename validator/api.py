@@ -47,6 +47,7 @@ from starlette.datastructures import Headers
 from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from . import orcid
 from .api_models import (
     CampoExtraidoFicha,
     CampoManualFicha,
@@ -165,12 +166,12 @@ CAMPOS_EXTRAIDOS_FICHA = (
     "dc.date.issued",
     "escuela",
     "renati.juror",
+    "renati.advisor.orcid",
 )
 CAMPOS_MANUALES_FICHA = (
     "matricula",
     "renati.author.dni",
     "renati.advisor.dni",
-    "renati.advisor.orcid",
 )
 
 
@@ -1053,6 +1054,9 @@ def _ficha_desde_reporte(reporte: dict) -> FichaDeposito:
     for campo in CAMPOS_EXTRAIDOS_FICHA:
         dato = datos_motor.get(campo) or {}
         valor = dato.get("valor")
+        if campo == "renati.advisor.orcid":
+            candidato = orcid.extraer(valor) if isinstance(valor, str) else None
+            valor = candidato if candidato and orcid.checksum_valido(candidato) else None
         detectado = (
             bool(dato.get("detectado")) and _valor_utilizable(valor) and _forma_valida(campo, valor)
         )
